@@ -1,4 +1,4 @@
-module khoomi-api-io/khoomi_api2
+module khoomi-api-io/khoomi_api
 
 go 1.20
 

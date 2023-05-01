@@ -2,7 +2,7 @@ package middleware
 
 import (
 	"github.com/gin-gonic/gin"
-	"khoomi-api-io/khoomi_api2/auth"
+	"khoomi-api-io/khoomi_api/auth"
 )
 
 func Auth() gin.HandlerFunc {

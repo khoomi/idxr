@@ -3,10 +3,10 @@ package user_controllers
 import (
 	"context"
 	"go.mongodb.org/mongo-driver/mongo"
-	"khoomi-api-io/khoomi_api2/auth"
-	"khoomi-api-io/khoomi_api2/configs"
-	"khoomi-api-io/khoomi_api2/models/user_models"
-	"khoomi-api-io/khoomi_api2/responses"
+	"khoomi-api-io/khoomi_api/auth"
+	"khoomi-api-io/khoomi_api/configs"
+	"khoomi-api-io/khoomi_api/models/user_models"
+	"khoomi-api-io/khoomi_api/responses"
 	"net/http"
 	"time"
 

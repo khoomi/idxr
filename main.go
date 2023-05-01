@@ -1,8 +1,8 @@
 package main
 
 import (
-	"khoomi-api-io/khoomi_api2/configs"
-	"khoomi-api-io/khoomi_api2/routes"
+	"khoomi-api-io/khoomi_api/configs"
+	"khoomi-api-io/khoomi_api/routes"
 )
 
 func main() {
