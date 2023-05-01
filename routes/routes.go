@@ -11,7 +11,7 @@ func InitRoute() *gin.Engine {
 	api := router.Group("/api")
 	{
 		api.POST("/auth", user_controllers.AuthenticateUser())
-		user.UserRoutes(api)
+		user.Routes(api)
 	}
 
 	return router
