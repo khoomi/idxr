@@ -11,6 +11,9 @@ func InitRoute() *gin.Engine {
 	api := router.Group("/api")
 	{
 		api.POST("/auth", controllers.AuthenticateUser())
+		api.GET("/send-password-reset", controllers.PasswordResetEmail())
+		api.GET("/password-reset/:userid", controllers.PasswordReset())
+
 		user.Routes(api)
 	}
 

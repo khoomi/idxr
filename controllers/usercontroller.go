@@ -2,11 +2,14 @@ package controllers
 
 import (
 	"context"
+	"fmt"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"go.mongodb.org/mongo-driver/mongo/writeconcern"
 	"khoomi-api-io/khoomi_api/auth"
 	"khoomi-api-io/khoomi_api/configs"
+	"khoomi-api-io/khoomi_api/email"
+	"khoomi-api-io/khoomi_api/middleware"
 	"khoomi-api-io/khoomi_api/models"
 	"khoomi-api-io/khoomi_api/responses"
 	"log"
@@ -23,6 +26,7 @@ import (
 
 var userCollection = configs.GetCollection(configs.DB, "User")
 var loginHistoryCollection = configs.GetCollection(configs.DB, "UserLoginHistory")
+var passwordResetTokenCollection = configs.GetCollection(configs.DB, "UserPasswordResetToken")
 var validate = validator.New()
 
 func CreateUser() gin.HandlerFunc {
@@ -62,30 +66,27 @@ func CreateUser() gin.HandlerFunc {
 			return
 		}
 
-		// Check if username already in database
+		// Check if login_name or email already in database
 		var tempUser models.User
-		errLoginNameExist := userCollection.FindOne(ctx, bson.M{"login_name": jsonUser.LoginName, "primary_email": jsonUser.Email}).Decode(tempUser)
-		if errLoginNameExist != nil {
-			if errLoginNameExist != mongo.ErrNoDocuments {
-				c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": errLoginNameExist.Error(), "field": "login_name"}})
-				return
-			}
+		_ = userCollection.FindOne(ctx, bson.M{"login_name": jsonUser.LoginName}).Decode(&tempUser)
+		if tempUser.LoginName == jsonUser.LoginName {
+			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": "You can't create an account with an already existing login_name", "field": "login_name"}})
+			return
 		}
 
-		// Check if email already in database
-		errEmailExist := userCollection.FindOne(ctx, bson.M{"login_name": jsonUser.LoginName, "primary_email": jsonUser.Email}).Decode(tempUser)
-		if errEmailExist != nil {
-			if errEmailExist != mongo.ErrNoDocuments {
-				c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": errEmailExist.Error(), "field": "email"}})
-				return
-			}
-		}
+		_ = userCollection.FindOne(ctx, bson.M{"primary_email": jsonUser.Email}).Decode(&tempUser)
+		if tempUser.PrimaryEmail == jsonUser.Email {
+			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": "You can't create an account with an already existing email", "field": "primary_email"}})
+			return
 
+		}
 		now := time.Now()
 		newUser := models.User{
 			Id:           primitive.NewObjectID(),
 			LoginName:    jsonUser.LoginName,
 			PrimaryEmail: jsonUser.Email,
+			FirstName:    "",
+			LastName:     "",
 			Auth: models.UserAuthData{
 				EmailVerified:  false,
 				ModifiedAt:     time.Now(),
@@ -109,6 +110,9 @@ func CreateUser() gin.HandlerFunc {
 			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": err.Error(), "field": ""}})
 			return
 		}
+
+		// Send welcome email.
+		email.SendWelcomeEmail(newUser.PrimaryEmail, newUser.LoginName)
 
 		c.JSON(http.StatusCreated, responses.UserResponse{Status: http.StatusCreated, Message: "success", Data: map[string]interface{}{"data": result}})
 	}
@@ -398,7 +402,124 @@ func DeleteLoginHistories() gin.HandlerFunc {
 			return
 		}
 
-		c.JSON(http.StatusCreated, responses.UserResponse{Status: http.StatusCreated, Message: "success", Data: map[string]interface{}{"data": "Login histories deleted successfully"}})
+		c.JSON(http.StatusOK, responses.UserResponse{Status: http.StatusOK, Message: "success", Data: map[string]interface{}{"data": "Login histories deleted successfully"}})
 	}
 
+}
+
+// PasswordResetEmail - api/send-password-reset?email=borngracedd@gmail.com
+func PasswordResetEmail() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		currentEmail := c.Query("email")
+		var user models.User
+		defer cancel()
+
+		err := userCollection.FindOne(ctx, bson.M{"primary_email": currentEmail}).Decode(&user)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": "user with email now found", "field": "email"}})
+			c.Abort()
+			return
+		}
+
+		token := middleware.GenerateSecureToken(8)
+		now := time.Now()
+		expirationTime := now.Add(1 * time.Hour)
+		passwordReset := models.UserPasswordReset{
+			UserId:      primitive.ObjectID{},
+			TokenDigest: token,
+			CreatedAt:   primitive.NewDateTimeFromTime(now),
+			ExpiresAt:   primitive.NewDateTimeFromTime(expirationTime),
+		}
+
+		opts := options.Replace().SetUpsert(true)
+		filter := bson.M{"user_uid": user.Id}
+		_, err = passwordResetTokenCollection.ReplaceOne(ctx, filter, passwordReset, opts)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": err.Error(), "field": "email"}})
+			c.Abort()
+			return
+		}
+
+		link := fmt.Sprintf("https://khoomi.com/%v/password-reset/?token=%v", user.Id.Hex(), token)
+		email.SendPasswordResetEmail(user.PrimaryEmail, user.LoginName, link)
+
+		c.JSON(http.StatusOK, responses.UserResponse{Status: http.StatusOK, Message: "success", Data: map[string]interface{}{"data": "Password reset email send successfully"}})
+	}
+}
+
+// PasswordReset - api/password-reset/userid?token=..&newpassword=..
+func PasswordReset() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		currentId := c.Param("userid")
+		currentToken := c.Query("token")
+		newPassword := c.Query("newpassword")
+		var passwordResetData models.UserPasswordReset
+		var user models.User
+		defer cancel()
+
+		userId, err := primitive.ObjectIDFromHex(currentId)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": "Error decoding userid", "field": "userid"}})
+			c.Abort()
+			return
+		}
+
+		err = passwordResetTokenCollection.FindOneAndDelete(ctx, bson.M{"user_uid": userId}).Decode(&passwordResetData)
+		if err != nil {
+			c.JSON(http.StatusNotFound, responses.UserResponse{Status: http.StatusNotFound, Message: "error", Data: map[string]interface{}{"error": err.Error(), "field": "userid"}})
+			c.Abort()
+			return
+		}
+
+		// Check if reset token has expired
+		now := primitive.NewDateTimeFromTime(time.Now())
+		if now.Time().Unix() > passwordResetData.ExpiresAt.Time().Unix() {
+			if err != nil {
+				c.JSON(http.StatusNotFound, responses.UserResponse{Status: http.StatusNotFound, Message: "error", Data: map[string]interface{}{"error": "Password reset token has expired. Please restart the reset process", "field": "expired"}})
+				c.Abort()
+				return
+			}
+		}
+
+		// Check if reset token is correct.
+		if currentToken != passwordResetData.TokenDigest {
+			if err != nil {
+				c.JSON(http.StatusNotFound, responses.UserResponse{Status: http.StatusNotFound, Message: "error", Data: map[string]interface{}{"error": "Password reset token is not correct. Please restart the reset process or use a valid token", "field": "expired"}})
+				c.Abort()
+				return
+			}
+		}
+
+		// Validate and hash new given password.
+		err = configs.ValidatePassword(newPassword)
+		if err != nil {
+			c.JSON(http.StatusNotFound, responses.UserResponse{Status: http.StatusNotFound, Message: "error", Data: map[string]interface{}{"error": err.Error(), "field": "userid"}})
+			c.Abort()
+			return
+		}
+		hashedPassword, err := configs.HashPassword(newPassword)
+		if err != nil {
+			c.JSON(http.StatusNotFound, responses.UserResponse{Status: http.StatusNotFound, Message: "error", Data: map[string]interface{}{"error": err.Error(), "field": "userid"}})
+			c.Abort()
+			return
+		}
+
+		// Change user password.
+		filter := bson.M{"_id": passwordResetData.UserId}
+		update := bson.M{"$set": bson.M{"auth.password_digest": hashedPassword, "auth.modified_at": now, "auth.email_verified": true}}
+		err = userCollection.FindOneAndUpdate(ctx, filter, update).Decode(&user)
+		if err != nil {
+			c.JSON(http.StatusExpectationFailed, responses.UserResponse{Status: http.StatusExpectationFailed, Message: "error", Data: map[string]interface{}{"error": err.Error(), "field": ""}})
+			c.Abort()
+			return
+		}
+
+		// Send password reset successfully email to user.
+		email.SendPasswordResetSuccessfulEmail(user.PrimaryEmail, user.LoginName)
+
+		c.JSON(http.StatusOK, responses.UserResponse{Status: http.StatusOK, Message: "success", Data: map[string]interface{}{"data": "Password hash been changed successfully."}})
+
+	}
 }

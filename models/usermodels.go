@@ -8,10 +8,11 @@ import (
 
 // User Khoomi user_models basic data
 type User struct {
-	Id           primitive.ObjectID `bson:"_id" json:"_id"`
-	LoginName    string             `bson:"login_name" json:"login_name"`
-	PrimaryEmail string             `bson:"primary_email" json:"primary_email"`
-	FirstLastName
+	Id             primitive.ObjectID `bson:"_id" json:"_id"`
+	LoginName      string             `bson:"login_name" json:"login_name"`
+	PrimaryEmail   string             `bson:"primary_email" json:"primary_email"`
+	FirstName      string             `bson:"first_name" json:"first_name"`
+	LastName       string             `bson:"last_name" json:"last_name"`
 	Auth           UserAuthData       `bson:"auth,omitempty" json:"auth,omitempty"`
 	Thumbnail      string             `bson:"thumbnail" json:"thumbnail"`
 	ProfileUid     primitive.ObjectID `bson:"profile_uid" json:"profile_uid"`
@@ -28,7 +29,7 @@ type User struct {
 
 type FirstLastName struct {
 	FirstName string `bson:"first_name" json:"first_name" validate:"required"`
-	LastName  string `bson:"last_name" json:"last_name" validate:"required""`
+	LastName  string `bson:"last_name" json:"last_name" validate:"required"`
 }
 
 // UserRole -> contains different roles that can be assigned to users
@@ -81,4 +82,11 @@ type LoginHistory struct {
 
 type LoginHistoryIds struct {
 	IDs []string `json:"ids"`
+}
+
+type UserPasswordReset struct {
+	UserId      primitive.ObjectID `bson:"user_uid" json:"user_uid"`
+	TokenDigest string             `bson:"token_digest" json:"token_digest"`
+	CreatedAt   primitive.DateTime `bson:"created_at" json:"created_at"`
+	ExpiresAt   primitive.DateTime `bson:"expired_at" json:"expires_at"`
 }

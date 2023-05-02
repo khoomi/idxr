@@ -1,6 +1,8 @@
 package middleware
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"github.com/gin-gonic/gin"
 	"khoomi-api-io/khoomi_api/auth"
 )
@@ -22,4 +24,12 @@ func Auth() gin.HandlerFunc {
 		}
 		context.Next()
 	}
+}
+
+func GenerateSecureToken(length int) string {
+	b := make([]byte, length)
+	if _, err := rand.Read(b); err != nil {
+		return ""
+	}
+	return hex.EncodeToString(b)
 }
