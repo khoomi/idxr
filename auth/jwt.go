@@ -3,11 +3,9 @@ package auth
 import (
 	"errors"
 	"github.com/dgrijalva/jwt-go"
-	"khoomi-api-io/khoomi_api2/configs"
+	"khoomi-api-io/khoomi_api/configs"
 	"time"
 )
-
-var jwtJey = []byte(configs.LoadEnvFor("JWT_KEY"))
 
 type JWTClaim struct {
 	LoginName string `json:"login_name"`
@@ -15,11 +13,11 @@ type JWTClaim struct {
 	jwt.StandardClaims
 }
 
-func GenerateJWT(email, loginname string) (string, error) {
+func GenerateJWT(email, loginName string) (string, error) {
 	expirationTime := time.Now().Add(24 * time.Hour)
 
 	claims := JWTClaim{
-		LoginName: loginname,
+		LoginName: loginName,
 		Email:     email,
 		StandardClaims: jwt.StandardClaims{
 			ExpiresAt: expirationTime.Unix(),
