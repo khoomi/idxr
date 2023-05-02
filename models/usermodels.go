@@ -13,7 +13,7 @@ type User struct {
 	PrimaryEmail   string             `bson:"primary_email" json:"primary_email"`
 	FirstName      string             `bson:"first_name" json:"first_name"`
 	LastName       string             `bson:"last_name" json:"last_name"`
-	Auth           UserAuthData       `bson:"auth" json:"auth"`
+	Auth           UserAuthData       `bson:"auth,omitempty" json:"auth,omitempty"`
 	Thumbnail      string             `bson:"thumbnail" json:"thumbnail"`
 	ProfileUid     primitive.ObjectID `bson:"profile_uid" json:"profile_uid"`
 	LoginCounts    int                `bson:"login_counts" json:"login_counts"`
@@ -50,7 +50,7 @@ const (
 type UserAuthData struct {
 	EmailVerified  bool      `bson:"email_verified"`
 	ModifiedAt     time.Time `bson:"modified_at"`
-	PasswordDigest string    `bson:"password_digest"`
+	PasswordDigest string    `bson:"password_digest,omitempty" json:"password_digest,omitempty"`
 }
 
 // UserRegistrationBody -> expected data for signup process

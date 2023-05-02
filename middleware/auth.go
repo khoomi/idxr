@@ -7,7 +7,7 @@ import (
 
 func Auth() gin.HandlerFunc {
 	return func(context *gin.Context) {
-		tokenString := context.GetHeader("Authorization")
+		tokenString := auth.ExtractToken(context)
 
 		if tokenString == "" {
 			context.JSON(401, gin.H{"error": "request does not contain an access token"})

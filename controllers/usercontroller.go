@@ -182,7 +182,7 @@ func AuthenticateUser() gin.HandlerFunc {
 			c.Abort()
 		}
 
-		tokenString, err := auth.GenerateJWT(validUser.PrimaryEmail, validUser.LoginName)
+		tokenString, err := auth.GenerateJWT(validUser.Id.Hex(), validUser.PrimaryEmail, validUser.LoginName)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, responses.UserResponse{Status: http.StatusInternalServerError, Message: "error", Data: map[string]interface{}{"data": err.Error()}})
 			c.Abort()
@@ -190,6 +190,57 @@ func AuthenticateUser() gin.HandlerFunc {
 		}
 
 		c.JSON(http.StatusCreated, responses.UserResponse{Status: http.StatusCreated, Message: "success", Data: map[string]interface{}{"token": tokenString}})
+	}
+}
+
+func CurrentUser(c *gin.Context) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	// Extract user id from request header
+	userId, err := auth.ExtractTokenID(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"data": err.Error()}})
+		c.Abort()
+		return
+	}
+
+	Id, _ := primitive.ObjectIDFromHex(userId)
+	user, errMongo := GetUserById(ctx, Id)
+	if errMongo != nil {
+		c.JSON(http.StatusNotFound, responses.UserResponse{Status: http.StatusNotFound, Message: "error", Data: map[string]interface{}{"data": errMongo.Error()}})
+		c.Abort()
+		return
+	}
+
+	user.Auth.PasswordDigest = ""
+	c.JSON(http.StatusOK, responses.UserResponse{Status: http.StatusOK, Message: "success", Data: map[string]interface{}{"data": user}})
+}
+
+func GetUserById(ctx context.Context, id primitive.ObjectID) (models.User, error) {
+	var user models.User
+	err := userCollection.FindOne(ctx, bson.M{"_id": id}).Decode(&user)
+	if err != nil {
+		return models.User{}, err
+	}
+
+	return user, nil
+}
+
+func GetUser() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		userId := c.Param("userId")
+		defer cancel()
+
+		Id, _ := primitive.ObjectIDFromHex(userId)
+		user, errMongo := GetUserById(ctx, Id)
+		if errMongo != nil {
+			c.JSON(http.StatusNotFound, responses.UserResponse{Status: http.StatusNotFound, Message: "error", Data: map[string]interface{}{"data": errMongo.Error()}})
+			c.Abort()
+			return
+		}
+
+		c.JSON(http.StatusOK, responses.UserResponse{Status: http.StatusOK, Message: "success", Data: map[string]interface{}{"data": user}})
 	}
 }
 
@@ -293,22 +344,4 @@ func DeleteLoginHistories() gin.HandlerFunc {
 		c.JSON(http.StatusCreated, responses.UserResponse{Status: http.StatusCreated, Message: "success", Data: map[string]interface{}{"data": "Login histories deleted successfully"}})
 	}
 
-}
-
-func GetUser() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), 40*time.Second)
-		userId := c.Param("userId")
-		var user models.User
-		defer cancel()
-
-		Id, _ := primitive.ObjectIDFromHex(userId)
-		err := userCollection.FindOne(ctx, bson.M{"_id": Id}).Decode(&user)
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, responses.UserResponse{Status: http.StatusInternalServerError, Message: "error", Data: map[string]interface{}{"data": err.Error()}})
-			return
-		}
-
-		c.JSON(http.StatusOK, responses.UserResponse{Status: http.StatusOK, Message: "success", Data: map[string]interface{}{"data": user}})
-	}
 }

@@ -14,9 +14,10 @@ func Routes(api *gin.RouterGroup) {
 		secured := api.Group("/secured").Use(middleware.Auth())
 		{
 			secured.GET("/ping", controllers.Ping)
+			secured.GET("/me", controllers.CurrentUser)
 			// Login histories
-			user.GET("/:userId/login-history", controllers.GetLoginHistories())
-			user.DELETE("/:userId/login-history", controllers.DeleteLoginHistories())
+			secured.GET("/:userId/login-history", controllers.GetLoginHistories())
+			secured.DELETE("/:userId/login-history", controllers.DeleteLoginHistories())
 		}
 
 	}
