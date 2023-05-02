@@ -18,6 +18,7 @@ type User struct {
 	ProfileUid     primitive.ObjectID `bson:"profile_uid" json:"profile_uid"`
 	LoginCounts    int                `bson:"login_counts" json:"login_counts"`
 	LastLogin      time.Time          `bson:"last_login" json:"last_login"`
+	LastLoginIp    string             `bson:"last_login_ip" json:"last_login_ip"`
 	CreatedAt      time.Time          `bson:"created_at" json:"created_at"`
 	ModifiedAt     time.Time          `bson:"modified_at" json:"modified_at"`
 	ReferredByUser string             `bson:"referred_by_user" json:"referred_by_user"`

@@ -95,6 +95,7 @@ func CreateUser() gin.HandlerFunc {
 			Thumbnail:      "",
 			ProfileUid:     primitive.NilObjectID,
 			LoginCounts:    0,
+			LastLoginIp:    c.ClientIP(),
 			LastLogin:      now,
 			CreatedAt:      now,
 			ModifiedAt:     now,
@@ -122,6 +123,8 @@ func AuthenticateUser() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		var jsonUser models.UserLoginBody
+		clientIp := c.ClientIP()
+		now := time.Now()
 		defer cancel()
 
 		if err := c.BindJSON(&jsonUser); err != nil {
@@ -154,7 +157,7 @@ func AuthenticateUser() gin.HandlerFunc {
 		callback := func(ctx mongo.SessionContext) (interface{}, error) {
 			// update user login counts
 			filter := bson.M{"primary_email": validUser.PrimaryEmail}
-			update := bson.M{"$set": bson.M{"last_login": time.Now(), "login_counts": validUser.LoginCounts + 1}}
+			update := bson.M{"$set": bson.M{"last_login": now, "login_counts": validUser.LoginCounts + 1, "last_login_ip": clientIp}}
 			errUpdateLoginCounts := userCollection.FindOneAndUpdate(ctx, filter, update).Decode(&validUser)
 			if errUpdateLoginCounts != nil {
 				log.Fatal(errUpdateLoginCounts)
@@ -165,11 +168,10 @@ func AuthenticateUser() gin.HandlerFunc {
 			doc := models.LoginHistory{
 				Id:        primitive.NewObjectID(),
 				UserUid:   validUser.Id,
-				Date:      time.Now(),
+				Date:      now,
 				UserAgent: c.Request.UserAgent(),
-				IpAddr:    c.ClientIP(),
+				IpAddr:    clientIp,
 			}
-			log.Println(doc)
 			result, errLoginHistory := loginHistoryCollection.InsertOne(ctx, doc)
 			if errLoginHistory != nil {
 				log.Println(errLoginHistory)
@@ -190,6 +192,11 @@ func AuthenticateUser() gin.HandlerFunc {
 			c.JSON(http.StatusInternalServerError, responses.UserResponse{Status: http.StatusInternalServerError, Message: "error", Data: map[string]interface{}{"error": err.Error(), "field": "auth_token"}})
 			c.Abort()
 			return
+		}
+
+		// Send new login IP notification on condition
+		if validUser.LastLoginIp != clientIp {
+			email.SendNewIpLoginNotification(validUser.PrimaryEmail, validUser.LoginName, clientIp, time.Now().String())
 		}
 
 		c.JSON(http.StatusCreated, responses.UserResponse{Status: http.StatusCreated, Message: "success", Data: map[string]interface{}{"token": tokenString}})
@@ -229,6 +236,7 @@ func GetUserById(ctx context.Context, id primitive.ObjectID) (models.User, error
 	return user, nil
 }
 
+// GetUser => Get user by id endpoint
 func GetUser() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)

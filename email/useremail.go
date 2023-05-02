@@ -106,3 +106,37 @@ func SendPasswordResetSuccessfulEmail(email, loginName string) {
 		log.Println(err)
 	}
 }
+
+func SendNewIpLoginNotification(email, loginName, ipaddr, loginTime string) {
+	from := SetHeader{
+		field: "From",
+		value: []string{"no-reply@khoomi.com"},
+	}
+
+	to := SetHeader{
+		field: "To",
+		value: []string{email},
+	}
+
+	subject := SetHeader{
+		field: "Subject",
+		value: []string{"New IP Address Login Notification"},
+	}
+
+	body := SetBody{
+		contentType: "text/html",
+		body:        fmt.Sprintf(" <body>\n        <p>Dear %v,</p>\n        <p>This is to inform you that a new IP address has been used to log in to your account at %v.</p>\n        <p>IP Address: %v</p>\n         <p>If you did not log in from this location, please contact us or change your password immediately.</p>\n        <p>Best regards,</p>\n        <p>Your Application Team</p>\n    </body>", loginName, loginTime, ipaddr),
+	}
+
+	compose := KhoomiEmailComposer{
+		Header:        []SetHeader{from, to, subject},
+		AddressHeader: nil,
+		Body:          body,
+		Attach:        "",
+	}
+	service := NewKhoomiEmailService(compose)
+	err := service.SendMail()
+	if err != nil {
+		log.Println(err)
+	}
+}
