@@ -15,6 +15,7 @@ func Routes(api *gin.RouterGroup) {
 		{
 			secured.GET("/ping", controllers.Ping)
 			secured.GET("/me", controllers.CurrentUser)
+			secured.PUT("/me", controllers.UpdateFirstLastName())
 			// Login histories
 			secured.GET("/:userId/login-history", controllers.GetLoginHistories())
 			secured.DELETE("/:userId/login-history", controllers.DeleteLoginHistories())

@@ -2,11 +2,9 @@ package auth
 
 import (
 	"errors"
-	"fmt"
 	"github.com/dgrijalva/jwt-go"
 	"github.com/gin-gonic/gin"
 	"khoomi-api-io/khoomi_api/configs"
-	"log"
 	"time"
 )
 
@@ -41,8 +39,6 @@ func GenerateJWT(id, email, loginName string) (string, error) {
 
 func ValidateToken(signedToken string) (err error) {
 	jwtKey := configs.LoadEnvFor("SECRET")
-
-	log.Println(signedToken)
 	token, err := jwt.ParseWithClaims(
 		signedToken,
 		&JWTClaim{},
@@ -51,7 +47,6 @@ func ValidateToken(signedToken string) (err error) {
 		},
 	)
 	if err != nil {
-		log.Println(err)
 		return
 	}
 	claims, ok := token.Claims.(*JWTClaim)
@@ -73,21 +68,23 @@ func ExtractToken(context *gin.Context) string {
 
 func ExtractTokenID(c *gin.Context) (string, error) {
 	tokenString := ExtractToken(c)
-	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
-		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
-		}
-		return []byte(configs.LoadEnvFor("SECRET")), nil
-	})
+	jwtKey := configs.LoadEnvFor("SECRET")
+	token, err := jwt.ParseWithClaims(
+		tokenString,
+		&JWTClaim{},
+		func(token *jwt.Token) (interface{}, error) {
+			return []byte(jwtKey), nil
+		},
+	)
 	if err != nil {
 		return "", err
 	}
 
-	claims, ok := token.Claims.(jwt.MapClaims)
-	if ok && token.Valid {
-		res := fmt.Sprintf("%v", claims["id"])
-		return res, nil
+	claims, ok := token.Claims.(*JWTClaim)
+	if !ok {
+		err = errors.New("couldn't parse claims")
+		return "", err
 	}
 
-	return "", nil
+	return claims.Id, nil
 }

@@ -8,11 +8,10 @@ import (
 
 // User Khoomi user_models basic data
 type User struct {
-	Id             primitive.ObjectID `bson:"_id" json:"_id"`
-	LoginName      string             `bson:"login_name" json:"login_name"`
-	PrimaryEmail   string             `bson:"primary_email" json:"primary_email"`
-	FirstName      string             `bson:"first_name" json:"first_name"`
-	LastName       string             `bson:"last_name" json:"last_name"`
+	Id           primitive.ObjectID `bson:"_id" json:"_id"`
+	LoginName    string             `bson:"login_name" json:"login_name"`
+	PrimaryEmail string             `bson:"primary_email" json:"primary_email"`
+	FirstLastName
 	Auth           UserAuthData       `bson:"auth,omitempty" json:"auth,omitempty"`
 	Thumbnail      string             `bson:"thumbnail" json:"thumbnail"`
 	ProfileUid     primitive.ObjectID `bson:"profile_uid" json:"profile_uid"`
@@ -25,6 +24,11 @@ type User struct {
 	Status         UserStatus         `bson:"status" json:"status"`
 	Shops          []string           `bson:"shops" json:"shops"`
 	FavoriteShops  []string           `bson:"favorite_shops" json:"favorite_shops"`
+}
+
+type FirstLastName struct {
+	FirstName string `bson:"first_name" json:"first_name" validate:"required"`
+	LastName  string `bson:"last_name" json:"last_name" validate:"required""`
 }
 
 // UserRole -> contains different roles that can be assigned to users
