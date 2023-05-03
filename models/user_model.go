@@ -17,7 +17,7 @@ type User struct {
 	Thumbnail            string             `bson:"thumbnail" json:"thumbnail"`
 	Bio                  string             `bson:"bio" json:"bio"`
 	Phone                string             `bson:"phone" json:"phone"`
-	Birthdate            UserBirthday       `bson:"birthdate" json:"birthdate"`
+	Birthdate            UserBirthdate      `bson:"birthdate" json:"birthdate"`
 	IsSeller             bool               `bson:"is_seller" json:"is_seller"`
 	TransactionBuyCount  int                `bson:"transaction_buy_count" json:"transaction_buy_count"`
 	TransactionSoldCount int                `bson:"transaction_sold_count" json:"transaction_sold_count"`
@@ -122,8 +122,8 @@ const (
 	// add more countries as needed
 )
 
-type UserBirthday struct {
-	Day   int `bson:"day" json:"day"`
-	Month int `bson:"month" json:"month"`
-	Year  int `bson:"year" json:"year"`
+type UserBirthdate struct {
+	Day   int `bson:"day" json:"day" validate:"required"`
+	Month int `bson:"month" json:"month" validate:"required"`
+	Year  int `bson:"year" json:"year" validate:"required"`
 }

@@ -94,7 +94,7 @@ func CreateUser() gin.HandlerFunc {
 			Thumbnail:            "",
 			Bio:                  "",
 			Phone:                "0000000000",
-			Birthdate:            models.UserBirthday{},
+			Birthdate:            models.UserBirthdate{},
 			IsSeller:             false,
 			TransactionBuyCount:  0,
 			TransactionSoldCount: 0,
@@ -360,10 +360,10 @@ func GetUser() gin.HandlerFunc {
 func UpdateFirstLastName() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		myId, err := auth.ExtractTokenID(c)
 		var firstLastName models.FirstLastName
 		defer cancel()
 
+		myId, err := auth.ExtractTokenID(c)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": err.Error(), "field": "Authorization"}})
 			return
@@ -809,5 +809,43 @@ func UpdateUserAddress() gin.HandlerFunc {
 
 		c.JSON(http.StatusOK, responses.UserResponse{Status: http.StatusOK, Message: "success", Data: map[string]interface{}{"data": "Address updated."}})
 
+	}
+}
+
+// UpdateUserBirthdate - update user birthdate
+func UpdateUserBirthdate() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		var birthDate models.UserBirthdate
+		defer cancel()
+
+		myId, err := auth.ExtractTokenID(c)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": err.Error(), "field": "Authorization"}})
+			return
+		}
+
+		errBind := c.BindJSON(&birthDate)
+		if errBind != nil {
+			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": errBind.Error(), "field": ""}})
+			return
+		}
+
+		IdToObjectId, errId := primitive.ObjectIDFromHex(myId)
+		if errId != nil {
+			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": errId.Error(), "field": "user id"}})
+			return
+		}
+		filter := bson.M{"_id": IdToObjectId}
+		update := bson.M{"$set": bson.M{"birthdate.day": birthDate.Day, "birthdate.month": birthDate.Month, "birthdate.year": birthDate.Year}}
+		result, errUpdateName := userCollection.UpdateOne(ctx, filter, update)
+		if errUpdateName != nil {
+			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": errUpdateName.Error(), "field": "user id"}})
+			return
+		}
+
+		log.Println("Okay")
+
+		c.JSON(http.StatusCreated, responses.UserResponse{Status: http.StatusCreated, Message: "success", Data: map[string]interface{}{"data": result}})
 	}
 }
