@@ -78,20 +78,6 @@ func CreateUser() gin.HandlerFunc {
 			return
 		}
 
-		// Check if login_name or email already in database
-		var tempUser models.User
-		_ = userCollection.FindOne(ctx, bson.M{"login_name": jsonUser.LoginName}).Decode(&tempUser)
-		if tempUser.LoginName == jsonUser.LoginName {
-			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": "You can't create an account with an already existing login_name", "field": "login_name"}})
-			return
-		}
-
-		_ = userCollection.FindOne(ctx, bson.M{"primary_email": jsonUser.Email}).Decode(&tempUser)
-		if tempUser.PrimaryEmail == jsonUser.Email {
-			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": "You can't create an account with an already existing email", "field": "primary_email"}})
-			return
-
-		}
 		now := time.Now()
 		userAuth := models.UserAuthData{
 			EmailVerified:  false,
@@ -107,7 +93,7 @@ func CreateUser() gin.HandlerFunc {
 			Auth:                 userAuth,
 			Thumbnail:            "",
 			Bio:                  "",
-			Phone:                "",
+			Phone:                "0000000000",
 			Birthdate:            models.UserBirthday{},
 			IsSeller:             false,
 			TransactionBuyCount:  0,
@@ -764,7 +750,6 @@ func CreateUserAddress() gin.HandlerFunc {
 		defer session.EndSession(ctx)
 		callback := func(ctx mongo.SessionContext) (interface{}, error) {
 			// create user address
-
 			userAddress.UserId = userId
 			userAddress.Id = primitive.NewObjectID()
 			_, err = userAddressCollection.InsertOne(ctx, userAddress)

@@ -9,7 +9,7 @@ import (
 func SendWelcomeEmail(email, loginName string) {
 	from := services.SetHeader{
 		Field: "From",
-		Value: []string{"no-reply@khoomi.com"},
+		Value: []string{"Khoomi Online <no-reply@khoomi.com>"},
 	}
 
 	to := services.SetHeader{
@@ -43,7 +43,7 @@ func SendWelcomeEmail(email, loginName string) {
 func SendVerifyEmailNotification(email, loginName, link string) {
 	from := services.SetHeader{
 		Field: "From",
-		Value: []string{"no-reply@khoomi.com"},
+		Value: []string{"Khoomi Online <no-reply@khoomi.com>"},
 	}
 
 	to := services.SetHeader{
@@ -77,7 +77,7 @@ func SendVerifyEmailNotification(email, loginName, link string) {
 func SendPasswordResetEmail(email, loginName, link string) {
 	from := services.SetHeader{
 		Field: "From",
-		Value: []string{"no-reply@khoomi.com"},
+		Value: []string{"Khoomi Online <no-reply@khoomi.com>"},
 	}
 
 	to := services.SetHeader{
@@ -111,7 +111,7 @@ func SendPasswordResetEmail(email, loginName, link string) {
 func SendPasswordResetSuccessfulEmail(email, loginName string) {
 	from := services.SetHeader{
 		Field: "From",
-		Value: []string{"no-reply@khoomi.com"},
+		Value: []string{"Khoomi Online <no-reply@khoomi.com>"},
 	}
 
 	to := services.SetHeader{
@@ -145,7 +145,7 @@ func SendPasswordResetSuccessfulEmail(email, loginName string) {
 func SendNewIpLoginNotification(email, loginName, ipaddr, loginTime string) {
 	from := services.SetHeader{
 		Field: "From",
-		Value: []string{"no-reply@khoomi.com"},
+		Value: []string{"Khoomi Online <no-reply@khoomi.com>"},
 	}
 
 	to := services.SetHeader{

@@ -9,7 +9,6 @@ import (
 func Routes(api *gin.RouterGroup) {
 	user := api.Group("/users")
 	{
-		user.POST("/", controllers.CreateUser())
 		user.GET("/:userId", controllers.GetUser())
 		secured := api.Group("/user").Use(middleware.Auth())
 		{
