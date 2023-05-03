@@ -214,6 +214,49 @@ func Logout() gin.HandlerFunc {
 	}
 }
 
+func CurrentUser(c *gin.Context) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	// Extract user id from request header
+	userId, err := auth.ExtractTokenID(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": err.Error(), "field": ""}})
+		c.Abort()
+		return
+	}
+
+	Id, _ := primitive.ObjectIDFromHex(userId)
+	user, errMongo := services.GetUserById(ctx, Id)
+	if errMongo != nil {
+		c.JSON(http.StatusNotFound, responses.UserResponse{Status: http.StatusNotFound, Message: "error", Data: map[string]interface{}{"error": errMongo.Error(), "field": "user id"}})
+		c.Abort()
+		return
+	}
+
+	user.Auth.PasswordDigest = ""
+	c.JSON(http.StatusOK, responses.UserResponse{Status: http.StatusOK, Message: "success", Data: map[string]interface{}{"data": user}})
+}
+
+// GetUser => Get user by id endpoint
+func GetUser() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		userId := c.Param("userId")
+		defer cancel()
+
+		Id, _ := primitive.ObjectIDFromHex(userId)
+		user, errMongo := services.GetUserById(ctx, Id)
+		if errMongo != nil {
+			c.JSON(http.StatusNotFound, responses.UserResponse{Status: http.StatusNotFound, Message: "error", Data: map[string]interface{}{"data": errMongo.Error(), "field": "user id"}})
+			return
+		}
+
+		c.JSON(http.StatusOK, responses.UserResponse{Status: http.StatusOK, Message: "success", Data: map[string]interface{}{"data": user}})
+	}
+}
+
+// ////////////////////// START USER EMAIL VERIFICATION //////////////////////////
+
 // SendVerifyEmail -> api/send-verify-email?email=...&name=user_login_name
 func SendVerifyEmail() gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -315,47 +358,6 @@ func VerifyEmail() gin.HandlerFunc {
 	}
 }
 
-func CurrentUser(c *gin.Context) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-	// Extract user id from request header
-	userId, err := auth.ExtractTokenID(c)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": err.Error(), "field": ""}})
-		c.Abort()
-		return
-	}
-
-	Id, _ := primitive.ObjectIDFromHex(userId)
-	user, errMongo := services.GetUserById(ctx, Id)
-	if errMongo != nil {
-		c.JSON(http.StatusNotFound, responses.UserResponse{Status: http.StatusNotFound, Message: "error", Data: map[string]interface{}{"error": errMongo.Error(), "field": "user id"}})
-		c.Abort()
-		return
-	}
-
-	user.Auth.PasswordDigest = ""
-	c.JSON(http.StatusOK, responses.UserResponse{Status: http.StatusOK, Message: "success", Data: map[string]interface{}{"data": user}})
-}
-
-// GetUser => Get user by id endpoint
-func GetUser() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		userId := c.Param("userId")
-		defer cancel()
-
-		Id, _ := primitive.ObjectIDFromHex(userId)
-		user, errMongo := services.GetUserById(ctx, Id)
-		if errMongo != nil {
-			c.JSON(http.StatusNotFound, responses.UserResponse{Status: http.StatusNotFound, Message: "error", Data: map[string]interface{}{"data": errMongo.Error(), "field": "user id"}})
-			return
-		}
-
-		c.JSON(http.StatusOK, responses.UserResponse{Status: http.StatusOK, Message: "success", Data: map[string]interface{}{"data": user}})
-	}
-}
-
 // UpdateFirstLastName -> Update first and last name for current user
 func UpdateFirstLastName() gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -413,6 +415,8 @@ func UpdateFirstLastName() gin.HandlerFunc {
 		c.JSON(http.StatusCreated, responses.UserResponse{Status: http.StatusCreated, Message: "success", Data: map[string]interface{}{"data": result}})
 	}
 }
+
+// ////////////////////// START USER LOGIN HISTORY //////////////////////////
 
 // GetLoginHistories -> Get user login histories (/api/users/63ae3eb4b3cd579527549d97/login-history?limit=50&skip=0&sort=date)
 func GetLoginHistories() gin.HandlerFunc {
@@ -510,6 +514,8 @@ func DeleteLoginHistories() gin.HandlerFunc {
 	}
 
 }
+
+// ////////////////////// START USER PASSWORD RESET //////////////////////////
 
 // PasswordResetEmail - api/send-password-reset?email=borngracedd@gmail.com
 func PasswordResetEmail() gin.HandlerFunc {
@@ -618,6 +624,8 @@ func PasswordReset() gin.HandlerFunc {
 
 	}
 }
+
+// ////////////////////// START USER THUMBNAIL //////////////////////////
 
 // UploadThumbnail - Upload user profile picture/thumbnail
 // api/user/thumbnail?kind=(remote | file)&url=..
@@ -811,6 +819,8 @@ func UpdateUserAddress() gin.HandlerFunc {
 
 	}
 }
+
+// ////////////////////// START USER BIRTHDATE //////////////////////////
 
 // UpdateUserBirthdate - update user birthdate
 func UpdateUserBirthdate() gin.HandlerFunc {
