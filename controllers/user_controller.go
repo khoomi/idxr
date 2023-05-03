@@ -85,6 +85,7 @@ func CreateUser() gin.HandlerFunc {
 			ModifiedAt:     time.Now(),
 			PasswordDigest: hashedPassword,
 		}
+		jsonUser.Email = strings.ToLower(jsonUser.Email)
 		newUser := models.User{
 			Id:                   primitive.NewObjectID(),
 			LoginName:            jsonUser.LoginName,
@@ -857,7 +858,7 @@ func UpdateUserBirthdate() gin.HandlerFunc {
 
 		log.Println("Okay")
 
-		c.JSON(http.StatusCreated, responses.UserResponse{Status: http.StatusCreated, Message: "success", Data: map[string]interface{}{"data": result}})
+		c.JSON(http.StatusOK, responses.UserResponse{Status: http.StatusOK, Message: "success", Data: map[string]interface{}{"data": result}})
 	}
 }
 
@@ -869,6 +870,11 @@ func UpdateUserSingleField() gin.HandlerFunc {
 		field := c.Query("field")
 		value := c.Query("value")
 		defer cancel()
+
+		if strings.Contains(field, ".") {
+			c.JSON(http.StatusUnauthorized, responses.UserResponse{Status: http.StatusUnauthorized, Message: "error", Data: map[string]interface{}{"error": fmt.Sprintf("No way!, %v can't contain a .", field), "field": "Authorization"}})
+			return
+		}
 
 		notAllowedFields := []string{"role", "login_counts", "modified_at", "created_at", "favorite_shops", "shops", "status", "referred_by_user", "address_id", "transaction_sold_count", "transaction_buy_count", "birthdate", "thumbnail", "auth", "primary_email", "login_name", "_id"}
 
@@ -908,6 +914,54 @@ func UpdateUserSingleField() gin.HandlerFunc {
 			return
 		}
 
-		c.JSON(http.StatusCreated, responses.UserResponse{Status: http.StatusCreated, Message: "success", Data: map[string]interface{}{"data": result}})
+		c.JSON(http.StatusOK, responses.UserResponse{Status: http.StatusOK, Message: "success", Data: map[string]interface{}{"data": result}})
+	}
+}
+
+// AddRemoveFavoriteShop - update user single field like Phone, Bio
+// api/user/update?shopid=phone&value=8084051523
+func AddRemoveFavoriteShop() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		shop := c.Query("shopid")
+		action := c.Query("action")
+		defer cancel()
+
+		myId, err := auth.ExtractTokenID(c)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": err.Error(), "field": "Authorization"}})
+			return
+		}
+		IdToObjectId, errId := primitive.ObjectIDFromHex(myId)
+		if errId != nil {
+			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": errId.Error(), "field": "user id"}})
+			return
+		}
+		filter := bson.M{"_id": IdToObjectId}
+		if action != "add" {
+			update := bson.M{"$push": bson.M{"favorite_shops": shop}}
+			res, err := userCollection.UpdateOne(ctx, filter, update)
+			if err != nil {
+				c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": err.Error(), "field": "Authorization"}})
+				return
+			}
+
+			c.JSON(http.StatusOK, responses.UserResponse{Status: http.StatusOK, Message: "success", Data: map[string]interface{}{"data": res}})
+			return
+		}
+
+		if action != "remove" {
+			update := bson.M{"pull": bson.M{"favorite_shops": shop}}
+			res, err := userCollection.UpdateOne(ctx, filter, update)
+			if err != nil {
+				c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": err.Error(), "field": "Authorization"}})
+				return
+			}
+
+			c.JSON(http.StatusOK, responses.UserResponse{Status: http.StatusOK, Message: "success", Data: map[string]interface{}{"data": res}})
+			return
+		}
+
+		c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": "Action not recognized", "field": action}})
 	}
 }

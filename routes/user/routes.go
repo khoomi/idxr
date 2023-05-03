@@ -31,6 +31,7 @@ func Routes(api *gin.RouterGroup) {
 			secured.DELETE("/:userId/login-history", controllers.DeleteLoginHistories())
 
 			secured.PUT("/update", controllers.UpdateUserSingleField())
+			secured.POST("/shop", controllers.AddRemoveFavoriteShop())
 		}
 
 	}
