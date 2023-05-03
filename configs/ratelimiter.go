@@ -1,4 +1,4 @@
-package auth
+package configs
 
 import (
 	ratelimit "github.com/JGLTechnologies/gin-rate-limit"

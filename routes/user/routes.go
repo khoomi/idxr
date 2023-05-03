@@ -11,11 +11,12 @@ func Routes(api *gin.RouterGroup) {
 	{
 		user.POST("/", controllers.CreateUser())
 		user.GET("/:userId", controllers.GetUser())
-		secured := api.Group("/secured").Use(middleware.Auth())
+		secured := api.Group("/user").Use(middleware.Auth())
 		{
 			secured.GET("/ping", controllers.Ping)
 			secured.GET("/me", controllers.CurrentUser)
 			secured.PUT("/me", controllers.UpdateFirstLastName())
+			secured.PUT("/thumbnail", controllers.UploadThumbnail())
 			// Login histories
 			secured.GET("/:userId/login-history", controllers.GetLoginHistories())
 			secured.DELETE("/:userId/login-history", controllers.DeleteLoginHistories())

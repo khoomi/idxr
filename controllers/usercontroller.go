@@ -12,6 +12,7 @@ import (
 	"khoomi-api-io/khoomi_api/middleware"
 	"khoomi-api-io/khoomi_api/models"
 	"khoomi-api-io/khoomi_api/responses"
+	"khoomi-api-io/khoomi_api/services"
 	"log"
 	"net/http"
 	"regexp"
@@ -470,14 +471,12 @@ func PasswordReset() gin.HandlerFunc {
 		userId, err := primitive.ObjectIDFromHex(currentId)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": "Error decoding userid", "field": "userid"}})
-			c.Abort()
 			return
 		}
 
 		err = passwordResetTokenCollection.FindOneAndDelete(ctx, bson.M{"user_uid": userId}).Decode(&passwordResetData)
 		if err != nil {
 			c.JSON(http.StatusNotFound, responses.UserResponse{Status: http.StatusNotFound, Message: "error", Data: map[string]interface{}{"error": err.Error(), "field": "userid"}})
-			c.Abort()
 			return
 		}
 
@@ -486,7 +485,6 @@ func PasswordReset() gin.HandlerFunc {
 		if now.Time().Unix() > passwordResetData.ExpiresAt.Time().Unix() {
 			if err != nil {
 				c.JSON(http.StatusNotFound, responses.UserResponse{Status: http.StatusNotFound, Message: "error", Data: map[string]interface{}{"error": "Password reset token has expired. Please restart the reset process", "field": "expired"}})
-				c.Abort()
 				return
 			}
 		}
@@ -495,7 +493,6 @@ func PasswordReset() gin.HandlerFunc {
 		if currentToken != passwordResetData.TokenDigest {
 			if err != nil {
 				c.JSON(http.StatusNotFound, responses.UserResponse{Status: http.StatusNotFound, Message: "error", Data: map[string]interface{}{"error": "Password reset token is not correct. Please restart the reset process or use a valid token", "field": "expired"}})
-				c.Abort()
 				return
 			}
 		}
@@ -504,13 +501,11 @@ func PasswordReset() gin.HandlerFunc {
 		err = configs.ValidatePassword(newPassword)
 		if err != nil {
 			c.JSON(http.StatusNotFound, responses.UserResponse{Status: http.StatusNotFound, Message: "error", Data: map[string]interface{}{"error": err.Error(), "field": "userid"}})
-			c.Abort()
 			return
 		}
 		hashedPassword, err := configs.HashPassword(newPassword)
 		if err != nil {
 			c.JSON(http.StatusNotFound, responses.UserResponse{Status: http.StatusNotFound, Message: "error", Data: map[string]interface{}{"error": err.Error(), "field": "userid"}})
-			c.Abort()
 			return
 		}
 
@@ -520,14 +515,72 @@ func PasswordReset() gin.HandlerFunc {
 		err = userCollection.FindOneAndUpdate(ctx, filter, update).Decode(&user)
 		if err != nil {
 			c.JSON(http.StatusExpectationFailed, responses.UserResponse{Status: http.StatusExpectationFailed, Message: "error", Data: map[string]interface{}{"error": err.Error(), "field": ""}})
-			c.Abort()
 			return
 		}
 
 		// Send password reset successfully email to user.
 		email.SendPasswordResetSuccessfulEmail(user.PrimaryEmail, user.LoginName)
 
-		c.JSON(http.StatusOK, responses.UserResponse{Status: http.StatusOK, Message: "success", Data: map[string]interface{}{"data": "Password hash been changed successfully."}})
+		c.JSON(http.StatusOK, responses.UserResponse{Status: http.StatusOK, Message: "success", Data: map[string]interface{}{"data": "Your password been changed successfully."}})
 
+	}
+}
+
+// UploadThumbnail - Upload user profile picture/thumbnail
+// api/user/thumbnail?kind=(remote | file)&url=..
+func UploadThumbnail() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		kind := c.Query("kind")
+		defer cancel()
+
+		currentIdStr, err := auth.ExtractTokenID(c)
+		if err != nil {
+			c.JSON(http.StatusUnauthorized, responses.UserResponse{Status: http.StatusUnauthorized, Message: "error", Data: map[string]interface{}{"error": err.Error(), "field": "file"}})
+			c.Abort()
+			return
+		}
+		currentId, _ := primitive.ObjectIDFromHex(currentIdStr)
+
+		now := time.Now()
+		filter := bson.M{"_id": currentId}
+
+		// if user wants remote upload we proceed here
+		if kind == "remote" {
+			url := c.Query("url")
+			uploadUrl, err := services.NewMediaUpload().RemoteUpload(models.Url{Url: url})
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, responses.UserResponse{Status: http.StatusInternalServerError, Message: "error", Data: map[string]interface{}{"error": err.Error(), "field": "file"}})
+				return
+			}
+
+			update := bson.M{"$set": bson.M{"thumbnail": uploadUrl, "modified_at": now}}
+			_, err = userCollection.UpdateOne(ctx, filter, update)
+			if err != nil {
+				c.JSON(http.StatusExpectationFailed, responses.UserResponse{Status: http.StatusExpectationFailed, Message: "error", Data: map[string]interface{}{"error": err.Error(), "field": "file"}})
+				return
+			}
+		}
+
+		formFile, _, err := c.Request.FormFile("file")
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, responses.UserResponse{Status: http.StatusInternalServerError, Message: "error", Data: map[string]interface{}{"error": err.Error(), "field": "file"}})
+			return
+		}
+
+		uploadUrl, err := services.NewMediaUpload().FileUpload(models.File{File: formFile})
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, responses.UserResponse{Status: http.StatusInternalServerError, Message: "error", Data: map[string]interface{}{"error": err.Error(), "field": "file"}})
+			return
+		}
+
+		update := bson.M{"$set": bson.M{"thumbnail": uploadUrl, "modified_at": now}}
+		_, err = userCollection.UpdateOne(ctx, filter, update)
+		if err != nil {
+			c.JSON(http.StatusExpectationFailed, responses.UserResponse{Status: http.StatusExpectationFailed, Message: "error", Data: map[string]interface{}{"error": err.Error(), "field": "file"}})
+			return
+		}
+
+		c.JSON(http.StatusOK, responses.UserResponse{Status: http.StatusOK, Message: "success", Data: map[string]interface{}{"data": "Your thumbnail has been changed successfully."}})
 	}
 }
