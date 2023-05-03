@@ -85,7 +85,14 @@ type LoginHistoryIds struct {
 	IDs []string `json:"ids"`
 }
 
-type UserPasswordReset struct {
+type UserPasswordResetToken struct {
+	UserId      primitive.ObjectID `bson:"user_uid" json:"user_uid"`
+	TokenDigest string             `bson:"token_digest" json:"token_digest"`
+	CreatedAt   primitive.DateTime `bson:"created_at" json:"created_at"`
+	ExpiresAt   primitive.DateTime `bson:"expired_at" json:"expires_at"`
+}
+
+type UserVerifyEmailToken struct {
 	UserId      primitive.ObjectID `bson:"user_uid" json:"user_uid"`
 	TokenDigest string             `bson:"token_digest" json:"token_digest"`
 	CreatedAt   primitive.DateTime `bson:"created_at" json:"created_at"`

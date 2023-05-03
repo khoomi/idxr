@@ -3,6 +3,7 @@ package configs
 import (
 	"errors"
 	"golang.org/x/crypto/bcrypt"
+	"net/mail"
 	"regexp"
 )
 
@@ -106,6 +107,15 @@ func ValidateLoginName(name string) error {
 			Field:   "login_name",
 			Tag:     "bad_password",
 		}
+	}
+
+	return nil
+}
+
+func ValidateEmailAddress(email string) error {
+	_, err := mail.ParseAddress(email)
+	if err != nil {
+		return err
 	}
 
 	return nil

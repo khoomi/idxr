@@ -1,4 +1,4 @@
-package email
+package services
 
 import (
 	"github.com/go-mail/mail"
@@ -20,15 +20,15 @@ func NewKhoomiEmailService(content KhoomiEmailComposer) KhoomiEmailService {
 func (s *KhoomiEmailService) SendMail() error {
 	m := s.mailer
 	for _, content := range s.content.Header {
-		m.SetHeader(content.field, content.value...)
+		m.SetHeader(content.Field, content.Value...)
 	}
 
 	for _, content := range s.content.AddressHeader {
-		m.SetAddressHeader(content.field, content.address, content.name)
+		m.SetAddressHeader(content.Field, content.Address, content.Name)
 	}
 
 	body := s.content.Body
-	m.SetBody(body.contentType, body.body)
+	m.SetBody(body.ContentType, body.Body)
 
 	SmtpHost := configs.LoadEnvFor("SMTP_HOST")
 	SmtpUsername := configs.LoadEnvFor("SMTP_USERNAME")
@@ -49,17 +49,17 @@ type KhoomiEmailComposer struct {
 }
 
 type SetHeader struct {
-	field string
-	value []string
+	Field string
+	Value []string
 }
 
 type SetAddressHeader struct {
-	field   string
-	address string
-	name    string
+	Field   string
+	Address string
+	Name    string
 }
 
 type SetBody struct {
-	contentType string
-	body        string
+	ContentType string
+	Body        string
 }

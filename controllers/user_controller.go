@@ -28,6 +28,7 @@ import (
 var userCollection = configs.GetCollection(configs.DB, "User")
 var loginHistoryCollection = configs.GetCollection(configs.DB, "UserLoginHistory")
 var passwordResetTokenCollection = configs.GetCollection(configs.DB, "UserPasswordResetToken")
+var userEmailVerificationTokenCollection = configs.GetCollection(configs.DB, "UserEmailVerificationToken")
 var validate = validator.New()
 
 func CreateUser() gin.HandlerFunc {
@@ -44,6 +45,13 @@ func CreateUser() gin.HandlerFunc {
 
 		if validationErr := validate.Struct(&jsonUser); validationErr != nil {
 			c.JSON(http.StatusUnprocessableEntity, responses.UserResponse{Status: http.StatusUnprocessableEntity, Message: "error", Data: map[string]interface{}{"error": validationErr.Error(), "field": ""}})
+			return
+		}
+
+		// Verify current user email
+		errEmail := configs.ValidateEmailAddress(jsonUser.Email)
+		if errEmail != nil {
+			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": "Bad or invalid email address", "field": ""}})
 			return
 		}
 
@@ -204,6 +212,108 @@ func AuthenticateUser() gin.HandlerFunc {
 	}
 }
 
+// SendVerifyEmail -> api/send-verify-email?email=...&name=user_login_name
+func SendVerifyEmail() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		emailCurrent := c.Query("email")
+		loginName := c.Query("name")
+		defer cancel()
+
+		// Verify current user
+		userId, err := auth.ExtractTokenID(c)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": err.Error(), "field": ""}})
+			return
+		}
+
+		// Verify current user email
+		errEmail := configs.ValidateEmailAddress(emailCurrent)
+		if errEmail != nil {
+			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": "Bad or invalid email address", "field": ""}})
+			return
+		}
+
+		userObjId, _ := primitive.ObjectIDFromHex(userId)
+		token := middleware.GenerateSecureToken(8)
+
+		now := time.Now()
+		expirationTime := now.Add(1 * time.Hour)
+		verifyEmail := models.UserVerifyEmailToken{
+			UserId:      userObjId,
+			TokenDigest: token,
+			CreatedAt:   primitive.NewDateTimeFromTime(now),
+			ExpiresAt:   primitive.NewDateTimeFromTime(expirationTime),
+		}
+		opts := options.Replace().SetUpsert(true)
+		filter := bson.M{"user_uid": userObjId}
+		_, err = userEmailVerificationTokenCollection.ReplaceOne(ctx, filter, verifyEmail, opts)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": err.Error(), "field": "email"}})
+			c.Abort()
+			return
+		}
+
+		link := fmt.Sprintf("https://khoomi.com/verify-email?token=%v&id=%v", token, userId)
+		email.SendVerifyEmailNotification(emailCurrent, loginName, link)
+
+		c.JSON(http.StatusOK, responses.UserResponse{Status: http.StatusOK, Message: "success", Data: map[string]interface{}{"data": "Password reset email send successfully"}})
+	}
+}
+
+// VerifyEmail -> api/send-verify-email?email=...&name=user_login_name
+func VerifyEmail() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		currentId := c.Query("id")
+		currentToken := c.Query("token")
+		var emailVerificationData models.UserVerifyEmailToken
+		var user models.User
+		defer cancel()
+
+		userId, err := primitive.ObjectIDFromHex(currentId)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": "Error decoding userid", "field": "userid"}})
+			return
+		}
+
+		err = userEmailVerificationTokenCollection.FindOneAndDelete(ctx, bson.M{"user_uid": userId}).Decode(&emailVerificationData)
+		if err != nil {
+			c.JSON(http.StatusNotFound, responses.UserResponse{Status: http.StatusNotFound, Message: "error", Data: map[string]interface{}{"error": err.Error(), "field": "userid"}})
+			return
+		}
+
+		// Check if reset token has expired
+		now := primitive.NewDateTimeFromTime(time.Now())
+		if now.Time().Unix() > emailVerificationData.ExpiresAt.Time().Unix() {
+			if err != nil {
+				c.JSON(http.StatusNotFound, responses.UserResponse{Status: http.StatusNotFound, Message: "error", Data: map[string]interface{}{"error": "Password reset token has expired. Please restart the reset process", "field": "expired"}})
+				return
+			}
+		}
+
+		// Check if reset token is correct.
+		if currentToken != emailVerificationData.TokenDigest {
+			if err != nil {
+				c.JSON(http.StatusNotFound, responses.UserResponse{Status: http.StatusNotFound, Message: "error", Data: map[string]interface{}{"error": "Email verify token is incorrect or expired. Please restart the verification process or use a valid token", "field": "expired"}})
+				return
+			}
+		}
+
+		// Change user email verify status.
+		filter := bson.M{"_id": emailVerificationData.UserId}
+		update := bson.M{"$set": bson.M{"status": "Active", "modified_at": now, "auth.modified_at": now, "auth.email_verified": true}}
+		err = userCollection.FindOneAndUpdate(ctx, filter, update).Decode(&user)
+		if err != nil {
+			c.JSON(http.StatusNotModified, responses.UserResponse{Status: http.StatusNotModified, Message: "error", Data: map[string]interface{}{"error": err.Error(), "field": ""}})
+			return
+		}
+
+		c.JSON(http.StatusOK, responses.UserResponse{Status: http.StatusOK, Message: "success", Data: map[string]interface{}{"data": "Your email been verified successfully."}})
+
+	}
+}
+
 func CurrentUser(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -216,7 +326,7 @@ func CurrentUser(c *gin.Context) {
 	}
 
 	Id, _ := primitive.ObjectIDFromHex(userId)
-	user, errMongo := GetUserById(ctx, Id)
+	user, errMongo := services.GetUserById(ctx, Id)
 	if errMongo != nil {
 		c.JSON(http.StatusNotFound, responses.UserResponse{Status: http.StatusNotFound, Message: "error", Data: map[string]interface{}{"error": errMongo.Error(), "field": "user id"}})
 		c.Abort()
@@ -227,16 +337,6 @@ func CurrentUser(c *gin.Context) {
 	c.JSON(http.StatusOK, responses.UserResponse{Status: http.StatusOK, Message: "success", Data: map[string]interface{}{"data": user}})
 }
 
-func GetUserById(ctx context.Context, id primitive.ObjectID) (models.User, error) {
-	var user models.User
-	err := userCollection.FindOne(ctx, bson.M{"_id": id}).Decode(&user)
-	if err != nil {
-		return models.User{}, err
-	}
-
-	return user, nil
-}
-
 // GetUser => Get user by id endpoint
 func GetUser() gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -245,7 +345,7 @@ func GetUser() gin.HandlerFunc {
 		defer cancel()
 
 		Id, _ := primitive.ObjectIDFromHex(userId)
-		user, errMongo := GetUserById(ctx, Id)
+		user, errMongo := services.GetUserById(ctx, Id)
 		if errMongo != nil {
 			c.JSON(http.StatusNotFound, responses.UserResponse{Status: http.StatusNotFound, Message: "error", Data: map[string]interface{}{"data": errMongo.Error(), "field": "user id"}})
 			c.Abort()
@@ -387,15 +487,15 @@ func DeleteLoginHistories() gin.HandlerFunc {
 		defer session.EndSession(context.TODO())
 
 		userObj, _ := primitive.ObjectIDFromHex(userId)
-		var DeleteingIds []primitive.ObjectID
+		var IdsToDelete []primitive.ObjectID
 		for _, id := range historyIDs.IDs {
 			objId, _ := primitive.ObjectIDFromHex(id)
-			DeleteingIds = append(DeleteingIds, objId)
+			IdsToDelete = append(IdsToDelete, objId)
 		}
-		log.Println(DeleteingIds)
+		log.Println(IdsToDelete)
 		callback := func(ctx mongo.SessionContext) (interface{}, error) {
 			// update user login counts
-			filter := bson.M{"_id": bson.M{"$in": DeleteingIds}, "user_uid": userObj}
+			filter := bson.M{"_id": bson.M{"$in": IdsToDelete}, "user_uid": userObj}
 			result, err := loginHistoryCollection.DeleteMany(ctx, filter)
 			if err != nil {
 				return nil, err
@@ -434,7 +534,7 @@ func PasswordResetEmail() gin.HandlerFunc {
 		token := middleware.GenerateSecureToken(8)
 		now := time.Now()
 		expirationTime := now.Add(1 * time.Hour)
-		passwordReset := models.UserPasswordReset{
+		passwordReset := models.UserPasswordResetToken{
 			UserId:      primitive.ObjectID{},
 			TokenDigest: token,
 			CreatedAt:   primitive.NewDateTimeFromTime(now),
@@ -457,14 +557,14 @@ func PasswordResetEmail() gin.HandlerFunc {
 	}
 }
 
-// PasswordReset - api/password-reset/userid?token=..&newpassword=..
+// PasswordReset - api/password-reset/userid?token=..&newpassword=..&id=user_uid
 func PasswordReset() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		currentId := c.Param("userid")
+		currentId := c.Query("id")
 		currentToken := c.Query("token")
 		newPassword := c.Query("newpassword")
-		var passwordResetData models.UserPasswordReset
+		var passwordResetData models.UserPasswordResetToken
 		var user models.User
 		defer cancel()
 
@@ -492,7 +592,7 @@ func PasswordReset() gin.HandlerFunc {
 		// Check if reset token is correct.
 		if currentToken != passwordResetData.TokenDigest {
 			if err != nil {
-				c.JSON(http.StatusNotFound, responses.UserResponse{Status: http.StatusNotFound, Message: "error", Data: map[string]interface{}{"error": "Password reset token is not correct. Please restart the reset process or use a valid token", "field": "expired"}})
+				c.JSON(http.StatusNotFound, responses.UserResponse{Status: http.StatusNotFound, Message: "error", Data: map[string]interface{}{"error": "Password reset token is incorrect or expired. Please restart the reset process or use a valid token", "field": "expired"}})
 				return
 			}
 		}
@@ -514,7 +614,7 @@ func PasswordReset() gin.HandlerFunc {
 		update := bson.M{"$set": bson.M{"auth.password_digest": hashedPassword, "auth.modified_at": now, "auth.email_verified": true}}
 		err = userCollection.FindOneAndUpdate(ctx, filter, update).Decode(&user)
 		if err != nil {
-			c.JSON(http.StatusExpectationFailed, responses.UserResponse{Status: http.StatusExpectationFailed, Message: "error", Data: map[string]interface{}{"error": err.Error(), "field": ""}})
+			c.JSON(http.StatusNotModified, responses.UserResponse{Status: http.StatusNotModified, Message: "error", Data: map[string]interface{}{"error": err.Error(), "field": ""}})
 			return
 		}
 
