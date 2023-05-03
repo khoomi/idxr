@@ -17,6 +17,7 @@ func Routes(api *gin.RouterGroup) {
 			secured.GET("/me", controllers.CurrentUser)
 			secured.PUT("/me", controllers.UpdateFirstLastName())
 			secured.PUT("/thumbnail", controllers.UploadThumbnail())
+			secured.DELETE("/thumbnail", controllers.DeleteThumbnail())
 			secured.POST("/send-verify-email", controllers.SendVerifyEmail())
 			// Login histories
 			secured.GET("/:userId/login-history", controllers.GetLoginHistories())

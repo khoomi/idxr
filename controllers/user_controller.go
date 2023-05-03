@@ -3,12 +3,14 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"github.com/cloudinary/cloudinary-go/api/uploader"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"go.mongodb.org/mongo-driver/mongo/writeconcern"
 	"khoomi-api-io/khoomi_api/auth"
 	"khoomi-api-io/khoomi_api/configs"
 	"khoomi-api-io/khoomi_api/email"
+	"khoomi-api-io/khoomi_api/helper"
 	"khoomi-api-io/khoomi_api/middleware"
 	"khoomi-api-io/khoomi_api/models"
 	"khoomi-api-io/khoomi_api/responses"
@@ -128,6 +130,7 @@ func CreateUser() gin.HandlerFunc {
 	}
 }
 
+// AuthenticateUser - AUthenticate user into the our  server
 func AuthenticateUser() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -209,6 +212,17 @@ func AuthenticateUser() gin.HandlerFunc {
 		}
 
 		c.JSON(http.StatusCreated, responses.UserResponse{Status: http.StatusCreated, Message: "success", Data: map[string]interface{}{"token": tokenString}})
+	}
+}
+
+// Logout - Log user out and invalidate session key
+func Logout() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		_, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		token := auth.ExtractToken(c)
+		defer cancel()
+
+		_ = helper.InvalidateToken(c, configs.REDIS, token)
 	}
 }
 
@@ -682,5 +696,46 @@ func UploadThumbnail() gin.HandlerFunc {
 		}
 
 		c.JSON(http.StatusOK, responses.UserResponse{Status: http.StatusOK, Message: "success", Data: map[string]interface{}{"data": "Your thumbnail has been changed successfully."}})
+	}
+}
+
+// DeleteThumbnail - Upload user profile picture/thumbnail
+// api/user/thumbnail?name=thumbnail_name&type=jpg
+func DeleteThumbnail() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		name := c.Query("name")
+		kind := c.Query("type")
+		defer cancel()
+
+		currentIdStr, err := auth.ExtractTokenID(c)
+		if err != nil {
+			c.JSON(http.StatusUnauthorized, responses.UserResponse{Status: http.StatusUnauthorized, Message: "error", Data: map[string]interface{}{"error": err.Error(), "field": "file"}})
+			c.Abort()
+			return
+		}
+		currentId, _ := primitive.ObjectIDFromHex(currentIdStr)
+
+		_, errOnDelete := helper.ImageDeletionHelper(uploader.DestroyParams{
+			PublicID:     name,
+			Type:         "upload",
+			ResourceType: kind,
+			Invalidate:   false,
+		})
+		if errOnDelete != nil {
+			c.JSON(http.StatusExpectationFailed, responses.UserResponse{Status: http.StatusExpectationFailed, Message: "error", Data: map[string]interface{}{"error": errOnDelete.Error(), "field": "file"}})
+			return
+		}
+
+		now := time.Now()
+		filter := bson.M{"_id": currentId}
+		update := bson.M{"$set": bson.M{"thumbnail": nil, "modified_at": now}}
+		_, err = userCollection.UpdateOne(ctx, filter, update)
+		if err != nil {
+			c.JSON(http.StatusExpectationFailed, responses.UserResponse{Status: http.StatusExpectationFailed, Message: "error", Data: map[string]interface{}{"error": err.Error(), "field": "file"}})
+			return
+		}
+
+		c.JSON(http.StatusOK, responses.UserResponse{Status: http.StatusOK, Message: "success", Data: map[string]interface{}{"data": "Your thumbnail has been deleted successfully."}})
 	}
 }

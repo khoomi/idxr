@@ -3,6 +3,7 @@ package configs
 import (
 	"context"
 	"fmt"
+	"github.com/redis/go-redis/v9"
 	"log"
 	"time"
 
@@ -41,3 +42,17 @@ func GetCollection(client *mongo.Client, name string) (collection *mongo.Collect
 	collection = client.Database("khoomi").Collection(name)
 	return
 }
+
+func ConnectRedis() *redis.Client {
+	// Connect to Redis
+	client := redis.NewClient(&redis.Options{
+		Addr:     "localhost:6379",
+		Password: "", // no password set
+		DB:       1,  // use default DB
+	})
+
+	fmt.Println("Connected to Redis")
+	return client
+}
+
+var REDIS = ConnectRedis()

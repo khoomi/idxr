@@ -19,12 +19,11 @@ func KhoomiRateLimiter() gin.HandlerFunc {
 	// This makes it so each ip can only make 5 requests per second
 	store := ratelimit.RedisStore(&ratelimit.RedisOptions{
 		RedisClient: redis.NewClient(&redis.Options{
-			Addr: "localhost:6379",
+			Addr: "redis:6379",
 		}),
 		Rate:  time.Second,
 		Limit: 5,
 	})
-	println("limit 1")
 	return ratelimit.RateLimiter(store, &ratelimit.Options{
 		ErrorHandler: errorHandler,
 		KeyFunc:      keyFunc,
