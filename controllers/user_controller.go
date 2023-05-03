@@ -28,6 +28,7 @@ import (
 )
 
 var userCollection = configs.GetCollection(configs.DB, "User")
+var userAddressCollection = configs.GetCollection(configs.DB, "User")
 var loginHistoryCollection = configs.GetCollection(configs.DB, "UserLoginHistory")
 var passwordResetTokenCollection = configs.GetCollection(configs.DB, "UserPasswordResetToken")
 var userEmailVerificationTokenCollection = configs.GetCollection(configs.DB, "UserEmailVerificationToken")
@@ -92,29 +93,36 @@ func CreateUser() gin.HandlerFunc {
 
 		}
 		now := time.Now()
+		userAuth := models.UserAuthData{
+			EmailVerified:  false,
+			ModifiedAt:     time.Now(),
+			PasswordDigest: hashedPassword,
+		}
 		newUser := models.User{
-			Id:           primitive.NewObjectID(),
-			LoginName:    jsonUser.LoginName,
-			PrimaryEmail: jsonUser.Email,
-			FirstName:    "",
-			LastName:     "",
-			Auth: models.UserAuthData{
-				EmailVerified:  false,
-				ModifiedAt:     time.Now(),
-				PasswordDigest: hashedPassword,
-			},
-			Thumbnail:      "",
-			ProfileUid:     primitive.NilObjectID,
-			LoginCounts:    0,
-			LastLoginIp:    c.ClientIP(),
-			LastLogin:      now,
-			CreatedAt:      now,
-			ModifiedAt:     now,
-			ReferredByUser: "",
-			Role:           models.Regular,
-			Status:         models.Inactive,
-			Shops:          []string{},
-			FavoriteShops:  []string{},
+			Id:                   primitive.NewObjectID(),
+			LoginName:            jsonUser.LoginName,
+			PrimaryEmail:         jsonUser.Email,
+			FirstName:            "",
+			LastName:             "",
+			Auth:                 userAuth,
+			Thumbnail:            "",
+			Bio:                  "",
+			Phone:                "",
+			Birthdate:            models.UserBirthday{},
+			IsSeller:             false,
+			TransactionBuyCount:  0,
+			TransactionSoldCount: 0,
+			AddressId:            primitive.NilObjectID,
+			ReferredByUser:       "",
+			Role:                 models.Regular,
+			Status:               models.Inactive,
+			Shops:                []string{},
+			FavoriteShops:        []string{},
+			CreatedAt:            now,
+			ModifiedAt:           now,
+			LastLogin:            now,
+			LoginCounts:          0,
+			LastLoginIp:          c.ClientIP(),
 		}
 
 		result, err := userCollection.InsertOne(ctx, newUser)
@@ -130,7 +138,7 @@ func CreateUser() gin.HandlerFunc {
 	}
 }
 
-// AuthenticateUser - AUthenticate user into the our  server
+// AuthenticateUser - AAuthenticate user into the server
 func AuthenticateUser() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -141,20 +149,17 @@ func AuthenticateUser() gin.HandlerFunc {
 
 		if err := c.BindJSON(&jsonUser); err != nil {
 			c.JSON(http.StatusInternalServerError, responses.UserResponse{Status: http.StatusInternalServerError, Message: "error", Data: map[string]interface{}{"error": err.Error(), "field": ""}})
-			c.Abort()
 			return
 		}
 
 		var validUser models.User
 		if err := userCollection.FindOne(ctx, bson.M{"primary_email": jsonUser.Email}).Decode(&validUser); err != nil {
 			c.JSON(http.StatusNotFound, responses.UserResponse{Status: http.StatusNotFound, Message: "error", Data: map[string]interface{}{"error": err.Error(), "field": "primary_email"}})
-			c.Abort()
 			return
 		}
 
 		if errPasswordCheck := configs.CheckPassword(validUser.Auth.PasswordDigest, jsonUser.Password); errPasswordCheck != nil {
 			c.JSON(http.StatusUnauthorized, responses.UserResponse{Status: http.StatusUnauthorized, Message: "error", Data: map[string]interface{}{"error": errPasswordCheck.Error(), "field": "password"}})
-			c.Abort()
 			return
 		}
 
@@ -165,7 +170,7 @@ func AuthenticateUser() gin.HandlerFunc {
 		if err != nil {
 			panic(err)
 		}
-		defer session.EndSession(context.TODO())
+		defer session.EndSession(ctx)
 		callback := func(ctx mongo.SessionContext) (interface{}, error) {
 			// update user login counts
 			filter := bson.M{"primary_email": validUser.PrimaryEmail}
@@ -186,7 +191,6 @@ func AuthenticateUser() gin.HandlerFunc {
 			}
 			result, errLoginHistory := loginHistoryCollection.InsertOne(ctx, doc)
 			if errLoginHistory != nil {
-				log.Println(errLoginHistory)
 				return result, errLoginHistory
 			}
 
@@ -196,13 +200,11 @@ func AuthenticateUser() gin.HandlerFunc {
 		_, err = session.WithTransaction(context.Background(), callback, txnOptions)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": err.Error(), "field": ""}})
-			c.Abort()
 		}
 
 		tokenString, err := auth.GenerateJWT(validUser.Id.Hex(), validUser.PrimaryEmail, validUser.LoginName)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, responses.UserResponse{Status: http.StatusInternalServerError, Message: "error", Data: map[string]interface{}{"error": err.Error(), "field": "auth_token"}})
-			c.Abort()
 			return
 		}
 
@@ -264,7 +266,6 @@ func SendVerifyEmail() gin.HandlerFunc {
 		_, err = userEmailVerificationTokenCollection.ReplaceOne(ctx, filter, verifyEmail, opts)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": err.Error(), "field": "email"}})
-			c.Abort()
 			return
 		}
 
@@ -362,7 +363,6 @@ func GetUser() gin.HandlerFunc {
 		user, errMongo := services.GetUserById(ctx, Id)
 		if errMongo != nil {
 			c.JSON(http.StatusNotFound, responses.UserResponse{Status: http.StatusNotFound, Message: "error", Data: map[string]interface{}{"data": errMongo.Error(), "field": "user id"}})
-			c.Abort()
 			return
 		}
 
@@ -440,7 +440,6 @@ func GetLoginHistories() gin.HandlerFunc {
 		limitInt, err := strconv.Atoi(limit)
 		if err != nil {
 			c.JSON(http.StatusNotFound, responses.UserResponse{Status: http.StatusNotFound, Message: "error", Data: map[string]interface{}{"error": "Expected an integer for 'limit'", "field": "limit"}})
-			c.Abort()
 			return
 		}
 
@@ -448,7 +447,6 @@ func GetLoginHistories() gin.HandlerFunc {
 		skipInt, err := strconv.Atoi(skip)
 		if err != nil {
 			c.JSON(http.StatusNotFound, responses.UserResponse{Status: http.StatusNotFound, Message: "error", Data: map[string]interface{}{"error": "Expected an integer for 'skip'", "field": "skip"}})
-			c.Abort()
 			return
 		}
 
@@ -458,14 +456,12 @@ func GetLoginHistories() gin.HandlerFunc {
 		result, err := loginHistoryCollection.Find(ctx, filter, find)
 		if err != nil {
 			c.JSON(http.StatusNotFound, responses.UserResponse{Status: http.StatusNotFound, Message: "error", Data: map[string]interface{}{"error": err.Error(), "field": ""}})
-			c.Abort()
 			return
 		}
 
 		var loginHistory []models.LoginHistory
 		if err = result.All(ctx, &loginHistory); err != nil {
 			c.JSON(http.StatusNotFound, responses.UserResponse{Status: http.StatusNotFound, Message: "error", Data: map[string]interface{}{"error": err.Error(), "field": ""}})
-			c.Abort()
 			return
 		}
 
@@ -521,7 +517,6 @@ func DeleteLoginHistories() gin.HandlerFunc {
 		_, err = session.WithTransaction(context.Background(), callback, txnOptions)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": err.Error(), "field": ""}})
-			c.Abort()
 			return
 		}
 
@@ -541,7 +536,6 @@ func PasswordResetEmail() gin.HandlerFunc {
 		err := userCollection.FindOne(ctx, bson.M{"primary_email": currentEmail}).Decode(&user)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": "user with email now found", "field": "email"}})
-			c.Abort()
 			return
 		}
 
@@ -560,7 +554,6 @@ func PasswordResetEmail() gin.HandlerFunc {
 		_, err = passwordResetTokenCollection.ReplaceOne(ctx, filter, passwordReset, opts)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": err.Error(), "field": "email"}})
-			c.Abort()
 			return
 		}
 
@@ -651,7 +644,6 @@ func UploadThumbnail() gin.HandlerFunc {
 		currentIdStr, err := auth.ExtractTokenID(c)
 		if err != nil {
 			c.JSON(http.StatusUnauthorized, responses.UserResponse{Status: http.StatusUnauthorized, Message: "error", Data: map[string]interface{}{"error": err.Error(), "field": "file"}})
-			c.Abort()
 			return
 		}
 		currentId, _ := primitive.ObjectIDFromHex(currentIdStr)
@@ -711,7 +703,6 @@ func DeleteThumbnail() gin.HandlerFunc {
 		currentIdStr, err := auth.ExtractTokenID(c)
 		if err != nil {
 			c.JSON(http.StatusUnauthorized, responses.UserResponse{Status: http.StatusUnauthorized, Message: "error", Data: map[string]interface{}{"error": err.Error(), "field": "file"}})
-			c.Abort()
 			return
 		}
 		currentId, _ := primitive.ObjectIDFromHex(currentIdStr)
@@ -737,5 +728,101 @@ func DeleteThumbnail() gin.HandlerFunc {
 		}
 
 		c.JSON(http.StatusOK, responses.UserResponse{Status: http.StatusOK, Message: "success", Data: map[string]interface{}{"data": "Your thumbnail has been deleted successfully."}})
+	}
+}
+
+// ////////////////////// START USER ADDRESS //////////////////////////
+
+// CreateUserAddress - create new user address
+func CreateUserAddress() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		var userAddress models.UserAddress
+		defer cancel()
+
+		// Extract current user token
+		userIdStr, err := auth.ExtractTokenID(c)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": err.Error(), "field": ""}})
+			return
+		}
+
+		userId, err := primitive.ObjectIDFromHex(userIdStr)
+
+		// Validate the request body
+		if err := c.BindJSON(&userAddress); err != nil {
+			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": err.Error(), "field": ""}})
+			return
+		}
+
+		wc := writeconcern.New(writeconcern.WMajority())
+		txnOptions := options.Transaction().SetWriteConcern(wc)
+		session, err := configs.DB.StartSession()
+		if err != nil {
+			panic(err)
+		}
+		defer session.EndSession(ctx)
+		callback := func(ctx mongo.SessionContext) (interface{}, error) {
+			// create user address
+
+			userAddress.UserId = userId
+			userAddress.Id = primitive.NewObjectID()
+			_, err = userAddressCollection.InsertOne(ctx, userAddress)
+			if err != nil {
+				return nil, err
+			}
+
+			// update user profile address_id
+			filter := bson.M{"_id": userId}
+			update := bson.M{"$set": bson.M{"address_id": userAddress.Id, "modified_at": time.Now()}}
+			res, err := userCollection.UpdateOne(ctx, filter, update)
+			if err != nil {
+				return nil, err
+			}
+
+			return res, nil
+		}
+
+		_, err = session.WithTransaction(context.Background(), callback, txnOptions)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": err.Error(), "field": ""}})
+		}
+
+		c.JSON(http.StatusOK, responses.UserResponse{Status: http.StatusOK, Message: "success", Data: map[string]interface{}{"data": "Address created."}})
+
+	}
+}
+
+// UpdateUserAddress - update user address
+func UpdateUserAddress() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		var userAddress models.UserAddress
+		defer cancel()
+
+		// Extract current user token
+		userIdStr, err := auth.ExtractTokenID(c)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": err.Error(), "field": ""}})
+			return
+		}
+
+		userId, err := primitive.ObjectIDFromHex(userIdStr)
+
+		// Validate the request body
+		if err := c.BindJSON(&userAddress); err != nil {
+			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": err.Error(), "field": ""}})
+			return
+		}
+
+		filter := bson.M{"user_id": userId}
+		update := bson.M{"$set": bson.M{"city": userAddress.City, "state": userAddress.State, "street": userAddress.Street, "postal_code": userAddress.PostalCode, "country": models.CountryNigeria}}
+		_, err = userAddressCollection.UpdateOne(ctx, filter, update)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": err.Error(), "field": ""}})
+		}
+
+		c.JSON(http.StatusOK, responses.UserResponse{Status: http.StatusOK, Message: "success", Data: map[string]interface{}{"data": "Address updated."}})
+
 	}
 }

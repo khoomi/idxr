@@ -14,12 +14,18 @@ func Routes(api *gin.RouterGroup) {
 		secured := api.Group("/user").Use(middleware.Auth())
 		{
 			secured.GET("/ping", controllers.Ping)
-			secured.GET("/me", controllers.CurrentUser)
-			secured.PUT("/me", controllers.UpdateFirstLastName())
+			// user endpoint.
+			secured.GET("/", controllers.CurrentUser)
+			secured.PUT("/", controllers.UpdateFirstLastName())
+			// user thumbnail endpoints.
 			secured.PUT("/thumbnail", controllers.UploadThumbnail())
 			secured.DELETE("/thumbnail", controllers.DeleteThumbnail())
+			// user address endpoints.
+			secured.POST("/address", controllers.CreateUserAddress())
+			secured.PUT("/address", controllers.UpdateUserAddress())
+			// email notification.
 			secured.POST("/send-verify-email", controllers.SendVerifyEmail())
-			// Login histories
+			// Login histories.
 			secured.GET("/:userId/login-history", controllers.GetLoginHistories())
 			secured.DELETE("/:userId/login-history", controllers.DeleteLoginHistories())
 		}
