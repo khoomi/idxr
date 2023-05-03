@@ -19,6 +19,7 @@ import (
 	"net/http"
 	"regexp"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -855,6 +856,57 @@ func UpdateUserBirthdate() gin.HandlerFunc {
 		}
 
 		log.Println("Okay")
+
+		c.JSON(http.StatusCreated, responses.UserResponse{Status: http.StatusCreated, Message: "success", Data: map[string]interface{}{"data": result}})
+	}
+}
+
+// UpdateUserSingleField - update user single field like Phone, Bio
+// api/user/update?field=phone&value=8084051523
+func UpdateUserSingleField() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		field := c.Query("field")
+		value := c.Query("value")
+		defer cancel()
+
+		notAllowedFields := []string{"role", "login_counts", "modified_at", "created_at", "favorite_shops", "shops", "status", "referred_by_user", "address_id", "transaction_sold_count", "transaction_buy_count", "birthdate", "thumbnail", "auth", "primary_email", "login_name", "_id"}
+
+		for _, n := range notAllowedFields {
+			if strings.ToLower(field) == n {
+				c.JSON(http.StatusUnauthorized, responses.UserResponse{Status: http.StatusUnauthorized, Message: "error", Data: map[string]interface{}{"error": fmt.Sprintf("No way!, you can't change your %v", n), "field": "Authorization"}})
+				return
+			}
+		}
+
+		if strings.ToLower(field) == "login_counts" {
+			c.JSON(http.StatusUnauthorized, responses.UserResponse{Status: http.StatusUnauthorized, Message: "error", Data: map[string]interface{}{"error": "No way!, you can't change your login_counts", "field": "Authorization"}})
+			return
+		}
+
+		if strings.ToLower(field) == "login_counts" {
+			c.JSON(http.StatusUnauthorized, responses.UserResponse{Status: http.StatusUnauthorized, Message: "error", Data: map[string]interface{}{"error": "No way!, you can't change your login_counts", "field": "Authorization"}})
+			return
+		}
+
+		myId, err := auth.ExtractTokenID(c)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": err.Error(), "field": "Authorization"}})
+			return
+		}
+		IdToObjectId, errId := primitive.ObjectIDFromHex(myId)
+		if errId != nil {
+			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": errId.Error(), "field": "user id"}})
+			return
+		}
+
+		filter := bson.M{"_id": IdToObjectId}
+		update := bson.M{"$set": bson.M{field: value}}
+		result, errUpdateName := userCollection.UpdateOne(ctx, filter, update)
+		if errUpdateName != nil {
+			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": errUpdateName.Error(), "field": field}})
+			return
+		}
 
 		c.JSON(http.StatusCreated, responses.UserResponse{Status: http.StatusCreated, Message: "success", Data: map[string]interface{}{"data": result}})
 	}
