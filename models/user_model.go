@@ -108,7 +108,7 @@ type UserVerifyEmailToken struct {
 type UserAddress struct {
 	Id         primitive.ObjectID `bson:"_id" json:"_id"`
 	City       string             `bson:"city" json:"city" validate:"required"`
-	State      string             `bson:"state" json:"street_address" validate:"required"`
+	State      string             `bson:"state" json:"state" validate:"required"`
 	Street     string             `bson:"street" json:"street" validate:"required"`
 	PostalCode string             `bson:"postal_code" json:"postal_code" validate:"required"`
 	Country    Country            `bson:"country" json:"country" validate:"required"`

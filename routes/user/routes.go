@@ -7,15 +7,15 @@ import (
 )
 
 func Routes(api *gin.RouterGroup) {
-	user := api.Group("/users")
+	user := api.Group("/user")
 	{
 		user.GET("/:userId", controllers.GetUser())
 		secured := api.Group("/user").Use(middleware.Auth())
 		{
 			secured.GET("/ping", controllers.Ping)
 			// user endpoint.
-			secured.GET("/", controllers.CurrentUser)
-			secured.PUT("/", controllers.UpdateFirstLastName())
+			secured.GET("/me", controllers.CurrentUser)
+			secured.PUT("/me", controllers.UpdateFirstLastName())
 			// user thumbnail endpoints.
 			secured.PUT("/thumbnail", controllers.UploadThumbnail())
 			secured.DELETE("/thumbnail", controllers.DeleteThumbnail())

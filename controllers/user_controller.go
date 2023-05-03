@@ -29,7 +29,7 @@ import (
 )
 
 var userCollection = configs.GetCollection(configs.DB, "User")
-var userAddressCollection = configs.GetCollection(configs.DB, "User")
+var userAddressCollection = configs.GetCollection(configs.DB, "UserAddress")
 var loginHistoryCollection = configs.GetCollection(configs.DB, "UserLoginHistory")
 var passwordResetTokenCollection = configs.GetCollection(configs.DB, "UserPasswordResetToken")
 var userEmailVerificationTokenCollection = configs.GetCollection(configs.DB, "UserEmailVerificationToken")
@@ -137,6 +137,12 @@ func AuthenticateUser() gin.HandlerFunc {
 
 		if err := c.BindJSON(&jsonUser); err != nil {
 			c.JSON(http.StatusInternalServerError, responses.UserResponse{Status: http.StatusInternalServerError, Message: "error", Data: map[string]interface{}{"error": err.Error(), "field": ""}})
+			return
+		}
+
+		// Validate request body
+		if validationErr := validate.Struct(&jsonUser); validationErr != nil {
+			c.JSON(http.StatusUnprocessableEntity, responses.UserResponse{Status: http.StatusUnprocessableEntity, Message: "error", Data: map[string]interface{}{"error": validationErr.Error(), "field": ""}})
 			return
 		}
 
@@ -376,6 +382,12 @@ func UpdateFirstLastName() gin.HandlerFunc {
 		errBind := c.BindJSON(&firstLastName)
 		if errBind != nil {
 			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": errBind.Error(), "field": ""}})
+			return
+		}
+
+		// Validate the request body
+		if err := c.BindJSON(&firstLastName); err != nil {
+			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": err.Error(), "field": ""}})
 			return
 		}
 
@@ -736,6 +748,18 @@ func CreateUserAddress() gin.HandlerFunc {
 		var userAddress models.UserAddress
 		defer cancel()
 
+		// Validate the request body
+		if err := c.BindJSON(&userAddress); err != nil {
+			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": err.Error(), "field": ""}})
+			return
+		}
+
+		// Validate request body
+		if validationErr := validate.Struct(&userAddress); validationErr != nil {
+			c.JSON(http.StatusUnprocessableEntity, responses.UserResponse{Status: http.StatusUnprocessableEntity, Message: "error", Data: map[string]interface{}{"error": validationErr.Error(), "field": ""}})
+			return
+		}
+
 		// Extract current user token
 		userIdStr, err := auth.ExtractTokenID(c)
 		if err != nil {
@@ -744,12 +768,6 @@ func CreateUserAddress() gin.HandlerFunc {
 		}
 
 		userId, err := primitive.ObjectIDFromHex(userIdStr)
-
-		// Validate the request body
-		if err := c.BindJSON(&userAddress); err != nil {
-			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": err.Error(), "field": ""}})
-			return
-		}
 
 		wc := writeconcern.New(writeconcern.WMajority())
 		txnOptions := options.Transaction().SetWriteConcern(wc)
@@ -781,6 +799,7 @@ func CreateUserAddress() gin.HandlerFunc {
 		_, err = session.WithTransaction(context.Background(), callback, txnOptions)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": err.Error(), "field": ""}})
+			return
 		}
 
 		c.JSON(http.StatusOK, responses.UserResponse{Status: http.StatusOK, Message: "success", Data: map[string]interface{}{"data": "Address created."}})
@@ -795,6 +814,18 @@ func UpdateUserAddress() gin.HandlerFunc {
 		var userAddress models.UserAddress
 		defer cancel()
 
+		// Validate the request body
+		if err := c.BindJSON(&userAddress); err != nil {
+			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": err.Error(), "field": ""}})
+			return
+		}
+
+		// Validate request body
+		if validationErr := validate.Struct(&userAddress); validationErr != nil {
+			c.JSON(http.StatusUnprocessableEntity, responses.UserResponse{Status: http.StatusUnprocessableEntity, Message: "error", Data: map[string]interface{}{"error": validationErr.Error(), "field": ""}})
+			return
+		}
+
 		// Extract current user token
 		userIdStr, err := auth.ExtractTokenID(c)
 		if err != nil {
@@ -803,12 +834,6 @@ func UpdateUserAddress() gin.HandlerFunc {
 		}
 
 		userId, err := primitive.ObjectIDFromHex(userIdStr)
-
-		// Validate the request body
-		if err := c.BindJSON(&userAddress); err != nil {
-			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": err.Error(), "field": ""}})
-			return
-		}
 
 		filter := bson.M{"user_id": userId}
 		update := bson.M{"$set": bson.M{"city": userAddress.City, "state": userAddress.State, "street": userAddress.Street, "postal_code": userAddress.PostalCode, "country": models.CountryNigeria}}
@@ -840,6 +865,12 @@ func UpdateUserBirthdate() gin.HandlerFunc {
 		errBind := c.BindJSON(&birthDate)
 		if errBind != nil {
 			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": errBind.Error(), "field": ""}})
+			return
+		}
+
+		// Validate request body
+		if validationErr := validate.Struct(&birthDate); validationErr != nil {
+			c.JSON(http.StatusUnprocessableEntity, responses.UserResponse{Status: http.StatusUnprocessableEntity, Message: "error", Data: map[string]interface{}{"error": validationErr.Error(), "field": ""}})
 			return
 		}
 
