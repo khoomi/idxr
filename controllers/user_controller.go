@@ -486,7 +486,7 @@ func GetLoginHistories() gin.HandlerFunc {
 
 func DeleteLoginHistories() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		_, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		_, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 		currentIdStr, err := auth.ExtractTokenID(c)
 		var historyIDs models.LoginHistoryIds
 		defer cancel()
@@ -512,7 +512,6 @@ func DeleteLoginHistories() gin.HandlerFunc {
 			objId, _ := primitive.ObjectIDFromHex(id)
 			IdsToDelete = append(IdsToDelete, objId)
 		}
-		log.Println(IdsToDelete)
 		callback := func(ctx mongo.SessionContext) (interface{}, error) {
 			// update user login counts
 			filter := bson.M{"_id": bson.M{"$in": IdsToDelete}, "user_uid": userObj}

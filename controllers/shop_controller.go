@@ -6,6 +6,9 @@ import (
 	slug2 "github.com/gosimple/slug"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
+	"go.mongodb.org/mongo-driver/mongo/writeconcern"
 	"khoomi-api-io/khoomi_api/auth"
 	"khoomi-api-io/khoomi_api/configs"
 	"khoomi-api-io/khoomi_api/models"
@@ -17,6 +20,7 @@ import (
 )
 
 var shopCollection = configs.GetCollection(configs.DB, "Shop")
+var shopMemberCollection = configs.GetCollection(configs.DB, "ShopMember")
 
 func CreateShop() gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -101,7 +105,7 @@ func CreateShop() gin.HandlerFunc {
 			Gallery:            []string{},
 			Favorers:           []string{},
 			FavorerCount:       0,
-			Members:            []models.EmbeddedShopMember{},
+			Members:            []models.ShopMember{},
 			Status:             models.ShopStatusPendingReview,
 			CreatedAt:          now,
 			ModifiedAt:         now,
@@ -329,8 +333,8 @@ func AddShopFavorer() gin.HandlerFunc {
 	}
 }
 
-// AddShopFavorers - api/shop/:shop/favorers?userId={userId}
-func RemoeveShopFavorer() gin.HandlerFunc {
+// RemoveShopFavorer - api/shop/:shop/favorers?userId={userId}
+func RemoveShopFavorer() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		userId := c.Query("image")
@@ -347,6 +351,193 @@ func RemoeveShopFavorer() gin.HandlerFunc {
 		res, err := shopCollection.UpdateOne(ctx, filter, update)
 		if err != nil {
 			c.JSON(http.StatusNotModified, responses.UserResponse{Status: http.StatusNotModified, Message: "error", Data: map[string]interface{}{"error": err.Error(), "field": ""}})
+			return
+		}
+
+		c.JSON(http.StatusOK, responses.UserResponse{Status: http.StatusOK, Message: "success", Data: map[string]interface{}{"data": res}})
+	}
+}
+
+// JoinShopMembers - api/shop/:shop/members
+func JoinShopMembers() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		var shopMember models.ShopMemberEmbedded
+		defer cancel()
+
+		shopId, myId, err := services.MyShopIdAndMyId(c)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": err.Error(), "field": ""}})
+			return
+		}
+
+		err = c.BindJSON(shopMember)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": err.Error(), "field": ""}})
+			return
+		}
+
+		// validate request body
+		if validationErr := validate.Struct(&shopMember); validationErr != nil {
+			c.JSON(http.StatusUnprocessableEntity, responses.UserResponse{Status: http.StatusUnprocessableEntity, Message: "error", Data: map[string]interface{}{"error": validationErr.Error(), "field": ""}})
+			return
+		}
+
+		// Shop Member section
+		wc := writeconcern.New(writeconcern.WMajority())
+		txnOptions := options.Transaction().SetWriteConcern(wc)
+
+		session, err := configs.DB.StartSession()
+		if err != nil {
+			panic(err)
+		}
+		defer session.EndSession(ctx)
+
+		callback := func(ctx mongo.SessionContext) (interface{}, error) {
+			// attempt to add member to member collection
+			shopMemberData := models.ShopMember{
+				Id:        primitive.NewObjectID(),
+				MemberId:  shopMember.MemberId,
+				ShopId:    shopId,
+				LoginName: shopMember.LoginName,
+				Thumbnail: shopMember.Thumbnail,
+				IsOwner:   shopId == myId,
+				JoinedAt:  time.Now(),
+			}
+			_, err := shopMemberCollection.InsertOne(ctx, shopMemberData)
+			if err != nil {
+				return nil, err
+			}
+
+			// attempt to add member to member field in shop
+			inner := models.ShopMemberEmbedded{
+				MemberId:  shopMember.MemberId,
+				LoginName: shopMember.LoginName,
+				Thumbnail: shopMember.Thumbnail,
+				IsOwner:   shopId == myId,
+			}
+			filter := bson.M{"user_uid": myId, "members": bson.M{"$not": bson.M{"$elemMatch": bson.M{"member_id": &shopMember.MemberId}}}}
+			update := bson.M{"$push": bson.M{"members": bson.M{"$each": bson.A{inner}, "$sort": -1, "$slice": -10}}, "$set": bson.M{"modified_at": time.Now()}}
+			result2, err := shopCollection.UpdateOne(ctx, filter, update)
+			if err != nil {
+				return nil, err
+			}
+
+			return result2, nil
+		}
+
+		res, err := session.WithTransaction(context.Background(), callback, txnOptions)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": err.Error(), "field": ""}})
+			return
+		}
+
+		c.JSON(http.StatusOK, responses.UserResponse{Status: http.StatusOK, Message: "success", Data: map[string]interface{}{"data": res}})
+	}
+}
+
+// LeaveShopMembers - api/shop/:shop/members
+func LeaveShopMembers() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+
+		shopId, myId, err := services.MyShopIdAndMyId(c)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": err.Error(), "field": ""}})
+			return
+		}
+
+		// Shop Member section
+		wc := writeconcern.New(writeconcern.WMajority())
+		txnOptions := options.Transaction().SetWriteConcern(wc)
+
+		session, err := configs.DB.StartSession()
+		if err != nil {
+			panic(err)
+		}
+		defer session.EndSession(ctx)
+
+		callback := func(ctx mongo.SessionContext) (interface{}, error) {
+			// attempt to remove member from member collection table
+			filter := bson.M{"_id": shopId, "member_id": myId}
+			_, err := shopMemberCollection.DeleteOne(ctx, filter)
+			if err != nil {
+				return nil, err
+			}
+
+			// attempt to remove member from embedded field in shop
+			filter = bson.M{"_id": shopId}
+			update := bson.M{"$pull": bson.M{"members": myId}}
+			result2, err := shopCollection.UpdateOne(ctx, filter, update)
+			if err != nil {
+				return nil, err
+			}
+
+			return result2, nil
+		}
+
+		res, err := session.WithTransaction(context.Background(), callback, txnOptions)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": err.Error(), "field": ""}})
+			return
+		}
+
+		c.JSON(http.StatusOK, responses.UserResponse{Status: http.StatusOK, Message: "success", Data: map[string]interface{}{"data": res}})
+	}
+}
+
+// RemoveShopMember - api/shop/:shop/members?userid={user_id to remeove}
+func RemoveShopMember() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		userToBeRemoved := c.Query("userid")
+		defer cancel()
+
+		shopId, _, err := services.MyShopIdAndMyId(c)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": err.Error(), "field": ""}})
+			return
+		}
+
+		userToBeRemovedId, err := primitive.ObjectIDFromHex(userToBeRemoved)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": err.Error(), "field": "userid"}})
+			return
+		}
+
+		// Shop Member section
+		wc := writeconcern.New(writeconcern.WMajority())
+		txnOptions := options.Transaction().SetWriteConcern(wc)
+
+		session, err := configs.DB.StartSession()
+		if err != nil {
+			panic(err)
+		}
+		defer session.EndSession(ctx)
+
+		callback := func(ctx mongo.SessionContext) (interface{}, error) {
+			// attempt to remove member from member collection table
+			filter := bson.M{"_id": shopId, "member_id": userToBeRemovedId}
+			_, err := shopMemberCollection.DeleteOne(ctx, filter)
+			if err != nil {
+				return nil, err
+			}
+
+			// attempt to remove member from embedded field in shop
+			filter = bson.M{"_id": shopId}
+			update := bson.M{"$pull": bson.M{"members": userToBeRemovedId}}
+			result2, err := shopCollection.UpdateOne(ctx, filter, update)
+			if err != nil {
+				return nil, err
+			}
+
+			return result2, nil
+		}
+
+		res, err := session.WithTransaction(context.Background(), callback, txnOptions)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": err.Error(), "field": ""}})
 			return
 		}
 
