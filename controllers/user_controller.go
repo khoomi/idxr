@@ -42,12 +42,13 @@ func CreateUser() gin.HandlerFunc {
 		var jsonUser models.UserRegistrationBody
 		defer cancel()
 
-		//validate the request body
+		// bind the request body
 		if err := c.BindJSON(&jsonUser); err != nil {
 			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": err.Error(), "field": ""}})
 			return
 		}
 
+		// validate request body
 		if validationErr := validate.Struct(&jsonUser); validationErr != nil {
 			c.JSON(http.StatusUnprocessableEntity, responses.UserResponse{Status: http.StatusUnprocessableEntity, Message: "error", Data: map[string]interface{}{"error": validationErr.Error(), "field": ""}})
 			return
@@ -90,7 +91,7 @@ func CreateUser() gin.HandlerFunc {
 		newUser := models.User{
 			Id:                   primitive.NewObjectID(),
 			LoginName:            jsonUser.LoginName,
-			PrimaryEmail:         jsonUser.Email,
+			PrimaryEmail:         strings.ToLower(jsonUser.Email),
 			FirstName:            "",
 			LastName:             "",
 			Auth:                 userAuth,
@@ -433,14 +434,18 @@ func UpdateFirstLastName() gin.HandlerFunc {
 
 // ////////////////////// START USER LOGIN HISTORY //////////////////////////
 
-// GetLoginHistories -> Get user login histories (/api/users/63ae3eb4b3cd579527549d97/login-history?limit=50&skip=0&sort=created_at)
+// GetLoginHistories -> Get user login histories (/api/users/login-history?limit=50&skip=0&sort=created_at)
 func GetLoginHistories() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
-		userId := c.Param("userId")
-		sort := c.Query("sort")
+		currentIdStr, err := auth.ExtractTokenID(c)
+		if err != nil {
+			c.JSON(http.StatusUnauthorized, responses.UserResponse{Status: http.StatusUnauthorized, Message: "error", Data: map[string]interface{}{"error": err.Error(), "field": "file"}})
+			return
+		}
 
+		sort := c.Query("sort")
 		limit := c.Query("limit")
 		limitInt, err := strconv.Atoi(limit)
 		if err != nil {
@@ -455,7 +460,7 @@ func GetLoginHistories() gin.HandlerFunc {
 			return
 		}
 
-		userObj, _ := primitive.ObjectIDFromHex(userId)
+		userObj, _ := primitive.ObjectIDFromHex(currentIdStr)
 		filter := bson.M{"user_uid": userObj}
 		find := options.Find().SetLimit(int64(limitInt)).SetSkip(int64(skipInt)).SetSort(bson.M{sort: 1})
 		result, err := loginHistoryCollection.Find(ctx, filter, find)
@@ -482,7 +487,7 @@ func GetLoginHistories() gin.HandlerFunc {
 func DeleteLoginHistories() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		_, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		userId := c.Param("userId")
+		currentIdStr, err := auth.ExtractTokenID(c)
 		var historyIDs models.LoginHistoryIds
 		defer cancel()
 
@@ -501,7 +506,7 @@ func DeleteLoginHistories() gin.HandlerFunc {
 		}
 		defer session.EndSession(context.TODO())
 
-		userObj, _ := primitive.ObjectIDFromHex(userId)
+		userObj, _ := primitive.ObjectIDFromHex(currentIdStr)
 		var IdsToDelete []primitive.ObjectID
 		for _, id := range historyIDs.IDs {
 			objId, _ := primitive.ObjectIDFromHex(id)

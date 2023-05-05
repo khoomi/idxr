@@ -88,3 +88,26 @@ func ExtractTokenID(c *gin.Context) (string, error) {
 
 	return claims.Id, nil
 }
+
+func ExtractTokenLoginName(c *gin.Context) (string, error) {
+	tokenString := ExtractToken(c)
+	jwtKey := configs.LoadEnvFor("SECRET")
+	token, err := jwt.ParseWithClaims(
+		tokenString,
+		&JWTClaim{},
+		func(token *jwt.Token) (interface{}, error) {
+			return []byte(jwtKey), nil
+		},
+	)
+	if err != nil {
+		return "", err
+	}
+
+	claims, ok := token.Claims.(*JWTClaim)
+	if !ok {
+		err = errors.New("couldn't parse claims")
+		return "", err
+	}
+
+	return claims.LoginName, nil
+}

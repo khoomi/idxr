@@ -120,3 +120,20 @@ func ValidateEmailAddress(email string) error {
 
 	return nil
 }
+
+func ValidateShopName(email string) error {
+	done, err := regexp.MatchString("^\\p{L}+[\\p{L}\\p{Pd}\\p{Zs}']*\\p{L}+$|^\\p{L}+$", email)
+	if err != nil {
+		return err
+	}
+
+	if !done {
+		return &InputValidationError{
+			Message: "Login name appeared to be invalid or can't be used",
+			Field:   "login_name",
+			Tag:     "bad_password",
+		}
+	}
+
+	return nil
+}

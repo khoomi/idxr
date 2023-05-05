@@ -9,7 +9,7 @@ import (
 )
 
 func ImageUploadHelper(input interface{}) (string, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 40*time.Second)
 	defer cancel()
 
 	cloudName := configs.LoadEnvFor("CLOUDINARY_CLOUDNAME")
@@ -31,7 +31,7 @@ func ImageUploadHelper(input interface{}) (string, error) {
 }
 
 func ImageDeletionHelper(params uploader.DestroyParams) (string, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 40*time.Second)
 	defer cancel()
 
 	cloudName := configs.LoadEnvFor("CLOUDINARY_CLOUDNAME")

@@ -5,7 +5,6 @@ import (
 	"khoomi-api-io/khoomi_api/configs"
 	"khoomi-api-io/khoomi_api/controllers"
 	"khoomi-api-io/khoomi_api/middleware"
-	"khoomi-api-io/khoomi_api/routes/user"
 )
 
 func InitRoute() *gin.Engine {
@@ -14,14 +13,71 @@ func InitRoute() *gin.Engine {
 	{
 		api.POST("/signup", controllers.CreateUser())
 		api.POST("/auth", controllers.AuthenticateUser())
+		api.DELETE("/logout", controllers.Logout()).Use(middleware.Auth())
+		api.GET("/verify-email", controllers.VerifyEmail())
 		api.POST("/send-password-reset", controllers.PasswordResetEmail())
 		api.POST("/password-reset", controllers.PasswordReset())
-		api.GET("/verify-email", controllers.VerifyEmail())
 
-		user.Routes(api)
-
-		api.DELETE("/logout", controllers.Logout()).Use(middleware.Auth())
+		userRoutes(api)
+		ShopRoutes(api)
 	}
 
 	return router
+}
+
+func userRoutes(api *gin.RouterGroup) {
+	user := api.Group("/user")
+	{
+		user.GET("/:userId", controllers.GetUser())
+		secured := api.Group("/user").Use(middleware.Auth())
+		{
+			secured.GET("/ping", controllers.Ping)
+			// user endpoint.
+			secured.GET("/me", controllers.CurrentUser)
+			secured.PUT("/me", controllers.UpdateFirstLastName())
+			// user thumbnail endpoints.
+			secured.PUT("/thumbnail", controllers.UploadThumbnail())
+			secured.DELETE("/thumbnail", controllers.DeleteThumbnail())
+			// user address endpoints.
+			secured.PUT("/address", controllers.UpdateUserAddress())
+			secured.POST("/address", controllers.CreateUserAddress())
+			// email notification.
+			secured.POST("/send-verify-email", controllers.SendVerifyEmail())
+			// User birthdate
+			secured.PUT("/birthdate", controllers.UpdateUserBirthdate())
+			// Login histories.
+			secured.GET("/:userId/login-history", controllers.GetLoginHistories())
+			secured.DELETE("/:userId/login-history", controllers.DeleteLoginHistories())
+			// Profile update
+			secured.PUT("/update", controllers.UpdateUserSingleField())
+			// favorites shops
+			secured.POST("/shop", controllers.AddRemoveFavoriteShop())
+			// wish list
+			secured.GET("/wishlist", controllers.GetWishListItems())
+			secured.POST("/wishlist", controllers.AddWishListItem())
+			secured.DELETE("/wishlist", controllers.RemoveWishListItem())
+
+		}
+
+	}
+}
+
+func ShopRoutes(api *gin.RouterGroup) {
+	secured := api.Group("/shops").Use(middleware.Auth())
+	{
+		secured.POST("/", controllers.CreateShop())
+		// shop images
+		secured.PUT("/:shopid/logo", controllers.UpdateShopLogo())
+		secured.PUT("/:shopid/banner", controllers.UpdateShopBanner())
+		// shop vacation
+		secured.PUT("/:shopid/vacation", controllers.UpdateShopVacation())
+		// shop gallery
+		secured.PUT("/:shopid/gallery", controllers.UpdateShopGallery())
+		secured.DELETE("/:shopid/gallery", controllers.DeleteFromShopGallery())
+		// shop announcement
+		secured.PUT("/:shopid/announcement", controllers.UpdateShopAnnouncement())
+		// shop favorers
+		secured.PUT("/:shopid/favorers", controllers.AddShopFavorer())
+		secured.DELETE("/:shopid/favorers", controllers.RemoeveShopFavorer())
+	}
 }
