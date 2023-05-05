@@ -29,9 +29,15 @@ func Routes(api *gin.RouterGroup) {
 			// Login histories.
 			secured.GET("/:userId/login-history", controllers.GetLoginHistories())
 			secured.DELETE("/:userId/login-history", controllers.DeleteLoginHistories())
-
+			// Profile update
 			secured.PUT("/update", controllers.UpdateUserSingleField())
+			// favorites shops
 			secured.POST("/shop", controllers.AddRemoveFavoriteShop())
+			// wish list
+			secured.POST("/wishlist", controllers.AddWishListItem())
+			secured.GET("/wishlist", controllers.GetWishListItems())
+			secured.DELETE("/wishlist", controllers.RemoveWishListItem())
+
 		}
 
 	}

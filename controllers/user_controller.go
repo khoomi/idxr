@@ -32,7 +32,8 @@ var userCollection = configs.GetCollection(configs.DB, "User")
 var userAddressCollection = configs.GetCollection(configs.DB, "UserAddress")
 var loginHistoryCollection = configs.GetCollection(configs.DB, "UserLoginHistory")
 var passwordResetTokenCollection = configs.GetCollection(configs.DB, "UserPasswordResetToken")
-var userEmailVerificationTokenCollection = configs.GetCollection(configs.DB, "UserEmailVerificationToken")
+var emailVerificationTokenCollection = configs.GetCollection(configs.DB, "UserEmailVerificationToken")
+var wishListCollection = configs.GetCollection(configs.DB, "UserWishList")
 var validate = validator.New()
 
 func CreateUser() gin.HandlerFunc {
@@ -300,7 +301,7 @@ func SendVerifyEmail() gin.HandlerFunc {
 		}
 		opts := options.Replace().SetUpsert(true)
 		filter := bson.M{"user_uid": userObjId}
-		_, err = userEmailVerificationTokenCollection.ReplaceOne(ctx, filter, verifyEmail, opts)
+		_, err = emailVerificationTokenCollection.ReplaceOne(ctx, filter, verifyEmail, opts)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": err.Error(), "field": "email"}})
 			return
@@ -329,7 +330,7 @@ func VerifyEmail() gin.HandlerFunc {
 			return
 		}
 
-		err = userEmailVerificationTokenCollection.FindOneAndDelete(ctx, bson.M{"user_uid": userId}).Decode(&emailVerificationData)
+		err = emailVerificationTokenCollection.FindOneAndDelete(ctx, bson.M{"user_uid": userId}).Decode(&emailVerificationData)
 		if err != nil {
 			c.JSON(http.StatusNotFound, responses.UserResponse{Status: http.StatusNotFound, Message: "error", Data: map[string]interface{}{"error": err.Error(), "field": "userid"}})
 			return
@@ -411,12 +412,12 @@ func UpdateFirstLastName() gin.HandlerFunc {
 			return
 		}
 
-		IdToObjectId, errId := primitive.ObjectIDFromHex(myId)
+		myObjectId, errId := primitive.ObjectIDFromHex(myId)
 		if errId != nil {
 			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": errId.Error(), "field": "user id"}})
 			return
 		}
-		filter := bson.M{"_id": IdToObjectId}
+		filter := bson.M{"_id": myObjectId}
 		update := bson.M{"$set": bson.M{"first_name": firstLastName.FirstName, "last_name": firstLastName.LastName}}
 		result, errUpdateName := userCollection.UpdateOne(ctx, filter, update)
 		if errUpdateName != nil {
@@ -432,7 +433,7 @@ func UpdateFirstLastName() gin.HandlerFunc {
 
 // ////////////////////// START USER LOGIN HISTORY //////////////////////////
 
-// GetLoginHistories -> Get user login histories (/api/users/63ae3eb4b3cd579527549d97/login-history?limit=50&skip=0&sort=date)
+// GetLoginHistories -> Get user login histories (/api/users/63ae3eb4b3cd579527549d97/login-history?limit=50&skip=0&sort=created_at)
 func GetLoginHistories() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -443,14 +444,14 @@ func GetLoginHistories() gin.HandlerFunc {
 		limit := c.Query("limit")
 		limitInt, err := strconv.Atoi(limit)
 		if err != nil {
-			c.JSON(http.StatusNotFound, responses.UserResponse{Status: http.StatusNotFound, Message: "error", Data: map[string]interface{}{"error": "Expected an integer for 'limit'", "field": "limit"}})
+			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": "Expected an integer for 'limit'", "field": "limit"}})
 			return
 		}
 
 		skip := c.Query("skip")
 		skipInt, err := strconv.Atoi(skip)
 		if err != nil {
-			c.JSON(http.StatusNotFound, responses.UserResponse{Status: http.StatusNotFound, Message: "error", Data: map[string]interface{}{"error": "Expected an integer for 'skip'", "field": "skip"}})
+			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": "Expected an integer for 'skip'", "field": "skip"}})
 			return
 		}
 
@@ -708,12 +709,11 @@ func DeleteThumbnail() gin.HandlerFunc {
 		kind := c.Query("type")
 		defer cancel()
 
-		currentIdStr, err := auth.ExtractTokenID(c)
+		myObjectId, err := services.GetUserObjectIdFromRequest(c)
 		if err != nil {
-			c.JSON(http.StatusUnauthorized, responses.UserResponse{Status: http.StatusUnauthorized, Message: "error", Data: map[string]interface{}{"error": err.Error(), "field": "file"}})
+			c.JSON(http.StatusUnauthorized, responses.UserResponse{Status: http.StatusUnauthorized, Message: "error", Data: map[string]interface{}{"error": err.Error(), "field": "user id"}})
 			return
 		}
-		currentId, _ := primitive.ObjectIDFromHex(currentIdStr)
 
 		_, errOnDelete := helper.ImageDeletionHelper(uploader.DestroyParams{
 			PublicID:     name,
@@ -727,7 +727,7 @@ func DeleteThumbnail() gin.HandlerFunc {
 		}
 
 		now := time.Now()
-		filter := bson.M{"_id": currentId}
+		filter := bson.M{"_id": myObjectId}
 		update := bson.M{"$set": bson.M{"thumbnail": nil, "modified_at": now}}
 		_, err = userCollection.UpdateOne(ctx, filter, update)
 		if err != nil {
@@ -761,13 +761,11 @@ func CreateUserAddress() gin.HandlerFunc {
 		}
 
 		// Extract current user token
-		userIdStr, err := auth.ExtractTokenID(c)
+		myObjectId, err := services.GetUserObjectIdFromRequest(c)
 		if err != nil {
-			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": err.Error(), "field": ""}})
+			c.JSON(http.StatusUnauthorized, responses.UserResponse{Status: http.StatusUnauthorized, Message: "error", Data: map[string]interface{}{"error": err.Error(), "field": "user id"}})
 			return
 		}
-
-		userId, err := primitive.ObjectIDFromHex(userIdStr)
 
 		wc := writeconcern.New(writeconcern.WMajority())
 		txnOptions := options.Transaction().SetWriteConcern(wc)
@@ -778,7 +776,7 @@ func CreateUserAddress() gin.HandlerFunc {
 		defer session.EndSession(ctx)
 		callback := func(ctx mongo.SessionContext) (interface{}, error) {
 			// create user address
-			userAddress.UserId = userId
+			userAddress.UserId = myObjectId
 			userAddress.Id = primitive.NewObjectID()
 			_, err = userAddressCollection.InsertOne(ctx, userAddress)
 			if err != nil {
@@ -786,7 +784,7 @@ func CreateUserAddress() gin.HandlerFunc {
 			}
 
 			// update user profile address_id
-			filter := bson.M{"_id": userId}
+			filter := bson.M{"_id": myObjectId}
 			update := bson.M{"$set": bson.M{"address_id": userAddress.Id, "modified_at": time.Now()}}
 			res, err := userCollection.UpdateOne(ctx, filter, update)
 			if err != nil {
@@ -827,15 +825,13 @@ func UpdateUserAddress() gin.HandlerFunc {
 		}
 
 		// Extract current user token
-		userIdStr, err := auth.ExtractTokenID(c)
+		myObjectId, err := services.GetUserObjectIdFromRequest(c)
 		if err != nil {
-			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": err.Error(), "field": ""}})
+			c.JSON(http.StatusUnauthorized, responses.UserResponse{Status: http.StatusUnauthorized, Message: "error", Data: map[string]interface{}{"error": err.Error(), "field": "user id"}})
 			return
 		}
 
-		userId, err := primitive.ObjectIDFromHex(userIdStr)
-
-		filter := bson.M{"user_id": userId}
+		filter := bson.M{"user_id": myObjectId}
 		update := bson.M{"$set": bson.M{"city": userAddress.City, "state": userAddress.State, "street": userAddress.Street, "postal_code": userAddress.PostalCode, "country": models.CountryNigeria}}
 		_, err = userAddressCollection.UpdateOne(ctx, filter, update)
 		if err != nil {
@@ -856,12 +852,6 @@ func UpdateUserBirthdate() gin.HandlerFunc {
 		var birthDate models.UserBirthdate
 		defer cancel()
 
-		myId, err := auth.ExtractTokenID(c)
-		if err != nil {
-			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": err.Error(), "field": "Authorization"}})
-			return
-		}
-
 		errBind := c.BindJSON(&birthDate)
 		if errBind != nil {
 			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": errBind.Error(), "field": ""}})
@@ -874,12 +864,12 @@ func UpdateUserBirthdate() gin.HandlerFunc {
 			return
 		}
 
-		IdToObjectId, errId := primitive.ObjectIDFromHex(myId)
-		if errId != nil {
-			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": errId.Error(), "field": "user id"}})
+		myObjectId, err := services.GetUserObjectIdFromRequest(c)
+		if err != nil {
+			c.JSON(http.StatusUnauthorized, responses.UserResponse{Status: http.StatusUnauthorized, Message: "error", Data: map[string]interface{}{"error": err.Error(), "field": "user id"}})
 			return
 		}
-		filter := bson.M{"_id": IdToObjectId}
+		filter := bson.M{"_id": myObjectId}
 		update := bson.M{"$set": bson.M{"birthdate.day": birthDate.Day, "birthdate.month": birthDate.Month, "birthdate.year": birthDate.Year}}
 		result, errUpdateName := userCollection.UpdateOne(ctx, filter, update)
 		if errUpdateName != nil {
@@ -926,18 +916,13 @@ func UpdateUserSingleField() gin.HandlerFunc {
 			return
 		}
 
-		myId, err := auth.ExtractTokenID(c)
+		myObjectId, err := services.GetUserObjectIdFromRequest(c)
 		if err != nil {
-			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": err.Error(), "field": "Authorization"}})
-			return
-		}
-		IdToObjectId, errId := primitive.ObjectIDFromHex(myId)
-		if errId != nil {
-			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": errId.Error(), "field": "user id"}})
+			c.JSON(http.StatusUnauthorized, responses.UserResponse{Status: http.StatusUnauthorized, Message: "error", Data: map[string]interface{}{"error": err.Error(), "field": "user id"}})
 			return
 		}
 
-		filter := bson.M{"_id": IdToObjectId}
+		filter := bson.M{"_id": myObjectId}
 		update := bson.M{"$set": bson.M{field: value}}
 		result, errUpdateName := userCollection.UpdateOne(ctx, filter, update)
 		if errUpdateName != nil {
@@ -958,17 +943,13 @@ func AddRemoveFavoriteShop() gin.HandlerFunc {
 		action := c.Query("action")
 		defer cancel()
 
-		myId, err := auth.ExtractTokenID(c)
+		myObjectId, err := services.GetUserObjectIdFromRequest(c)
 		if err != nil {
-			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": err.Error(), "field": "Authorization"}})
+			c.JSON(http.StatusUnauthorized, responses.UserResponse{Status: http.StatusUnauthorized, Message: "error", Data: map[string]interface{}{"error": err.Error(), "field": "user id"}})
 			return
 		}
-		IdToObjectId, errId := primitive.ObjectIDFromHex(myId)
-		if errId != nil {
-			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": errId.Error(), "field": "user id"}})
-			return
-		}
-		filter := bson.M{"_id": IdToObjectId}
+
+		filter := bson.M{"_id": myObjectId}
 		if action != "add" {
 			update := bson.M{"$push": bson.M{"favorite_shops": shop}}
 			res, err := userCollection.UpdateOne(ctx, filter, update)
@@ -994,5 +975,123 @@ func AddRemoveFavoriteShop() gin.HandlerFunc {
 		}
 
 		c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": "Action not recognized", "field": action}})
+	}
+}
+
+// AddWishListItem - Add to user wish list
+// api/user/wishlist?listing_id=8084051523
+func AddWishListItem() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+
+		listingId := c.Query("listing_id")
+		listingObjectId, err := primitive.ObjectIDFromHex(listingId)
+		if err != nil {
+			c.JSON(http.StatusUnauthorized, responses.UserResponse{Status: http.StatusUnauthorized, Message: "error", Data: map[string]interface{}{"error": err.Error(), "field": "user id"}})
+			return
+		}
+
+		MyObjectId, err := services.GetUserObjectIdFromRequest(c)
+		if err != nil {
+			c.JSON(http.StatusUnauthorized, responses.UserResponse{Status: http.StatusUnauthorized, Message: "error", Data: map[string]interface{}{"error": err.Error(), "field": "user id"}})
+			return
+		}
+
+		now := time.Now()
+		data := models.UserWishlist{
+			ID:        primitive.NewObjectID(),
+			UserID:    MyObjectId,
+			ListingId: listingObjectId,
+			CreatedAt: now,
+		}
+		res, err := wishListCollection.InsertOne(ctx, data)
+		if err != nil {
+			c.JSON(http.StatusNotModified, responses.UserResponse{Status: http.StatusNotModified, Message: "error", Data: map[string]interface{}{"error": err, "field": ""}})
+			return
+		}
+
+		result := fmt.Sprintf("New Wishlist item added with ID %v\n", res.InsertedID)
+		c.JSON(http.StatusOK, responses.UserResponse{Status: http.StatusOK, Message: "success", Data: map[string]interface{}{"data": result}})
+
+	}
+}
+
+// RemoveWishListItem - Add to user wish list
+// api/user/wishlist?listing_id=8084051523
+func RemoveWishListItem() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+
+		listingId := c.Query("listing_id")
+		listingObjectId, err := primitive.ObjectIDFromHex(listingId)
+		if err != nil {
+			c.JSON(http.StatusUnauthorized, responses.UserResponse{Status: http.StatusUnauthorized, Message: "error", Data: map[string]interface{}{"error": err.Error(), "field": "user id"}})
+			return
+		}
+
+		MyObjectId, err := services.GetUserObjectIdFromRequest(c)
+		if err != nil {
+			c.JSON(http.StatusUnauthorized, responses.UserResponse{Status: http.StatusUnauthorized, Message: "error", Data: map[string]interface{}{"error": err.Error(), "field": "user id"}})
+			return
+		}
+
+		filter := bson.M{"user_id": MyObjectId, "listing_id": listingObjectId}
+		res, err := wishListCollection.DeleteOne(ctx, filter)
+		if err != nil {
+			c.JSON(http.StatusNotModified, responses.UserResponse{Status: http.StatusNotModified, Message: "error", Data: map[string]interface{}{"error": err, "field": ""}})
+			return
+		}
+
+		result := fmt.Sprintf("removed %v\n item from my Wishlist", res.DeletedCount)
+		c.JSON(http.StatusOK, responses.UserResponse{Status: http.StatusOK, Message: "success", Data: map[string]interface{}{"data": result}})
+
+	}
+}
+
+// GetWishListItems - Get all wishlist items
+// api/user/wishlist?limit=10&skip=0&sort=created_at
+func GetWishListItems() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+
+		MyObjectId, err := services.GetUserObjectIdFromRequest(c)
+		if err != nil {
+			c.JSON(http.StatusUnauthorized, responses.UserResponse{Status: http.StatusUnauthorized, Message: "error", Data: map[string]interface{}{"error": err.Error(), "field": "user id"}})
+			return
+		}
+
+		sort := c.Query("sort")
+		limit := c.Query("limit")
+		limitInt, err := strconv.Atoi(limit)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": "Expected an integer for 'limit'", "field": "limit"}})
+			return
+		}
+
+		skip := c.Query("skip")
+		skipInt, err := strconv.Atoi(skip)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": "Expected an integer for 'skip'", "field": "skip"}})
+			return
+		}
+
+		filter := bson.M{"user_id": MyObjectId}
+		find := options.Find().SetLimit(int64(limitInt)).SetSkip(int64(skipInt)).SetSort(bson.M{sort: 1})
+		result, err := wishListCollection.Find(ctx, filter, find)
+		if err != nil {
+			c.JSON(http.StatusNotFound, responses.UserResponse{Status: http.StatusNotFound, Message: "error", Data: map[string]interface{}{"error": err.Error(), "field": ""}})
+			return
+		}
+
+		var myWishLists []models.UserWishlist
+		if err = result.All(ctx, &myWishLists); err != nil {
+			c.JSON(http.StatusInternalServerError, responses.UserResponse{Status: http.StatusInternalServerError, Message: "error", Data: map[string]interface{}{"error": err.Error(), "field": ""}})
+			return
+		}
+
+		c.JSON(http.StatusOK, responses.UserResponse{Status: http.StatusOK, Message: "success", Data: map[string]interface{}{"data": myWishLists}})
 	}
 }

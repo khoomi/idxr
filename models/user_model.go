@@ -127,3 +127,10 @@ type UserBirthdate struct {
 	Month int `bson:"month" json:"month" validate:"required"`
 	Year  int `bson:"year" json:"year" validate:"required"`
 }
+
+type UserWishlist struct {
+	ID        primitive.ObjectID `bson:"_id" json:"_id"`
+	UserID    primitive.ObjectID `bson:"user_id" json:"user_id"`
+	ListingId primitive.ObjectID `bson:"listing_id" json:"listing_id"`
+	CreatedAt time.Time          `bson:"created_at" json:"created_at"`
+}
