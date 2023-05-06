@@ -105,7 +105,7 @@ func ValidateLoginName(name string) error {
 		return &InputValidationError{
 			Message: "Login name appeared to be invalid or can't be used",
 			Field:   "login_name",
-			Tag:     "bad_password",
+			Tag:     "bad_name",
 		}
 	}
 
@@ -115,7 +115,11 @@ func ValidateLoginName(name string) error {
 func ValidateEmailAddress(email string) error {
 	_, err := mail.ParseAddress(email)
 	if err != nil {
-		return err
+		return &InputValidationError{
+			Message: "email address appeared to be invalid or can't be used",
+			Field:   "email",
+			Tag:     "bad_email",
+		}
 	}
 
 	return nil
@@ -129,9 +133,9 @@ func ValidateShopName(email string) error {
 
 	if !done {
 		return &InputValidationError{
-			Message: "Login name appeared to be invalid or can't be used",
-			Field:   "login_name",
-			Tag:     "bad_password",
+			Message: "Shop name appeared to be invalid or can't be used",
+			Field:   "shop_name",
+			Tag:     "bad_name",
 		}
 	}
 
