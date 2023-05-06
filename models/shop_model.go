@@ -99,6 +99,7 @@ type EmbeddedShopReview struct {
 	ReviewAuthor string             `bson:"review_author" json:"review_author"`
 	Thumbnail    string             `bson:"thumbnail" json:"thumbnail"`
 }
+
 type ShopReview struct {
 	Id           primitive.ObjectID `bson:"_id" json:"_id"`
 	UserId       primitive.ObjectID `bson:"user_id" json:"user_id"`
@@ -112,4 +113,27 @@ type ShopReview struct {
 
 type ShopReviewRequest struct {
 	Review string `bson:"review" json:"review" validate:"required,pattern=^[A-Za-z][^\.:]*[\.:]$"`
+}
+
+type ShopAbout struct {
+	ID                    primitive.ObjectID `bson:"_id" json:"_id" validate:"required"`
+	ShopID                primitive.ObjectID `bson:"shop_id" json:"shop_id" validate:"required"`
+	Status                ShopAboutStatus    `bson:"status" json:"status" validate:"required"`
+	RelatedLinks          string             `bson:"related_links" json:"related_links"`
+	StoryLeadingParagraph string             `bson:"story_leading_paragraph" json:"story_leading_paragraph"`
+	StoryHeadline         string             `bson:"story_headline" json:"story_headline"`
+}
+
+type ShopAboutStatus string
+
+const (
+	ShopAboutStatusDraft  ShopAboutStatus = "draft"
+	ShopAboutStatusActive ShopAboutStatus = "active"
+)
+
+type ShopAboutRequest struct {
+	Status                ShopAboutStatus `bson:"status" json:"status" validate:"required,oneof=Draft Active"`
+	RelatedLinks          string          `bson:"related_links" json:"related_links"`
+	StoryLeadingParagraph string          `bson:"story_leading_paragraph" json:"story_leading_paragraph" validate:"required"`
+	StoryHeadline         string          `bson:"story_headline" json:"story_headline" validate:"required"`
 }

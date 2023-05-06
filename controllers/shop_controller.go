@@ -17,11 +17,11 @@ import (
 	"khoomi-api-io/khoomi_api/services"
 	"log"
 	"net/http"
-	"strconv"
 	"time"
 )
 
 var shopCollection = configs.GetCollection(configs.DB, "Shop")
+var shopAboutCollection = configs.GetCollection(configs.DB, "ShopReview")
 var shopMemberCollection = configs.GetCollection(configs.DB, "ShopMember")
 var shopReviewCollection = configs.GetCollection(configs.DB, "ShopReview")
 
@@ -84,44 +84,132 @@ func CreateShop() gin.HandlerFunc {
 			bannerUploadUrl = ""
 		}
 
-		now := time.Now()
-		slug := slug2.Make(shopName)
-		policy := models.ShopPolicy{
-			PaymentPolicy:  "",
-			ShippingPolicy: "",
-			RefundPolicy:   "",
-			AdditionalInfo: "",
-		}
-		shop := models.Shop{
-			ID:                 primitive.NewObjectID(),
-			ShopName:           shopName,
-			Description:        shopNameDescription,
-			LoginName:          loginName,
-			UserID:             myObjectId,
-			ListingActiveCount: 0,
-			Announcement:       "",
-			IsVacation:         false,
-			VacationMessage:    "",
-			Slug:               slug,
-			LogoURL:            logoUploadUrl,
-			BannerURL:          bannerUploadUrl,
-			Gallery:            []string{},
-			Favorers:           []string{},
-			FavorerCount:       0,
-			Members:            []models.ShopMember{},
-			Status:             models.ShopStatusPendingReview,
-			CreatedAt:          now,
-			ModifiedAt:         now,
-			Policy:             policy,
-			RecentReviews:      []models.ShopReview{},
-		}
-		res, err := shopCollection.InsertOne(ctx, shop)
+		// Shop Member section
+		wc := writeconcern.New(writeconcern.WMajority())
+		txnOptions := options.Transaction().SetWriteConcern(wc)
+
+		session, err := configs.DB.StartSession()
 		if err != nil {
-			c.JSON(http.StatusUnauthorized, responses.UserResponse{Status: http.StatusUnauthorized, Message: "error", Data: map[string]interface{}{"error": err.Error(), "field": ""}})
+			c.JSON(http.StatusUnprocessableEntity, responses.UserResponse{Status: http.StatusUnprocessableEntity, Message: "error", Data: map[string]interface{}{"error": "Unable  to start new session", "field": ""}})
+		}
+		defer session.EndSession(ctx)
+
+		callback := func(ctx mongo.SessionContext) (interface{}, error) {
+			now := time.Now()
+			slug := slug2.Make(shopName)
+			policy := models.ShopPolicy{
+				PaymentPolicy:  "",
+				ShippingPolicy: "",
+				RefundPolicy:   "",
+				AdditionalInfo: "",
+			}
+			shopId := primitive.NewObjectID()
+			shop := models.Shop{
+				ID:                 shopId,
+				ShopName:           shopName,
+				Description:        shopNameDescription,
+				LoginName:          loginName,
+				UserID:             myObjectId,
+				ListingActiveCount: 0,
+				Announcement:       "",
+				IsVacation:         false,
+				VacationMessage:    "",
+				Slug:               slug,
+				LogoURL:            logoUploadUrl,
+				BannerURL:          bannerUploadUrl,
+				Gallery:            []string{},
+				Favorers:           []string{},
+				FavorerCount:       0,
+				Members:            []models.ShopMember{},
+				Status:             models.ShopStatusPendingReview,
+				CreatedAt:          now,
+				ModifiedAt:         now,
+				Policy:             policy,
+				RecentReviews:      []models.ShopReview{},
+			}
+			_, err := shopCollection.InsertOne(ctx, shop)
+			if err != nil {
+				return nil, err
+			}
+
+			// update user profile shop
+			filter := bson.M{"_id": myObjectId}
+			update := bson.M{"$push": bson.M{"shops": shopId}}
+			result, err := userCollection.UpdateOne(ctx, filter, update)
+			if err != nil {
+				return nil, err
+			}
+
+			return result, nil
+		}
+
+		_, err = session.WithTransaction(context.Background(), callback, txnOptions)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": err.Error(), "field": ""}})
 			return
 		}
 
-		c.JSON(http.StatusOK, responses.UserResponse{Status: http.StatusOK, Message: "success", Data: map[string]interface{}{"data": res}})
+		c.JSON(http.StatusOK, responses.UserResponse{Status: http.StatusOK, Message: "success", Data: map[string]interface{}{"data": "Shop creation was successful"}})
+	}
+}
+
+// GetShop - api/shops/:shopid
+func GetShop() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+
+		shopId := c.Param("shopid")
+		shopObjectID, err := primitive.ObjectIDFromHex(shopId)
+		if err != nil {
+			c.JSON(http.StatusNotFound, responses.UserResponse{Status: http.StatusNotFound, Message: "error", Data: map[string]interface{}{"error": err.Error(), "field": "shop_id"}})
+			return
+		}
+
+		var shop models.Shop
+		err = shopMemberCollection.FindOne(ctx, bson.M{"_id": shopObjectID}).Decode(&shop)
+		if err != nil {
+			c.JSON(http.StatusNotFound, responses.UserResponse{Status: http.StatusNotFound, Message: "error", Data: map[string]interface{}{"error": err.Error(), "field": ""}})
+			return
+		}
+
+		c.JSON(http.StatusOK, responses.UserResponse{Status: http.StatusOK, Message: "success", Data: map[string]interface{}{"data": shop}})
+
+	}
+}
+
+// GetShops - api/shops/?limit=50&skip=0&sort=created_at
+func GetShops() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+
+		paginationArgs, err := services.GetPaginationArgs(c)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": err, "field": ""}})
+			return
+		}
+
+		find := options.Find().SetLimit(int64(paginationArgs.Limit)).SetSkip(int64(paginationArgs.Skip)).SetSort(bson.M{paginationArgs.Sort: paginationArgs.Order})
+		result, err := shopMemberCollection.Find(ctx, bson.D{}, find)
+		if err != nil {
+			c.JSON(http.StatusNotFound, responses.UserResponse{Status: http.StatusNotFound, Message: "error", Data: map[string]interface{}{"error": err.Error(), "field": ""}})
+			return
+		}
+
+		var shopMembers []models.ShopMember
+		if err = result.All(ctx, &shopMembers); err != nil {
+			c.JSON(http.StatusNotFound, responses.UserResponse{Status: http.StatusNotFound, Message: "error", Data: map[string]interface{}{"error": err.Error(), "field": ""}})
+			return
+		}
+
+		c.JSON(http.StatusOK, responses.UserResponsePagination{Status: http.StatusOK, Message: "success", Data: map[string]interface{}{"data": shopMembers}, Pagination: responses.Pagination{
+			Limit: paginationArgs.Limit,
+			Skip:  paginationArgs.Skip,
+			Sort:  paginationArgs.Sort,
+			Total: len(shopMembers),
+		}})
+
 	}
 }
 
@@ -150,8 +238,12 @@ func UpdateShopAnnouncement() gin.HandlerFunc {
 			c.JSON(http.StatusNotModified, responses.UserResponse{Status: http.StatusNotModified, Message: "error", Data: map[string]interface{}{"error": err.Error(), "field": ""}})
 			return
 		}
+		if res.ModifiedCount == 0 {
+			c.JSON(http.StatusNotFound, responses.UserResponse{Status: http.StatusNotFound, Message: "success", Data: map[string]interface{}{"data": "no matching documents found"}})
+			return
+		}
 
-		c.JSON(http.StatusOK, responses.UserResponse{Status: http.StatusOK, Message: "success", Data: map[string]interface{}{"data": res}})
+		c.JSON(http.StatusOK, responses.UserResponse{Status: http.StatusOK, Message: "success", Data: map[string]interface{}{"data": "Shop annuncement updated successfully"}})
 	}
 }
 
@@ -180,8 +272,12 @@ func UpdateShopVacation() gin.HandlerFunc {
 			c.JSON(http.StatusNotModified, responses.UserResponse{Status: http.StatusNotModified, Message: "error", Data: map[string]interface{}{"error": err.Error(), "field": ""}})
 			return
 		}
+		if res.ModifiedCount == 0 {
+			c.JSON(http.StatusNotFound, responses.UserResponse{Status: http.StatusNotFound, Message: "success", Data: map[string]interface{}{"data": "no matching documents found"}})
+			return
+		}
 
-		c.JSON(http.StatusOK, responses.UserResponse{Status: http.StatusOK, Message: "success", Data: map[string]interface{}{"data": res}})
+		c.JSON(http.StatusOK, responses.UserResponse{Status: http.StatusOK, Message: "success", Data: map[string]interface{}{"data": "Shop vacation updated successfully"}})
 	}
 }
 
@@ -213,8 +309,12 @@ func UpdateShopLogo() gin.HandlerFunc {
 			c.JSON(http.StatusNotModified, responses.UserResponse{Status: http.StatusNotModified, Message: "error", Data: map[string]interface{}{"error": err.Error(), "field": ""}})
 			return
 		}
+		if res.ModifiedCount == 0 {
+			c.JSON(http.StatusNotFound, responses.UserResponse{Status: http.StatusNotFound, Message: "success", Data: map[string]interface{}{"data": "no matching documents found"}})
+			return
+		}
 
-		c.JSON(http.StatusOK, responses.UserResponse{Status: http.StatusOK, Message: "success", Data: map[string]interface{}{"data": res}})
+		c.JSON(http.StatusOK, responses.UserResponse{Status: http.StatusOK, Message: "success", Data: map[string]interface{}{"data": "Shop logo updated successfully"}})
 	}
 }
 
@@ -247,8 +347,12 @@ func UpdateShopBanner() gin.HandlerFunc {
 			c.JSON(http.StatusNotModified, responses.UserResponse{Status: http.StatusNotModified, Message: "error", Data: map[string]interface{}{"error": err.Error(), "field": ""}})
 			return
 		}
+		if res.ModifiedCount == 0 {
+			c.JSON(http.StatusNotFound, responses.UserResponse{Status: http.StatusNotFound, Message: "success", Data: map[string]interface{}{"data": "no matching documents found"}})
+			return
+		}
 
-		c.JSON(http.StatusOK, responses.UserResponse{Status: http.StatusOK, Message: "success", Data: map[string]interface{}{"data": res}})
+		c.JSON(http.StatusOK, responses.UserResponse{Status: http.StatusOK, Message: "success", Data: map[string]interface{}{"data": "Shop banner has been updated successfully"}})
 	}
 }
 
@@ -281,12 +385,16 @@ func UpdateShopGallery() gin.HandlerFunc {
 			c.JSON(http.StatusNotModified, responses.UserResponse{Status: http.StatusNotModified, Message: "error", Data: map[string]interface{}{"error": err.Error(), "field": ""}})
 			return
 		}
+		if res.ModifiedCount == 0 {
+			c.JSON(http.StatusNotFound, responses.UserResponse{Status: http.StatusNotFound, Message: "success", Data: map[string]interface{}{"data": "no matching documents found"}})
+			return
+		}
 
-		c.JSON(http.StatusOK, responses.UserResponse{Status: http.StatusOK, Message: "success", Data: map[string]interface{}{"data": res}})
+		c.JSON(http.StatusOK, responses.UserResponse{Status: http.StatusOK, Message: "success", Data: map[string]interface{}{"data": "Image added to shop gallery successfully"}})
 	}
 }
 
-// DeleteFromShopGallery - api/shop/:shop/favorers?image={image_url}
+// DeleteFromShopGallery - api/shops/:shopid/favorers?image={image_url}
 func DeleteFromShopGallery() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -306,12 +414,16 @@ func DeleteFromShopGallery() gin.HandlerFunc {
 			c.JSON(http.StatusNotModified, responses.UserResponse{Status: http.StatusNotModified, Message: "error", Data: map[string]interface{}{"error": err.Error(), "field": ""}})
 			return
 		}
+		if res.ModifiedCount == 0 {
+			c.JSON(http.StatusNotFound, responses.UserResponse{Status: http.StatusNotFound, Message: "success", Data: map[string]interface{}{"data": "no matching documents found"}})
+			return
+		}
 
-		c.JSON(http.StatusOK, responses.UserResponse{Status: http.StatusOK, Message: "success", Data: map[string]interface{}{"data": res}})
+		c.JSON(http.StatusOK, responses.UserResponse{Status: http.StatusOK, Message: "success", Data: map[string]interface{}{"data": "Image removed from shop gallery successfully"}})
 	}
 }
 
-// AddShopFavorer - api/shop/:shop/favorers?userId={userId}
+// AddShopFavorer - api/shops/:shopid/favorers?userId={userId}
 func AddShopFavorer() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -331,12 +443,16 @@ func AddShopFavorer() gin.HandlerFunc {
 			c.JSON(http.StatusNotModified, responses.UserResponse{Status: http.StatusNotModified, Message: "error", Data: map[string]interface{}{"error": err.Error(), "field": ""}})
 			return
 		}
+		if res.ModifiedCount == 0 {
+			c.JSON(http.StatusNotFound, responses.UserResponse{Status: http.StatusNotFound, Message: "success", Data: map[string]interface{}{"data": "no matching documents found"}})
+			return
+		}
 
-		c.JSON(http.StatusOK, responses.UserResponse{Status: http.StatusOK, Message: "success", Data: map[string]interface{}{"data": res}})
+		c.JSON(http.StatusOK, responses.UserResponse{Status: http.StatusOK, Message: "success", Data: map[string]interface{}{"data": "User is now a favorer of this shop"}})
 	}
 }
 
-// RemoveShopFavorer - api/shop/:shop/favorers?userId={userId}
+// RemoveShopFavorer - api/shops/:shopid/favorers?userId={userId}
 func RemoveShopFavorer() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -356,12 +472,16 @@ func RemoveShopFavorer() gin.HandlerFunc {
 			c.JSON(http.StatusNotModified, responses.UserResponse{Status: http.StatusNotModified, Message: "error", Data: map[string]interface{}{"error": err.Error(), "field": ""}})
 			return
 		}
+		if res.ModifiedCount == 0 {
+			c.JSON(http.StatusNotFound, responses.UserResponse{Status: http.StatusNotFound, Message: "success", Data: map[string]interface{}{"data": "no matching documents found"}})
+			return
+		}
 
-		c.JSON(http.StatusOK, responses.UserResponse{Status: http.StatusOK, Message: "success", Data: map[string]interface{}{"data": res}})
+		c.JSON(http.StatusOK, responses.UserResponse{Status: http.StatusOK, Message: "success", Data: map[string]interface{}{"data": "User is no longer a favorer of this shop"}})
 	}
 }
 
-// JoinShopMembers - api/shop/:shop/members
+// JoinShopMembers - api/shops/:shopid/members
 func JoinShopMembers() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -445,49 +565,44 @@ func JoinShopMembers() gin.HandlerFunc {
 				return nil, err
 			}
 
+			if result2.ModifiedCount == 0 {
+				return nil, errors.New("no matching documents found")
+			}
+
 			return result2, nil
 		}
 
-		res, err := session.WithTransaction(context.Background(), callback, txnOptions)
+		_, err = session.WithTransaction(context.Background(), callback, txnOptions)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": err.Error(), "field": ""}})
 			return
 		}
 
-		c.JSON(http.StatusOK, responses.UserResponse{Status: http.StatusOK, Message: "success", Data: map[string]interface{}{"data": res}})
+		c.JSON(http.StatusOK, responses.UserResponse{Status: http.StatusOK, Message: "success", Data: map[string]interface{}{"data": "You're now a member of this shop"}})
 	}
 }
 
-// GetShopMembers - api/shop/:shop/members?limit=50&skip=0&sort=created_at
+// GetShopMembers - api/shops/:shopid/members?limit=50&skip=0&sort=created_at
 func GetShopMembers() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
 
 		shopId := c.Param("shopid")
-		shopOBjectID, err := primitive.ObjectIDFromHex(shopId)
+		shopObjectID, err := primitive.ObjectIDFromHex(shopId)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": err.Error(), "field": ""}})
 			return
 		}
 
-		sort := c.Query("sort")
-		limit := c.Query("limit")
-		limitInt, err := strconv.Atoi(limit)
+		paginationArgs, err := services.GetPaginationArgs(c)
 		if err != nil {
-			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": "Expected an integer for 'limit'", "field": "limit"}})
+			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": err, "field": ""}})
 			return
 		}
 
-		skip := c.Query("skip")
-		skipInt, err := strconv.Atoi(skip)
-		if err != nil {
-			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": "Expected an integer for 'skip'", "field": "skip"}})
-			return
-		}
-
-		filter := bson.M{"shop_id": shopOBjectID}
-		find := options.Find().SetLimit(int64(limitInt)).SetSkip(int64(skipInt)).SetSort(bson.M{sort: 1})
+		filter := bson.M{"shop_id": shopObjectID}
+		find := options.Find().SetLimit(int64(paginationArgs.Limit)).SetSkip(int64(paginationArgs.Skip)).SetSort(bson.M{paginationArgs.Sort: paginationArgs.Order})
 		result, err := shopMemberCollection.Find(ctx, filter, find)
 		if err != nil {
 			c.JSON(http.StatusNotFound, responses.UserResponse{Status: http.StatusNotFound, Message: "error", Data: map[string]interface{}{"error": err.Error(), "field": ""}})
@@ -501,16 +616,16 @@ func GetShopMembers() gin.HandlerFunc {
 		}
 
 		c.JSON(http.StatusOK, responses.UserResponsePagination{Status: http.StatusOK, Message: "success", Data: map[string]interface{}{"data": shopMembers}, Pagination: responses.Pagination{
-			Limit: limitInt,
-			Skip:  skipInt,
-			Sort:  sort,
+			Limit: paginationArgs.Limit,
+			Skip:  paginationArgs.Skip,
+			Sort:  paginationArgs.Sort,
 			Total: len(shopMembers),
 		}})
 
 	}
 }
 
-// LeaveShopMembers - api/shop/:shop/members
+// LeaveShopMembers - api/shops/:shopid/members
 func LeaveShopMembers() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -548,20 +663,24 @@ func LeaveShopMembers() gin.HandlerFunc {
 				return nil, err
 			}
 
+			if result2.ModifiedCount == 0 {
+				return nil, errors.New("no matching documents found")
+			}
+
 			return result2, nil
 		}
 
-		res, err := session.WithTransaction(context.Background(), callback, txnOptions)
+		_, err = session.WithTransaction(context.Background(), callback, txnOptions)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": err.Error(), "field": ""}})
 			return
 		}
 
-		c.JSON(http.StatusOK, responses.UserResponse{Status: http.StatusOK, Message: "success", Data: map[string]interface{}{"data": res}})
+		c.JSON(http.StatusOK, responses.UserResponse{Status: http.StatusOK, Message: "success", Data: map[string]interface{}{"data": "Left shop successfully"}})
 	}
 }
 
-// RemoveOtherMember - api/shop/:shop/members/other?userid={user_id to remeove}
+// RemoveOtherMember - api/shops/:shopid/members/other?userid={user_id to remove}
 func RemoveOtherMember() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -606,20 +725,24 @@ func RemoveOtherMember() gin.HandlerFunc {
 				return nil, err
 			}
 
+			if result2.ModifiedCount == 0 {
+				return nil, errors.New("no matching documents found")
+			}
+
 			return result2, nil
 		}
 
-		res, err := session.WithTransaction(context.Background(), callback, txnOptions)
+		_, err = session.WithTransaction(context.Background(), callback, txnOptions)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": err.Error(), "field": ""}})
 			return
 		}
 
-		c.JSON(http.StatusOK, responses.UserResponse{Status: http.StatusOK, Message: "success", Data: map[string]interface{}{"data": res}})
+		c.JSON(http.StatusOK, responses.UserResponse{Status: http.StatusOK, Message: "success", Data: map[string]interface{}{"data": "Member removed successfully"}})
 	}
 }
 
-// CreateShopReview - api/shop/:shop/reviews
+// CreateShopReview - api/shops/:shopid/reviews
 func CreateShopReview() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -649,7 +772,7 @@ func CreateShopReview() gin.HandlerFunc {
 			return
 		}
 
-		// Shop Member section
+		// Shop Member session
 		wc := writeconcern.New(writeconcern.WMajority())
 		txnOptions := options.Transaction().SetWriteConcern(wc)
 
@@ -702,46 +825,37 @@ func CreateShopReview() gin.HandlerFunc {
 			return result2, nil
 		}
 
-		res, err := session.WithTransaction(context.Background(), callback, txnOptions)
+		_, err = session.WithTransaction(context.Background(), callback, txnOptions)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": err.Error(), "field": ""}})
 			return
 		}
 
-		c.JSON(http.StatusOK, responses.UserResponse{Status: http.StatusOK, Message: "success", Data: map[string]interface{}{"data": res}})
+		c.JSON(http.StatusOK, responses.UserResponse{Status: http.StatusOK, Message: "success", Data: map[string]interface{}{"data": "Shop creation successful"}})
 	}
 }
 
-// GetShopReviews - api/shop/:shop/reviews?limit=50&skip=0&sort=created_at
+// GetShopReviews - api/shops/:shopid/reviews?limit=50&skip=0&sort=created_at
 func GetShopReviews() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
 
 		shopId := c.Param("shopid")
-		shopOBjectID, err := primitive.ObjectIDFromHex(shopId)
+		shopObjectID, err := primitive.ObjectIDFromHex(shopId)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": err.Error(), "field": ""}})
 			return
 		}
 
-		sort := c.Query("sort")
-		limit := c.Query("limit")
-		limitInt, err := strconv.Atoi(limit)
+		paginationArgs, err := services.GetPaginationArgs(c)
 		if err != nil {
-			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": "Expected an integer for 'limit'", "field": "limit"}})
+			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": err, "field": ""}})
 			return
 		}
 
-		skip := c.Query("skip")
-		skipInt, err := strconv.Atoi(skip)
-		if err != nil {
-			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": "Expected an integer for 'skip'", "field": "skip"}})
-			return
-		}
-
-		filter := bson.M{"shop_id": shopOBjectID}
-		find := options.Find().SetLimit(int64(limitInt)).SetSkip(int64(skipInt)).SetSort(bson.M{sort: 1})
+		filter := bson.M{"shop_id": shopObjectID}
+		find := options.Find().SetLimit(int64(paginationArgs.Limit)).SetSkip(int64(paginationArgs.Skip)).SetSort(bson.M{paginationArgs.Sort: paginationArgs.Order})
 		result, err := shopReviewCollection.Find(ctx, filter, find)
 		if err != nil {
 			c.JSON(http.StatusNotFound, responses.UserResponse{Status: http.StatusNotFound, Message: "error", Data: map[string]interface{}{"error": err.Error(), "field": ""}})
@@ -755,16 +869,16 @@ func GetShopReviews() gin.HandlerFunc {
 		}
 
 		c.JSON(http.StatusOK, responses.UserResponsePagination{Status: http.StatusOK, Message: "success", Data: map[string]interface{}{"data": shopReviews}, Pagination: responses.Pagination{
-			Limit: limitInt,
-			Skip:  skipInt,
-			Sort:  sort,
+			Limit: paginationArgs.Limit,
+			Skip:  paginationArgs.Skip,
+			Sort:  paginationArgs.Sort,
 			Total: len(shopReviews),
 		}})
 
 	}
 }
 
-// DeleteMyReview - api/shop/:shop/members
+// DeleteMyReview - api/shops/:shopid/members
 func DeleteMyReview() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -802,20 +916,24 @@ func DeleteMyReview() gin.HandlerFunc {
 				return nil, err
 			}
 
+			if result2.ModifiedCount == 0 {
+				return nil, errors.New("no matching documents found")
+			}
+
 			return result2, nil
 		}
 
-		res, err := session.WithTransaction(context.Background(), callback, txnOptions)
+		_, err = session.WithTransaction(context.Background(), callback, txnOptions)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": err.Error(), "field": ""}})
 			return
 		}
 
-		c.JSON(http.StatusOK, responses.UserResponse{Status: http.StatusOK, Message: "success", Data: map[string]interface{}{"data": res}})
+		c.JSON(http.StatusOK, responses.UserResponse{Status: http.StatusOK, Message: "success", Data: map[string]interface{}{"data": "My review was deleted successfully"}})
 	}
 }
 
-// DeleteOtherReview - api/shop/:shop/reviews/other?userid={user_id to remove}
+// DeleteOtherReview - api/shops/:shopid/reviews/other?userid={user_id to remove}
 func DeleteOtherReview() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -871,15 +989,158 @@ func DeleteOtherReview() gin.HandlerFunc {
 				return nil, err
 			}
 
+			if result2.ModifiedCount == 0 {
+				return nil, errors.New("no matching documents found")
+			}
+
 			return result2, nil
 		}
 
-		res, err := session.WithTransaction(context.Background(), callback, txnOptions)
+		_, err = session.WithTransaction(context.Background(), callback, txnOptions)
+		if err != nil {
+			c.JSON(http.StatusNotFound, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": err.Error(), "field": ""}})
+			return
+		}
+
+		c.JSON(http.StatusOK, responses.UserResponse{Status: http.StatusOK, Message: "success", Data: map[string]interface{}{"data": "Other user  review deleted successfully"}})
+	}
+}
+
+// CreateShopAbout - api/shops/:shopid/about
+func CreateShopAbout() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		var shopAboutJson models.ShopAboutRequest
+		defer cancel()
+
+		shopId, _, err := services.MyShopIdAndMyId(c)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": err.Error(), "field": ""}})
 			return
 		}
 
-		c.JSON(http.StatusOK, responses.UserResponse{Status: http.StatusOK, Message: "success", Data: map[string]interface{}{"data": res}})
+		// bind the request body
+		if err := c.BindJSON(&shopAboutJson); err != nil {
+			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": err.Error(), "field": ""}})
+			return
+		}
+
+		// validate request body
+		if validationErr := validate.Struct(&shopAboutJson); validationErr != nil {
+			c.JSON(http.StatusUnprocessableEntity, responses.UserResponse{Status: http.StatusUnprocessableEntity, Message: "error", Data: map[string]interface{}{"error": validationErr.Error(), "field": ""}})
+			return
+		}
+
+		shopAboutData := models.ShopAbout{
+			ID:                    primitive.NewObjectID(),
+			ShopID:                shopId,
+			Status:                shopAboutJson.Status,
+			RelatedLinks:          shopAboutJson.RelatedLinks,
+			StoryLeadingParagraph: shopAboutJson.StoryLeadingParagraph,
+			StoryHeadline:         shopAboutJson.StoryHeadline,
+		}
+
+		_, err = shopAboutCollection.InsertOne(ctx, shopAboutData)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, responses.UserResponse{Status: http.StatusInternalServerError, Message: "error", Data: map[string]interface{}{"error": err.Error(), "field": ""}})
+			return
+		}
+
+		c.JSON(http.StatusOK, responses.UserResponse{Status: http.StatusOK, Message: "success", Data: map[string]interface{}{"data": "Shop created successfully"}})
+	}
+}
+
+// GetShopAbout - api/shops/:shopid/about
+func GetShopAbout() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		var shopAbout models.ShopAbout
+		defer cancel()
+
+		shopId := c.Param("shopid")
+		shopObjectID, err := primitive.ObjectIDFromHex(shopId)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": err.Error(), "field": ""}})
+			return
+		}
+
+		err = shopAboutCollection.FindOne(ctx, bson.M{"shop_id": shopObjectID}).Decode(&shopAbout)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, responses.UserResponse{Status: http.StatusInternalServerError, Message: "error", Data: map[string]interface{}{"error": err.Error(), "field": ""}})
+			return
+		}
+
+		c.JSON(http.StatusOK, responses.UserResponse{Status: http.StatusOK, Message: "success", Data: map[string]interface{}{"data": shopAbout}})
+	}
+}
+
+// UpdateShopAbout - api/shops/:shopid/about
+func UpdateShopAbout() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		var shopAboutJson models.ShopAboutRequest
+		defer cancel()
+
+		shopId, _, err := services.MyShopIdAndMyId(c)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": err.Error(), "field": ""}})
+			return
+		}
+
+		// bind the request body
+		if err := c.BindJSON(&shopAboutJson); err != nil {
+			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": err.Error(), "field": ""}})
+			return
+		}
+
+		// validate request body
+		if validationErr := validate.Struct(&shopAboutJson); validationErr != nil {
+			c.JSON(http.StatusUnprocessableEntity, responses.UserResponse{Status: http.StatusUnprocessableEntity, Message: "error", Data: map[string]interface{}{"error": validationErr.Error(), "field": ""}})
+			return
+		}
+
+		filter := bson.M{"shop_id": shopId}
+		update := bson.M{"$set": bson.M{"status": shopAboutJson.Status, "related_links": shopAboutJson.RelatedLinks, "story_leading_paragraph": shopAboutJson.StoryLeadingParagraph, "story_headline": shopAboutJson.StoryHeadline}}
+		res, err := shopAboutCollection.UpdateOne(ctx, filter, update)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, responses.UserResponse{Status: http.StatusInternalServerError, Message: "error", Data: map[string]interface{}{"error": err.Error(), "field": ""}})
+			return
+		}
+		if res.ModifiedCount == 0 {
+			c.JSON(http.StatusNotFound, responses.UserResponse{Status: http.StatusNotFound, Message: "success", Data: map[string]interface{}{"data": "no matching documents found"}})
+			return
+		}
+
+		c.JSON(http.StatusOK, responses.UserResponse{Status: http.StatusOK, Message: "success", Data: map[string]interface{}{"data": "Shop about updated successfully"}})
+	}
+}
+
+// UpdateShopAboutStatus - api/shops/:shopid/about/status?status=active
+func UpdateShopAboutStatus() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+
+		status := c.Query("status")
+		shopId, _, err := services.MyShopIdAndMyId(c)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": err.Error(), "field": ""}})
+			return
+		}
+
+		filter := bson.M{"shop_id": shopId}
+		update := bson.M{"$set": bson.M{"status": status}}
+		res, err := shopAboutCollection.UpdateOne(ctx, filter, update)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, responses.UserResponse{Status: http.StatusInternalServerError, Message: "error", Data: map[string]interface{}{"error": "status parameter is required and must be either 'active' or 'draft", "field": ""}})
+			return
+		}
+
+		if res.ModifiedCount == 0 {
+			c.JSON(http.StatusNotFound, responses.UserResponse{Status: http.StatusNotFound, Message: "success", Data: map[string]interface{}{"data": "no matching documents found"}})
+			return
+		}
+
+		c.JSON(http.StatusOK, responses.UserResponse{Status: http.StatusOK, Message: "success", Data: map[string]interface{}{"data": "Shop about status updated successfully"}})
 	}
 }

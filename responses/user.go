@@ -13,6 +13,13 @@ type UserResponsePagination struct {
 	Pagination Pagination             `json:"pagination"`
 }
 
+type PaginationArgs struct {
+	Limit int
+	Skip  int
+	Sort  string
+	Order int
+}
+
 type Pagination struct {
 	Limit int    `json:"limit"`
 	Skip  int    `json:"skip"`

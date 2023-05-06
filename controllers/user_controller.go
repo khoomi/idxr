@@ -18,7 +18,6 @@ import (
 	"log"
 	"net/http"
 	"regexp"
-	"strconv"
 	"strings"
 	"time"
 
@@ -445,24 +444,15 @@ func GetLoginHistories() gin.HandlerFunc {
 			return
 		}
 
-		sort := c.Query("sort")
-		limit := c.Query("limit")
-		limitInt, err := strconv.Atoi(limit)
+		paginationArgs, err := services.GetPaginationArgs(c)
 		if err != nil {
-			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": "Expected an integer for 'limit'", "field": "limit"}})
-			return
-		}
-
-		skip := c.Query("skip")
-		skipInt, err := strconv.Atoi(skip)
-		if err != nil {
-			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": "Expected an integer for 'skip'", "field": "skip"}})
+			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": err, "field": ""}})
 			return
 		}
 
 		userObj, _ := primitive.ObjectIDFromHex(currentIdStr)
 		filter := bson.M{"user_uid": userObj}
-		find := options.Find().SetLimit(int64(limitInt)).SetSkip(int64(skipInt)).SetSort(bson.M{sort: 1})
+		find := options.Find().SetLimit(int64(paginationArgs.Limit)).SetSkip(int64(paginationArgs.Skip)).SetSort(bson.M{paginationArgs.Sort: paginationArgs.Order})
 		result, err := loginHistoryCollection.Find(ctx, filter, find)
 		if err != nil {
 			c.JSON(http.StatusNotFound, responses.UserResponse{Status: http.StatusNotFound, Message: "error", Data: map[string]interface{}{"error": err.Error(), "field": ""}})
@@ -476,9 +466,9 @@ func GetLoginHistories() gin.HandlerFunc {
 		}
 
 		c.JSON(http.StatusOK, responses.UserResponsePagination{Status: http.StatusOK, Message: "success", Data: map[string]interface{}{"data": loginHistory}, Pagination: responses.Pagination{
-			Limit: limitInt,
-			Skip:  skipInt,
-			Sort:  sort,
+			Limit: paginationArgs.Limit,
+			Skip:  paginationArgs.Skip,
+			Sort:  paginationArgs.Sort,
 			Total: len(loginHistory),
 		}})
 	}
@@ -1067,23 +1057,14 @@ func GetWishListItems() gin.HandlerFunc {
 			return
 		}
 
-		sort := c.Query("sort")
-		limit := c.Query("limit")
-		limitInt, err := strconv.Atoi(limit)
+		paginationArgs, err := services.GetPaginationArgs(c)
 		if err != nil {
-			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": "Expected an integer for 'limit'", "field": "limit"}})
-			return
-		}
-
-		skip := c.Query("skip")
-		skipInt, err := strconv.Atoi(skip)
-		if err != nil {
-			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": "Expected an integer for 'skip'", "field": "skip"}})
+			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": err, "field": ""}})
 			return
 		}
 
 		filter := bson.M{"user_id": MyObjectId}
-		find := options.Find().SetLimit(int64(limitInt)).SetSkip(int64(skipInt)).SetSort(bson.M{sort: 1})
+		find := options.Find().SetLimit(int64(paginationArgs.Limit)).SetSkip(int64(paginationArgs.Skip)).SetSort(bson.M{paginationArgs.Sort: paginationArgs.Order})
 		result, err := wishListCollection.Find(ctx, filter, find)
 		if err != nil {
 			c.JSON(http.StatusNotFound, responses.UserResponse{Status: http.StatusNotFound, Message: "error", Data: map[string]interface{}{"error": err.Error(), "field": ""}})
@@ -1096,6 +1077,11 @@ func GetWishListItems() gin.HandlerFunc {
 			return
 		}
 
-		c.JSON(http.StatusOK, responses.UserResponse{Status: http.StatusOK, Message: "success", Data: map[string]interface{}{"data": myWishLists}})
+		c.JSON(http.StatusOK, responses.UserResponsePagination{Status: http.StatusOK, Message: "success", Data: map[string]interface{}{"data": myWishLists}, Pagination: responses.Pagination{
+			Limit: paginationArgs.Limit,
+			Skip:  paginationArgs.Skip,
+			Sort:  paginationArgs.Sort,
+			Total: len(myWishLists),
+		}})
 	}
 }

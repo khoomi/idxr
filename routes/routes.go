@@ -63,12 +63,23 @@ func userRoutes(api *gin.RouterGroup) {
 }
 
 func ShopRoutes(api *gin.RouterGroup) {
+	shop := api.Group("/shops")
+	shop.GET("/", controllers.GetShops())
+	shop.GET("/:shopid", controllers.GetShop())
+	shop.GET("/:shopid/about", controllers.GetShopAbout())
+	shop.GET("/:shopid/reviews", controllers.GetShopReviews())
+	shop.GET("/:shopid/members", controllers.GetShopMembers())
+
 	secured := api.Group("/shops").Use(middleware.Auth())
 	{
 		secured.POST("/", controllers.CreateShop())
 		// shop images
 		secured.PUT("/:shopid/logo", controllers.UpdateShopLogo())
 		secured.PUT("/:shopid/banner", controllers.UpdateShopBanner())
+		// shop  about
+		secured.POST("/:shopid/about", controllers.CreateShopAbout())
+		secured.PUT("/:shopid/about", controllers.UpdateShopAbout())
+		secured.PUT("/:shopid/about/status", controllers.UpdateShopAboutStatus())
 		// shop vacation
 		secured.PUT("/:shopid/vacation", controllers.UpdateShopVacation())
 		// shop gallery
@@ -80,13 +91,11 @@ func ShopRoutes(api *gin.RouterGroup) {
 		secured.PUT("/:shopid/favorers", controllers.AddShopFavorer())
 		secured.DELETE("/:shopid/favorers", controllers.RemoveShopFavorer())
 		// shop members
-		secured.GET("/:shopid/members", controllers.GetShopMembers())
-		secured.POST("/:shopid/members", controllers.JoinShopMembers())
+		shop.POST("/:shopid/members", controllers.JoinShopMembers())
 		secured.DELETE("/:shopid/members", controllers.LeaveShopMembers())
 		secured.DELETE("/:shopid/members/other", controllers.RemoveOtherMember())
 		// shop review
-		secured.GET("/:shopid/reviews", controllers.GetShopReviews())
-		secured.POST("/:shopid/reviews", controllers.CreateShopReview())
+		shop.POST("/:shopid/reviews", controllers.CreateShopReview())
 		secured.DELETE("/:shopid/reviews", controllers.DeleteMyReview())
 		secured.DELETE("/:shopid/reviews/other", controllers.DeleteOtherReview())
 

@@ -51,11 +51,11 @@ const (
 type UserStatus string
 
 const (
-	Active    UserStatus = "Active"
-	Inactive  UserStatus = "Inactive"
-	Suspended UserStatus = "Suspended"
-	Deleted   UserStatus = "Deleted"
-	Banned    UserStatus = "Banned"
+	UserStatusActive UserStatus = "Active"
+	Inactive         UserStatus = "Inactive"
+	Suspended        UserStatus = "Suspended"
+	Deleted          UserStatus = "Deleted"
+	Banned           UserStatus = "Banned"
 )
 
 // UserAuthData -> authentication data
