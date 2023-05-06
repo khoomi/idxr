@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"context"
+	"errors"
 	"github.com/gin-gonic/gin"
 	slug2 "github.com/gosimple/slug"
 	"go.mongodb.org/mongo-driver/bson"
@@ -16,11 +17,13 @@ import (
 	"khoomi-api-io/khoomi_api/services"
 	"log"
 	"net/http"
+	"strconv"
 	"time"
 )
 
 var shopCollection = configs.GetCollection(configs.DB, "Shop")
 var shopMemberCollection = configs.GetCollection(configs.DB, "ShopMember")
+var shopReviewCollection = configs.GetCollection(configs.DB, "ShopReview")
 
 func CreateShop() gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -110,7 +113,7 @@ func CreateShop() gin.HandlerFunc {
 			CreatedAt:          now,
 			ModifiedAt:         now,
 			Policy:             policy,
-			RecentReviews:      []models.RecentReviews{},
+			RecentReviews:      []models.ShopReview{},
 		}
 		res, err := shopCollection.InsertOne(ctx, shop)
 		if err != nil {
@@ -308,7 +311,7 @@ func DeleteFromShopGallery() gin.HandlerFunc {
 	}
 }
 
-// AddShopFavorers - api/shop/:shop/favorers?userId={userId}
+// AddShopFavorer - api/shop/:shop/favorers?userId={userId}
 func AddShopFavorer() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -362,7 +365,7 @@ func RemoveShopFavorer() gin.HandlerFunc {
 func JoinShopMembers() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-		var shopMember models.ShopMemberEmbedded
+		var shopMember models.ShopMemberFromRequest
 		defer cancel()
 
 		shopId, myId, err := services.MyShopIdAndMyId(c)
@@ -370,10 +373,20 @@ func JoinShopMembers() gin.HandlerFunc {
 			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": err.Error(), "field": ""}})
 			return
 		}
-
-		err = c.BindJSON(shopMember)
+		loginName, err := auth.ExtractTokenLoginName(c)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": err.Error(), "field": ""}})
+			return
+		}
+
+		err = c.BindJSON(&shopMember)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": err.Error(), "field": "bind"}})
+			return
+		}
+		newMemberObjectId, err := primitive.ObjectIDFromHex(shopMember.MemberId)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": err.Error(), "field": "member_id"}})
 			return
 		}
 
@@ -383,41 +396,50 @@ func JoinShopMembers() gin.HandlerFunc {
 			return
 		}
 
-		// Shop Member section
+		// Shop Member session
 		wc := writeconcern.New(writeconcern.WMajority())
 		txnOptions := options.Transaction().SetWriteConcern(wc)
 
 		session, err := configs.DB.StartSession()
 		if err != nil {
-			panic(err)
+			c.JSON(http.StatusUnprocessableEntity, responses.UserResponse{Status: http.StatusUnprocessableEntity, Message: "error", Data: map[string]interface{}{"error": "Unable  to start new session", "field": ""}})
 		}
 		defer session.EndSession(ctx)
 
 		callback := func(ctx mongo.SessionContext) (interface{}, error) {
+			var currentShop models.Shop
+			err := shopCollection.FindOne(ctx, bson.M{"_id": shopId}).Decode(&currentShop)
+			if err != nil {
+				log.Println(err)
+				return nil, err
+			}
+
 			// attempt to add member to member collection
 			shopMemberData := models.ShopMember{
 				Id:        primitive.NewObjectID(),
-				MemberId:  shopMember.MemberId,
+				MemberId:  newMemberObjectId,
 				ShopId:    shopId,
-				LoginName: shopMember.LoginName,
+				LoginName: loginName,
 				Thumbnail: shopMember.Thumbnail,
-				IsOwner:   shopId == myId,
+				IsOwner:   currentShop.UserID == myId,
+				OwnerId:   currentShop.UserID,
 				JoinedAt:  time.Now(),
 			}
-			_, err := shopMemberCollection.InsertOne(ctx, shopMemberData)
+			_, err = shopMemberCollection.InsertOne(ctx, shopMemberData)
 			if err != nil {
+				log.Println(err)
 				return nil, err
 			}
 
 			// attempt to add member to member field in shop
 			inner := models.ShopMemberEmbedded{
-				MemberId:  shopMember.MemberId,
-				LoginName: shopMember.LoginName,
+				MemberId:  myId,
+				LoginName: loginName,
 				Thumbnail: shopMember.Thumbnail,
-				IsOwner:   shopId == myId,
+				IsOwner:   currentShop.UserID == myId,
 			}
-			filter := bson.M{"user_uid": myId, "members": bson.M{"$not": bson.M{"$elemMatch": bson.M{"member_id": &shopMember.MemberId}}}}
-			update := bson.M{"$push": bson.M{"members": bson.M{"$each": bson.A{inner}, "$sort": -1, "$slice": -10}}, "$set": bson.M{"modified_at": time.Now()}}
+			filter := bson.M{"_id": shopId, "members": bson.M{"$not": bson.M{"$elemMatch": bson.M{"member_id": &shopMember.MemberId}}}}
+			update := bson.M{"$push": bson.M{"members": bson.M{"$each": bson.A{inner}, "$sort": -1, "$slice": -5}}, "$set": bson.M{"modified_at": time.Now()}}
 			result2, err := shopCollection.UpdateOne(ctx, filter, update)
 			if err != nil {
 				return nil, err
@@ -433,6 +455,58 @@ func JoinShopMembers() gin.HandlerFunc {
 		}
 
 		c.JSON(http.StatusOK, responses.UserResponse{Status: http.StatusOK, Message: "success", Data: map[string]interface{}{"data": res}})
+	}
+}
+
+// GetShopMembers - api/shop/:shop/members?limit=50&skip=0&sort=created_at
+func GetShopMembers() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+
+		shopId := c.Param("shopid")
+		shopOBjectID, err := primitive.ObjectIDFromHex(shopId)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": err.Error(), "field": ""}})
+			return
+		}
+
+		sort := c.Query("sort")
+		limit := c.Query("limit")
+		limitInt, err := strconv.Atoi(limit)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": "Expected an integer for 'limit'", "field": "limit"}})
+			return
+		}
+
+		skip := c.Query("skip")
+		skipInt, err := strconv.Atoi(skip)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": "Expected an integer for 'skip'", "field": "skip"}})
+			return
+		}
+
+		filter := bson.M{"shop_id": shopOBjectID}
+		find := options.Find().SetLimit(int64(limitInt)).SetSkip(int64(skipInt)).SetSort(bson.M{sort: 1})
+		result, err := shopMemberCollection.Find(ctx, filter, find)
+		if err != nil {
+			c.JSON(http.StatusNotFound, responses.UserResponse{Status: http.StatusNotFound, Message: "error", Data: map[string]interface{}{"error": err.Error(), "field": ""}})
+			return
+		}
+
+		var shopMembers []models.ShopMember
+		if err = result.All(ctx, &shopMembers); err != nil {
+			c.JSON(http.StatusNotFound, responses.UserResponse{Status: http.StatusNotFound, Message: "error", Data: map[string]interface{}{"error": err.Error(), "field": ""}})
+			return
+		}
+
+		c.JSON(http.StatusOK, responses.UserResponsePagination{Status: http.StatusOK, Message: "success", Data: map[string]interface{}{"data": shopMembers}, Pagination: responses.Pagination{
+			Limit: limitInt,
+			Skip:  skipInt,
+			Sort:  sort,
+			Total: len(shopMembers),
+		}})
+
 	}
 }
 
@@ -448,7 +522,7 @@ func LeaveShopMembers() gin.HandlerFunc {
 			return
 		}
 
-		// Shop Member section
+		// Shop Member session
 		wc := writeconcern.New(writeconcern.WMajority())
 		txnOptions := options.Transaction().SetWriteConcern(wc)
 
@@ -460,7 +534,7 @@ func LeaveShopMembers() gin.HandlerFunc {
 
 		callback := func(ctx mongo.SessionContext) (interface{}, error) {
 			// attempt to remove member from member collection table
-			filter := bson.M{"_id": shopId, "member_id": myId}
+			filter := bson.M{"shop_id": shopId, "member_id": myId}
 			_, err := shopMemberCollection.DeleteOne(ctx, filter)
 			if err != nil {
 				return nil, err
@@ -468,7 +542,7 @@ func LeaveShopMembers() gin.HandlerFunc {
 
 			// attempt to remove member from embedded field in shop
 			filter = bson.M{"_id": shopId}
-			update := bson.M{"$pull": bson.M{"members": myId}}
+			update := bson.M{"$pull": bson.M{"members": bson.M{"member_id": myId}}}
 			result2, err := shopCollection.UpdateOne(ctx, filter, update)
 			if err != nil {
 				return nil, err
@@ -487,14 +561,14 @@ func LeaveShopMembers() gin.HandlerFunc {
 	}
 }
 
-// RemoveShopMember - api/shop/:shop/members?userid={user_id to remeove}
-func RemoveShopMember() gin.HandlerFunc {
+// RemoveOtherMember - api/shop/:shop/members/other?userid={user_id to remeove}
+func RemoveOtherMember() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		userToBeRemoved := c.Query("userid")
 		defer cancel()
 
-		shopId, _, err := services.MyShopIdAndMyId(c)
+		shopId, myId, err := services.MyShopIdAndMyId(c)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": err.Error(), "field": ""}})
 			return
@@ -518,7 +592,7 @@ func RemoveShopMember() gin.HandlerFunc {
 
 		callback := func(ctx mongo.SessionContext) (interface{}, error) {
 			// attempt to remove member from member collection table
-			filter := bson.M{"_id": shopId, "member_id": userToBeRemovedId}
+			filter := bson.M{"shop_id": shopId, "owner_id": myId, "member_id": userToBeRemovedId}
 			_, err := shopMemberCollection.DeleteOne(ctx, filter)
 			if err != nil {
 				return nil, err
@@ -526,7 +600,272 @@ func RemoveShopMember() gin.HandlerFunc {
 
 			// attempt to remove member from embedded field in shop
 			filter = bson.M{"_id": shopId}
-			update := bson.M{"$pull": bson.M{"members": userToBeRemovedId}}
+			update := bson.M{"$pull": bson.M{"members": bson.M{"member_id": userToBeRemovedId}}}
+			result2, err := shopCollection.UpdateOne(ctx, filter, update)
+			if err != nil {
+				return nil, err
+			}
+
+			return result2, nil
+		}
+
+		res, err := session.WithTransaction(context.Background(), callback, txnOptions)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": err.Error(), "field": ""}})
+			return
+		}
+
+		c.JSON(http.StatusOK, responses.UserResponse{Status: http.StatusOK, Message: "success", Data: map[string]interface{}{"data": res}})
+	}
+}
+
+// CreateShopReview - api/shop/:shop/reviews
+func CreateShopReview() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		var shopReviewJson models.ShopReviewRequest
+		defer cancel()
+
+		shopId, myId, err := services.MyShopIdAndMyId(c)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": err.Error(), "field": ""}})
+			return
+		}
+		loginName, err := auth.ExtractTokenLoginName(c)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": err.Error(), "field": ""}})
+			return
+		}
+
+		err = c.BindJSON(&shopReviewJson)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": err.Error(), "field": "bind"}})
+			return
+		}
+
+		// validate request body
+		if validationErr := validate.Struct(&shopReviewJson); validationErr != nil {
+			c.JSON(http.StatusUnprocessableEntity, responses.UserResponse{Status: http.StatusUnprocessableEntity, Message: "error", Data: map[string]interface{}{"error": validationErr.Error(), "field": ""}})
+			return
+		}
+
+		// Shop Member section
+		wc := writeconcern.New(writeconcern.WMajority())
+		txnOptions := options.Transaction().SetWriteConcern(wc)
+
+		session, err := configs.DB.StartSession()
+		if err != nil {
+			c.JSON(http.StatusUnprocessableEntity, responses.UserResponse{Status: http.StatusUnprocessableEntity, Message: "error", Data: map[string]interface{}{"error": "Unable  to start new session", "field": ""}})
+		}
+		defer session.EndSession(ctx)
+
+		callback := func(ctx mongo.SessionContext) (interface{}, error) {
+			var userProfile models.User
+			err := userCollection.FindOne(ctx, bson.M{"_id": myId}).Decode(&userProfile)
+			if err != nil {
+				log.Println(err)
+				return nil, err
+			}
+
+			// attempt to add review to review collection
+			shopReviewData := models.ShopReview{
+				Id:           primitive.NewObjectID(),
+				UserId:       myId,
+				ShopId:       shopId,
+				Review:       shopReviewJson.Review,
+				ReviewAuthor: loginName,
+				Thumbnail:    userProfile.Thumbnail,
+				CreatedAt:    time.Now(),
+				Status:       models.ShopReviewStatusApproved,
+			}
+			_, err = shopReviewCollection.InsertOne(ctx, shopReviewData)
+			if err != nil {
+				log.Println(err)
+				return nil, err
+			}
+
+			// attempt to add member to review field in shop
+			embedded := models.EmbeddedShopReview{
+				UserId:       myId,
+				ShopId:       shopId,
+				Review:       shopReviewJson.Review,
+				ReviewAuthor: loginName,
+				Thumbnail:    userProfile.Thumbnail,
+			}
+			filter := bson.M{"_id": shopId, "recent_reviews": bson.M{"$not": bson.M{"$elemMatch": bson.M{"user_id": myId}}}}
+			update := bson.M{"$push": bson.M{"recent_reviews": bson.M{"$each": bson.A{embedded}, "$sort": -1, "$slice": -5}}, "$set": bson.M{"modified_at": time.Now()}}
+			result2, err := shopCollection.UpdateOne(ctx, filter, update)
+			if err != nil {
+				return nil, err
+			}
+
+			return result2, nil
+		}
+
+		res, err := session.WithTransaction(context.Background(), callback, txnOptions)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": err.Error(), "field": ""}})
+			return
+		}
+
+		c.JSON(http.StatusOK, responses.UserResponse{Status: http.StatusOK, Message: "success", Data: map[string]interface{}{"data": res}})
+	}
+}
+
+// GetShopReviews - api/shop/:shop/reviews?limit=50&skip=0&sort=created_at
+func GetShopReviews() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+
+		shopId := c.Param("shopid")
+		shopOBjectID, err := primitive.ObjectIDFromHex(shopId)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": err.Error(), "field": ""}})
+			return
+		}
+
+		sort := c.Query("sort")
+		limit := c.Query("limit")
+		limitInt, err := strconv.Atoi(limit)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": "Expected an integer for 'limit'", "field": "limit"}})
+			return
+		}
+
+		skip := c.Query("skip")
+		skipInt, err := strconv.Atoi(skip)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": "Expected an integer for 'skip'", "field": "skip"}})
+			return
+		}
+
+		filter := bson.M{"shop_id": shopOBjectID}
+		find := options.Find().SetLimit(int64(limitInt)).SetSkip(int64(skipInt)).SetSort(bson.M{sort: 1})
+		result, err := shopReviewCollection.Find(ctx, filter, find)
+		if err != nil {
+			c.JSON(http.StatusNotFound, responses.UserResponse{Status: http.StatusNotFound, Message: "error", Data: map[string]interface{}{"error": err.Error(), "field": ""}})
+			return
+		}
+
+		var shopReviews []models.ShopReview
+		if err = result.All(ctx, &shopReviews); err != nil {
+			c.JSON(http.StatusNotFound, responses.UserResponse{Status: http.StatusNotFound, Message: "error", Data: map[string]interface{}{"error": err.Error(), "field": ""}})
+			return
+		}
+
+		c.JSON(http.StatusOK, responses.UserResponsePagination{Status: http.StatusOK, Message: "success", Data: map[string]interface{}{"data": shopReviews}, Pagination: responses.Pagination{
+			Limit: limitInt,
+			Skip:  skipInt,
+			Sort:  sort,
+			Total: len(shopReviews),
+		}})
+
+	}
+}
+
+// DeleteMyReview - api/shop/:shop/members
+func DeleteMyReview() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+
+		shopId, myId, err := services.MyShopIdAndMyId(c)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": err.Error(), "field": ""}})
+			return
+		}
+
+		// Shop Member session
+		wc := writeconcern.New(writeconcern.WMajority())
+		txnOptions := options.Transaction().SetWriteConcern(wc)
+
+		session, err := configs.DB.StartSession()
+		if err != nil {
+			panic(err)
+		}
+		defer session.EndSession(ctx)
+
+		callback := func(ctx mongo.SessionContext) (interface{}, error) {
+			// attempt to remove review from review collection table
+			filter := bson.M{"shop_id": shopId, "user_id": myId}
+			_, err := shopReviewCollection.DeleteOne(ctx, filter)
+			if err != nil {
+				return nil, err
+			}
+
+			// attempt to remove member from embedded field in shop
+			filter = bson.M{"_id": shopId}
+			update := bson.M{"$pull": bson.M{"recent_reviews": bson.M{"user_id": myId}}}
+			result2, err := shopCollection.UpdateOne(ctx, filter, update)
+			if err != nil {
+				return nil, err
+			}
+
+			return result2, nil
+		}
+
+		res, err := session.WithTransaction(context.Background(), callback, txnOptions)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": err.Error(), "field": ""}})
+			return
+		}
+
+		c.JSON(http.StatusOK, responses.UserResponse{Status: http.StatusOK, Message: "success", Data: map[string]interface{}{"data": res}})
+	}
+}
+
+// DeleteOtherReview - api/shop/:shop/reviews/other?userid={user_id to remove}
+func DeleteOtherReview() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		userToBeRemoved := c.Query("userid")
+		defer cancel()
+
+		shopId, myId, err := services.MyShopIdAndMyId(c)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": err.Error(), "field": ""}})
+			return
+		}
+
+		userToBeRemovedId, err := primitive.ObjectIDFromHex(userToBeRemoved)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": err.Error(), "field": "userid"}})
+			return
+		}
+
+		// Shop review session
+		wc := writeconcern.New(writeconcern.WMajority())
+		txnOptions := options.Transaction().SetWriteConcern(wc)
+
+		session, err := configs.DB.StartSession()
+		if err != nil {
+			panic(err)
+		}
+		defer session.EndSession(ctx)
+
+		callback := func(ctx mongo.SessionContext) (interface{}, error) {
+			var currentShop models.Shop
+			err := shopCollection.FindOne(ctx, bson.M{"_id": shopId}).Decode(&currentShop)
+			if err != nil {
+				log.Println(err)
+				return nil, err
+			}
+
+			if currentShop.UserID != myId {
+				return nil, errors.New("this is not your shop")
+			}
+
+			// attempt to remove review from review collection table
+			filter := bson.M{"shop_id": shopId, "owner_id": myId, "user_id": userToBeRemovedId}
+			_, err = shopMemberCollection.DeleteOne(ctx, filter)
+			if err != nil {
+				return nil, err
+			}
+
+			// attempt to remove review from recent review field in shop
+			filter = bson.M{"_id": shopId}
+			update := bson.M{"$pull": bson.M{"recent_reviews": bson.M{"user_id": userToBeRemovedId}}}
 			result2, err := shopCollection.UpdateOne(ctx, filter, update)
 			if err != nil {
 				return nil, err

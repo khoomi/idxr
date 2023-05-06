@@ -8,7 +8,7 @@ import (
 func MyShopIdAndMyId(c *gin.Context) (primitive.ObjectID, primitive.ObjectID, error) {
 	nilObjectId := primitive.NilObjectID
 
-	shopId := c.Param("shopId")
+	shopId := c.Param("shopid")
 	shopOBjectID, err := primitive.ObjectIDFromHex(shopId)
 	if err != nil {
 		return nilObjectId, nilObjectId, err

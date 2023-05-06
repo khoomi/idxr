@@ -80,9 +80,15 @@ func ShopRoutes(api *gin.RouterGroup) {
 		secured.PUT("/:shopid/favorers", controllers.AddShopFavorer())
 		secured.DELETE("/:shopid/favorers", controllers.RemoveShopFavorer())
 		// shop members
-		secured.PUT("/:shopid/members", controllers.JoinShopMembers())
+		secured.GET("/:shopid/members", controllers.GetShopMembers())
+		secured.POST("/:shopid/members", controllers.JoinShopMembers())
 		secured.DELETE("/:shopid/members", controllers.LeaveShopMembers())
-		secured.DELETE("/:shopid/members/remove", controllers.RemoveShopMember())
+		secured.DELETE("/:shopid/members/other", controllers.RemoveOtherMember())
+		// shop review
+		secured.GET("/:shopid/reviews", controllers.GetShopReviews())
+		secured.POST("/:shopid/reviews", controllers.CreateShopReview())
+		secured.DELETE("/:shopid/reviews", controllers.DeleteMyReview())
+		secured.DELETE("/:shopid/reviews/other", controllers.DeleteOtherReview())
 
 	}
 }
