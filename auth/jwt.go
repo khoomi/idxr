@@ -4,6 +4,7 @@ import (
 	"errors"
 	"github.com/dgrijalva/jwt-go"
 	"github.com/gin-gonic/gin"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"khoomi-api-io/khoomi_api/configs"
 	"time"
 )
@@ -66,7 +67,7 @@ func ExtractToken(context *gin.Context) string {
 	return tokenString
 }
 
-func ExtractTokenID(c *gin.Context) (string, error) {
+func ExtractTokenID(c *gin.Context) (primitive.ObjectID, error) {
 	tokenString := ExtractToken(c)
 	jwtKey := configs.LoadEnvFor("SECRET")
 	token, err := jwt.ParseWithClaims(
@@ -77,16 +78,22 @@ func ExtractTokenID(c *gin.Context) (string, error) {
 		},
 	)
 	if err != nil {
-		return "", err
+		return primitive.NilObjectID, err
 	}
 
 	claims, ok := token.Claims.(*JWTClaim)
 	if !ok {
 		err = errors.New("couldn't parse claims")
-		return "", err
+		return primitive.NilObjectID, err
 	}
 
-	return claims.Id, nil
+	Id, err := primitive.ObjectIDFromHex(claims.Id)
+	if !ok {
+		err = errors.New("invalid user id")
+		return primitive.NilObjectID, err
+	}
+
+	return Id, nil
 }
 
 func ExtractTokenLoginName(c *gin.Context) (string, error) {

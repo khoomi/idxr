@@ -12,7 +12,7 @@ func InitRoute() *gin.Engine {
 	api := router.Group("/api", configs.KhoomiRateLimiter())
 	{
 		api.POST("/signup", controllers.CreateUser())
-		api.POST("/auth", controllers.AuthenticateUser())
+		api.POST("/auth", controllers.HandleUserAuthentication())
 		api.DELETE("/logout", controllers.Logout()).Use(middleware.Auth())
 		api.GET("/verify-email", controllers.VerifyEmail())
 		api.POST("/send-password-reset", controllers.PasswordResetEmail())

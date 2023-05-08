@@ -33,22 +33,32 @@ var loginHistoryCollection = configs.GetCollection(configs.DB, "UserLoginHistory
 var passwordResetTokenCollection = configs.GetCollection(configs.DB, "UserPasswordResetToken")
 var emailVerificationTokenCollection = configs.GetCollection(configs.DB, "UserEmailVerificationToken")
 var wishListCollection = configs.GetCollection(configs.DB, "UserWishList")
+
+var EmailPool *email.EmailWorkerPool
+
 var validate = validator.New()
+
+const (
+	UserRequestTimeout = 20
+)
 
 func CreateUser() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), UserRequestTimeout*time.Second)
 		var jsonUser models.UserRegistrationBody
+		now := time.Now()
 		defer cancel()
 
 		// bind the request body
 		if err := c.BindJSON(&jsonUser); err != nil {
+			log.Printf("Error binding request body: %s\n", err.Error())
 			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": err.Error()}})
 			return
 		}
 
 		// validate request body
 		if validationErr := validate.Struct(&jsonUser); validationErr != nil {
+			log.Printf("Error validating request body: %s\n", validationErr.Error())
 			c.JSON(http.StatusUnprocessableEntity, responses.UserResponse{Status: http.StatusUnprocessableEntity, Message: "error", Data: map[string]interface{}{"error": validationErr.Error()}})
 			return
 		}
@@ -56,19 +66,23 @@ func CreateUser() gin.HandlerFunc {
 		// Verify current user email
 		errEmail := configs.ValidateEmailAddress(jsonUser.Email)
 		if errEmail != nil {
-			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": "Bad or invalid email address"}})
+			log.Printf("Invalid email address from user %s with IP %s at %s: %s\n", jsonUser.LoginName, c.ClientIP(), time.Now().Format(time.RFC3339), errEmail.Error())
+			c.JSON(http.StatusExpectationFailed, responses.UserResponse{Status: http.StatusExpectationFailed, Message: "error", Data: map[string]interface{}{"error": "Invalid email format"}})
 			return
 		}
 
-		// validate and hash user_models password
+		// validate user password
 		err := configs.ValidatePassword(jsonUser.Password)
 		if err != nil {
+			log.Printf("Error validating password: %s\n", err.Error())
 			c.JSON(http.StatusExpectationFailed, responses.UserResponse{Status: http.StatusExpectationFailed, Message: "error", Data: map[string]interface{}{"error": err.Error()}})
 			return
 		}
 
+		// hash user password
 		hashedPassword, errHashPassword := configs.HashPassword(jsonUser.Password)
 		if errHashPassword != nil {
+			log.Printf("Error hashing password: %s\n", errHashPassword.Error())
 			c.JSON(http.StatusExpectationFailed, responses.UserResponse{Status: http.StatusExpectationFailed, Message: "error", Data: map[string]interface{}{"error": errHashPassword.Error()}})
 			return
 		}
@@ -76,14 +90,14 @@ func CreateUser() gin.HandlerFunc {
 		// validate login name
 		errLoginName := configs.ValidateLoginName(jsonUser.LoginName)
 		if errLoginName != nil {
+			log.Printf("Error validating login name: %s\n", errLoginName.Error())
 			c.JSON(http.StatusExpectationFailed, responses.UserResponse{Status: http.StatusExpectationFailed, Message: "error", Data: map[string]interface{}{"error": errLoginName.Error()}})
 			return
 		}
 
-		now := time.Now()
 		userAuth := models.UserAuthData{
 			EmailVerified:  false,
-			ModifiedAt:     time.Now(),
+			ModifiedAt:     now,
 			PasswordDigest: hashedPassword,
 		}
 		jsonUser.Email = strings.ToLower(jsonUser.Email)
@@ -114,23 +128,31 @@ func CreateUser() gin.HandlerFunc {
 			LastLoginIp:          c.ClientIP(),
 		}
 
+		// insert user data to db
 		result, err := userCollection.InsertOne(ctx, newUser)
 		if err != nil {
+			log.Printf("Mongo Error: Request could not be completed %s\n", err.Error())
 			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": err.Error()}})
 			return
 		}
 
 		// Send welcome email.
-		email.SendWelcomeEmail(newUser.PrimaryEmail, newUser.LoginName)
+		EmailPool.Enqueue(email.EmailJob{
+			Type: "welcome",
+			Data: email.KhoomiEmailData{
+				Email:     newUser.PrimaryEmail,
+				LoginName: newUser.LoginName,
+			},
+		})
 
 		c.JSON(http.StatusCreated, responses.UserResponse{Status: http.StatusCreated, Message: "success", Data: map[string]interface{}{"data": result}})
 	}
 }
 
-// AuthenticateUser - AAuthenticate user into the server
-func AuthenticateUser() gin.HandlerFunc {
+// HandleUserAuthentication - AAuthenticate user into the server
+func HandleUserAuthentication() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), UserRequestTimeout*time.Second)
 		var jsonUser models.UserLoginBody
 		clientIp := c.ClientIP()
 		now := time.Now()
@@ -147,25 +169,34 @@ func AuthenticateUser() gin.HandlerFunc {
 			return
 		}
 
+		// check and return valid user with email from db
 		var validUser models.User
 		if err := userCollection.FindOne(ctx, bson.M{"primary_email": jsonUser.Email}).Decode(&validUser); err != nil {
 			c.JSON(http.StatusNotFound, responses.UserResponse{Status: http.StatusNotFound, Message: "error", Data: map[string]interface{}{"error": err.Error()}})
 			return
 		}
 
+		// check and validate user password digest
 		if errPasswordCheck := configs.CheckPassword(validUser.Auth.PasswordDigest, jsonUser.Password); errPasswordCheck != nil {
 			c.JSON(http.StatusUnauthorized, responses.UserResponse{Status: http.StatusUnauthorized, Message: "error", Data: map[string]interface{}{"error": errPasswordCheck.Error()}})
 			return
 		}
 
+		// start auth session
 		wc := writeconcern.New(writeconcern.WMajority())
 		txnOptions := options.Transaction().SetWriteConcern(wc)
-
 		session, err := configs.DB.StartSession()
 		if err != nil {
-			panic(err)
+			defer func() {
+				if r := recover(); r != nil {
+					log.Println("Recovered from panic:", r)
+				}
+				c.JSON(http.StatusInternalServerError, responses.UserResponse{Status: http.StatusInternalServerError, Message: "error", Data: map[string]interface{}{"error": "Failed to start database session"}})
+			}()
+			panic("Failed to start database session: " + err.Error())
 		}
 		defer session.EndSession(ctx)
+
 		callback := func(ctx mongo.SessionContext) (interface{}, error) {
 			// update user login counts
 			filter := bson.M{"primary_email": validUser.PrimaryEmail}
@@ -176,7 +207,7 @@ func AuthenticateUser() gin.HandlerFunc {
 				return nil, errUpdateLoginCounts
 			}
 
-			// create login history
+			// create and insert login history to db
 			doc := models.LoginHistory{
 				Id:        primitive.NewObjectID(),
 				UserUid:   validUser.Id,
@@ -197,6 +228,12 @@ func AuthenticateUser() gin.HandlerFunc {
 			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": err.Error()}})
 		}
 
+		if err := session.CommitTransaction(context.Background()); err != nil {
+			c.JSON(http.StatusInternalServerError, responses.UserResponse{Status: http.StatusInternalServerError, Message: "error", Data: map[string]interface{}{"error": err.Error()}})
+			return
+		}
+		session.EndSession(context.Background())
+
 		tokenString, err := auth.GenerateJWT(validUser.Id.Hex(), validUser.PrimaryEmail, validUser.LoginName)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, responses.UserResponse{Status: http.StatusInternalServerError, Message: "error", Data: map[string]interface{}{"error": err.Error()}})
@@ -205,7 +242,15 @@ func AuthenticateUser() gin.HandlerFunc {
 
 		// Send new login IP notification on condition
 		if validUser.LastLoginIp != clientIp {
-			email.SendNewIpLoginNotification(validUser.PrimaryEmail, validUser.LoginName, clientIp, time.Now().String())
+			EmailPool.Enqueue(email.EmailJob{
+				Type: "password-reset-success",
+				Data: email.KhoomiEmailData{
+					Email:     validUser.PrimaryEmail,
+					LoginName: validUser.LoginName,
+					IP:        clientIp,
+					LoginTime: now,
+				},
+			})
 		}
 
 		c.JSON(http.StatusCreated, responses.UserResponse{Status: http.StatusCreated, Message: "success", Data: map[string]interface{}{"token": tokenString}})
@@ -215,29 +260,31 @@ func AuthenticateUser() gin.HandlerFunc {
 // Logout - Log user out and invalidate session key
 func Logout() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		_, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		_, cancel := context.WithTimeout(context.Background(), UserRequestTimeout*time.Second)
 		token := auth.ExtractToken(c)
 		defer cancel()
 
+		log.Printf("Logging user with ip %v out\n", c.ClientIP())
 		_ = helper.InvalidateToken(c, configs.REDIS, token)
 	}
 }
 
 func CurrentUser(c *gin.Context) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), UserRequestTimeout*time.Second)
 	defer cancel()
 	// Extract user id from request header
 	userId, err := auth.ExtractTokenID(c)
 	if err != nil {
+		log.Printf("user with ip %v tried to access with invalid userid or token\n", c.ClientIP())
 		c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": err.Error()}})
 		c.Abort()
 		return
 	}
 
-	Id, _ := primitive.ObjectIDFromHex(userId)
-	user, errMongo := services.GetUserById(ctx, Id)
-	if errMongo != nil {
-		c.JSON(http.StatusNotFound, responses.UserResponse{Status: http.StatusNotFound, Message: "error", Data: map[string]interface{}{"error": errMongo.Error()}})
+	user, err := services.GetUserById(ctx, userId)
+	if err != nil {
+		log.Printf("Logging user with ip %v out\n", c.ClientIP())
+		c.JSON(http.StatusNotFound, responses.UserResponse{Status: http.StatusNotFound, Message: "error", Data: map[string]interface{}{"error": err.Error()}})
 		c.Abort()
 		return
 	}
@@ -249,7 +296,7 @@ func CurrentUser(c *gin.Context) {
 // GetUser => Get user by id endpoint
 func GetUser() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), UserRequestTimeout*time.Second)
 		userId := c.Param("userId")
 		defer cancel()
 
@@ -269,9 +316,10 @@ func GetUser() gin.HandlerFunc {
 // SendVerifyEmail -> api/send-verify-email?email=...&name=user_login_name
 func SendVerifyEmail() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), UserRequestTimeout*time.Second)
 		emailCurrent := c.Query("email")
 		loginName := c.Query("name")
+		now := time.Now()
 		defer cancel()
 
 		// Verify current user
@@ -288,19 +336,18 @@ func SendVerifyEmail() gin.HandlerFunc {
 			return
 		}
 
-		userObjId, _ := primitive.ObjectIDFromHex(userId)
+		// generate secure and unique token
 		token := middleware.GenerateSecureToken(8)
 
-		now := time.Now()
 		expirationTime := now.Add(1 * time.Hour)
 		verifyEmail := models.UserVerifyEmailToken{
-			UserId:      userObjId,
+			UserId:      userId,
 			TokenDigest: token,
 			CreatedAt:   primitive.NewDateTimeFromTime(now),
 			ExpiresAt:   primitive.NewDateTimeFromTime(expirationTime),
 		}
 		opts := options.Replace().SetUpsert(true)
-		filter := bson.M{"user_uid": userObjId}
+		filter := bson.M{"user_uid": userId}
 		_, err = emailVerificationTokenCollection.ReplaceOne(ctx, filter, verifyEmail, opts)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": err.Error()}})
@@ -308,7 +355,15 @@ func SendVerifyEmail() gin.HandlerFunc {
 		}
 
 		link := fmt.Sprintf("https://khoomi.com/verify-email?token=%v&id=%v", token, userId)
-		email.SendVerifyEmailNotification(emailCurrent, loginName, link)
+		// Send welcome email.
+		EmailPool.Enqueue(email.EmailJob{
+			Type: "verify",
+			Data: email.KhoomiEmailData{
+				Email:     emailCurrent,
+				LoginName: loginName,
+				Link:      link,
+			},
+		})
 
 		c.JSON(http.StatusOK, responses.UserResponse{Status: http.StatusOK, Message: "success", Data: map[string]interface{}{"data": "Password reset email send successfully"}})
 	}
@@ -317,7 +372,7 @@ func SendVerifyEmail() gin.HandlerFunc {
 // VerifyEmail -> api/send-verify-email?email=...&name=user_login_name
 func VerifyEmail() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), UserRequestTimeout*time.Second)
 		currentId := c.Query("id")
 		currentToken := c.Query("token")
 		var emailVerificationData models.UserVerifyEmailToken
@@ -330,6 +385,7 @@ func VerifyEmail() gin.HandlerFunc {
 			return
 		}
 
+		// get and delete email verification
 		err = emailVerificationTokenCollection.FindOneAndDelete(ctx, bson.M{"user_uid": userId}).Decode(&emailVerificationData)
 		if err != nil {
 			c.JSON(http.StatusNotFound, responses.UserResponse{Status: http.StatusNotFound, Message: "error", Data: map[string]interface{}{"error": err.Error()}})
@@ -370,7 +426,7 @@ func VerifyEmail() gin.HandlerFunc {
 // UpdateFirstLastName -> Update first and last name for current user
 func UpdateFirstLastName() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), UserRequestTimeout*time.Second)
 		var firstLastName models.FirstLastName
 		defer cancel()
 
@@ -412,20 +468,13 @@ func UpdateFirstLastName() gin.HandlerFunc {
 			return
 		}
 
-		myObjectId, errId := primitive.ObjectIDFromHex(myId)
-		if errId != nil {
-			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": errId.Error()}})
-			return
-		}
-		filter := bson.M{"_id": myObjectId}
+		filter := bson.M{"_id": myId}
 		update := bson.M{"$set": bson.M{"first_name": firstLastName.FirstName, "last_name": firstLastName.LastName}}
 		result, errUpdateName := userCollection.UpdateOne(ctx, filter, update)
 		if errUpdateName != nil {
 			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": errUpdateName.Error()}})
 			return
 		}
-
-		log.Println("Okay")
 
 		c.JSON(http.StatusCreated, responses.UserResponse{Status: http.StatusCreated, Message: "success", Data: map[string]interface{}{"data": result}})
 	}
@@ -436,9 +485,9 @@ func UpdateFirstLastName() gin.HandlerFunc {
 // GetLoginHistories -> Get user login histories (/api/users/login-history?limit=50&skip=0&sort=created_at)
 func GetLoginHistories() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), UserRequestTimeout*time.Second)
 		defer cancel()
-		currentIdStr, err := auth.ExtractTokenID(c)
+		userId, err := auth.ExtractTokenID(c)
 		if err != nil {
 			c.JSON(http.StatusUnauthorized, responses.UserResponse{Status: http.StatusUnauthorized, Message: "error", Data: map[string]interface{}{"error": err.Error()}})
 			return
@@ -450,8 +499,7 @@ func GetLoginHistories() gin.HandlerFunc {
 			return
 		}
 
-		userObj, _ := primitive.ObjectIDFromHex(currentIdStr)
-		filter := bson.M{"user_uid": userObj}
+		filter := bson.M{"user_uid": userId}
 		find := options.Find().SetLimit(int64(paginationArgs.Limit)).SetSkip(int64(paginationArgs.Skip)).SetSort(bson.M{paginationArgs.Sort: paginationArgs.Order})
 		result, err := loginHistoryCollection.Find(ctx, filter, find)
 		if err != nil {
@@ -477,7 +525,7 @@ func GetLoginHistories() gin.HandlerFunc {
 func DeleteLoginHistories() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		_, cancel := context.WithTimeout(context.Background(), 20*time.Second)
-		currentIdStr, err := auth.ExtractTokenID(c)
+		userId, err := auth.ExtractTokenID(c)
 		var historyIDs models.LoginHistoryIds
 		defer cancel()
 
@@ -487,16 +535,21 @@ func DeleteLoginHistories() gin.HandlerFunc {
 			return
 		}
 
+		// start delete login history session
 		wc := writeconcern.New(writeconcern.WMajority())
 		txnOptions := options.Transaction().SetWriteConcern(wc)
-
 		session, err := configs.DB.StartSession()
 		if err != nil {
-			panic(err)
+			defer func() {
+				if r := recover(); r != nil {
+					log.Println("Recovered from panic:", r)
+				}
+				c.JSON(http.StatusInternalServerError, responses.UserResponse{Status: http.StatusInternalServerError, Message: "error", Data: map[string]interface{}{"error": "Failed to start database session"}})
+			}()
+			panic("Failed to start database session: " + err.Error())
 		}
 		defer session.EndSession(context.TODO())
 
-		userObj, _ := primitive.ObjectIDFromHex(currentIdStr)
 		var IdsToDelete []primitive.ObjectID
 		for _, id := range historyIDs.IDs {
 			objId, _ := primitive.ObjectIDFromHex(id)
@@ -504,7 +557,7 @@ func DeleteLoginHistories() gin.HandlerFunc {
 		}
 		callback := func(ctx mongo.SessionContext) (interface{}, error) {
 			// update user login counts
-			filter := bson.M{"_id": bson.M{"$in": IdsToDelete}, "user_uid": userObj}
+			filter := bson.M{"_id": bson.M{"$in": IdsToDelete}, "user_uid": userId}
 			result, err := loginHistoryCollection.DeleteMany(ctx, filter)
 			if err != nil {
 				return nil, err
@@ -519,6 +572,13 @@ func DeleteLoginHistories() gin.HandlerFunc {
 			return
 		}
 
+		if err := session.CommitTransaction(context.Background()); err != nil {
+			c.JSON(http.StatusInternalServerError, responses.UserResponse{Status: http.StatusInternalServerError, Message: "error", Data: map[string]interface{}{"error": err.Error()}})
+			return
+		}
+		session.EndSession(context.Background())
+		// end delete login history session
+
 		c.JSON(http.StatusOK, responses.UserResponse{Status: http.StatusOK, Message: "success", Data: map[string]interface{}{"data": "Login histories deleted successfully"}})
 	}
 
@@ -529,7 +589,7 @@ func DeleteLoginHistories() gin.HandlerFunc {
 // PasswordResetEmail - api/send-password-reset?email=borngracedd@gmail.com
 func PasswordResetEmail() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), UserRequestTimeout*time.Second)
 		currentEmail := c.Query("email")
 		var user models.User
 		defer cancel()
@@ -558,8 +618,16 @@ func PasswordResetEmail() gin.HandlerFunc {
 			return
 		}
 
+		// send password reset email
 		link := fmt.Sprintf("https://khoomi.com/%v/password-reset/?token=%v", user.Id.Hex(), token)
-		email.SendPasswordResetEmail(user.PrimaryEmail, user.LoginName, link)
+		EmailPool.Enqueue(email.EmailJob{
+			Type: "password-reset",
+			Data: email.KhoomiEmailData{
+				Email:     user.PrimaryEmail,
+				LoginName: user.LoginName,
+				Link:      link,
+			},
+		})
 
 		c.JSON(http.StatusOK, responses.UserResponse{Status: http.StatusOK, Message: "success", Data: map[string]interface{}{"data": "Password reset email send successfully"}})
 	}
@@ -568,7 +636,7 @@ func PasswordResetEmail() gin.HandlerFunc {
 // PasswordReset - api/password-reset/userid?token=..&newpassword=..&id=user_uid
 func PasswordReset() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), UserRequestTimeout*time.Second)
 		currentId := c.Query("id")
 		currentToken := c.Query("token")
 		newPassword := c.Query("newpassword")
@@ -627,7 +695,13 @@ func PasswordReset() gin.HandlerFunc {
 		}
 
 		// Send password reset successfully email to user.
-		email.SendPasswordResetSuccessfulEmail(user.PrimaryEmail, user.LoginName)
+		EmailPool.Enqueue(email.EmailJob{
+			Type: "password-reset-success",
+			Data: email.KhoomiEmailData{
+				Email:     user.PrimaryEmail,
+				LoginName: user.LoginName,
+			},
+		})
 
 		c.JSON(http.StatusOK, responses.UserResponse{Status: http.StatusOK, Message: "success", Data: map[string]interface{}{"data": "Your password been changed successfully."}})
 
@@ -640,16 +714,15 @@ func PasswordReset() gin.HandlerFunc {
 // api/user/thumbnail?kind=(remote | file)&url=..
 func UploadThumbnail() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), UserRequestTimeout*time.Second)
 		kind := c.Query("kind")
 		defer cancel()
 
-		currentIdStr, err := auth.ExtractTokenID(c)
+		currentId, err := auth.ExtractTokenID(c)
 		if err != nil {
 			c.JSON(http.StatusUnauthorized, responses.UserResponse{Status: http.StatusUnauthorized, Message: "error", Data: map[string]interface{}{"error": err.Error()}})
 			return
 		}
-		currentId, _ := primitive.ObjectIDFromHex(currentIdStr)
 
 		now := time.Now()
 		filter := bson.M{"_id": currentId}
@@ -679,6 +752,7 @@ func UploadThumbnail() gin.HandlerFunc {
 
 		uploadUrl, err := services.NewMediaUpload().FileUpload(models.File{File: formFile})
 		if err != nil {
+			log.Printf("Thumbnail Image upload failed - %v", err.Error())
 			c.JSON(http.StatusInternalServerError, responses.UserResponse{Status: http.StatusInternalServerError, Message: "error", Data: map[string]interface{}{"error": err.Error()}})
 			return
 		}
@@ -698,12 +772,12 @@ func UploadThumbnail() gin.HandlerFunc {
 // api/user/thumbnail?name=thumbnail_name&type=jpg
 func DeleteThumbnail() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), UserRequestTimeout*time.Second)
 		name := c.Query("name")
 		kind := c.Query("type")
 		defer cancel()
 
-		myObjectId, err := services.GetUserObjectIdFromRequest(c)
+		myId, err := auth.ExtractTokenID(c)
 		if err != nil {
 			c.JSON(http.StatusUnauthorized, responses.UserResponse{Status: http.StatusUnauthorized, Message: "error", Data: map[string]interface{}{"error": err.Error()}})
 			return
@@ -721,10 +795,11 @@ func DeleteThumbnail() gin.HandlerFunc {
 		}
 
 		now := time.Now()
-		filter := bson.M{"_id": myObjectId}
+		filter := bson.M{"_id": myId}
 		update := bson.M{"$set": bson.M{"thumbnail": nil, "modified_at": now}}
 		_, err = userCollection.UpdateOne(ctx, filter, update)
 		if err != nil {
+			log.Printf("Thumbnail deletion failed %v", err)
 			c.JSON(http.StatusExpectationFailed, responses.UserResponse{Status: http.StatusExpectationFailed, Message: "error", Data: map[string]interface{}{"error": err.Error()}})
 			return
 		}
@@ -738,7 +813,7 @@ func DeleteThumbnail() gin.HandlerFunc {
 // CreateUserAddress - create new user address
 func CreateUserAddress() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), UserRequestTimeout*time.Second)
 		var userAddress models.UserAddress
 		defer cancel()
 
@@ -755,7 +830,7 @@ func CreateUserAddress() gin.HandlerFunc {
 		}
 
 		// Extract current user token
-		myObjectId, err := services.GetUserObjectIdFromRequest(c)
+		myId, err := auth.ExtractTokenID(c)
 		if err != nil {
 			c.JSON(http.StatusUnauthorized, responses.UserResponse{Status: http.StatusUnauthorized, Message: "error", Data: map[string]interface{}{"error": err.Error()}})
 			return
@@ -765,12 +840,18 @@ func CreateUserAddress() gin.HandlerFunc {
 		txnOptions := options.Transaction().SetWriteConcern(wc)
 		session, err := configs.DB.StartSession()
 		if err != nil {
-			panic(err)
+			defer func() {
+				if r := recover(); r != nil {
+					log.Println("Recovered from panic:", r)
+				}
+				c.JSON(http.StatusInternalServerError, responses.UserResponse{Status: http.StatusInternalServerError, Message: "error", Data: map[string]interface{}{"error": "Failed to start database session"}})
+			}()
+			panic("Failed to start database session: " + err.Error())
 		}
 		defer session.EndSession(ctx)
 		callback := func(ctx mongo.SessionContext) (interface{}, error) {
 			// create user address
-			userAddress.UserId = myObjectId
+			userAddress.UserId = myId
 			userAddress.Id = primitive.NewObjectID()
 			_, err = userAddressCollection.InsertOne(ctx, userAddress)
 			if err != nil {
@@ -778,7 +859,7 @@ func CreateUserAddress() gin.HandlerFunc {
 			}
 
 			// update user profile address_id
-			filter := bson.M{"_id": myObjectId}
+			filter := bson.M{"_id": myId}
 			update := bson.M{"$set": bson.M{"address_id": userAddress.Id, "modified_at": time.Now()}}
 			res, err := userCollection.UpdateOne(ctx, filter, update)
 			if err != nil {
@@ -793,6 +874,11 @@ func CreateUserAddress() gin.HandlerFunc {
 			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": err.Error()}})
 			return
 		}
+		if err := session.CommitTransaction(context.Background()); err != nil {
+			c.JSON(http.StatusInternalServerError, responses.UserResponse{Status: http.StatusInternalServerError, Message: "error", Data: map[string]interface{}{"error": err.Error()}})
+			return
+		}
+		session.EndSession(context.Background())
 
 		c.JSON(http.StatusOK, responses.UserResponse{Status: http.StatusOK, Message: "success", Data: map[string]interface{}{"data": "Address created."}})
 
@@ -802,7 +888,7 @@ func CreateUserAddress() gin.HandlerFunc {
 // UpdateUserAddress - update user address
 func UpdateUserAddress() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), UserRequestTimeout*time.Second)
 		var userAddress models.UserAddress
 		defer cancel()
 
@@ -819,13 +905,13 @@ func UpdateUserAddress() gin.HandlerFunc {
 		}
 
 		// Extract current user token
-		myObjectId, err := services.GetUserObjectIdFromRequest(c)
+		myId, err := auth.ExtractTokenID(c)
 		if err != nil {
 			c.JSON(http.StatusUnauthorized, responses.UserResponse{Status: http.StatusUnauthorized, Message: "error", Data: map[string]interface{}{"error": err.Error()}})
 			return
 		}
 
-		filter := bson.M{"user_id": myObjectId}
+		filter := bson.M{"user_id": myId}
 		update := bson.M{"$set": bson.M{"city": userAddress.City, "state": userAddress.State, "street": userAddress.Street, "postal_code": userAddress.PostalCode, "country": models.CountryNigeria}}
 		_, err = userAddressCollection.UpdateOne(ctx, filter, update)
 		if err != nil {
@@ -842,7 +928,7 @@ func UpdateUserAddress() gin.HandlerFunc {
 // UpdateUserBirthdate - update user birthdate
 func UpdateUserBirthdate() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), UserRequestTimeout*time.Second)
 		var birthDate models.UserBirthdate
 		defer cancel()
 
@@ -858,20 +944,18 @@ func UpdateUserBirthdate() gin.HandlerFunc {
 			return
 		}
 
-		myObjectId, err := services.GetUserObjectIdFromRequest(c)
+		myId, err := auth.ExtractTokenID(c)
 		if err != nil {
 			c.JSON(http.StatusUnauthorized, responses.UserResponse{Status: http.StatusUnauthorized, Message: "error", Data: map[string]interface{}{"error": err.Error()}})
 			return
 		}
-		filter := bson.M{"_id": myObjectId}
+		filter := bson.M{"_id": myId}
 		update := bson.M{"$set": bson.M{"birthdate.day": birthDate.Day, "birthdate.month": birthDate.Month, "birthdate.year": birthDate.Year}}
 		result, errUpdateName := userCollection.UpdateOne(ctx, filter, update)
 		if errUpdateName != nil {
 			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": errUpdateName.Error()}})
 			return
 		}
-
-		log.Println("Okay")
 
 		c.JSON(http.StatusOK, responses.UserResponse{Status: http.StatusOK, Message: "success", Data: map[string]interface{}{"data": result}})
 	}
@@ -881,10 +965,16 @@ func UpdateUserBirthdate() gin.HandlerFunc {
 // api/user/update?field=phone&value=8084051523
 func UpdateUserSingleField() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), UserRequestTimeout*time.Second)
 		field := c.Query("field")
 		value := c.Query("value")
 		defer cancel()
+
+		myId, err := auth.ExtractTokenID(c)
+		if err != nil {
+			c.JSON(http.StatusUnauthorized, responses.UserResponse{Status: http.StatusUnauthorized, Message: "error", Data: map[string]interface{}{"error": err.Error()}})
+			return
+		}
 
 		if strings.Contains(field, ".") {
 			c.JSON(http.StatusUnauthorized, responses.UserResponse{Status: http.StatusUnauthorized, Message: "error", Data: map[string]interface{}{"error": fmt.Sprintf("No way!, %v can't contain a .", field)}})
@@ -895,6 +985,7 @@ func UpdateUserSingleField() gin.HandlerFunc {
 
 		for _, n := range notAllowedFields {
 			if strings.ToLower(field) == n {
+				log.Printf("User (%v) is trying to change their %v", myId.Hex(), n)
 				c.JSON(http.StatusUnauthorized, responses.UserResponse{Status: http.StatusUnauthorized, Message: "error", Data: map[string]interface{}{"error": fmt.Sprintf("No way!, you can't change your %v", n)}})
 				return
 			}
@@ -910,13 +1001,7 @@ func UpdateUserSingleField() gin.HandlerFunc {
 			return
 		}
 
-		myObjectId, err := services.GetUserObjectIdFromRequest(c)
-		if err != nil {
-			c.JSON(http.StatusUnauthorized, responses.UserResponse{Status: http.StatusUnauthorized, Message: "error", Data: map[string]interface{}{"error": err.Error()}})
-			return
-		}
-
-		filter := bson.M{"_id": myObjectId}
+		filter := bson.M{"_id": myId}
 		update := bson.M{"$set": bson.M{field: value}}
 		result, errUpdateName := userCollection.UpdateOne(ctx, filter, update)
 		if errUpdateName != nil {
@@ -932,12 +1017,12 @@ func UpdateUserSingleField() gin.HandlerFunc {
 // api/user/update?shopid=phone&value=8084051523
 func AddRemoveFavoriteShop() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), UserRequestTimeout*time.Second)
 		shop := c.Query("shopid")
 		action := c.Query("action")
 		defer cancel()
 
-		myObjectId, err := services.GetUserObjectIdFromRequest(c)
+		myObjectId, err := auth.ExtractTokenID(c)
 		if err != nil {
 			c.JSON(http.StatusUnauthorized, responses.UserResponse{Status: http.StatusUnauthorized, Message: "error", Data: map[string]interface{}{"error": err.Error()}})
 			return
@@ -964,6 +1049,7 @@ func AddRemoveFavoriteShop() gin.HandlerFunc {
 				return
 			}
 
+			log.Println("Only add or remove keywords are recognize for the endpoint")
 			c.JSON(http.StatusOK, responses.UserResponse{Status: http.StatusOK, Message: "success", Data: map[string]interface{}{"data": res}})
 			return
 		}
@@ -976,7 +1062,7 @@ func AddRemoveFavoriteShop() gin.HandlerFunc {
 // api/user/wishlist?listing_id=8084051523
 func AddWishListItem() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), UserRequestTimeout*time.Second)
 		defer cancel()
 
 		listingId := c.Query("listing_id")
@@ -986,7 +1072,7 @@ func AddWishListItem() gin.HandlerFunc {
 			return
 		}
 
-		MyObjectId, err := services.GetUserObjectIdFromRequest(c)
+		MyId, err := auth.ExtractTokenID(c)
 		if err != nil {
 			c.JSON(http.StatusUnauthorized, responses.UserResponse{Status: http.StatusUnauthorized, Message: "error", Data: map[string]interface{}{"error": err.Error()}})
 			return
@@ -995,7 +1081,7 @@ func AddWishListItem() gin.HandlerFunc {
 		now := time.Now()
 		data := models.UserWishlist{
 			ID:        primitive.NewObjectID(),
-			UserID:    MyObjectId,
+			UserID:    MyId,
 			ListingId: listingObjectId,
 			CreatedAt: now,
 		}
@@ -1015,7 +1101,7 @@ func AddWishListItem() gin.HandlerFunc {
 // api/user/wishlist?listing_id=8084051523
 func RemoveWishListItem() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), UserRequestTimeout*time.Second)
 		defer cancel()
 
 		listingId := c.Query("listing_id")
@@ -1025,13 +1111,13 @@ func RemoveWishListItem() gin.HandlerFunc {
 			return
 		}
 
-		MyObjectId, err := services.GetUserObjectIdFromRequest(c)
+		MyId, err := auth.ExtractTokenID(c)
 		if err != nil {
 			c.JSON(http.StatusUnauthorized, responses.UserResponse{Status: http.StatusUnauthorized, Message: "error", Data: map[string]interface{}{"error": err.Error()}})
 			return
 		}
 
-		filter := bson.M{"user_id": MyObjectId, "listing_id": listingObjectId}
+		filter := bson.M{"user_id": MyId, "listing_id": listingObjectId}
 		res, err := wishListCollection.DeleteOne(ctx, filter)
 		if err != nil {
 			c.JSON(http.StatusNotModified, responses.UserResponse{Status: http.StatusNotModified, Message: "error", Data: map[string]interface{}{"error": err}})
@@ -1048,10 +1134,10 @@ func RemoveWishListItem() gin.HandlerFunc {
 // api/user/wishlist?limit=10&skip=0&sort=created_at
 func GetWishListItems() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), UserRequestTimeout*time.Second)
 		defer cancel()
 
-		MyObjectId, err := services.GetUserObjectIdFromRequest(c)
+		MyId, err := auth.ExtractTokenID(c)
 		if err != nil {
 			c.JSON(http.StatusUnauthorized, responses.UserResponse{Status: http.StatusUnauthorized, Message: "error", Data: map[string]interface{}{"error": err.Error()}})
 			return
@@ -1063,7 +1149,7 @@ func GetWishListItems() gin.HandlerFunc {
 			return
 		}
 
-		filter := bson.M{"user_id": MyObjectId}
+		filter := bson.M{"user_id": MyId}
 		find := options.Find().SetLimit(int64(paginationArgs.Limit)).SetSkip(int64(paginationArgs.Skip)).SetSort(bson.M{paginationArgs.Sort: paginationArgs.Order})
 		result, err := wishListCollection.Find(ctx, filter, find)
 		if err != nil {
