@@ -30,7 +30,7 @@ func CreateShop() gin.HandlerFunc {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
 
-		userID, err := services.GetUserObjectIdFromRequest(c)
+		userID, err := auth.ExtractTokenID(c)
 		if err != nil {
 			c.JSON(http.StatusUnauthorized, responses.UserResponse{Status: http.StatusUnauthorized, Message: "error", Data: map[string]interface{}{"error": err.Error()}})
 			return
