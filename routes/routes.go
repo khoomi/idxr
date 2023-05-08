@@ -13,7 +13,7 @@ func InitRoute() *gin.Engine {
 	{
 		api.POST("/signup", controllers.CreateUser())
 		api.POST("/auth", controllers.HandleUserAuthentication())
-		api.DELETE("/logout", controllers.Logout()).Use(middleware.Auth())
+		api.DELETE("/logout", controllers.Logout())
 		api.GET("/verify-email", controllers.VerifyEmail())
 		api.POST("/send-password-reset", controllers.PasswordResetEmail())
 		api.POST("/password-reset", controllers.PasswordReset())
@@ -26,10 +26,10 @@ func InitRoute() *gin.Engine {
 }
 
 func userRoutes(api *gin.RouterGroup) {
-	user := api.Group("/user")
+	user := api.Group("/users")
 	{
 		user.GET("/:userId", controllers.GetUser())
-		secured := api.Group("/user").Use(middleware.Auth())
+		secured := api.Group("/users").Use(middleware.Auth())
 		{
 			secured.GET("/ping", controllers.Ping)
 			// user endpoint.
@@ -69,6 +69,7 @@ func ShopRoutes(api *gin.RouterGroup) {
 	shop.GET("/:shopid/about", controllers.GetShopAbout())
 	shop.GET("/:shopid/reviews", controllers.GetShopReviews())
 	shop.GET("/:shopid/members", controllers.GetShopMembers())
+	shop.GET("/search", controllers.SearchShops())
 
 	secured := api.Group("/shops").Use(middleware.Auth())
 	{

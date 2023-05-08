@@ -149,7 +149,7 @@ func CreateUser() gin.HandlerFunc {
 	}
 }
 
-// HandleUserAuthentication - AAuthenticate user into the server
+// HandleUserAuthentication - Authenticate user into the server
 func HandleUserAuthentication() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ctx, cancel := context.WithTimeout(context.Background(), UserRequestTimeout*time.Second)
@@ -480,7 +480,7 @@ func UpdateFirstLastName() gin.HandlerFunc {
 
 // ////////////////////// START USER LOGIN HISTORY //////////////////////////
 
-// GetLoginHistories - Get user login histories (/api/users/login-history?limit=50&skip=0&sort=created_at)
+// GetLoginHistories - Get user login histories (/api/users/login-history?limit=50&skip=0)
 func GetLoginHistories() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ctx, cancel := context.WithTimeout(context.Background(), UserRequestTimeout*time.Second)
@@ -491,17 +491,18 @@ func GetLoginHistories() gin.HandlerFunc {
 			return
 		}
 
-		paginationArgs, err := services.GetPaginationArgs(c)
-		if err != nil {
-			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": err}})
-			return
-		}
-
+		paginationArgs := services.GetPaginationArgs(c)
 		filter := bson.M{"user_uid": userId}
-		find := options.Find().SetLimit(int64(paginationArgs.Limit)).SetSkip(int64(paginationArgs.Skip)).SetSort(bson.M{paginationArgs.Sort: paginationArgs.Order})
+		find := options.Find().SetLimit(int64(paginationArgs.Limit)).SetSkip(int64(paginationArgs.Skip))
 		result, err := loginHistoryCollection.Find(ctx, filter, find)
 		if err != nil {
 			c.JSON(http.StatusNotFound, responses.UserResponse{Status: http.StatusNotFound, Message: "error", Data: map[string]interface{}{"error": err.Error()}})
+			return
+		}
+
+		count, err := loginHistoryCollection.CountDocuments(ctx, bson.M{"user_uid": userId})
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, responses.UserResponse{Status: http.StatusInternalServerError, Message: "Error counting shops", Data: map[string]interface{}{"error": err.Error()}})
 			return
 		}
 
@@ -514,8 +515,7 @@ func GetLoginHistories() gin.HandlerFunc {
 		c.JSON(http.StatusOK, responses.UserResponsePagination{Status: http.StatusOK, Message: "success", Data: map[string]interface{}{"data": loginHistory}, Pagination: responses.Pagination{
 			Limit: paginationArgs.Limit,
 			Skip:  paginationArgs.Skip,
-			Sort:  paginationArgs.Sort,
-			Total: len(loginHistory),
+			Count: count,
 		}})
 	}
 }
@@ -1129,7 +1129,7 @@ func RemoveWishListItem() gin.HandlerFunc {
 }
 
 // GetWishListItems - Get all wishlist items
-// api/user/wishlist?limit=10&skip=0&sort=created_at
+// api/user/wishlist?limit=10&skip=0
 func GetWishListItems() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ctx, cancel := context.WithTimeout(context.Background(), UserRequestTimeout*time.Second)
@@ -1141,14 +1141,9 @@ func GetWishListItems() gin.HandlerFunc {
 			return
 		}
 
-		paginationArgs, err := services.GetPaginationArgs(c)
-		if err != nil {
-			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": err}})
-			return
-		}
-
+		paginationArgs := services.GetPaginationArgs(c)
 		filter := bson.M{"user_id": MyId}
-		find := options.Find().SetLimit(int64(paginationArgs.Limit)).SetSkip(int64(paginationArgs.Skip)).SetSort(bson.M{paginationArgs.Sort: paginationArgs.Order})
+		find := options.Find().SetLimit(int64(paginationArgs.Limit)).SetSkip(int64(paginationArgs.Skip))
 		result, err := wishListCollection.Find(ctx, filter, find)
 		if err != nil {
 			c.JSON(http.StatusNotFound, responses.UserResponse{Status: http.StatusNotFound, Message: "error", Data: map[string]interface{}{"error": err.Error()}})
@@ -1161,11 +1156,19 @@ func GetWishListItems() gin.HandlerFunc {
 			return
 		}
 
+		count, err := wishListCollection.CountDocuments(ctx,
+			bson.M{
+				"user_id": MyId,
+			})
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, responses.UserResponse{Status: http.StatusInternalServerError, Message: "Error counting shops", Data: map[string]interface{}{"error": err.Error()}})
+			return
+		}
+
 		c.JSON(http.StatusOK, responses.UserResponsePagination{Status: http.StatusOK, Message: "success", Data: map[string]interface{}{"data": myWishLists}, Pagination: responses.Pagination{
 			Limit: paginationArgs.Limit,
 			Skip:  paginationArgs.Skip,
-			Sort:  paginationArgs.Sort,
-			Total: len(myWishLists),
+			Count: count,
 		}})
 	}
 }

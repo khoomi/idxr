@@ -22,7 +22,7 @@ import (
 )
 
 var shopCollection = configs.GetCollection(configs.DB, "Shop")
-var shopAboutCollection = configs.GetCollection(configs.DB, "ShopReview")
+var shopAboutCollection = configs.GetCollection(configs.DB, "ShopAbout")
 var shopMemberCollection = configs.GetCollection(configs.DB, "ShopMember")
 var shopReviewCollection = configs.GetCollection(configs.DB, "ShopReview")
 
@@ -164,7 +164,7 @@ func GetShop() gin.HandlerFunc {
 		}
 
 		var shop models.Shop
-		err = shopMemberCollection.FindOne(ctx, bson.M{"_id": shopObjectID}).Decode(&shop)
+		err = shopCollection.FindOne(ctx, bson.M{"_id": shopObjectID}).Decode(&shop)
 		if err != nil {
 			c.JSON(http.StatusNotFound, responses.UserResponse{Status: http.StatusNotFound, Message: "error", Data: map[string]interface{}{"error": err.Error()}})
 			return
@@ -175,18 +175,13 @@ func GetShop() gin.HandlerFunc {
 	}
 }
 
-// GetShops - api/shops/?limit=50&skip=0&sort=created_at
+// GetShops - api/shops/?limit=50&skip=0
 func GetShops() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
 
-		paginationArgs, err := services.GetPaginationArgs(c)
-		if err != nil {
-			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": err}})
-			return
-		}
-
+		paginationArgs := services.GetPaginationArgs(c)
 		find := options.Find().SetLimit(int64(paginationArgs.Limit)).SetSkip(int64(paginationArgs.Skip)).SetSort(bson.M{paginationArgs.Sort: paginationArgs.Order})
 		result, err := shopMemberCollection.Find(ctx, bson.D{}, find)
 		if err != nil {
@@ -203,9 +198,60 @@ func GetShops() gin.HandlerFunc {
 		c.JSON(http.StatusOK, responses.UserResponsePagination{Status: http.StatusOK, Message: "success", Data: map[string]interface{}{"data": shopMembers}, Pagination: responses.Pagination{
 			Limit: paginationArgs.Limit,
 			Skip:  paginationArgs.Skip,
-			Sort:  paginationArgs.Sort,
-			Total: len(shopMembers),
 		}})
+
+	}
+}
+
+// SearchShops - api/shops/:shopid/search?q=khoomi&limit=50&skip=0
+func SearchShops() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+
+		query := c.Query("q")
+		paginationArgs := services.GetPaginationArgs(c)
+
+		// Query the database for shops that match the search query
+		shops, err := shopCollection.Find(ctx, bson.M{
+			"$or": []bson.M{
+				{"shop_name": bson.M{"$regex": primitive.Regex{Pattern: query, Options: "i"}}},
+				{"description": bson.M{"$regex": primitive.Regex{Pattern: query, Options: "i"}}},
+			},
+		}, options.Find().SetSkip(int64(paginationArgs.Skip)).SetLimit(int64(paginationArgs.Limit)))
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, responses.UserResponse{Status: http.StatusInternalServerError, Message: "Error searching for shops", Data: map[string]interface{}{"error": err.Error()}})
+			return
+		}
+
+		// Count the total number of shops that match the search query
+		count, err := shopCollection.CountDocuments(ctx, bson.M{
+			"$or": []bson.M{
+				{"shop_name": bson.M{"$regex": primitive.Regex{Pattern: query, Options: "i"}}},
+				{"description": bson.M{"$regex": primitive.Regex{Pattern: query, Options: "i"}}},
+			},
+		})
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, responses.UserResponse{Status: http.StatusInternalServerError, Message: "Error counting shops", Data: map[string]interface{}{"error": err.Error()}})
+			return
+		}
+
+		// Serialize the shops and return them to the client
+		var serializedShops []models.Shop
+		for shops.Next(ctx) {
+			var shop models.Shop
+			if err := shops.Decode(&shop); err != nil {
+				c.JSON(http.StatusInternalServerError, responses.UserResponse{Status: http.StatusInternalServerError, Message: "Error decoding shops", Data: map[string]interface{}{"error": err.Error()}})
+				return
+			}
+			serializedShops = append(serializedShops, shop)
+
+			c.JSON(http.StatusOK, responses.UserResponsePagination{Status: http.StatusOK, Message: "Shops found", Data: map[string]interface{}{"data": serializedShops}, Pagination: responses.Pagination{
+				Limit: paginationArgs.Limit,
+				Skip:  paginationArgs.Skip,
+				Count: count,
+			}})
+		}
 
 	}
 }
@@ -260,7 +306,7 @@ func UpdateShopVacation() gin.HandlerFunc {
 		now := time.Now()
 		defer cancel()
 
-		err := c.BindJSON(vacation)
+		err := c.BindJSON(&vacation)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": err.Error()}})
 			return
@@ -273,7 +319,7 @@ func UpdateShopVacation() gin.HandlerFunc {
 		}
 
 		filter := bson.M{"_id": shopId, "user_id": myId}
-		update := bson.M{"vacation_message": vacation.Message, "is_vacation": vacation.IsVacation, "modified_at": now}
+		update := bson.M{"$set": bson.M{"vacation_message": vacation.Message, "is_vacation": vacation.IsVacation, "modified_at": now}}
 		res, err := shopCollection.UpdateOne(ctx, filter, update)
 		if err != nil {
 			c.JSON(http.StatusNotModified, responses.UserResponse{Status: http.StatusNotModified, Message: "error", Data: map[string]interface{}{"error": err.Error()}})
@@ -608,7 +654,7 @@ func JoinShopMembers() gin.HandlerFunc {
 	}
 }
 
-// GetShopMembers - api/shops/:shopid/members?limit=50&skip=0&sort=created_at
+// GetShopMembers - api/shops/:shopid/members?limit=50&skip=0
 func GetShopMembers() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -617,26 +663,30 @@ func GetShopMembers() gin.HandlerFunc {
 		shopId := c.Param("shopid")
 		shopObjectID, err := primitive.ObjectIDFromHex(shopId)
 		if err != nil {
+			log.Printf("Invalid user id %v", shopId)
 			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": err.Error()}})
 			return
 		}
 
-		paginationArgs, err := services.GetPaginationArgs(c)
+		paginationArgs := services.GetPaginationArgs(c)
+		filter := bson.M{"shop_id": shopObjectID}
+		find := options.Find().SetLimit(int64(paginationArgs.Limit)).SetSkip(int64(paginationArgs.Skip))
+		result, err := shopMemberCollection.Find(ctx, filter, find)
 		if err != nil {
-			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": err}})
+			log.Printf("%v", err)
+			c.JSON(http.StatusNotFound, responses.UserResponse{Status: http.StatusNotFound, Message: "error", Data: map[string]interface{}{"error": err.Error()}})
 			return
 		}
 
-		filter := bson.M{"shop_id": shopObjectID}
-		find := options.Find().SetLimit(int64(paginationArgs.Limit)).SetSkip(int64(paginationArgs.Skip)).SetSort(bson.M{paginationArgs.Sort: paginationArgs.Order})
-		result, err := shopMemberCollection.Find(ctx, filter, find)
+		count, err := shopMemberCollection.CountDocuments(ctx, bson.M{"shop_id": shopObjectID})
 		if err != nil {
-			c.JSON(http.StatusNotFound, responses.UserResponse{Status: http.StatusNotFound, Message: "error", Data: map[string]interface{}{"error": err.Error()}})
+			c.JSON(http.StatusInternalServerError, responses.UserResponse{Status: http.StatusInternalServerError, Message: "Error counting shops", Data: map[string]interface{}{"error": err.Error()}})
 			return
 		}
 
 		var shopMembers []models.ShopMember
 		if err = result.All(ctx, &shopMembers); err != nil {
+			log.Printf("%v", err)
 			c.JSON(http.StatusNotFound, responses.UserResponse{Status: http.StatusNotFound, Message: "error", Data: map[string]interface{}{"error": err.Error()}})
 			return
 		}
@@ -644,8 +694,7 @@ func GetShopMembers() gin.HandlerFunc {
 		c.JSON(http.StatusOK, responses.UserResponsePagination{Status: http.StatusOK, Message: "success", Data: map[string]interface{}{"data": shopMembers}, Pagination: responses.Pagination{
 			Limit: paginationArgs.Limit,
 			Skip:  paginationArgs.Skip,
-			Sort:  paginationArgs.Sort,
-			Total: len(shopMembers),
+			Count: count,
 		}})
 
 	}
@@ -875,7 +924,7 @@ func CreateShopReview() gin.HandlerFunc {
 	}
 }
 
-// GetShopReviews - api/shops/:shopid/reviews?limit=50&skip=0&sort=created_at
+// GetShopReviews - api/shops/:shopid/reviews?limit=50&skip=0
 func GetShopReviews() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -888,14 +937,9 @@ func GetShopReviews() gin.HandlerFunc {
 			return
 		}
 
-		paginationArgs, err := services.GetPaginationArgs(c)
-		if err != nil {
-			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": err}})
-			return
-		}
-
+		paginationArgs := services.GetPaginationArgs(c)
 		filter := bson.M{"shop_id": shopObjectID}
-		find := options.Find().SetLimit(int64(paginationArgs.Limit)).SetSkip(int64(paginationArgs.Skip)).SetSort(bson.M{paginationArgs.Sort: paginationArgs.Order})
+		find := options.Find().SetLimit(int64(paginationArgs.Limit)).SetSkip(int64(paginationArgs.Skip))
 		result, err := shopReviewCollection.Find(ctx, filter, find)
 		if err != nil {
 			c.JSON(http.StatusNotFound, responses.UserResponse{Status: http.StatusNotFound, Message: "error", Data: map[string]interface{}{"error": err.Error()}})
@@ -908,11 +952,19 @@ func GetShopReviews() gin.HandlerFunc {
 			return
 		}
 
+		count, err := shopReviewCollection.CountDocuments(ctx,
+			bson.M{
+				"shop_id": shopObjectID,
+			})
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, responses.UserResponse{Status: http.StatusInternalServerError, Message: "Error counting shops", Data: map[string]interface{}{"error": err.Error()}})
+			return
+		}
+
 		c.JSON(http.StatusOK, responses.UserResponsePagination{Status: http.StatusOK, Message: "success", Data: map[string]interface{}{"data": shopReviews}, Pagination: responses.Pagination{
 			Limit: paginationArgs.Limit,
 			Skip:  paginationArgs.Skip,
-			Sort:  paginationArgs.Sort,
-			Total: len(shopReviews),
+			Count: count,
 		}})
 
 	}
@@ -1095,7 +1147,7 @@ func CreateShopAbout() gin.HandlerFunc {
 			return
 		}
 
-		c.JSON(http.StatusOK, responses.UserResponse{Status: http.StatusOK, Message: "success", Data: map[string]interface{}{"data": "Shop created successfully"}})
+		c.JSON(http.StatusOK, responses.UserResponse{Status: http.StatusOK, Message: "success", Data: map[string]interface{}{"data": "Shop about created successfully"}})
 	}
 }
 

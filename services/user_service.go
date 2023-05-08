@@ -2,7 +2,6 @@ package services
 
 import (
 	"context"
-	"errors"
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -24,31 +23,13 @@ func GetUserById(ctx context.Context, id primitive.ObjectID) (models.User, error
 	return user, nil
 }
 
-func GetPaginationArgs(c *gin.Context) (responses.PaginationArgs, error) {
+func GetPaginationArgs(c *gin.Context) responses.PaginationArgs {
 
-	sort := c.Query("sort")
-	limit := c.Query("limit")
-	limitInt, err := strconv.Atoi(limit)
-	if err != nil {
-		return responses.PaginationArgs{}, errors.New("expected an integer for 'limit'")
-	}
-
-	order := c.Query("order")
-	orderInt, err := strconv.Atoi(order)
-	if err != nil {
-		return responses.PaginationArgs{}, errors.New("expected an integer for 'order'")
-	}
-
-	skip := c.Query("skip")
-	skipInt, err := strconv.Atoi(skip)
-	if err != nil {
-		return responses.PaginationArgs{}, errors.New("expected an integer for 'skip'")
-	}
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
+	skip, _ := strconv.Atoi(c.DefaultQuery("skip", "0"))
 
 	return responses.PaginationArgs{
-		Limit: limitInt,
-		Skip:  skipInt,
-		Sort:  sort,
-		Order: orderInt,
-	}, nil
+		Limit: limit,
+		Skip:  skip,
+	}
 }

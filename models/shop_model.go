@@ -132,7 +132,7 @@ const (
 )
 
 type ShopAboutRequest struct {
-	Status                ShopAboutStatus `bson:"status" json:"status" validate:"required,oneof=Draft Active"`
+	Status                ShopAboutStatus `bson:"status" json:"status" validate:"required,oneof=draft active"`
 	RelatedLinks          string          `bson:"related_links" json:"related_links"`
 	StoryLeadingParagraph string          `bson:"story_leading_paragraph" json:"story_leading_paragraph" validate:"required"`
 	StoryHeadline         string          `bson:"story_headline" json:"story_headline" validate:"required"`

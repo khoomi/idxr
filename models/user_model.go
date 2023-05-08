@@ -62,7 +62,7 @@ const (
 type UserAuthData struct {
 	EmailVerified  bool      `bson:"email_verified"`
 	ModifiedAt     time.Time `bson:"modified_at"`
-	PasswordDigest string    `bson:"password_digest,omitempty" json:"password_digest,omitempty"`
+	PasswordDigest string    `bson:"password_digest,omitempty" json:"-"`
 }
 
 // UserRegistrationBody -> expected data for signup process

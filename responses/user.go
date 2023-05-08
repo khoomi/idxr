@@ -21,8 +21,7 @@ type PaginationArgs struct {
 }
 
 type Pagination struct {
-	Limit int    `json:"limit"`
-	Skip  int    `json:"skip"`
-	Sort  string `json:"sort"`
-	Total int    `json:"total"`
+	Limit int   `json:"limit"`
+	Skip  int   `json:"skip"`
+	Count int64 `json:"count"`
 }
