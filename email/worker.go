@@ -16,7 +16,7 @@ type EmailWorkerPool struct {
 	Workers []EmailWorker
 }
 
-func EmailWorkerPoolInstance(size int) *EmailWorkerPool {
+func KhoomiEmailWorkerPoolInstance(size int) *EmailWorkerPool {
 	jobs := make(chan EmailJob, size)
 	workers := make([]EmailWorker, size)
 

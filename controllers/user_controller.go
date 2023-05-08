@@ -293,7 +293,7 @@ func CurrentUser(c *gin.Context) {
 	c.JSON(http.StatusOK, responses.UserResponse{Status: http.StatusOK, Message: "success", Data: map[string]interface{}{"data": user}})
 }
 
-// GetUser => Get user by id endpoint
+// GetUser - Get user by id endpoint
 func GetUser() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ctx, cancel := context.WithTimeout(context.Background(), UserRequestTimeout*time.Second)
@@ -311,9 +311,7 @@ func GetUser() gin.HandlerFunc {
 	}
 }
 
-// ////////////////////// START USER EMAIL VERIFICATION //////////////////////////
-
-// SendVerifyEmail -> api/send-verify-email?email=...&name=user_login_name
+// SendVerifyEmail - api/send-verify-email?email=...&name=user_login_name
 func SendVerifyEmail() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ctx, cancel := context.WithTimeout(context.Background(), UserRequestTimeout*time.Second)
@@ -369,7 +367,7 @@ func SendVerifyEmail() gin.HandlerFunc {
 	}
 }
 
-// VerifyEmail -> api/send-verify-email?email=...&name=user_login_name
+// VerifyEmail - api/send-verify-email?email=...&name=user_login_name
 func VerifyEmail() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ctx, cancel := context.WithTimeout(context.Background(), UserRequestTimeout*time.Second)
@@ -482,7 +480,7 @@ func UpdateFirstLastName() gin.HandlerFunc {
 
 // ////////////////////// START USER LOGIN HISTORY //////////////////////////
 
-// GetLoginHistories -> Get user login histories (/api/users/login-history?limit=50&skip=0&sort=created_at)
+// GetLoginHistories - Get user login histories (/api/users/login-history?limit=50&skip=0&sort=created_at)
 func GetLoginHistories() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ctx, cancel := context.WithTimeout(context.Background(), UserRequestTimeout*time.Second)

@@ -9,7 +9,7 @@ import (
 
 func main() {
 	// Initialize email worker pool
-	controllers.EmailPool = email.EmailWorkerPoolInstance(5)
+	controllers.EmailPool = email.KhoomiEmailWorkerPoolInstance(5)
 	controllers.EmailPool.Start()
 	defer controllers.EmailPool.Stop()
 
