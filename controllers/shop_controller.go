@@ -3,6 +3,7 @@ package controllers
 import (
 	"context"
 	"errors"
+	"fmt"
 	"github.com/gin-gonic/gin"
 	slug2 "github.com/gosimple/slug"
 	"go.mongodb.org/mongo-driver/bson"
@@ -50,6 +51,7 @@ func CreateShop() gin.HandlerFunc {
 		}
 
 		shopNameDescription := c.Request.FormValue("description")
+
 		logoFile, _, err := c.Request.FormFile("logo")
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, responses.UserResponse{Status: http.StatusInternalServerError, Message: "error", Data: map[string]interface{}{"error": err.Error()}})
@@ -57,9 +59,10 @@ func CreateShop() gin.HandlerFunc {
 		}
 		logoUploadUrl, err := services.NewMediaUpload().FileUpload(models.File{File: logoFile})
 		if err != nil {
-			log.Println("Logo failed to upload")
-			log.Println(err)
-			logoUploadUrl = ""
+			errMsg, _ := fmt.Printf("Logo failed to upload - %v", err.Error())
+			log.Print(errMsg)
+			c.JSON(http.StatusInternalServerError, responses.UserResponse{Status: http.StatusInternalServerError, Message: "error", Data: map[string]interface{}{"error": errMsg}})
+			return
 		}
 
 		bannerFile, _, err := c.Request.FormFile("banner")
@@ -69,14 +72,14 @@ func CreateShop() gin.HandlerFunc {
 		}
 		bannerUploadUrl, err := services.NewMediaUpload().FileUpload(models.File{File: bannerFile})
 		if err != nil {
-			log.Println("Banner failed to upload")
-			log.Println(err)
-			bannerUploadUrl = ""
+			errMsg, _ := fmt.Printf("Banner failed to upload - %v", err.Error())
+			log.Print(errMsg)
+			c.JSON(http.StatusInternalServerError, responses.UserResponse{Status: http.StatusInternalServerError, Message: "error", Data: map[string]interface{}{"error": errMsg}})
+			return
 		}
 
 		wc := writeconcern.New(writeconcern.WMajority())
 		txnOptions := options.Transaction().SetWriteConcern(wc)
-
 		session, err := configs.DB.StartSession()
 		if err != nil {
 			c.JSON(http.StatusUnprocessableEntity, responses.UserResponse{Status: http.StatusUnprocessableEntity, Message: "error", Data: map[string]interface{}{"error": "Unable  to start new session"}})
@@ -211,12 +214,20 @@ func UpdateShopAnnouncement() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		var announcement models.ShopAnnouncementRequest
-		now := time.Now()
 		defer cancel()
 
 		err := c.BindJSON(announcement)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": err.Error()}})
+			return
+		}
+		if announcement.Announcement == "" {
+			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": "announcement cannot be empty"}})
+			return
+		}
+
+		if len(announcement.Announcement) > 100 {
+			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": "announcement is too long"}})
 			return
 		}
 
@@ -227,7 +238,7 @@ func UpdateShopAnnouncement() gin.HandlerFunc {
 		}
 
 		filter := bson.M{"_id": shopId, "user_id": myId}
-		update := bson.M{"announcement": announcement.Announcement, "modified_at": now}
+		update := bson.M{"announcement": announcement.Announcement, "modified_at": time.Now()}
 		res, err := shopCollection.UpdateOne(ctx, filter, update)
 		if err != nil {
 			c.JSON(http.StatusNotModified, responses.UserResponse{Status: http.StatusNotModified, Message: "error", Data: map[string]interface{}{"error": err.Error()}})
@@ -296,7 +307,10 @@ func UpdateShopLogo() gin.HandlerFunc {
 		}
 		logoUploadUrl, err := services.NewMediaUpload().FileUpload(models.File{File: logoFile})
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, responses.UserResponse{Status: http.StatusInternalServerError, Message: "error", Data: map[string]interface{}{"error": err.Error()}})
+			errMsg, _ := fmt.Printf("Logo failed to upload - %v", err.Error())
+			log.Print(errMsg)
+			c.JSON(http.StatusInternalServerError, responses.UserResponse{Status: http.StatusInternalServerError, Message: "error", Data: map[string]interface{}{"error": errMsg}})
+			return
 		}
 
 		filter := bson.M{"_id": shopId, "user_id": myId}
@@ -334,7 +348,9 @@ func UpdateShopBanner() gin.HandlerFunc {
 		}
 		bannerFileUrl, err := services.NewMediaUpload().FileUpload(models.File{File: bannerFile})
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, responses.UserResponse{Status: http.StatusInternalServerError, Message: "error", Data: map[string]interface{}{"error": err.Error()}})
+			errMsg, _ := fmt.Printf("Banner failed to upload - %v", err.Error())
+			log.Print(errMsg)
+			c.JSON(http.StatusInternalServerError, responses.UserResponse{Status: http.StatusInternalServerError, Message: "error", Data: map[string]interface{}{"error": errMsg}})
 			return
 		}
 
@@ -373,7 +389,9 @@ func UpdateShopGallery() gin.HandlerFunc {
 		}
 		imageFileUrl, err := services.NewMediaUpload().FileUpload(models.File{File: imageFile})
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, responses.UserResponse{Status: http.StatusInternalServerError, Message: "error", Data: map[string]interface{}{"error": err.Error()}})
+			errMsg, _ := fmt.Printf("Image failed to upload - %v", err.Error())
+			log.Print(errMsg)
+			c.JSON(http.StatusInternalServerError, responses.UserResponse{Status: http.StatusInternalServerError, Message: "error", Data: map[string]interface{}{"error": errMsg}})
 			return
 		}
 
