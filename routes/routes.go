@@ -30,6 +30,7 @@ func userRoutes(api *gin.RouterGroup) {
 	user := api.Group("/users")
 	{
 		user.GET("/:userId", controllers.GetUser())
+		user.GET("/:userId/shops", controllers.GetShopByOwnerUserId())
 		secured := api.Group("/users").Use(middleware.Auth())
 		{
 			secured.GET("/ping", controllers.Ping)

@@ -6,27 +6,54 @@ import (
 )
 
 type Shop struct {
-	ID                 primitive.ObjectID `bson:"_id" json:"_id" validate:"required"`
-	ShopName           string             `bson:"shop_name" json:"shop_name" validate:"required,pattern=^\p{L}+[\p{L}\p{Pd}\p{Zs}']*\p{L}+$|^\p{L}+$"`
-	Description        string             `bson:"description" json:"description" validate:"required"`
-	LoginName          string             `bson:"login_name" json:"login_name" validate:"required"`
-	UserID             primitive.ObjectID `bson:"user_id" json:"user_id" validate:""`
-	ListingActiveCount int                `bson:"listing_active_count" json:"listing_active_count" validate:"required"`
-	Announcement       string             `bson:"announcement" json:"announcement" validate:"omitempty"`
-	IsVacation         bool               `bson:"is_vacation" json:"is_vacation"`
-	VacationMessage    string             `bson:"vacation_message" json:"vacation_message" validate:"omitempty"`
-	Slug               string             `bson:"slug" json:"slug" validate:"required"`
-	LogoURL            string             `bson:"logo_url" json:"logo_url"`
-	BannerURL          string             `bson:"banner_url" json:"banner_url"`
-	Gallery            []string           `bson:"gallery" json:"gallery" `
-	Favorers           []string           `bson:"favorers" json:"favorers" `
-	FavorerCount       int                `bson:"favorer_count" json:"favorer_count" validate:"required"`
-	Members            []ShopMember       `bson:"members" json:"members" `
-	Status             ShopStatus         `bson:"status" json:"status" validate:"required,oneof=inactive active banned suspended warning pendingreview"`
-	CreatedAt          time.Time          `bson:"created_at" json:"created_at" validate:"required"`
-	ModifiedAt         time.Time          `bson:"modified_at" json:"modified_at" validate:"required"`
-	Policy             ShopPolicy         `bson:"policy" json:"policy" validate:"required"`
-	RecentReviews      []ShopReview       `bson:"recent_reviews" json:"recent_reviews" validate:"required"`
+	// ID of the shop.
+	ID primitive.ObjectID `bson:"_id" json:"_id" validate:"required"`
+	// The name of the shop. and must follow the pattern specified.
+	ShopName string `bson:"shop_name" json:"shop_name" validate:"required,pattern=^\p{L}+[\p{L}\p{Pd}\p{Zs}']*\p{L}+$|^\p{L}+$"`
+	// Description of the shop.
+	Description string `bson:"description" json:"description" validate:"required"`
+	// The login name for the shop.
+	LoginName string `bson:"login_name" json:"login_name" validate:"required"`
+	// ID of the user that owns the shop.
+	UserID primitive.ObjectID `bson:"user_id" json:"user_id" validate:""`
+	// Number of active listings in the shop.
+	ListingActiveCount int `bson:"listing_active_count" json:"listing_active_count" validate:"required"`
+	// Announcement fo the shop. This field is optional.
+	Announcement string `bson:"announcement" json:"announcement" validate:"omitempty"`
+	// Indicates whether the shop is on vacation.
+	IsVacation bool `bson:"is_vacation" json:"is_vacation" validate:"default=false"`
+	// Message displayed when the shop is on vacation. This field is optional.
+	VacationMessage string `bson:"vacation_message" json:"vacation_message" validate:"omitempty"`
+	// Slug for the shop.
+	Slug string `bson:"slug" json:"slug" validate:"required"`
+	// URL for the shop's logo. This field is optional.
+	LogoURL string `bson:"logo_url" json:"logo_url"`
+	// URL for the shop's banner. This field is optional.
+	BannerURL string `bson:"banner_url" json:"banner_url"`
+	// List of image URLs for the shop's gallery. This field is optional.
+	Gallery []string `bson:"gallery" json:"gallery"`
+	// List of user IDs that have favorited the shop. This field is optional.
+	Favorers []string `bson:"favorers" json:"favorers"`
+	// Number of users that have favorited the shop.
+	FavorerCount int `bson:"favorer_count" json:"favorer_count" validate:"required"`
+	// List of members of the shop.
+	Members []ShopMember `bson:"members" json:"members"`
+	// Status of the shop. and must be one of the specified values.
+	Status ShopStatus `bson:"status" json:"status" validate:"required,oneof=inactive active banned suspended warning pendingreview"`
+	// Date and time when the shop was created.
+	CreatedAt time.Time `bson:"created_at" json:"created_at" validate:"required"`
+	// Date and time when the shop was last modified.
+	ModifiedAt time.Time `bson:"modified_at" json:"modified_at" validate:"required"`
+	// Policy for the shop.
+	Policy ShopPolicy `bson:"policy" json:"policy" validate:"required"`
+	// List of recent reviews for the shop.
+	RecentReviews []ShopReview `bson:"recent_reviews" json:"recent_reviews" validate:"required"`
+	// Numbers of reviews for the shop.
+	ReviewsCount int `bson:"reviews_count" json:"reviews_count"`
+	// A message string sent to users who complete a purchase from this shop.
+	SalesMessage              []ShopReview `bson:"sales_message" json:"sales_message" validate:""`
+	IsDirectCheckoutOnboarded bool         `bson:"is_direct_checkout_onboarded" json:"is_direct_checkout_onboarded" validate:"default=false"`
+	IsKhoomiPaymentOnboarded  bool         `bson:"is_khoomi_payment_onboarded" json:"is_khoomi_payment_onboarded" validate:"default=false"`
 }
 
 type ShopMember struct {

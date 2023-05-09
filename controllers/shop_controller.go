@@ -97,27 +97,30 @@ func CreateShop() gin.HandlerFunc {
 			}
 			shopId := primitive.NewObjectID()
 			shop := models.Shop{
-				ID:                 shopId,
-				ShopName:           shopName,
-				Description:        shopNameDescription,
-				LoginName:          loginName,
-				UserID:             userID,
-				ListingActiveCount: 0,
-				Announcement:       "",
-				IsVacation:         false,
-				VacationMessage:    "",
-				Slug:               slug,
-				LogoURL:            logoUploadUrl,
-				BannerURL:          bannerUploadUrl,
-				Gallery:            []string{},
-				Favorers:           []string{},
-				FavorerCount:       0,
-				Members:            []models.ShopMember{},
-				Status:             models.ShopStatusPendingReview,
-				CreatedAt:          now,
-				ModifiedAt:         now,
-				Policy:             policy,
-				RecentReviews:      []models.ShopReview{},
+				ID:                        shopId,
+				ShopName:                  shopName,
+				Description:               shopNameDescription,
+				LoginName:                 loginName,
+				UserID:                    userID,
+				ListingActiveCount:        0,
+				Announcement:              "",
+				IsVacation:                false,
+				VacationMessage:           "",
+				Slug:                      slug,
+				LogoURL:                   logoUploadUrl,
+				BannerURL:                 bannerUploadUrl,
+				Gallery:                   []string{},
+				Favorers:                  []string{},
+				FavorerCount:              0,
+				Members:                   []models.ShopMember{},
+				Status:                    models.ShopStatusPendingReview,
+				CreatedAt:                 now,
+				ModifiedAt:                now,
+				Policy:                    policy,
+				RecentReviews:             []models.ShopReview{},
+				ReviewsCount:              0,
+				IsDirectCheckoutOnboarded: false,
+				IsKhoomiPaymentOnboarded:  false,
 			}
 			_, err := shopCollection.InsertOne(ctx, shop)
 			if err != nil {
@@ -165,6 +168,31 @@ func GetShop() gin.HandlerFunc {
 
 		var shop models.Shop
 		err = shopCollection.FindOne(ctx, bson.M{"_id": shopObjectID}).Decode(&shop)
+		if err != nil {
+			c.JSON(http.StatusNotFound, responses.UserResponse{Status: http.StatusNotFound, Message: "error", Data: map[string]interface{}{"error": err.Error()}})
+			return
+		}
+
+		c.JSON(http.StatusOK, responses.UserResponse{Status: http.StatusOK, Message: "success", Data: map[string]interface{}{"data": shop}})
+
+	}
+}
+
+// GetShopByOwnerUserId - api/users/:userid/shops
+func GetShopByOwnerUserId() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+
+		userIdStr := c.Param("userid")
+		userId, err := primitive.ObjectIDFromHex(userIdStr)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": err.Error()}})
+			return
+		}
+
+		var shop models.Shop
+		err = shopCollection.FindOne(ctx, bson.M{"user_id": userId}).Decode(&shop)
 		if err != nil {
 			c.JSON(http.StatusNotFound, responses.UserResponse{Status: http.StatusNotFound, Message: "error", Data: map[string]interface{}{"error": err.Error()}})
 			return
@@ -256,6 +284,7 @@ func SearchShops() gin.HandlerFunc {
 	}
 }
 
+// UpdateShopAnnouncement - api/shops/:shopid/announcement
 func UpdateShopAnnouncement() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -322,11 +351,11 @@ func UpdateShopVacation() gin.HandlerFunc {
 		update := bson.M{"$set": bson.M{"vacation_message": vacation.Message, "is_vacation": vacation.IsVacation, "modified_at": now}}
 		res, err := shopCollection.UpdateOne(ctx, filter, update)
 		if err != nil {
-			c.JSON(http.StatusNotModified, responses.UserResponse{Status: http.StatusNotModified, Message: "error", Data: map[string]interface{}{"error": err.Error()}})
+			c.JSON(http.StatusInternalServerError, responses.UserResponse{Status: http.StatusNotModified, Message: "error", Data: map[string]interface{}{"error": err.Error()}})
 			return
 		}
 		if res.ModifiedCount == 0 {
-			c.JSON(http.StatusNotFound, responses.UserResponse{Status: http.StatusNotFound, Message: "success", Data: map[string]interface{}{"data": "no matching documents found"}})
+			c.JSON(http.StatusInternalServerError, responses.UserResponse{Status: http.StatusNotFound, Message: "success", Data: map[string]interface{}{"data": "no matching documents found"}})
 			return
 		}
 
@@ -900,7 +929,7 @@ func CreateShopReview() gin.HandlerFunc {
 				Thumbnail:    userProfile.Thumbnail,
 			}
 			filter := bson.M{"_id": shopId, "recent_reviews": bson.M{"$not": bson.M{"$elemMatch": bson.M{"user_id": myId}}}}
-			update := bson.M{"$push": bson.M{"recent_reviews": bson.M{"$each": bson.A{embedded}, "$sort": -1, "$slice": -5}}, "$set": bson.M{"modified_at": now}}
+			update := bson.M{"$push": bson.M{"recent_reviews": bson.M{"$each": bson.A{embedded}, "$sort": -1, "$slice": -5}}, "$set": bson.M{"modified_at": now}, "$inc": bson.M{"review_counts": 1}}
 			result2, err := shopCollection.UpdateOne(ctx, filter, update)
 			if err != nil {
 				return nil, err
@@ -1002,7 +1031,7 @@ func DeleteMyReview() gin.HandlerFunc {
 
 			// attempt to remove member from embedded field in shop
 			filter = bson.M{"_id": shopId}
-			update := bson.M{"$pull": bson.M{"recent_reviews": bson.M{"user_id": myId}}}
+			update := bson.M{"$pull": bson.M{"recent_reviews": bson.M{"user_id": myId}}, "$inc": bson.M{"review_counts": -1}}
 			result2, err := shopCollection.UpdateOne(ctx, filter, update)
 			if err != nil {
 				return nil, err
