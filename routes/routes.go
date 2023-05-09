@@ -107,6 +107,9 @@ func ShopRoutes(api *gin.RouterGroup) {
 func CategoryRoutes(api *gin.RouterGroup) {
 	category := api.Group("/categories")
 	category.GET("/", controllers.GetAllCategories())
+	category.GET("/search", controllers.SearchCategories())
+	category.GET("/:id/children", controllers.GetCategoryChildren())
+	category.GET("/:id/ancestor", controllers.GetCategoryAncestor())
 	secured := api.Group("/categories").Use(middleware.Auth())
 	{
 		secured.POST("/", controllers.CreateCategorySingle())

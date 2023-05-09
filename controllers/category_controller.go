@@ -2,8 +2,8 @@ package controllers
 
 import (
 	"context"
-	"fmt"
 	"github.com/gin-gonic/gin"
+	slug2 "github.com/gosimple/slug"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -14,10 +14,11 @@ import (
 	"khoomi-api-io/khoomi_api/responses"
 	"log"
 	"net/http"
+	"strings"
 	"time"
 )
 
-var ListingCategoryCollection = configs.GetCollection(configs.DB, "ListingCategory")
+var listingCategoryCollection = configs.GetCollection(configs.DB, "ListingCategory")
 
 func CreateCategorySingle() gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -37,7 +38,7 @@ func CreateCategorySingle() gin.HandlerFunc {
 			return
 		}
 
-		_, err := ListingCategoryCollection.InsertOne(ctx, categoryJson)
+		_, err := listingCategoryCollection.InsertOne(ctx, categoryJson)
 		if err != nil {
 			c.JSON(http.StatusUnprocessableEntity, responses.UserResponse{Status: http.StatusUnprocessableEntity, Message: "error", Data: map[string]interface{}{"error": err.Error()}})
 			return
@@ -82,15 +83,15 @@ func CreateCategoryMulti() gin.HandlerFunc {
 			var categories []interface{}
 			for _, category := range categoryJson.Categories {
 				categories = append(categories, models.Category{
-					ID:          category.Name,
+					ID:          slug2.Make(strings.ToLower(strings.Replace(category.Name, "'", "", 5))),
 					Name:        category.Name,
 					Description: category.Description,
 					Path:        category.Path,
-					ParentID:    category.ParentID,
+					ParentID:    slug2.Make(strings.ToLower(strings.Replace(category.ParentID, "'", "", 5))),
 				})
 			}
 			// create many categories
-			res, err := ListingCategoryCollection.InsertMany(ctx, categories)
+			res, err := listingCategoryCollection.InsertMany(ctx, categories)
 			if err != nil {
 				return nil, err
 			}
@@ -109,7 +110,7 @@ func CreateCategoryMulti() gin.HandlerFunc {
 		}
 		session.EndSession(context.Background())
 
-		c.JSON(http.StatusOK, responses.UserResponse{Status: http.StatusOK, Message: "success", Data: map[string]interface{}{"data": "All ategories created successfully."}})
+		c.JSON(http.StatusOK, responses.UserResponse{Status: http.StatusOK, Message: "success", Data: map[string]interface{}{"data": "All categories created successfully."}})
 	}
 }
 
@@ -120,28 +121,8 @@ func GetAllCategories() gin.HandlerFunc {
 		var categories []*models.Category
 		defer cancel()
 
-		path := c.Query("path")
-		if path == "" {
-			find := options.Find().SetSort(bson.M{"path": 1})
-			result, err := ListingCategoryCollection.Find(ctx, bson.D{}, find)
-			if err != nil {
-				c.JSON(http.StatusNotFound, responses.UserResponse{Status: http.StatusNotFound, Message: "error", Data: map[string]interface{}{"error": err.Error()}})
-				return
-			}
-			if err = result.All(ctx, &categories); err != nil {
-				c.JSON(http.StatusNotFound, responses.UserResponse{Status: http.StatusNotFound, Message: "error", Data: map[string]interface{}{"error": err.Error()}})
-				return
-			}
-
-			root := BuildCategoryTree(categories)
-			c.JSON(http.StatusOK, responses.UserResponsePagination{Status: http.StatusOK, Message: "success", Data: map[string]interface{}{"data": root}})
-			return
-		}
-
-		pattern := fmt.Sprintf("^/%s/", path)
-		result, err := ListingCategoryCollection.Find(ctx, bson.M{"path": bson.M{
-			"$regex": primitive.Regex{Pattern: pattern},
-		}})
+		find := options.Find().SetSort(bson.M{"path": 1})
+		result, err := listingCategoryCollection.Find(ctx, bson.D{}, find)
 		if err != nil {
 			c.JSON(http.StatusNotFound, responses.UserResponse{Status: http.StatusNotFound, Message: "error", Data: map[string]interface{}{"error": err.Error()}})
 			return
@@ -153,6 +134,113 @@ func GetAllCategories() gin.HandlerFunc {
 
 		root := BuildCategoryTree(categories)
 		c.JSON(http.StatusOK, responses.UserResponsePagination{Status: http.StatusOK, Message: "success", Data: map[string]interface{}{"data": root}})
+		return
+	}
+}
+
+// GetCategoryChildren - /api/categories?path=jewelry
+func GetCategoryChildren() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+
+		categoryID := c.Param("id")
+
+		// find all the children of the category
+		var children []*models.Category
+		filter := bson.M{"parent_id": categoryID}
+		result, err := listingCategoryCollection.Find(ctx, filter)
+		if err != nil {
+			c.JSON(http.StatusNotFound, responses.UserResponse{Status: http.StatusNotFound, Message: "error", Data: map[string]interface{}{"error": err.Error()}})
+			return
+		}
+		if err = result.All(ctx, &children); err != nil {
+			c.JSON(http.StatusNotFound, responses.UserResponse{Status: http.StatusNotFound, Message: "error", Data: map[string]interface{}{"error": err.Error()}})
+			return
+		}
+
+		c.JSON(http.StatusOK, responses.UserResponsePagination{Status: http.StatusOK, Message: "success", Data: map[string]interface{}{"data": children}})
+	}
+}
+
+// GetCategoryAncestor - /api/categories?path=jewelry
+func GetCategoryAncestor() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+
+		categoryID := c.Param("id")
+
+		// Find the category with the given ID
+		var category models.Category
+		err := listingCategoryCollection.FindOne(ctx, bson.M{"_id": categoryID}).Decode(&category)
+		if err != nil {
+			c.JSON(http.StatusNotFound, responses.UserResponse{Status: http.StatusNotFound, Message: "error", Data: map[string]interface{}{"error": err.Error()}})
+			return
+		}
+
+		// Traverse up the category tree to find ancestors
+		var ancestors []*models.Category
+		for {
+			// If this category has no parent, it's the root category
+			if category.ParentID == "" {
+				break
+			}
+
+			// Find the parent category
+			var parent models.Category
+			err = listingCategoryCollection.FindOne(ctx, bson.M{"_id": category.ParentID}).Decode(&parent)
+			if err != nil {
+				c.JSON(http.StatusNotFound, responses.UserResponse{Status: http.StatusNotFound, Message: "error", Data: map[string]interface{}{"error": err.Error()}})
+				return
+			}
+
+			// Add the parent category to the ancestors list
+			ancestors = append([]*models.Category{&parent}, ancestors...)
+
+			// Traverse up to the parent category
+			category = parent
+		}
+
+		root := BuildCategoryTree(ancestors)
+		c.JSON(http.StatusOK, responses.UserResponsePagination{Status: http.StatusOK, Message: "success", Data: map[string]interface{}{"data": root}})
+	}
+}
+
+// SearchCategories - /api/categories?s=jewelry
+func SearchCategories() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+
+		search := c.Query("s")
+
+		// Query the database for catgories that match the search query
+		result, err := listingCategoryCollection.Find(ctx, bson.M{
+			"$or": []bson.M{
+				{"name": bson.M{"$regex": primitive.Regex{Pattern: search, Options: "i"}}},
+				{"path": bson.M{"$regex": primitive.Regex{Pattern: search, Options: "i"}}},
+				{"parent": bson.M{"$regex": primitive.Regex{Pattern: search, Options: "i"}}},
+			},
+		}, options.Find())
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, responses.UserResponse{Status: http.StatusInternalServerError, Message: "Error searching for shops", Data: map[string]interface{}{"error": err.Error()}})
+			return
+		}
+
+		// Serialize the categories and return them to the client
+		var serializedCategories []*models.Category
+		for result.Next(ctx) {
+			var category models.Category
+			if err := result.Decode(&category); err != nil {
+				c.JSON(http.StatusInternalServerError, responses.UserResponse{Status: http.StatusInternalServerError, Message: "Error decoding shops", Data: map[string]interface{}{"error": err.Error()}})
+				return
+			}
+			serializedCategories = append(serializedCategories, &category)
+		}
+
+		root := BuildCategoryTree(serializedCategories)
+		c.JSON(http.StatusOK, responses.UserResponsePagination{Status: http.StatusOK, Message: "Shops found", Data: map[string]interface{}{"data": root}})
 	}
 }
 
@@ -161,7 +249,7 @@ func DeleteAllCategories() gin.HandlerFunc {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
 
-		res, err := ListingCategoryCollection.DeleteMany(ctx, bson.M{})
+		res, err := listingCategoryCollection.DeleteMany(ctx, bson.M{})
 		if err != nil {
 			c.JSON(http.StatusNotFound, responses.UserResponse{Status: http.StatusNotFound, Message: "error", Data: map[string]interface{}{"error": err.Error()}})
 			return
