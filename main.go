@@ -15,7 +15,8 @@ func main() {
 
 	// Initialize database connection
 	configs.ConnectDB()
-	// User routes
+	
+// Initialize routes 
 	router := routes.InitRoute()
 	err := router.Run("localhost:8080")
 
