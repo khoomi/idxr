@@ -25,6 +25,7 @@ var shopCollection = configs.GetCollection(configs.DB, "Shop")
 var shopAboutCollection = configs.GetCollection(configs.DB, "ShopAbout")
 var shopMemberCollection = configs.GetCollection(configs.DB, "ShopMember")
 var shopReviewCollection = configs.GetCollection(configs.DB, "ShopReview")
+var shopReturnPolicyCollection = configs.GetCollection(configs.DB, "ShopReturnPolicies")
 
 func CreateShop() gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -273,13 +274,13 @@ func SearchShops() gin.HandlerFunc {
 				return
 			}
 			serializedShops = append(serializedShops, shop)
-
-			c.JSON(http.StatusOK, responses.UserResponsePagination{Status: http.StatusOK, Message: "Shops found", Data: map[string]interface{}{"data": serializedShops}, Pagination: responses.Pagination{
-				Limit: paginationArgs.Limit,
-				Skip:  paginationArgs.Skip,
-				Count: count,
-			}})
 		}
+
+		c.JSON(http.StatusOK, responses.UserResponsePagination{Status: http.StatusOK, Message: "Shops found", Data: map[string]interface{}{"data": serializedShops}, Pagination: responses.Pagination{
+			Limit: paginationArgs.Limit,
+			Skip:  paginationArgs.Skip,
+			Count: count,
+		}})
 
 	}
 }
@@ -1272,5 +1273,234 @@ func UpdateShopAboutStatus() gin.HandlerFunc {
 		}
 
 		c.JSON(http.StatusOK, responses.UserResponse{Status: http.StatusOK, Message: "success", Data: map[string]interface{}{"data": "Shop about status updated successfully"}})
+	}
+}
+
+// CreateShopReturnPolicy - api/shops/:shopid/policies
+func CreateShopReturnPolicy() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		var shopReturnPolicyJson models.ShopReturnPolicies
+		defer cancel()
+
+		shopId, myId, err := services.MyShopIdAndMyId(c)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": err.Error()}})
+			return
+		}
+
+		// bind the request body
+		if err := c.BindJSON(&shopReturnPolicyJson); err != nil {
+			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": err.Error()}})
+			return
+		}
+
+		// validate request body
+		if validationErr := validate.Struct(&shopReturnPolicyJson); validationErr != nil {
+			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadGateway, Message: "error", Data: map[string]interface{}{"error": validationErr.Error()}})
+			return
+		}
+
+		// validate if user owns the shop
+		var currentShop models.Shop
+		err = shopCollection.FindOne(ctx, bson.M{"user_id": myId}).Decode(&currentShop)
+		if err != nil {
+			c.JSON(http.StatusUnauthorized, responses.UserResponse{Status: http.StatusUnauthorized, Message: "error", Data: map[string]interface{}{"error": err.Error()}})
+			return
+		}
+
+		if currentShop.ID != shopId {
+			if err != nil {
+				c.JSON(http.StatusUnauthorized, responses.UserResponse{Status: http.StatusUnauthorized, Message: "error", Data: map[string]interface{}{"error": "You don't have write access to this shop!"}})
+				return
+			}
+		}
+
+		shopReturnPolicyJson.ID = primitive.NewObjectID()
+		shopReturnPolicyJson.ShopId = shopId
+
+		_, err = shopReturnPolicyCollection.InsertOne(ctx, shopReturnPolicyJson)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, responses.UserResponse{Status: http.StatusInternalServerError, Message: "error", Data: map[string]interface{}{"error": err.Error()}})
+			return
+		}
+
+		c.JSON(http.StatusOK, responses.UserResponse{Status: http.StatusOK, Message: "success", Data: map[string]interface{}{"data": "Shop policy created successfully"}})
+	}
+}
+
+// UpdateShopReturnPolicy - api/shops/:shopid/policies
+func UpdateShopReturnPolicy() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		var shopReturnPolicyJson models.ShopReturnPolicies
+		defer cancel()
+
+		shopId, myId, err := services.MyShopIdAndMyId(c)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": err.Error()}})
+			return
+		}
+
+		// bind the request body
+		if err := c.BindJSON(&shopReturnPolicyJson); err != nil {
+			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": err.Error()}})
+			return
+		}
+
+		// validate request body
+		if validationErr := validate.Struct(&shopReturnPolicyJson); validationErr != nil {
+			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadGateway, Message: "error", Data: map[string]interface{}{"error": validationErr.Error()}})
+			return
+		}
+
+		// validate if user owns the shop
+		var currentShop models.Shop
+		err = shopCollection.FindOne(ctx, bson.M{"user_id": myId}).Decode(&currentShop)
+		if err != nil {
+			c.JSON(http.StatusUnauthorized, responses.UserResponse{Status: http.StatusUnauthorized, Message: "error", Data: map[string]interface{}{"error": err.Error()}})
+			return
+		}
+
+		if currentShop.ID != shopId {
+			if err != nil {
+				c.JSON(http.StatusUnauthorized, responses.UserResponse{Status: http.StatusUnauthorized, Message: "error", Data: map[string]interface{}{"error": "You don't have write access to this shop!"}})
+				return
+			}
+		}
+
+		shopReturnPolicyJson.ID = primitive.NewObjectID()
+		shopReturnPolicyJson.ShopId = shopId
+
+		filter := bson.M{"shop_id": shopId}
+		update := bson.M{"$set": bson.M{"accepts_return": shopReturnPolicyJson.AcceptsReturn, "accepts_echanges": shopReturnPolicyJson.AcceptsExchanges, "deadline": shopReturnPolicyJson.Deadline}}
+		res, err := shopReturnPolicyCollection.UpdateOne(ctx, filter, update)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, responses.UserResponse{Status: http.StatusInternalServerError, Message: "error", Data: map[string]interface{}{"error": err.Error()}})
+			return
+		}
+		if res.ModifiedCount == 0 {
+			c.JSON(http.StatusNotFound, responses.UserResponse{Status: http.StatusNotFound, Message: "success", Data: map[string]interface{}{"data": "no matching documents found"}})
+			return
+		}
+
+		c.JSON(http.StatusOK, responses.UserResponse{Status: http.StatusOK, Message: "success", Data: map[string]interface{}{"data": "Shop updated successfully"}})
+	}
+}
+
+// DeleteShopReturnPolicy - api/shops/:shopid/policies?id={policy_id}
+func DeleteShopReturnPolicy() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+
+		policyIdStr := c.Query("id")
+		policyId, err := primitive.ObjectIDFromHex(policyIdStr)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": err.Error()}})
+			return
+		}
+
+		shopId, myId, err := services.MyShopIdAndMyId(c)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": err.Error()}})
+			return
+		}
+
+		// validate if user owns the shop
+		var currentShop models.Shop
+		err = shopCollection.FindOne(ctx, bson.M{"user_id": myId}).Decode(&currentShop)
+		if err != nil {
+			c.JSON(http.StatusUnauthorized, responses.UserResponse{Status: http.StatusUnauthorized, Message: "error", Data: map[string]interface{}{"error": err.Error()}})
+			return
+		}
+
+		if currentShop.ID != shopId {
+			if err != nil {
+				c.JSON(http.StatusUnauthorized, responses.UserResponse{Status: http.StatusUnauthorized, Message: "error", Data: map[string]interface{}{"error": "You don't have write access to this shop!"}})
+				return
+			}
+		}
+
+		filter := bson.M{"_id": policyId, "shop_id": shopId}
+		_, err = shopReturnPolicyCollection.DeleteOne(ctx, filter)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, responses.UserResponse{Status: http.StatusInternalServerError, Message: "error", Data: map[string]interface{}{"error": err.Error()}})
+			return
+		}
+
+		c.JSON(http.StatusOK, responses.UserResponse{Status: http.StatusOK, Message: "success", Data: map[string]interface{}{"data": "Shop policy deleted successfully"}})
+	}
+}
+
+// GetShopReturnPolicy - api/shops/:shopid/policies?id={policy_id}
+func GetShopReturnPolicy() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+
+		policyIdStr := c.Query("id")
+		policyId, err := primitive.ObjectIDFromHex(policyIdStr)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": err.Error()}})
+			return
+		}
+
+		shopId, _, err := services.MyShopIdAndMyId(c)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": err.Error()}})
+			return
+		}
+
+		var currentPolicy models.ShopReturnPolicies
+		filter := bson.M{"_id": policyId, "shop_id": shopId}
+		err = shopReturnPolicyCollection.FindOne(ctx, filter).Decode(&currentPolicy)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, responses.UserResponse{Status: http.StatusInternalServerError, Message: "error", Data: map[string]interface{}{"error": err.Error()}})
+			return
+		}
+
+		c.JSON(http.StatusOK, responses.UserResponse{Status: http.StatusOK, Message: "success", Data: map[string]interface{}{"data": currentPolicy}})
+	}
+}
+
+// GetShopReturnPolicies - api/shops/:shopid/policies/all
+func GetShopReturnPolicies() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+
+		shopId, _, err := services.MyShopIdAndMyId(c)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": err.Error()}})
+			return
+		}
+
+		// Count the total number of shop policies that match the search query
+		count, err := shopCollection.CountDocuments(ctx, bson.M{"shop_id": shopId})
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, responses.UserResponse{Status: http.StatusInternalServerError, Message: "Error counting shops", Data: map[string]interface{}{"error": err.Error()}})
+			return
+		}
+
+		// Query the database for shops that match the search query
+		policies, err := shopCollection.Find(ctx, bson.M{"shop_id": shopId})
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, responses.UserResponse{Status: http.StatusInternalServerError, Message: "Error searching for shops", Data: map[string]interface{}{"error": err.Error()}})
+			return
+		}
+
+		// Serialize the shop policies and return them to the client
+		var serializedPolicies []models.Shop
+		for policies.Next(ctx) {
+			var shop models.Shop
+			if err := policies.Decode(&shop); err != nil {
+				c.JSON(http.StatusInternalServerError, responses.UserResponse{Status: http.StatusInternalServerError, Message: "Error decoding shops", Data: map[string]interface{}{"error": err.Error()}})
+				return
+			}
+			serializedPolicies = append(serializedPolicies, shop)
+		}
+
+		c.JSON(http.StatusOK, responses.UserResponsePagination{Status: http.StatusOK, Message: "Shops found", Data: map[string]interface{}{"data": serializedPolicies, "count": count}})
 	}
 }

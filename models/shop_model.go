@@ -47,7 +47,7 @@ type Shop struct {
 	// Policy for the shop.
 	Policy ShopPolicy `bson:"policy" json:"policy" validate:"required"`
 	// List of recent reviews for the shop.
-	RecentReviews []ShopReview `bson:"recent_reviews" json:"recent_reviews" validate:"required"`
+	RecentReviews []ShopReview `bson:"recent_reviews" json:"recent_reviews"`
 	// Numbers of reviews for the shop.
 	ReviewsCount int `bson:"reviews_count" json:"reviews_count"`
 	// A message string sent to users who complete a purchase from this shop.
@@ -163,4 +163,12 @@ type ShopAboutRequest struct {
 	RelatedLinks          string          `bson:"related_links" json:"related_links"`
 	StoryLeadingParagraph string          `bson:"story_leading_paragraph" json:"story_leading_paragraph" validate:"required"`
 	StoryHeadline         string          `bson:"story_headline" json:"story_headline" validate:"required"`
+}
+
+type ShopReturnPolicies struct {
+	ID               primitive.ObjectID `bson:"_id" json:"_id" validate:"omitempty"`
+	ShopId           primitive.ObjectID `bson:"shop_id" json:"shop_id" validate:"omitempty"`
+	AcceptsReturn    bool               `bson:"accepts_return" json:"accepts_return"  validate:"default=false"`
+	AcceptsExchanges bool               `bson:"accepts_exchanges" json:"accepts_exchanges"  validate:"default=false"`
+	Deadline         int                `bson:"deadline" json:"deadline" validate:"oneof=7 14 21 30 45 60 90, default=7"`
 }

@@ -101,6 +101,12 @@ func ShopRoutes(api *gin.RouterGroup) {
 		shop.POST("/:shopid/reviews", controllers.CreateShopReview())
 		secured.DELETE("/:shopid/reviews", controllers.DeleteMyReview())
 		secured.DELETE("/:shopid/reviews/other", controllers.DeleteOtherReview())
+		// policies
+		secured.POST("/:shopid/policies", controllers.CreateShopReturnPolicy())
+		secured.PUT("/:shopid/policies", controllers.UpdateShopReturnPolicy())
+		secured.GET("/:shopid/policies", controllers.GetShopReturnPolicy())
+		secured.GET("/:shopid/policies/all", controllers.GetShopReturnPolicies())
+		secured.DELETE("/:shopid/policies/", controllers.DeleteShopReturnPolicy())
 
 	}
 }
