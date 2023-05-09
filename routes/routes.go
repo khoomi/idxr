@@ -20,6 +20,7 @@ func InitRoute() *gin.Engine {
 
 		userRoutes(api)
 		ShopRoutes(api)
+		CategoryRoutes(api)
 	}
 
 	return router
@@ -100,5 +101,16 @@ func ShopRoutes(api *gin.RouterGroup) {
 		secured.DELETE("/:shopid/reviews", controllers.DeleteMyReview())
 		secured.DELETE("/:shopid/reviews/other", controllers.DeleteOtherReview())
 
+	}
+}
+
+func CategoryRoutes(api *gin.RouterGroup) {
+	category := api.Group("/categories")
+	category.GET("/", controllers.GetAllCategories())
+	secured := api.Group("/categories").Use(middleware.Auth())
+	{
+		secured.POST("/", controllers.CreateCategorySingle())
+		secured.POST("/multi", controllers.CreateCategoryMulti())
+		secured.DELETE("/", controllers.DeleteAllCategories())
 	}
 }
