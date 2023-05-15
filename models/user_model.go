@@ -66,7 +66,7 @@ type UserAuthData struct {
 
 // UserRegistrationBody -> expected data for signup process
 type UserRegistrationBody struct {
-	LoginName string `json:"login_name,omitempty" validate:"required,min=6"`
+	FirstName string `json:"login_name,omitempty" validate:"required,min=3"`
 	Email     string `json:"email,omitempty" validate:"required,email"`
 	Password  string `json:"password,omitempty" validate:"required"`
 }

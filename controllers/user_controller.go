@@ -66,7 +66,7 @@ func CreateUser() gin.HandlerFunc {
 		// Verify current user email
 		errEmail := configs.ValidateEmailAddress(jsonUser.Email)
 		if errEmail != nil {
-			log.Printf("Invalid email address from user %s with IP %s at %s: %s\n", jsonUser.LoginName, c.ClientIP(), time.Now().Format(time.RFC3339), errEmail.Error())
+			log.Printf("Invalid email address from user %s with IP %s at %s: %s\n", jsonUser.FirstName, c.ClientIP(), time.Now().Format(time.RFC3339), errEmail.Error())
 			c.JSON(http.StatusExpectationFailed, responses.UserResponse{Status: http.StatusExpectationFailed, Message: "error", Data: map[string]interface{}{"error": "Invalid email format"}})
 			return
 		}
@@ -88,12 +88,12 @@ func CreateUser() gin.HandlerFunc {
 		}
 
 		// validate login name
-		errLoginName := configs.ValidateLoginName(jsonUser.LoginName)
-		if errLoginName != nil {
-			log.Printf("Error validating login name: %s\n", errLoginName.Error())
-			c.JSON(http.StatusExpectationFailed, responses.UserResponse{Status: http.StatusExpectationFailed, Message: "error", Data: map[string]interface{}{"error": errLoginName.Error()}})
-			return
-		}
+		//errLoginName := configs.ValidateLoginName(jsonUser.LoginName)
+		//if errLoginName != nil {
+		//	log.Printf("Error validating login name: %s\n", errLoginName.Error())
+		//	c.JSON(http.StatusExpectationFailed, responses.UserResponse{Status: http.StatusExpectationFailed, Message: "error", Data: map[string]interface{}{"error": errLoginName.Error()}})
+		//	return
+		//}
 
 		userAuth := models.UserAuthData{
 			EmailVerified:  false,
@@ -103,9 +103,9 @@ func CreateUser() gin.HandlerFunc {
 		jsonUser.Email = strings.ToLower(jsonUser.Email)
 		newUser := models.User{
 			Id:                   primitive.NewObjectID(),
-			LoginName:            jsonUser.LoginName,
+			LoginName:            "",
 			PrimaryEmail:         strings.ToLower(jsonUser.Email),
-			FirstName:            "",
+			FirstName:            jsonUser.FirstName,
 			LastName:             "",
 			Auth:                 userAuth,
 			Thumbnail:            "",
