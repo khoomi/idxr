@@ -115,7 +115,6 @@ func CreateUser() gin.HandlerFunc {
 			IsSeller:             false,
 			TransactionBuyCount:  0,
 			TransactionSoldCount: 0,
-			AddressId:            primitive.NilObjectID,
 			ReferredByUser:       "",
 			Role:                 models.Regular,
 			Status:               models.Inactive,
@@ -834,51 +833,47 @@ func CreateUserAddress() gin.HandlerFunc {
 			return
 		}
 
-		wc := writeconcern.New(writeconcern.WMajority())
-		txnOptions := options.Transaction().SetWriteConcern(wc)
-		session, err := configs.DB.StartSession()
+		// create user address
+		userAddress.UserId = myId
+		userAddress.Id = primitive.NewObjectID()
+		_, err = userAddressCollection.InsertOne(ctx, userAddress)
 		if err != nil {
-			defer func() {
-				if r := recover(); r != nil {
-					log.Println("Recovered from panic:", r)
-				}
-				c.JSON(http.StatusInternalServerError, responses.UserResponse{Status: http.StatusInternalServerError, Message: "error", Data: map[string]interface{}{"error": "Failed to start database session"}})
-			}()
-			panic("Failed to start database session: " + err.Error())
-		}
-		defer session.EndSession(ctx)
-		callback := func(ctx mongo.SessionContext) (interface{}, error) {
-			// create user address
-			userAddress.UserId = myId
-			userAddress.Id = primitive.NewObjectID()
-			_, err = userAddressCollection.InsertOne(ctx, userAddress)
-			if err != nil {
-				return nil, err
-			}
-
-			// update user profile address_id
-			filter := bson.M{"_id": myId}
-			update := bson.M{"$set": bson.M{"address_id": userAddress.Id, "modified_at": time.Now()}}
-			res, err := userCollection.UpdateOne(ctx, filter, update)
-			if err != nil {
-				return nil, err
-			}
-
-			return res, nil
-		}
-
-		_, err = session.WithTransaction(context.Background(), callback, txnOptions)
-		if err != nil {
-			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": err.Error()}})
-			return
-		}
-		if err := session.CommitTransaction(context.Background()); err != nil {
 			c.JSON(http.StatusInternalServerError, responses.UserResponse{Status: http.StatusInternalServerError, Message: "error", Data: map[string]interface{}{"error": err.Error()}})
 			return
 		}
-		session.EndSession(context.Background())
 
 		c.JSON(http.StatusOK, responses.UserResponse{Status: http.StatusOK, Message: "success", Data: map[string]interface{}{"data": "Address created."}})
+
+	}
+}
+
+// GetUserAddress - update user address
+func GetUserAddress() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ctx, cancel := context.WithTimeout(context.Background(), UserRequestTimeout*time.Second)
+		defer cancel()
+
+		// Validate user id
+		userIdStr := c.Param("userid")
+		userId, err := primitive.ObjectIDFromHex(userIdStr)
+		if err != nil {
+			c.JSON(http.StatusUnauthorized, responses.UserResponse{Status: http.StatusUnauthorized, Message: "error", Data: map[string]interface{}{"error": err.Error()}})
+			return
+		}
+
+		filter := bson.M{"user_id": userId}
+		res, err := userAddressCollection.Find(ctx, filter)
+		if err != nil {
+			c.JSON(http.StatusNotFound, responses.UserResponse{Status: http.StatusNotFound, Message: "error", Data: map[string]interface{}{"error": err.Error()}})
+		}
+
+		var userAddresses []models.UserAddress
+		if err = res.All(ctx, &userAddresses); err != nil {
+			c.JSON(http.StatusNotFound, responses.UserResponse{Status: http.StatusNotFound, Message: "error", Data: map[string]interface{}{"error": err.Error()}})
+			return
+		}
+
+		c.JSON(http.StatusOK, responses.UserResponse{Status: http.StatusOK, Message: "success", Data: map[string]interface{}{"data": userAddresses}})
 
 	}
 }

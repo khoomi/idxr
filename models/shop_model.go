@@ -153,10 +153,10 @@ type ShopAbout struct {
 
 type ShopAboutStatus string
 
-const (
-	ShopAboutStatusDraft  ShopAboutStatus = "draft"
-	ShopAboutStatusActive ShopAboutStatus = "active"
-)
+//const (
+//	ShopAboutStatusDraft  ShopAboutStatus = "draft"
+//	ShopAboutStatusActive ShopAboutStatus = "active"
+//)
 
 type ShopAboutRequest struct {
 	Status                ShopAboutStatus `bson:"status" json:"status" validate:"required,oneof=draft active"`

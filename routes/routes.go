@@ -21,6 +21,7 @@ func InitRoute() *gin.Engine {
 		userRoutes(api)
 		ShopRoutes(api)
 		CategoryRoutes(api)
+		ShippingRoutes(api)
 	}
 
 	return router
@@ -41,8 +42,10 @@ func userRoutes(api *gin.RouterGroup) {
 			secured.PUT("/thumbnail", controllers.UploadThumbnail())
 			secured.DELETE("/thumbnail", controllers.DeleteThumbnail())
 			// user address endpoints.
-			secured.PUT("/address", controllers.UpdateUserAddress())
-			secured.POST("/address", controllers.CreateUserAddress())
+			secured.POST("/addresses", controllers.CreateUserAddress())
+			secured.PUT("/addresses", controllers.UpdateUserAddress())
+			secured.GET("/:userid/addresses", controllers.GetUserAddress())
+			//secured.GET("/addresses", controllers.GetUserAddress())
 			// email notification.
 			secured.POST("/send-verify-email", controllers.SendVerifyEmail())
 			// User birthdate
@@ -122,5 +125,15 @@ func CategoryRoutes(api *gin.RouterGroup) {
 		secured.POST("/", controllers.CreateCategorySingle())
 		secured.POST("/multi", controllers.CreateCategoryMulti())
 		secured.DELETE("/", controllers.DeleteAllCategories())
+	}
+}
+
+func ShippingRoutes(api *gin.RouterGroup) {
+	shipping := api.Group("/shipping/info")
+	shipping.GET("/:infoId", controllers.GetShopShippingProfileInfo())
+	secured := api.Group("/shipping/info").Use(middleware.Auth())
+	{
+		secured.POST("/", controllers.CreateShopShippingProfile())
+		secured.PUT("/", controllers.UpdateShopShippingProfileInfo())
 	}
 }
