@@ -104,17 +104,6 @@ type UserVerifyEmailToken struct {
 	ExpiresAt   primitive.DateTime `bson:"expired_at" json:"expires_at"`
 }
 
-type UserAddress struct {
-	Id                       primitive.ObjectID `bson:"_id" json:"_id"`
-	City                     string             `bson:"city" json:"city" validate:"required"`
-	State                    string             `bson:"state" json:"state" validate:"required"`
-	Street                   string             `bson:"street" json:"street" validate:"required"`
-	PostalCode               string             `bson:"postal_code" json:"postal_code" validate:"required"`
-	Country                  Country            `bson:"country" json:"country" validate:"required"`
-	UserId                   primitive.ObjectID `bson:"user_id" json:"user_id"`
-	IsDefaultShippingAddress bool               `bson:"is_default_shipping_address" json:"is_default_shipping_address"`
-}
-
 type Country string
 
 const (

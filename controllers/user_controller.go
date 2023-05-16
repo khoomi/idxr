@@ -140,7 +140,7 @@ func CreateUser() gin.HandlerFunc {
 			Type: "welcome",
 			Data: email.KhoomiEmailData{
 				Email:     newUser.PrimaryEmail,
-				LoginName: newUser.LoginName,
+				LoginName: newUser.FirstName,
 			},
 		})
 
@@ -315,7 +315,7 @@ func SendVerifyEmail() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ctx, cancel := context.WithTimeout(context.Background(), UserRequestTimeout*time.Second)
 		emailCurrent := c.Query("email")
-		loginName := c.Query("name")
+		firstName := c.Query("name")
 		now := time.Now()
 		defer cancel()
 
@@ -357,7 +357,7 @@ func SendVerifyEmail() gin.HandlerFunc {
 			Type: "verify",
 			Data: email.KhoomiEmailData{
 				Email:     emailCurrent,
-				LoginName: loginName,
+				LoginName: firstName,
 				Link:      link,
 			},
 		})
@@ -621,7 +621,7 @@ func PasswordResetEmail() gin.HandlerFunc {
 			Type: "password-reset",
 			Data: email.KhoomiEmailData{
 				Email:     user.PrimaryEmail,
-				LoginName: user.LoginName,
+				LoginName: user.FirstName,
 				Link:      link,
 			},
 		})
@@ -696,7 +696,7 @@ func PasswordReset() gin.HandlerFunc {
 			Type: "password-reset-success",
 			Data: email.KhoomiEmailData{
 				Email:     user.PrimaryEmail,
-				LoginName: user.LoginName,
+				LoginName: user.FirstName,
 			},
 		})
 

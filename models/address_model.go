@@ -2,6 +2,17 @@ package models
 
 import "go.mongodb.org/mongo-driver/bson/primitive"
 
+type UserAddress struct {
+	Id                       primitive.ObjectID `bson:"_id" json:"_id"`
+	City                     string             `bson:"city" json:"city" validate:"required"`
+	State                    string             `bson:"state" json:"state" validate:"required"`
+	Street                   string             `bson:"street" json:"street" validate:"required"`
+	PostalCode               string             `bson:"postal_code" json:"postal_code" validate:"required"`
+	Country                  Country            `bson:"country" json:"country" validate:"required"`
+	UserId                   primitive.ObjectID `bson:"user_id" json:"user_id"`
+	IsDefaultShippingAddress bool               `bson:"is_default_shipping_address" json:"is_default_shipping_address"`
+}
+
 type ShopShippingProfile struct {
 	Id        primitive.ObjectID `bson:"_id" json:"_id" validate:"omitempty"`
 	ListingId primitive.ObjectID `bson:"listing_id" json:"listing_id"`
