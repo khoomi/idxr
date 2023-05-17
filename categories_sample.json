@@ -1,0 +1,488 @@
+[
+  {
+    "name": "Accessories and Jewelry",
+    "description": "",
+    "parent_id": null,
+    "path": null
+  },
+  {
+    "name": "Jewelry",
+    "description": "Accessories and Jewelry",
+    "parent_id": "",
+    "path": "/accessories-and-jewelry/jewelry/"
+  },
+  {
+    "name": "Beads",
+    "description": "",
+    "parent_id": "Accessories and Jewelry",
+    "path": "/accessories-and-jewelry/beads/"
+  },
+  {
+    "name": "Charms",
+    "description": "",
+    "parent_id": "Accessories and Jewelry",
+    "path": "/accessories-and-jewelry/charms/"
+  },
+  {
+    "name": "Earrings",
+    "description": "",
+    "parent_id": "Accessories and Jewelry",
+    "path": "/accessories-and-jewelry/earrings/"
+  },
+  {
+    "name": "Necklaces",
+    "description": "",
+    "parent_id": "Accessories and Jewelry",
+    "path": "/accessories-and-jewelry/necklaces/"
+  },
+  {
+    "name": "Bracelets",
+    "description": "",
+    "parent_id": "Accessories and Jewelry",
+    "path": "/accessories-and-jewelry/bracelets/"
+  },
+  {
+    "name": "Bags and Purses",
+    "description": "",
+    "parent_id": "Accessories and Jewelry",
+    "path": "/accessories-and-jewelry/bags-and-purses/"
+  },
+  {
+    "name": "Scarves and Wraps",
+    "description": "",
+    "parent_id": "Bags and Purses",
+    "path": "/accessories-and-jewelry/bags-and-purses/scarves-and-wraps/"
+  },
+  {
+    "name": "Belts",
+    "description": "",
+    "parent_id": "Bags and Purses",
+    "path": "/accessories-and-jewelry/bags-and-purses/belts/"
+  },
+  {
+    "name": "Hats",
+    "description": "",
+    "parent_id": "Bags and Purses",
+    "path": "/accessories-and-jewelry/bags-and-purses/hats/"
+  },
+  {
+    "name": "Sunglasses",
+    "description": "",
+    "parent_id": "Bags and Purses",
+    "path": "/accessories-and-jewelry/bags-and-purses/sunglasses/"
+  },
+  {
+    "name": "Art and Collectibles",
+    "description": "",
+    "parent_id": "",
+    "path": null
+  },
+  {
+    "name": "Paintings",
+    "description": "",
+    "parent_id": "Art and Collectibles",
+    "path": "/art-and-collectibles/paintings/"
+  },
+  {
+    "name": "Sculptures",
+    "description": "",
+    "parent_id": "Art and Collectibles",
+    "path": "/art-and-collectibles/sculptures/"
+  },
+  {
+    "name": "Photography",
+    "description": "",
+    "parent_id": "Art and Collectibles",
+    "path": "/art-and-collectibles/photography/"
+  },
+  {
+    "name": "Prints",
+    "description": "",
+    "parent_id": "Art and Collectibles",
+    "path": "/art-and-collectibles/prints/"
+  },
+  {
+    "name": "Drawings",
+    "description": "",
+    "parent_id": "Art and Collectibles",
+    "path": "/art-and-collectibles/drawings/"
+  },
+  {
+    "name": "Mixed Media",
+    "description": "",
+    "parent_id": "Art and Collectibles",
+    "path": "/art-and-collectibles/mixed-media/"
+  },
+  {
+    "name": "Vintage Collectibles",
+    "description": "",
+    "parent_id": "Art and Collectibles",
+    "path": "/art-and-collectibles/vintage-collectibles/"
+  },
+  {
+    "name": "Gifts and Occasions",
+    "description": "",
+    "parent_id": "",
+    "path": null
+  },
+  {
+    "name": "Anniversary Gifts",
+    "description": "",
+    "parent_id": "Gifts and Occasions",
+    "path": "/gifts-and-occasions/anniversary-gifts/"
+  },
+  {
+    "name": "Baby Shower Gifts",
+    "description": "",
+    "parent_id": "Gifts and Occasions",
+    "path": "/gifts-and-occasions/baby-shower-gifts/"
+  },
+  {
+    "name": "Birthday Gifts",
+    "description": "",
+    "parent_id": "Gifts and Occasions",
+    "path": "/gifts-and-occasions/birthday-gifts/"
+  },
+  {
+    "name": "Christmas Gifts",
+    "description": "",
+    "parent_id": "Gifts and Occasions",
+    "path": "/gifts-and-occasions/christmas-gifts/"
+  },
+  {
+    "name": "Graduation Gifts",
+    "description": "",
+    "parent_id": "Gifts and Occasions",
+    "path": "/gifts-and-occasions/graduation-gifts/"
+  },
+  {
+    "name": "Gifts For Him",
+    "description": "",
+    "parent_id": "Gifts and Occasions",
+    "path": "/gifts-and-occasions/gifts-for-him/"
+  },
+  {
+    "name": "Gifts For Her",
+    "description": "",
+    "parent_id": "Gifts and Occasions",
+    "path": "/gifts-and-occasions/gifts-for-her/"
+  },
+  {
+    "name": "Mother's Day Gifts",
+    "description": "",
+    "parent_id": "Gifts and Occasions",
+    "path": "/gifts-and-occasions/mothers-day-gifts/"
+  },
+  {
+    "name": "Father's Day Gifts",
+    "description": "",
+    "parent_id": "Gifts and Occasions",
+    "path": "/gifts-and-occasions/fathers-day-gifts/"
+  },
+  {
+    "name": "Valentine's Day Gifts",
+    "description": "",
+    "parent_id": "Gifts and Occasions",
+    "path": "/gifts-and-occasions/valentines-day-gifts/"
+  },
+  {
+    "name": "Wedding Gifts",
+    "description": "",
+    "parent_id": "Gifts and Occasions",
+    "ath": "/gifts-and-occasions/wedding-gifts/"
+  },
+  {
+    "name": "Clothing",
+    "description": "",
+    "parent_id": "",
+    "path": null
+  },
+  {
+    "name": "Women's Clothing",
+    "description": "",
+    "parent_id": "Clothing",
+    "path": "/clothing/womens-clothing/"
+  },
+  {
+    "name": "Dresses",
+    "description": "Women's Clothing",
+    "parent_id": "",
+    "path": "/clothing/womens-clothing/dresses/"
+  },
+  {
+    "name": "Tops",
+    "description": "",
+    "parent_id": "Women's Clothing",
+    "path": "/clothing/womens-clothing/tops/"
+  },
+  {
+    "name": "Bottoms",
+    "description": "",
+    "parent_id": "Women's Clothing",
+    "path": "/clothing/womens-clothing/bottoms/"
+  },
+  {
+    "name": "Women's Outerwear",
+    "description": "",
+    "parent_id": "Women's Clothing",
+    "path": "/clothing/womens-clothing/outerwear/"
+  },
+  {
+    "name": "Women's Swimwear",
+    "description": "",
+    "parent_id": "Women's Clothing",
+    "path": "/clothing/womens-clothing/swimwear/"
+  },
+  {
+    "name": "Women's Activewear",
+    "description": "",
+    "parent_id": "Women's Clothing",
+    "path": "/clothing/womens-clothing/activewear/"
+  },
+  {
+    "name": "Lingerie and Sleepwear",
+    "description": "",
+    "parent_id": "Women's Clothing",
+    "path": "/clothing/womens-clothing/lingerie-and-sleepwear/"
+  },
+  {
+    "name": "Men's Clothing",
+    "description": "",
+    "parent_id": "Men's Clothing",
+    "path": "/clothing/mens-clothing/"
+  },
+  {
+    "name": "Shirts",
+    "description": "",
+    "parent_id": "Men's Clothing",
+    "path": "/clothing/mens-clothing/shirts/"
+  },
+  {
+    "name": "T-Shirts",
+    "description": "",
+    "parent_id": "Men's Clothing",
+    "path": "/clothing/mens-clothing/t-shirts/"
+  },
+  {
+    "name": "Pants",
+    "description": "",
+    "parent_id": "Men's Clothing",
+    "path": "/clothing/mens-clothing/pants/"
+  },
+  {
+    "name": "Jeans",
+    "description": "",
+    "parent_id": "Men's Clothing",
+    "path": "/clothing/mens-clothing/jeans/"
+  },
+  {
+    "name": "Men's Outerwear",
+    "description": "",
+    "parent_id": "Men's Clothing",
+    "path": "/clothing/mens-clothing/outerwear/"
+  },
+  {
+    "name": "Men's Swimwear",
+    "description": "",
+    "parent_id": "Men's Clothing",
+    "path": "/clothing/mens-clothing/swimwear/"
+  },
+  {
+    "name": "Men's Activewear",
+    "description": "",
+    "parent_id": "Men's Clothing",
+    "path": "/clothing/mens-clothing/activewear/"
+  },
+  {
+    "name": "Underwear and Sleepwear",
+    "description": "",
+    "parent_id": "Men's Clothing",
+    "path": "/clothing/mens-clothing/underwear-and-sleepwear/"
+  },
+  {
+    "name": "Children's Clothing",
+    "description": "",
+    "parent_id": "Children's Clothing",
+    "path": "/clothing/childrens-clothing/"
+  },
+  {
+    "name": "Girls' Clothing",
+    "description": "",
+    "parent_id": "Children's Clothing",
+    "path": "/clothing/childrens-clothing/girls-clothing/"
+  },
+  {
+    "name": "Boys' Clothing",
+    "description": "",
+    "parent_id": "Children's Clothing",
+    "path": "/clothing/childrens-clothing/boys-clothing/"
+  },
+  {
+    "name": "Baby Clothing",
+    "description": "",
+    "parent_id": "Children's Clothing",
+    "path": "/clothing/childrens-clothing/baby-clothing/"
+  },
+  {
+    "name": "Home and Living",
+    "description": "",
+    "parent_id": "",
+    "path": null
+  },
+  {
+    "name": "Home Decor",
+    "description": "",
+    "parent_id": "Home and Living",
+    "path": "/home-and-living/home-decor/"
+  },
+  {
+    "name": "Candles and Holders",
+    "description": "",
+    "parent_id": "Home Decor",
+    "path": "/home-and-living/home-decor/candles-and-holders/"
+  },
+  {
+    "name": "Decorative Pillows",
+    "description": "",
+    "parent_id": "Home Decor",
+    "path": "/home-and-living/home-decor/decorative-pillows/"
+  },
+  {
+    "name": "Clocks",
+    "description": "",
+    "parent_id": "Home Decor",
+    "path": "/home-and-living/home-decor/clocks/"
+  },
+  {
+    "name": "Kitchen and Dining",
+    "description": "",
+    "parent_id": "Home and Living",
+    "path": "/home-and-living/kitchen-and-dining/"
+  },
+  {
+    "name": "Cutlery and Utensils",
+    "description": "",
+    "parent_id": "Kitchen and Dining",
+    "path": "/home-and-living/kitchen-and-dining/curtlery-utensiles/"
+  },
+  {
+    "name": "Tableware",
+    "description": "",
+    "parent_id": "Kitchen and Dining",
+    "path": "/home-and-living/kitchen-and-dining/tableware/"
+  },
+  {
+    "name": "Cookware",
+    "description": "",
+    "parent_id": "Kitchen and Dining",
+    "path": "/home-and-living/kitchen-and-dining/cookware/"
+  },
+  {
+    "name": "Bedding",
+    "description": "",
+    "parent_id": "Home and Living",
+    "path": "/home-and-living/bedding/"
+  },
+  {
+    "name": "Sheets and Pillowcases",
+    "description": "",
+    "parent_id": "Bedding",
+    "path": "/home-and-living/bedding/sheets-and-pillowcases/"
+  },
+  {
+    "name": "Blankets and Throws",
+    "description": "",
+    "parent_id": "Bedding",
+    "path": "/home-and-living/bedding/blankets-and-throws/"
+  },
+  {
+    "name": "Duvets and Comforters",
+    "description": "",
+    "parent_id": "Bedding",
+    "path": "/home-and-living/bedding/duvets-and-comforters/"
+  },
+  {
+    "name": "Crafting Materials and Supplies",
+    "description": "",
+    "parent_id": "Crafting Materials and Supplies",
+    "path": null
+  },
+  {
+    "name": "Sewing and Fiber",
+    "description": "",
+    "parent_id": "Crafting Materials and Supplies",
+    "path": "/crafting-materials-and-supplies/sewing-fiber/"
+  },
+  {
+    "name": "Fabric",
+    "description": "",
+    "parent_id": "Sewing and Fiber",
+    "path": "/crafting-materials-and-supplies/sewing-fiber/fabric/"
+  },
+  {
+    "name": "Yarn",
+    "description": "",
+    "parent_id": "Sewing and Fiber",
+    "path": "/crafting-materials-and-supplies/sewing-fiber/yarn/"
+  },
+  {
+    "name": "Thread",
+    "description": "",
+    "parent_id": "Sewing and Fiber",
+    "path": "/crafting-materials-and-supplies/sewing-fiber/thread/"
+  },
+  {
+    "name": "Needles and Notions",
+    "description": "",
+    "parent_id": "Sewing and Fiber",
+    "path": "/crafting-materials-and-supplies/sewing-fiber/needles-notions/"
+  },
+  {
+    "name": "Paper and Party Supplies",
+    "description": "",
+    "parent_id": "Crafting Materials and Supplies",
+    "path": "/crafting-materials-and-supplies/paper-and-party-supplies/"
+  },
+  {
+    "name": "Paper",
+    "description": "",
+    "parent_id": "Paper and Party Supplies",
+    "path": "/crafting-materials-and-supplies/paper-and-party-supplies/paper/"
+  },
+  {
+    "name": "Stationery",
+    "description": "",
+    "parent_id": "Paper and Party Supplies",
+    "path": "/crafting-materials-and-supplies/paper-and-party-supplies/stationery/"
+  },
+  {
+    "name": "Party Supplies",
+    "description": "",
+    "parent_id": "Paper and Party Supplies",
+    "path": "/crafting-materials-and-supplies/paper-and-party-supplies/party-supplies/"
+  },
+  {
+    "name": "Woodworking and Carpentry",
+    "description": "",
+    "parent_id": "Paper and Party Supplies",
+    "path": "/crafting-materials-and-supplies/woodworking-carpentry/"
+  },
+  {
+    "name": "Wood",
+    "description": "",
+    "parent_id": "Woodworking and Carpentry",
+    "path": "/crafting-materials-and-supplies/woodworking-carpentry/wood/"
+  },
+  {
+    "name": "Tools",
+    "description": "",
+    "parent_id": "Woodworking and Carpentry",
+    "path": "/crafting-materials-and-supplies/woodworking-carpentry/tools/"
+  },
+  {
+    "name": "Hardware",
+    "description": "",
+    "parent_id": "Woodworking and Carpentry",
+    "path": "/crafting-materials-and-supplies/woodworking-carpentry/hardware"
+  }
+]

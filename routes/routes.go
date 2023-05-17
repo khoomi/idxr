@@ -44,7 +44,7 @@ func userRoutes(api *gin.RouterGroup) {
 			// user address endpoints.
 			secured.POST("/addresses", controllers.CreateUserAddress())
 			secured.PUT("/addresses", controllers.UpdateUserAddress())
-			secured.GET("/:userid/addresses", controllers.GetUserAddress())
+			secured.GET("/addresses/:userid", controllers.GetUserAddress())
 			//secured.GET("/addresses", controllers.GetUserAddress())
 			// email notification.
 			secured.POST("/send-verify-email", controllers.SendVerifyEmail())
