@@ -252,7 +252,7 @@ func HandleUserAuthentication() gin.HandlerFunc {
 			})
 		}
 
-		c.JSON(http.StatusCreated, responses.UserResponse{Status: http.StatusCreated, Message: "success", Data: map[string]interface{}{"token": tokenString}})
+		c.JSON(http.StatusCreated, responses.UserResponse{Status: http.StatusCreated, Message: "success", Data: map[string]interface{}{"token": tokenString, "role": validUser.Role, "email": validUser.PrimaryEmail, "name": validUser.FirstName, "thumbnail": validUser.Thumbnail}})
 	}
 }
 
