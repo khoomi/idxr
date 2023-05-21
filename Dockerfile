@@ -5,8 +5,8 @@ FROM golang:latest
 WORKDIR /app
 
 # Copy the current directory contents into the container at /app
-COPY . /app
 COPY .env /app
+COPY . /app
 
 # Download and install any required dependencies
 RUN go mod download
