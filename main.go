@@ -15,11 +15,10 @@ func main() {
 
 	// Initialize database connection
 	configs.ConnectDB()
-	
-// Initialize routes 
-	router := routes.InitRoute()
-	err := router.Run("localhost:8080")
 
+	// Initialize routes
+	router := routes.InitRoute()
+	err := router.Run("127.0.0.1:8080")
 	if err != nil {
 		println(err.Error())
 		return
