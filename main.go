@@ -18,7 +18,7 @@ func main() {
 
 	// Initialize routes
 	router := routes.InitRoute()
-	err := router.Run("127.0.0.1:8080")
+	err := router.Run("0.0.0.0:8080")
 	if err != nil {
 		println(err.Error())
 		return
