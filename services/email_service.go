@@ -3,6 +3,7 @@ package services
 import (
 	"github.com/go-mail/mail"
 	"khoomi-api-io/khoomi_api/configs"
+	"log"
 )
 
 type KhoomiEmailService struct {
@@ -34,7 +35,9 @@ func (s *KhoomiEmailService) SendMail() error {
 	SmtpUsername := configs.LoadEnvFor("SMTP_USERNAME")
 	SmtpPassword := configs.LoadEnvFor("SMTP_PASSWORD")
 	dialer := mail.NewDialer(SmtpHost, 2525, SmtpUsername, SmtpPassword)
-	if err := dialer.DialAndSend(m); err != nil {
+	err := dialer.DialAndSend(m)
+	log.Printf(err.Error())
+	if err != nil {
 		return err
 	}
 

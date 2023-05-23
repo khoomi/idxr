@@ -64,10 +64,10 @@ func (w *Worker) Start() {
 				case "ipaddr":
 					log.Printf("KhoomiEmail: User %s just logged in successfully from a new IP adrress  - ip: %s", job.Data.Email, job.Data.IP)
 					SendNewIpLoginNotification(job.Data)
-				case "password_reset":
+				case "password-reset":
 					log.Printf("KhoomiEmail: User with email %s, requested to for a password reset from ip: %s", job.Data.Email, job.Data.IP)
 					SendPasswordResetEmail(job.Data)
-				case "password_reset_success":
+				case "password-reset-success":
 					log.Printf("KhoomiEmail: Sending user password email reset successfully to %s - ip: %s", job.Data.Email, job.Data.IP)
 					SendPasswordResetSuccessfulEmail(job.Data)
 				}
