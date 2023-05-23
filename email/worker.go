@@ -2,53 +2,53 @@ package email
 
 import "log"
 
-type EmailJob struct {
+type Job struct {
 	Type string
 	Data KhoomiEmailData
 }
-type EmailWorker struct {
-	Jobs chan EmailJob
+type Worker struct {
+	Jobs chan Job
 	Quit chan bool
 }
 
-type EmailWorkerPool struct {
-	Jobs    chan EmailJob
-	Workers []EmailWorker
+type WorkerPool struct {
+	Jobs    chan Job
+	Workers []Worker
 }
 
-func KhoomiEmailWorkerPoolInstance(size int) *EmailWorkerPool {
-	jobs := make(chan EmailJob, size)
-	workers := make([]EmailWorker, size)
+func KhoomiEmailWorkerPoolInstance(size int) *WorkerPool {
+	jobs := make(chan Job, size)
+	workers := make([]Worker, size)
 
 	for i := 0; i < size; i++ {
-		workers[i] = EmailWorker{
+		workers[i] = Worker{
 			Jobs: jobs,
 			Quit: make(chan bool),
 		}
 	}
 
-	return &EmailWorkerPool{Jobs: jobs, Workers: workers}
+	return &WorkerPool{Jobs: jobs, Workers: workers}
 }
 
-func (pool *EmailWorkerPool) Start() {
+func (pool *WorkerPool) Start() {
 	for id, worker := range pool.Workers {
 		log.Printf("Email worker with %d started!\n", id)
 		go worker.Start()
 	}
 }
 
-func (pool *EmailWorkerPool) Stop() {
+func (pool *WorkerPool) Stop() {
 	for id, worker := range pool.Workers {
 		log.Printf("Email worker with %d stopped!!\n", id)
 		go worker.Stop()
 	}
 }
 
-func (pool *EmailWorkerPool) Enqueue(job EmailJob) {
+func (pool *WorkerPool) Enqueue(job Job) {
 	pool.Jobs <- job
 }
 
-func (w *EmailWorker) Start() {
+func (w *Worker) Start() {
 	go func() {
 		for {
 			select {
@@ -76,6 +76,6 @@ func (w *EmailWorker) Start() {
 	}()
 }
 
-func (w *EmailWorker) Stop() {
+func (w *Worker) Stop() {
 	w.Quit <- true
 }

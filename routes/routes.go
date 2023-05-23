@@ -9,6 +9,8 @@ import (
 
 func InitRoute() *gin.Engine {
 	router := gin.Default()
+	router.Use(middleware.CorsMiddleware())
+
 	api := router.Group("/api", configs.KhoomiRateLimiter())
 	{
 		api.POST("/signup", controllers.CreateUser())

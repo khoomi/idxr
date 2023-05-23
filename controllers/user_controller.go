@@ -34,7 +34,7 @@ var passwordResetTokenCollection = configs.GetCollection(configs.DB, "UserPasswo
 var emailVerificationTokenCollection = configs.GetCollection(configs.DB, "UserEmailVerificationToken")
 var wishListCollection = configs.GetCollection(configs.DB, "UserWishList")
 
-var EmailPool *email.EmailWorkerPool
+var EmailPool *email.WorkerPool
 
 var validate = validator.New()
 
@@ -136,7 +136,7 @@ func CreateUser() gin.HandlerFunc {
 		}
 
 		// Send welcome email.
-		EmailPool.Enqueue(email.EmailJob{
+		EmailPool.Enqueue(email.Job{
 			Type: "welcome",
 			Data: email.KhoomiEmailData{
 				Email:     newUser.PrimaryEmail,
@@ -241,8 +241,8 @@ func HandleUserAuthentication() gin.HandlerFunc {
 
 		// Send new login IP notification on condition
 		if validUser.LastLoginIp != clientIp {
-			EmailPool.Enqueue(email.EmailJob{
-				Type: "password-reset-success",
+			EmailPool.Enqueue(email.Job{
+				Type: "ipaddr",
 				Data: email.KhoomiEmailData{
 					Email:     validUser.PrimaryEmail,
 					LoginName: validUser.LoginName,
@@ -353,7 +353,7 @@ func SendVerifyEmail() gin.HandlerFunc {
 
 		link := fmt.Sprintf("https://khoomi.com/verify-email?token=%v&id=%v", token, userId)
 		// Send welcome email.
-		EmailPool.Enqueue(email.EmailJob{
+		EmailPool.Enqueue(email.Job{
 			Type: "verify",
 			Data: email.KhoomiEmailData{
 				Email:     emailCurrent,
@@ -617,7 +617,7 @@ func PasswordResetEmail() gin.HandlerFunc {
 
 		// send password reset email
 		link := fmt.Sprintf("https://khoomi.com/%v/password-reset/?token=%v", user.Id.Hex(), token)
-		EmailPool.Enqueue(email.EmailJob{
+		EmailPool.Enqueue(email.Job{
 			Type: "password-reset",
 			Data: email.KhoomiEmailData{
 				Email:     user.PrimaryEmail,
@@ -692,7 +692,7 @@ func PasswordReset() gin.HandlerFunc {
 		}
 
 		// Send password reset successfully email to user.
-		EmailPool.Enqueue(email.EmailJob{
+		EmailPool.Enqueue(email.Job{
 			Type: "password-reset-success",
 			Data: email.KhoomiEmailData{
 				Email:     user.PrimaryEmail,
