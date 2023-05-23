@@ -39,6 +39,7 @@ type ListingDateMeta struct {
 
 type ListingCategory struct {
 	CategoryId            string `bson:"category_id" json:"category_id"`
+	CategoryName          string `bson:"category_name" json:"category_name"`
 	CategoryPath          string `bson:"category_path" json:"category_path"`
 	SuggestedCategoryId   string `bson:"suggested_category_id" json:"suggested_category_id"`
 	SuggestedCategoryPath string `bson:"suggested_category_path" json:"suggested_category_path"`

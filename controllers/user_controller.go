@@ -611,7 +611,7 @@ func PasswordResetEmail() gin.HandlerFunc {
 		now := time.Now()
 		expirationTime := now.Add(1 * time.Hour)
 		passwordReset := models.UserPasswordResetToken{
-			UserId:      primitive.ObjectID{},
+			UserId:      user.Id,
 			TokenDigest: token,
 			CreatedAt:   primitive.NewDateTimeFromTime(now),
 			ExpiresAt:   primitive.NewDateTimeFromTime(expirationTime),
@@ -626,7 +626,7 @@ func PasswordResetEmail() gin.HandlerFunc {
 		}
 
 		// send password reset email
-		link := fmt.Sprintf("https://khoomi.com/%v/password-reset/?token=%v", user.Id.Hex(), token)
+		link := fmt.Sprintf("https://khoomi.com/password-reset/?id=%v&token=%v", user.Id.Hex(), token)
 		EmailPool.Enqueue(email.Job{
 			Type: "password-reset",
 			Data: email.KhoomiEmailData{
