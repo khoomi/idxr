@@ -51,6 +51,8 @@ func SendWelcomeEmail(data KhoomiEmailData) {
 	if err != nil {
 		log.Println(err)
 	}
+	log.Printf("welcome email sent to %v", to)
+
 }
 
 func SendVerifyEmailNotification(data KhoomiEmailData) {
@@ -85,6 +87,7 @@ func SendVerifyEmailNotification(data KhoomiEmailData) {
 	if err != nil {
 		log.Println(err)
 	}
+	log.Printf("email verification notification email sent to %v", to)
 }
 
 func SendPasswordResetEmail(data KhoomiEmailData) {
@@ -119,6 +122,7 @@ func SendPasswordResetEmail(data KhoomiEmailData) {
 	if err != nil {
 		log.Println(err)
 	}
+	log.Printf("password reset email sent to %v", to)
 }
 
 func SendPasswordResetSuccessfulEmail(data KhoomiEmailData) {
@@ -153,6 +157,8 @@ func SendPasswordResetSuccessfulEmail(data KhoomiEmailData) {
 	if err != nil {
 		log.Println(err)
 	}
+	log.Printf("password reset successfully email sent to %v", to)
+
 }
 
 func SendNewIpLoginNotification(data KhoomiEmailData) {
@@ -187,4 +193,5 @@ func SendNewIpLoginNotification(data KhoomiEmailData) {
 	if err != nil {
 		log.Println(err)
 	}
+	log.Printf("login from new IP addr email sent to %v", to)
 }

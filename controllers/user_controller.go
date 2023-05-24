@@ -53,14 +53,14 @@ func CreateUser() gin.HandlerFunc {
 		// bind the request body
 		if err := c.BindJSON(&jsonUser); err != nil {
 			log.Printf("Error binding request body: %s\n", err.Error())
-			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": err.Error()}})
+			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: err.Error(), Data: map[string]interface{}{}})
 			return
 		}
 
 		// validate request body
 		if validationErr := validate.Struct(&jsonUser); validationErr != nil {
 			log.Printf("Error validating request body: %s\n", validationErr.Error())
-			c.JSON(http.StatusUnprocessableEntity, responses.UserResponse{Status: http.StatusUnprocessableEntity, Message: "error", Data: map[string]interface{}{"error": validationErr.Error()}})
+			c.JSON(http.StatusUnprocessableEntity, responses.UserResponse{Status: http.StatusUnprocessableEntity, Message: validationErr.Error(), Data: map[string]interface{}{}})
 			return
 		}
 
@@ -68,7 +68,7 @@ func CreateUser() gin.HandlerFunc {
 		errEmail := configs.ValidateEmailAddress(jsonUser.Email)
 		if errEmail != nil {
 			log.Printf("Invalid email address from user %s with IP %s at %s: %s\n", jsonUser.FirstName, c.ClientIP(), time.Now().Format(time.RFC3339), errEmail.Error())
-			c.JSON(http.StatusExpectationFailed, responses.UserResponse{Status: http.StatusExpectationFailed, Message: "error", Data: map[string]interface{}{"error": "Invalid email format"}})
+			c.JSON(http.StatusExpectationFailed, responses.UserResponse{Status: http.StatusExpectationFailed, Message: "invalid email address", Data: map[string]interface{}{}})
 			return
 		}
 
@@ -76,7 +76,7 @@ func CreateUser() gin.HandlerFunc {
 		err := configs.ValidatePassword(jsonUser.Password)
 		if err != nil {
 			log.Printf("Error validating password: %s\n", err.Error())
-			c.JSON(http.StatusExpectationFailed, responses.UserResponse{Status: http.StatusExpectationFailed, Message: "error", Data: map[string]interface{}{"error": err.Error()}})
+			c.JSON(http.StatusExpectationFailed, responses.UserResponse{Status: http.StatusExpectationFailed, Message: err.Error(), Data: map[string]interface{}{}})
 			return
 		}
 
@@ -84,7 +84,7 @@ func CreateUser() gin.HandlerFunc {
 		hashedPassword, errHashPassword := configs.HashPassword(jsonUser.Password)
 		if errHashPassword != nil {
 			log.Printf("Error hashing password: %s\n", errHashPassword.Error())
-			c.JSON(http.StatusExpectationFailed, responses.UserResponse{Status: http.StatusExpectationFailed, Message: "error", Data: map[string]interface{}{"error": errHashPassword.Error()}})
+			c.JSON(http.StatusExpectationFailed, responses.UserResponse{Status: http.StatusExpectationFailed, Message: errHashPassword.Error(), Data: map[string]interface{}{}})
 			return
 		}
 
@@ -132,7 +132,7 @@ func CreateUser() gin.HandlerFunc {
 		result, err := userCollection.InsertOne(ctx, newUser)
 		if err != nil {
 			log.Printf("Mongo Error: Request could not be completed %s\n", err.Error())
-			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": err.Error()}})
+			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: err.Error(), Data: map[string]interface{}{}})
 			return
 		}
 
@@ -168,26 +168,26 @@ func HandleUserAuthentication() gin.HandlerFunc {
 		defer cancel()
 
 		if err := c.BindJSON(&jsonUser); err != nil {
-			c.JSON(http.StatusInternalServerError, responses.UserResponse{Status: http.StatusInternalServerError, Message: "error", Data: map[string]interface{}{"error": err.Error()}})
+			c.JSON(http.StatusInternalServerError, responses.UserResponse{Status: http.StatusInternalServerError, Message: err.Error(), Data: map[string]interface{}{}})
 			return
 		}
 
 		// Validate request body
 		if validationErr := validate.Struct(&jsonUser); validationErr != nil {
-			c.JSON(http.StatusUnprocessableEntity, responses.UserResponse{Status: http.StatusUnprocessableEntity, Message: "error", Data: map[string]interface{}{"error": validationErr.Error()}})
+			c.JSON(http.StatusUnprocessableEntity, responses.UserResponse{Status: http.StatusUnprocessableEntity, Message: validationErr.Error(), Data: map[string]interface{}{}})
 			return
 		}
 
 		// check and return valid user with email from db
 		var validUser models.User
 		if err := userCollection.FindOne(ctx, bson.M{"primary_email": jsonUser.Email}).Decode(&validUser); err != nil {
-			c.JSON(http.StatusNotFound, responses.UserResponse{Status: http.StatusNotFound, Message: "error", Data: map[string]interface{}{"error": err.Error()}})
+			c.JSON(http.StatusNotFound, responses.UserResponse{Status: http.StatusNotFound, Message: err.Error(), Data: map[string]interface{}{}})
 			return
 		}
 
 		// check and validate user password digest
 		if errPasswordCheck := configs.CheckPassword(validUser.Auth.PasswordDigest, jsonUser.Password); errPasswordCheck != nil {
-			c.JSON(http.StatusUnauthorized, responses.UserResponse{Status: http.StatusUnauthorized, Message: "error", Data: map[string]interface{}{"error": errPasswordCheck.Error()}})
+			c.JSON(http.StatusUnauthorized, responses.UserResponse{Status: http.StatusUnauthorized, Message: errPasswordCheck.Error(), Data: map[string]interface{}{}})
 			return
 		}
 
@@ -200,9 +200,9 @@ func HandleUserAuthentication() gin.HandlerFunc {
 				if r := recover(); r != nil {
 					log.Println("Recovered from panic:", r)
 				}
-				c.JSON(http.StatusInternalServerError, responses.UserResponse{Status: http.StatusInternalServerError, Message: "error", Data: map[string]interface{}{"error": "Failed to start database session"}})
+				c.JSON(http.StatusInternalServerError, responses.UserResponse{Status: http.StatusInternalServerError, Message: "failed to start database session", Data: map[string]interface{}{}})
+				return
 			}()
-			panic("Failed to start database session: " + err.Error())
 		}
 		defer session.EndSession(ctx)
 
@@ -234,18 +234,18 @@ func HandleUserAuthentication() gin.HandlerFunc {
 
 		_, err = session.WithTransaction(context.Background(), callback, txnOptions)
 		if err != nil {
-			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": err.Error()}})
+			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: err.Error(), Data: map[string]interface{}{}})
 		}
 
 		if err := session.CommitTransaction(context.Background()); err != nil {
-			c.JSON(http.StatusInternalServerError, responses.UserResponse{Status: http.StatusInternalServerError, Message: "error", Data: map[string]interface{}{"error": err.Error()}})
+			c.JSON(http.StatusInternalServerError, responses.UserResponse{Status: http.StatusInternalServerError, Message: err.Error(), Data: map[string]interface{}{}})
 			return
 		}
 		session.EndSession(context.Background())
 
 		tokenString, err := auth.GenerateJWT(validUser.Id.Hex(), validUser.PrimaryEmail, validUser.LoginName)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, responses.UserResponse{Status: http.StatusInternalServerError, Message: "error", Data: map[string]interface{}{"error": err.Error()}})
+			c.JSON(http.StatusInternalServerError, responses.UserResponse{Status: http.StatusInternalServerError, Message: err.Error(), Data: map[string]interface{}{}})
 			return
 		}
 
@@ -284,8 +284,8 @@ func CurrentUser(c *gin.Context) {
 	// Extract user id from request header
 	userId, err := auth.ExtractTokenID(c)
 	if err != nil {
-		log.Printf("user with ip %v tried to access with invalid userid or token\n", c.ClientIP())
-		c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": err.Error()}})
+		log.Printf("user with ip %v tried to gain access with invalid userid or token\n", c.ClientIP())
+		c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: err.Error(), Data: map[string]interface{}{}})
 		c.Abort()
 		return
 	}
@@ -293,7 +293,7 @@ func CurrentUser(c *gin.Context) {
 	user, err := services.GetUserById(ctx, userId)
 	if err != nil {
 		log.Printf("Logging user with ip %v out\n", c.ClientIP())
-		c.JSON(http.StatusNotFound, responses.UserResponse{Status: http.StatusNotFound, Message: "error", Data: map[string]interface{}{"error": err.Error()}})
+		c.JSON(http.StatusNotFound, responses.UserResponse{Status: http.StatusNotFound, Message: err.Error(), Data: map[string]interface{}{}})
 		c.Abort()
 		return
 	}
@@ -312,7 +312,7 @@ func GetUser() gin.HandlerFunc {
 		Id, _ := primitive.ObjectIDFromHex(userId)
 		user, errMongo := services.GetUserById(ctx, Id)
 		if errMongo != nil {
-			c.JSON(http.StatusNotFound, responses.UserResponse{Status: http.StatusNotFound, Message: "error", Data: map[string]interface{}{"data": errMongo.Error()}})
+			c.JSON(http.StatusNotFound, responses.UserResponse{Status: http.StatusNotFound, Message: errMongo.Error(), Data: map[string]interface{}{}})
 			return
 		}
 
@@ -332,14 +332,14 @@ func SendVerifyEmail() gin.HandlerFunc {
 		// Verify current user
 		userId, err := auth.ExtractTokenID(c)
 		if err != nil {
-			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": err.Error()}})
+			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: err.Error(), Data: map[string]interface{}{}})
 			return
 		}
 
 		// Verify current user email
 		errEmail := configs.ValidateEmailAddress(emailCurrent)
 		if errEmail != nil {
-			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": "Bad or invalid email address"}})
+			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "invalid email address", Data: map[string]interface{}{}})
 			return
 		}
 
@@ -357,7 +357,7 @@ func SendVerifyEmail() gin.HandlerFunc {
 		filter := bson.M{"user_uid": userId}
 		_, err = emailVerificationTokenCollection.ReplaceOne(ctx, filter, verifyEmail, opts)
 		if err != nil {
-			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": err.Error()}})
+			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: err.Error(), Data: map[string]interface{}{}})
 			return
 		}
 
@@ -388,14 +388,14 @@ func VerifyEmail() gin.HandlerFunc {
 
 		userId, err := primitive.ObjectIDFromHex(currentId)
 		if err != nil {
-			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": "Error decoding userid"}})
+			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "invalid given user id", Data: map[string]interface{}{}})
 			return
 		}
 
 		// get and delete email verification
 		err = emailVerificationTokenCollection.FindOneAndDelete(ctx, bson.M{"user_uid": userId}).Decode(&emailVerificationData)
 		if err != nil {
-			c.JSON(http.StatusNotFound, responses.UserResponse{Status: http.StatusNotFound, Message: "error", Data: map[string]interface{}{"error": err.Error()}})
+			c.JSON(http.StatusNotFound, responses.UserResponse{Status: http.StatusNotFound, Message: err.Error(), Data: map[string]interface{}{}})
 			return
 		}
 
@@ -403,7 +403,7 @@ func VerifyEmail() gin.HandlerFunc {
 		now := primitive.NewDateTimeFromTime(time.Now())
 		if now.Time().Unix() > emailVerificationData.ExpiresAt.Time().Unix() {
 			if err != nil {
-				c.JSON(http.StatusNotFound, responses.UserResponse{Status: http.StatusNotFound, Message: "error", Data: map[string]interface{}{"error": "Password reset token has expired. Please restart the reset process"}})
+				c.JSON(http.StatusNotFound, responses.UserResponse{Status: http.StatusNotFound, Message: "password reset token has expired.", Data: map[string]interface{}{}})
 				return
 			}
 		}
@@ -411,7 +411,7 @@ func VerifyEmail() gin.HandlerFunc {
 		// Check if reset token is correct.
 		if currentToken != emailVerificationData.TokenDigest {
 			if err != nil {
-				c.JSON(http.StatusNotFound, responses.UserResponse{Status: http.StatusNotFound, Message: "error", Data: map[string]interface{}{"error": "Email verify token is incorrect or expired. Please restart the verification process or use a valid token"}})
+				c.JSON(http.StatusNotFound, responses.UserResponse{Status: http.StatusNotFound, Message: "email verify token is incorrect or expired. ", Data: map[string]interface{}{}})
 				return
 			}
 		}
@@ -425,7 +425,7 @@ func VerifyEmail() gin.HandlerFunc {
 			return
 		}
 
-		c.JSON(http.StatusOK, responses.UserResponse{Status: http.StatusOK, Message: "success", Data: map[string]interface{}{"data": "Your email been verified successfully."}})
+		c.JSON(http.StatusOK, responses.UserResponse{Status: http.StatusOK, Message: "success", Data: map[string]interface{}{"data": "your email been verified successfully."}})
 
 	}
 }
@@ -439,47 +439,47 @@ func UpdateFirstLastName() gin.HandlerFunc {
 
 		myId, err := auth.ExtractTokenID(c)
 		if err != nil {
-			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": err.Error()}})
+			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: err.Error(), Data: map[string]interface{}{}})
 			return
 		}
 
-		errBind := c.BindJSON(&firstLastName)
-		if errBind != nil {
-			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": errBind.Error()}})
+		err = c.BindJSON(&firstLastName)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: err.Error(), Data: map[string]interface{}{}})
 			return
 		}
 
 		// Validate the request body
 		if err := c.BindJSON(&firstLastName); err != nil {
-			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": err.Error()}})
+			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: err.Error(), Data: map[string]interface{}{}})
 			return
 		}
 
-		done, errFirstName := regexp.MatchString("([A-Z][a-zA-Z]*)", firstLastName.FirstName)
-		if errFirstName != nil {
-			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": errFirstName.Error()}})
+		done, err := regexp.MatchString("([A-Z][a-zA-Z]*)", firstLastName.FirstName)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: err.Error(), Data: map[string]interface{}{}})
 			return
 		}
 		if !done {
-			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": "First name should follow naming rule"}})
+			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "first name should follow naming rule", Data: map[string]interface{}{}})
 			return
 		}
 
-		done, errLastName := regexp.MatchString("([A-Z][a-zA-Z]*)", firstLastName.LastName)
+		done, err = regexp.MatchString("([A-Z][a-zA-Z]*)", firstLastName.LastName)
 		if !done {
-			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": "Last name should follow naming rule"}})
+			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "last name should follow naming rule", Data: map[string]interface{}{}})
 			return
 		}
-		if errLastName != nil {
-			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": errLastName.Error()}})
+		if err != nil {
+			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: err.Error(), Data: map[string]interface{}{}})
 			return
 		}
 
 		filter := bson.M{"_id": myId}
 		update := bson.M{"$set": bson.M{"first_name": firstLastName.FirstName, "last_name": firstLastName.LastName}}
-		result, errUpdateName := userCollection.UpdateOne(ctx, filter, update)
-		if errUpdateName != nil {
-			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": errUpdateName.Error()}})
+		result, err := userCollection.UpdateOne(ctx, filter, update)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: err.Error(), Data: map[string]interface{}{}})
 			return
 		}
 
@@ -496,7 +496,7 @@ func GetLoginHistories() gin.HandlerFunc {
 		defer cancel()
 		userId, err := auth.ExtractTokenID(c)
 		if err != nil {
-			c.JSON(http.StatusUnauthorized, responses.UserResponse{Status: http.StatusUnauthorized, Message: "error", Data: map[string]interface{}{"error": err.Error()}})
+			c.JSON(http.StatusUnauthorized, responses.UserResponse{Status: http.StatusUnauthorized, Message: err.Error(), Data: map[string]interface{}{}})
 			return
 		}
 
@@ -505,19 +505,19 @@ func GetLoginHistories() gin.HandlerFunc {
 		find := options.Find().SetLimit(int64(paginationArgs.Limit)).SetSkip(int64(paginationArgs.Skip))
 		result, err := loginHistoryCollection.Find(ctx, filter, find)
 		if err != nil {
-			c.JSON(http.StatusNotFound, responses.UserResponse{Status: http.StatusNotFound, Message: "error", Data: map[string]interface{}{"error": err.Error()}})
+			c.JSON(http.StatusNotFound, responses.UserResponse{Status: http.StatusNotFound, Message: err.Error(), Data: map[string]interface{}{}})
 			return
 		}
 
 		count, err := loginHistoryCollection.CountDocuments(ctx, bson.M{"user_uid": userId})
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, responses.UserResponse{Status: http.StatusInternalServerError, Message: "Error counting shops", Data: map[string]interface{}{"error": err.Error()}})
+			c.JSON(http.StatusInternalServerError, responses.UserResponse{Status: http.StatusInternalServerError, Message: "error counting shops", Data: map[string]interface{}{}})
 			return
 		}
 
 		var loginHistory []models.LoginHistory
 		if err = result.All(ctx, &loginHistory); err != nil {
-			c.JSON(http.StatusNotFound, responses.UserResponse{Status: http.StatusNotFound, Message: "error", Data: map[string]interface{}{"error": err.Error()}})
+			c.JSON(http.StatusNotFound, responses.UserResponse{Status: http.StatusNotFound, Message: err.Error(), Data: map[string]interface{}{}})
 			return
 		}
 
@@ -538,7 +538,7 @@ func DeleteLoginHistories() gin.HandlerFunc {
 
 		// validate the request body
 		if err := c.BindJSON(&historyIDs); err != nil {
-			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": err.Error()}})
+			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: err.Error(), Data: map[string]interface{}{}})
 			return
 		}
 
@@ -551,9 +551,9 @@ func DeleteLoginHistories() gin.HandlerFunc {
 				if r := recover(); r != nil {
 					log.Println("Recovered from panic:", r)
 				}
-				c.JSON(http.StatusInternalServerError, responses.UserResponse{Status: http.StatusInternalServerError, Message: "error", Data: map[string]interface{}{"error": "Failed to start database session"}})
+				c.JSON(http.StatusInternalServerError, responses.UserResponse{Status: http.StatusInternalServerError, Message: "failed to start database session", Data: map[string]interface{}{}})
 			}()
-			panic("Failed to start database session: " + err.Error())
+			log.Println("Failed to start database session: " + err.Error())
 		}
 		defer session.EndSession(context.TODO())
 
@@ -580,7 +580,7 @@ func DeleteLoginHistories() gin.HandlerFunc {
 		}
 
 		if err := session.CommitTransaction(context.Background()); err != nil {
-			c.JSON(http.StatusInternalServerError, responses.UserResponse{Status: http.StatusInternalServerError, Message: "error", Data: map[string]interface{}{"error": err.Error()}})
+			c.JSON(http.StatusInternalServerError, responses.UserResponse{Status: http.StatusInternalServerError, Message: err.Error(), Data: map[string]interface{}{}})
 			return
 		}
 		session.EndSession(context.Background())
@@ -603,7 +603,7 @@ func PasswordResetEmail() gin.HandlerFunc {
 
 		err := userCollection.FindOne(ctx, bson.M{"primary_email": currentEmail}).Decode(&user)
 		if err != nil {
-			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": "user with email now found"}})
+			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "user with email now found", Data: map[string]interface{}{}})
 			return
 		}
 
@@ -621,7 +621,7 @@ func PasswordResetEmail() gin.HandlerFunc {
 		filter := bson.M{"user_uid": user.Id}
 		_, err = passwordResetTokenCollection.ReplaceOne(ctx, filter, passwordReset, opts)
 		if err != nil {
-			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": err.Error()}})
+			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: err.Error(), Data: map[string]interface{}{}})
 			return
 		}
 
@@ -635,8 +635,6 @@ func PasswordResetEmail() gin.HandlerFunc {
 				Link:      link,
 			},
 		})
-
-		log.Println(&EmailPool.Jobs)
 
 		c.JSON(http.StatusOK, responses.UserResponse{Status: http.StatusOK, Message: "success", Data: map[string]interface{}{"data": "Password reset email send successfully"}})
 	}

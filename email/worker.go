@@ -56,16 +56,16 @@ func (w *Worker) Start() {
 				// Send the email based on the job type and data
 				switch job.Type {
 				case "verify":
-					log.Printf("KhoomiEmail: Sent email verification mail to user %s, - ip: %s", job.Data.Email, job.Data.IP)
+					log.Printf("KhoomiEmail: Sending email verification mail to user %s, - ip: %s", job.Data.Email, job.Data.IP)
 					SendVerifyEmailNotification(job.Data)
 				case "welcome":
-					log.Printf("KhoomiEmail: Sent welcome email to a new registered user %s, - ip: %s", job.Data.Email, job.Data.IP)
+					log.Printf("KhoomiEmail: Sending welcome email to new registered user %s, - ip: %s", job.Data.Email, job.Data.IP)
 					SendWelcomeEmail(job.Data)
 				case "ipaddr":
 					log.Printf("KhoomiEmail: User %s just logged in successfully from a new IP adrress  - ip: %s", job.Data.Email, job.Data.IP)
 					SendNewIpLoginNotification(job.Data)
 				case "password-reset":
-					log.Printf("KhoomiEmail: User with email %s, requested to for a password reset from ip: %s", job.Data.Email, job.Data.IP)
+					log.Printf("KhoomiEmail: User with email %s, requested for a password reset email from ip: %s", job.Data.Email, job.Data.IP)
 					SendPasswordResetEmail(job.Data)
 				case "password-reset-success":
 					log.Printf("KhoomiEmail: Sending user password email reset successfully to %s - ip: %s", job.Data.Email, job.Data.IP)

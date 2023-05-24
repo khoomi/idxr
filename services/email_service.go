@@ -34,9 +34,9 @@ func (s *KhoomiEmailService) SendMail() error {
 	SmtpHost := configs.LoadEnvFor("SMTP_HOST")
 	SmtpUsername := configs.LoadEnvFor("SMTP_USERNAME")
 	SmtpPassword := configs.LoadEnvFor("SMTP_PASSWORD")
-	dialer := mail.NewDialer(SmtpHost, 2525, SmtpUsername, SmtpPassword)
+	dialer := mail.NewDialer(SmtpHost, 587, SmtpUsername, SmtpPassword)
 	err := dialer.DialAndSend(m)
-	log.Printf(err.Error())
+	log.Printf("email dialer error: %v", err.Error())
 	if err != nil {
 		return err
 	}
