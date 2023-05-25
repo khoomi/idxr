@@ -137,9 +137,6 @@ func CreateUser() gin.HandlerFunc {
 		// Send welcome email.
 		email.SendWelcomeEmail(jsonUser.Email, jsonUser.FirstName)
 
-		// Send verify email
-		email.SendWelcomeEmail(jsonUser.Email, jsonUser.FirstName)
-
 		c.JSON(http.StatusCreated, responses.UserResponse{Status: http.StatusCreated, Message: "success", Data: map[string]interface{}{"data": result}})
 	}
 }
@@ -278,21 +275,39 @@ func CurrentUser(c *gin.Context) {
 	c.JSON(http.StatusOK, responses.UserResponse{Status: http.StatusOK, Message: "success", Data: map[string]interface{}{"data": user}})
 }
 
-// GetUser - Get user by id endpoint
-func GetUser() gin.HandlerFunc {
+// GetUserByIDOrEmail - Get user by id or email endpoint
+func GetUserByIDOrEmail() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ctx, cancel := context.WithTimeout(context.Background(), UserRequestTimeout*time.Second)
-		userId := c.Param("userId")
 		defer cancel()
 
-		Id, _ := primitive.ObjectIDFromHex(userId)
-		user, errMongo := services.GetUserById(ctx, Id)
-		if errMongo != nil {
-			c.JSON(http.StatusNotFound, responses.UserResponse{Status: http.StatusNotFound, Message: errMongo.Error(), Data: map[string]interface{}{}})
+		userID := c.Query("id")
+		emailId := c.Query("email")
+
+		// Check if either the user ID or email is missing
+		if userID == "" && emailId == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Missing user ID or email"})
 			return
 		}
 
-		c.JSON(http.StatusOK, responses.UserResponse{Status: http.StatusOK, Message: "success", Data: map[string]interface{}{"data": user}})
+		// Prepare the filter based on the available query parameter
+		filter := bson.M{}
+		if userID != "" {
+			filter["_id"] = userID
+		} else {
+			filter["email"] = emailId
+		}
+
+		// Query the database to find the user based on the specified field and value
+		var user models.User
+		err := userCollection.FindOne(ctx, filter).Decode(&user)
+		if err != nil {
+			c.JSON(http.StatusNotFound, responses.UserResponse{Status: http.StatusBadRequest, Message: "User not found"})
+			return
+		}
+
+		// Return the user data in the response
+		c.JSON(http.StatusOK, gin.H{"data": user})
 	}
 }
 
@@ -308,7 +323,7 @@ func SendVerifyEmail() gin.HandlerFunc {
 		// Verify current user
 		userId, err := auth.ExtractTokenID(c)
 		if err != nil {
-			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: err.Error(), Data: map[string]interface{}{}})
+			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: err.Error()})
 			return
 		}
 

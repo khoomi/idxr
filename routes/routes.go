@@ -32,7 +32,7 @@ func InitRoute() *gin.Engine {
 func userRoutes(api *gin.RouterGroup) {
 	user := api.Group("/users")
 	{
-		user.GET("/:userId", controllers.GetUser())
+		user.GET("/", controllers.GetUserByIDOrEmail())
 		user.GET("/:userId/shops", controllers.GetShopByOwnerUserId())
 		secured := api.Group("/users").Use(middleware.Auth())
 		{

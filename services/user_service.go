@@ -23,6 +23,16 @@ func GetUserById(ctx context.Context, id primitive.ObjectID) (models.User, error
 	return user, nil
 }
 
+func GetUserByEmail(ctx context.Context, email string) (models.User, error) {
+	var user models.User
+	err := userCollection.FindOne(ctx, bson.M{"primary_email": email}).Decode(&user)
+	if err != nil {
+		return models.User{}, err
+	}
+
+	return user, nil
+}
+
 func GetPaginationArgs(c *gin.Context) responses.PaginationArgs {
 
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
