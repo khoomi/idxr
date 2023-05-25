@@ -35,8 +35,6 @@ var passwordResetTokenCollection = configs.GetCollection(configs.DB, "UserPasswo
 var emailVerificationTokenCollection = configs.GetCollection(configs.DB, "UserEmailVerificationToken")
 var wishListCollection = configs.GetCollection(configs.DB, "UserWishList")
 
-var EmailPool *email.WorkerPool
-
 var validate = validator.New()
 
 const (
@@ -137,22 +135,10 @@ func CreateUser() gin.HandlerFunc {
 		}
 
 		// Send welcome email.
-		EmailPool.Enqueue(email.Job{
-			Type: "welcome",
-			Data: email.KhoomiEmailData{
-				Email:     jsonUser.Email,
-				LoginName: jsonUser.FirstName,
-			},
-		})
+		email.SendWelcomeEmail(jsonUser.Email, jsonUser.FirstName)
 
-		// Send verify email.
-		EmailPool.Enqueue(email.Job{
-			Type: "verify",
-			Data: email.KhoomiEmailData{
-				Email:     jsonUser.Email,
-				LoginName: jsonUser.FirstName,
-			},
-		})
+		// Send verify email
+		email.SendWelcomeEmail(jsonUser.Email, jsonUser.FirstName)
 
 		c.JSON(http.StatusCreated, responses.UserResponse{Status: http.StatusCreated, Message: "success", Data: map[string]interface{}{"data": result}})
 	}
@@ -250,17 +236,7 @@ func HandleUserAuthentication() gin.HandlerFunc {
 		}
 
 		// Send new login IP notification on condition
-		if validUser.LastLoginIp != clientIp {
-			EmailPool.Enqueue(email.Job{
-				Type: "ipaddr",
-				Data: email.KhoomiEmailData{
-					Email:     validUser.PrimaryEmail,
-					LoginName: validUser.LoginName,
-					IP:        clientIp,
-					LoginTime: now,
-				},
-			})
-		}
+		email.SendNewIpLoginNotification(validUser.PrimaryEmail, validUser.LoginName, validUser.LastLoginIp, validUser.LastLogin)
 
 		c.JSON(http.StatusCreated, responses.UserResponse{Status: http.StatusCreated, Message: "success", Data: map[string]interface{}{"token": tokenString, "role": validUser.Role, "email": validUser.PrimaryEmail, "name": validUser.FirstName, "thumbnail": validUser.Thumbnail, "email_verified": validUser.Auth.EmailVerified}})
 	}
@@ -363,14 +339,7 @@ func SendVerifyEmail() gin.HandlerFunc {
 
 		link := fmt.Sprintf("https://khoomi.com/verify-email?token=%v&id=%v", token, userId)
 		// Send welcome email.
-		EmailPool.Enqueue(email.Job{
-			Type: "verify",
-			Data: email.KhoomiEmailData{
-				Email:     emailCurrent,
-				LoginName: firstName,
-				Link:      link,
-			},
-		})
+		email.SendVerifyEmailNotification(emailCurrent, firstName, link)
 
 		c.JSON(http.StatusOK, responses.UserResponse{Status: http.StatusOK, Message: "success", Data: map[string]interface{}{"data": "verification email successfully sent"}})
 	}
@@ -627,14 +596,7 @@ func PasswordResetEmail() gin.HandlerFunc {
 
 		// send password reset email
 		link := fmt.Sprintf("https://khoomi.com/password-reset/?id=%v&token=%v", user.Id.Hex(), token)
-		EmailPool.Enqueue(email.Job{
-			Type: "password-reset",
-			Data: email.KhoomiEmailData{
-				Email:     user.PrimaryEmail,
-				LoginName: user.FirstName,
-				Link:      link,
-			},
-		})
+		email.SendPasswordResetEmail(user.PrimaryEmail, user.FirstName, link)
 
 		c.JSON(http.StatusOK, responses.UserResponse{Status: http.StatusOK, Message: "success", Data: map[string]interface{}{"data": "Password reset email send successfully"}})
 	}
@@ -702,13 +664,7 @@ func PasswordReset() gin.HandlerFunc {
 		}
 
 		// Send password reset successfully email to user.
-		EmailPool.Enqueue(email.Job{
-			Type: "password-reset-success",
-			Data: email.KhoomiEmailData{
-				Email:     user.PrimaryEmail,
-				LoginName: user.FirstName,
-			},
-		})
+		email.SendPasswordResetSuccessfulEmail(user.PrimaryEmail, user.FirstName)
 
 		c.JSON(http.StatusOK, responses.UserResponse{Status: http.StatusOK, Message: "your password been changed successfully.", Data: map[string]interface{}{}})
 
