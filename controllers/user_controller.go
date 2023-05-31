@@ -3,11 +3,6 @@ package controllers
 import (
 	"context"
 	"fmt"
-	"github.com/cloudinary/cloudinary-go/api/uploader"
-	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
-	"go.mongodb.org/mongo-driver/mongo/writeconcern"
-	"go.mongodb.org/mongo-driver/x/bsonx"
 	"khoomi-api-io/khoomi_api/auth"
 	"khoomi-api-io/khoomi_api/configs"
 	"khoomi-api-io/khoomi_api/email"
@@ -21,6 +16,12 @@ import (
 	"regexp"
 	"strings"
 	"time"
+
+	"github.com/cloudinary/cloudinary-go/api/uploader"
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
+	"go.mongodb.org/mongo-driver/mongo/writeconcern"
+	"go.mongodb.org/mongo-driver/x/bsonx"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
@@ -63,10 +64,10 @@ func CreateUser() gin.HandlerFunc {
 		}
 
 		// Verify current user email
-		errEmail := configs.ValidateEmailAddress(jsonUser.Email)
-		if errEmail != nil {
-			log.Printf("Invalid email address from user %s with IP %s at %s: %s\n", jsonUser.FirstName, c.ClientIP(), time.Now().Format(time.RFC3339), errEmail.Error())
-			c.JSON(http.StatusExpectationFailed, responses.UserResponse{Status: http.StatusExpectationFailed, Message: "invalid email address", Data: map[string]interface{}{}})
+		err := configs.ValidateEmailAddress(jsonUser.Email)
+		if err != nil {
+			log.Printf("Invalid email address from user %s with IP %s at %s: %s\n", jsonUser.FirstName, c.ClientIP(), time.Now().Format(time.RFC3339), err.Error())
+			helper.HandleError(c, http.StatusBadRequest, err, "invalid email address")
 			return
 		}
 
@@ -74,7 +75,7 @@ func CreateUser() gin.HandlerFunc {
 		err := configs.ValidatePassword(jsonUser.Password)
 		if err != nil {
 			log.Printf("Error validating password: %s\n", err.Error())
-			c.JSON(http.StatusExpectationFailed, responses.UserResponse{Status: http.StatusExpectationFailed, Message: err.Error(), Data: map[string]interface{}{}})
+			helper.HandleError(c, http.StatusBadRequest, err, err.Error())
 			return
 		}
 
@@ -82,7 +83,7 @@ func CreateUser() gin.HandlerFunc {
 		hashedPassword, errHashPassword := configs.HashPassword(jsonUser.Password)
 		if errHashPassword != nil {
 			log.Printf("Error hashing password: %s\n", errHashPassword.Error())
-			c.JSON(http.StatusExpectationFailed, responses.UserResponse{Status: http.StatusExpectationFailed, Message: errHashPassword.Error(), Data: map[string]interface{}{}})
+			helper.HandleError(c, http.StatusBadRequest, err, "Internal error")
 			return
 		}
 
@@ -130,7 +131,7 @@ func CreateUser() gin.HandlerFunc {
 		result, err := userCollection.InsertOne(ctx, newUser)
 		if err != nil {
 			log.Printf("Mongo Error: Request could not be completed %s\n", err.Error())
-			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: err.Error(), Data: map[string]interface{}{}})
+			helper.HandleError(c, http.StatusInternalServerError, err, "internal server error while attempting to create user, plese try again later")
 			return
 		}
 
