@@ -10,9 +10,8 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"go.mongodb.org/mongo-driver/mongo/writeconcern"
 	"khoomi-api-io/khoomi_api/configs"
+	"khoomi-api-io/khoomi_api/helper"
 	"khoomi-api-io/khoomi_api/models"
-	"khoomi-api-io/khoomi_api/responses"
-	"log"
 	"net/http"
 	"strings"
 	"time"
@@ -23,46 +22,48 @@ var listingCategoryCollection = configs.GetCollection(configs.DB, "ListingCatego
 func CreateCategorySingle() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-		var categoryJson models.Category
 		defer cancel()
 
-		// Validate the request body
-		if err := c.BindJSON(&categoryJson); err != nil {
-			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": err.Error()}})
+		var categoryJson models.Category
+
+		// Bind and validate the request body
+		if err := c.ShouldBindJSON(&categoryJson); err != nil {
+			helper.HandleError(c, http.StatusBadRequest, err, "Invalid request body")
 			return
 		}
 
-		// Validate request body
+		// Validate the request body
 		if validationErr := validate.Struct(&categoryJson); validationErr != nil {
-			c.JSON(http.StatusUnprocessableEntity, responses.UserResponse{Status: http.StatusUnprocessableEntity, Message: "error", Data: map[string]interface{}{"error": validationErr.Error()}})
+			helper.HandleError(c, http.StatusUnprocessableEntity, validationErr, "Validation error")
 			return
 		}
 
 		_, err := listingCategoryCollection.InsertOne(ctx, categoryJson)
 		if err != nil {
-			c.JSON(http.StatusUnprocessableEntity, responses.UserResponse{Status: http.StatusUnprocessableEntity, Message: "error", Data: map[string]interface{}{"error": err.Error()}})
+			helper.HandleError(c, http.StatusUnprocessableEntity, err, "Error creating category")
 			return
 		}
 
-		c.JSON(http.StatusOK, responses.UserResponse{Status: http.StatusOK, Message: "success", Data: map[string]interface{}{"data": "Category created."}})
+		helper.HandleSuccess(c, http.StatusOK, "Category created", "Category created.")
 	}
 }
 
 func CreateCategoryMulti() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-		var categoryJson models.CategoryRequestMulti
 		defer cancel()
 
-		// Validate the request body
-		if err := c.BindJSON(&categoryJson); err != nil {
-			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": err.Error()}})
+		var categoryJson models.CategoryRequestMulti
+
+		// Bind and validate the request body
+		if err := c.ShouldBindJSON(&categoryJson); err != nil {
+			helper.HandleError(c, http.StatusBadRequest, err, "Invalid request body")
 			return
 		}
 
-		// Validate request body
+		// Validate the request body
 		if validationErr := validate.Struct(&categoryJson); validationErr != nil {
-			c.JSON(http.StatusUnprocessableEntity, responses.UserResponse{Status: http.StatusUnprocessableEntity, Message: "error", Data: map[string]interface{}{"error": validationErr.Error()}})
+			helper.HandleError(c, http.StatusUnprocessableEntity, validationErr, "Validation error")
 			return
 		}
 
@@ -70,13 +71,8 @@ func CreateCategoryMulti() gin.HandlerFunc {
 		txnOptions := options.Transaction().SetWriteConcern(wc)
 		session, err := configs.DB.StartSession()
 		if err != nil {
-			defer func() {
-				if r := recover(); r != nil {
-					log.Println("Recovered from panic:", r)
-				}
-				c.JSON(http.StatusInternalServerError, responses.UserResponse{Status: http.StatusInternalServerError, Message: "error", Data: map[string]interface{}{"error": "Failed to start database session"}})
-			}()
-			panic("Failed to start database session: " + err.Error())
+			helper.HandleError(c, http.StatusInternalServerError, err, "Failed to start database session")
+			return
 		}
 		defer session.EndSession(ctx)
 		callback := func(ctx mongo.SessionContext) (interface{}, error) {
@@ -90,7 +86,7 @@ func CreateCategoryMulti() gin.HandlerFunc {
 					ParentID:    slug2.Make(strings.ToLower(strings.Replace(category.ParentID, "'", "", 5))),
 				})
 			}
-			// create many categories
+			// Create many categories
 			res, err := listingCategoryCollection.InsertMany(ctx, categories)
 			if err != nil {
 				return nil, err
@@ -101,40 +97,45 @@ func CreateCategoryMulti() gin.HandlerFunc {
 
 		_, err = session.WithTransaction(context.Background(), callback, txnOptions)
 		if err != nil {
-			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": err.Error()}})
+			helper.HandleError(c, http.StatusBadRequest, err, "Error creating categories")
 			return
 		}
+
 		if err := session.CommitTransaction(context.Background()); err != nil {
-			c.JSON(http.StatusInternalServerError, responses.UserResponse{Status: http.StatusInternalServerError, Message: "error", Data: map[string]interface{}{"error": err.Error()}})
+			helper.HandleError(c, http.StatusInternalServerError, err, "Failed to commit transaction")
 			return
 		}
 		session.EndSession(context.Background())
 
-		c.JSON(http.StatusOK, responses.UserResponse{Status: http.StatusOK, Message: "success", Data: map[string]interface{}{"data": "All categories created successfully."}})
+		helper.HandleSuccess(c, http.StatusOK, "All categories created successfully.", "")
 	}
+
 }
 
 // GetAllCategories - /api/categories?path=jewelry
 func GetAllCategories() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-		var categories []*models.Category
 		defer cancel()
+
+		var categories []*models.Category
 
 		find := options.Find().SetSort(bson.M{"path": 1})
 		result, err := listingCategoryCollection.Find(ctx, bson.D{}, find)
 		if err != nil {
-			c.JSON(http.StatusNotFound, responses.UserResponse{Status: http.StatusNotFound, Message: "error", Data: map[string]interface{}{"error": err.Error()}})
+			helper.HandleError(c, http.StatusInternalServerError, err, "Failed to retrieve categories")
 			return
 		}
+
 		if err = result.All(ctx, &categories); err != nil {
-			c.JSON(http.StatusNotFound, responses.UserResponse{Status: http.StatusNotFound, Message: "error", Data: map[string]interface{}{"error": err.Error()}})
+			helper.HandleError(c, http.StatusInternalServerError, err, "Failed to decode categories")
 			return
 		}
 
 		root := BuildCategoryTree(categories)
-		c.JSON(http.StatusOK, responses.UserResponsePagination{Status: http.StatusOK, Message: "success", Data: map[string]interface{}{"data": root}})
-		return
+		helper.HandleSuccess(c, http.StatusOK, "Categories retrieved successfully", gin.H{
+			"categories": root,
+		})
 	}
 }
 
@@ -151,15 +152,17 @@ func GetCategoryChildren() gin.HandlerFunc {
 		filter := bson.M{"parent_id": categoryID}
 		result, err := listingCategoryCollection.Find(ctx, filter)
 		if err != nil {
-			c.JSON(http.StatusNotFound, responses.UserResponse{Status: http.StatusNotFound, Message: "error", Data: map[string]interface{}{"error": err.Error()}})
+			helper.HandleError(c, http.StatusNotFound, err, "Failed to retrieve category children")
 			return
 		}
 		if err = result.All(ctx, &children); err != nil {
-			c.JSON(http.StatusNotFound, responses.UserResponse{Status: http.StatusNotFound, Message: "error", Data: map[string]interface{}{"error": err.Error()}})
+			helper.HandleError(c, http.StatusInternalServerError, err, "Failed to decode category children")
 			return
 		}
 
-		c.JSON(http.StatusOK, responses.UserResponsePagination{Status: http.StatusOK, Message: "success", Data: map[string]interface{}{"data": children}})
+		helper.HandleSuccess(c, http.StatusOK, "Category children retrieved successfully", gin.H{
+			"categories": children,
+		})
 	}
 }
 
@@ -175,7 +178,7 @@ func GetCategoryAncestor() gin.HandlerFunc {
 		var category models.Category
 		err := listingCategoryCollection.FindOne(ctx, bson.M{"_id": categoryID}).Decode(&category)
 		if err != nil {
-			c.JSON(http.StatusNotFound, responses.UserResponse{Status: http.StatusNotFound, Message: "error", Data: map[string]interface{}{"error": err.Error()}})
+			helper.HandleError(c, http.StatusNotFound, err, "Failed to retrieve category")
 			return
 		}
 
@@ -191,7 +194,7 @@ func GetCategoryAncestor() gin.HandlerFunc {
 			var parent models.Category
 			err = listingCategoryCollection.FindOne(ctx, bson.M{"_id": category.ParentID}).Decode(&parent)
 			if err != nil {
-				c.JSON(http.StatusNotFound, responses.UserResponse{Status: http.StatusNotFound, Message: "error", Data: map[string]interface{}{"error": err.Error()}})
+				helper.HandleError(c, http.StatusNotFound, err, "Failed to retrieve category parent")
 				return
 			}
 
@@ -203,7 +206,9 @@ func GetCategoryAncestor() gin.HandlerFunc {
 		}
 
 		root := BuildCategoryTree(ancestors)
-		c.JSON(http.StatusOK, responses.UserResponsePagination{Status: http.StatusOK, Message: "success", Data: map[string]interface{}{"data": root}})
+		helper.HandleSuccess(c, http.StatusOK, "Category ancestors retrieved successfully", gin.H{
+			"categories": root,
+		})
 	}
 }
 
@@ -215,7 +220,7 @@ func SearchCategories() gin.HandlerFunc {
 
 		search := c.Query("s")
 
-		// Query the database for catgories that match the search query
+		// Query the database for categories that match the search query
 		result, err := listingCategoryCollection.Find(ctx, bson.M{
 			"$or": []bson.M{
 				{"name": bson.M{"$regex": primitive.Regex{Pattern: search, Options: "i"}}},
@@ -224,7 +229,7 @@ func SearchCategories() gin.HandlerFunc {
 			},
 		}, options.Find())
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, responses.UserResponse{Status: http.StatusInternalServerError, Message: "Error searching for shops", Data: map[string]interface{}{"error": err.Error()}})
+			helper.HandleError(c, http.StatusInternalServerError, err, "Error searching for categories")
 			return
 		}
 
@@ -233,14 +238,16 @@ func SearchCategories() gin.HandlerFunc {
 		for result.Next(ctx) {
 			var category models.Category
 			if err := result.Decode(&category); err != nil {
-				c.JSON(http.StatusInternalServerError, responses.UserResponse{Status: http.StatusInternalServerError, Message: "Error decoding shops", Data: map[string]interface{}{"error": err.Error()}})
+				helper.HandleError(c, http.StatusInternalServerError, err, "Error decoding categories")
 				return
 			}
 			serializedCategories = append(serializedCategories, &category)
 		}
 
 		root := BuildCategoryTree(serializedCategories)
-		c.JSON(http.StatusOK, responses.UserResponsePagination{Status: http.StatusOK, Message: "Shops found", Data: map[string]interface{}{"data": root}})
+		helper.HandleSuccess(c, http.StatusOK, "Categories found", gin.H{
+			"categories": root,
+		})
 	}
 }
 
@@ -251,11 +258,11 @@ func DeleteAllCategories() gin.HandlerFunc {
 
 		res, err := listingCategoryCollection.DeleteMany(ctx, bson.M{})
 		if err != nil {
-			c.JSON(http.StatusNotFound, responses.UserResponse{Status: http.StatusNotFound, Message: "error", Data: map[string]interface{}{"error": err.Error()}})
+			helper.HandleError(c, http.StatusNotFound, err, "Failed to delete categories")
 			return
 		}
 
-		c.JSON(http.StatusOK, responses.UserResponsePagination{Status: http.StatusOK, Message: "success", Data: map[string]interface{}{"data": res}})
+		helper.HandleSuccess(c, http.StatusOK, "Categories deleted successfully", res)
 	}
 }
 

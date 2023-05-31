@@ -46,7 +46,7 @@ func userRoutes(api *gin.RouterGroup) {
 			// user address endpoints.
 			secured.POST("/addresses", controllers.CreateUserAddress())
 			secured.PUT("/addresses", controllers.UpdateUserAddress())
-			secured.GET("/addresses/:userid", controllers.GetUserAddress())
+			secured.GET("/addresses/:userid", controllers.GetUserAddresses())
 			//secured.GET("/addresses", controllers.GetUserAddress())
 			// email notification.
 			secured.POST("/send-verify-email", controllers.SendVerifyEmail())
@@ -60,7 +60,7 @@ func userRoutes(api *gin.RouterGroup) {
 			// favorites shops
 			secured.POST("/shop", controllers.AddRemoveFavoriteShop())
 			// wish list
-			secured.GET("/wishlist", controllers.GetWishListItems())
+			secured.GET("/wishlist", controllers.GetUserWishlist())
 			secured.POST("/wishlist", controllers.AddWishListItem())
 			secured.DELETE("/wishlist", controllers.RemoveWishListItem())
 
