@@ -51,14 +51,14 @@ func CreateUser() gin.HandlerFunc {
 		// bind the request body
 		if err := c.BindJSON(&jsonUser); err != nil {
 			log.Printf("Error binding request body: %s\n", err.Error())
-			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: err.Error(), Data: map[string]interface{}{}})
+			helper.HandleError(c, http.StatusBadRequest, err, "invalid or missing data in request body")
 			return
 		}
 
 		// validate request body
-		if validationErr := validate.Struct(&jsonUser); validationErr != nil {
-			log.Printf("Error validating request body: %s\n", validationErr.Error())
-			c.JSON(http.StatusUnprocessableEntity, responses.UserResponse{Status: http.StatusUnprocessableEntity, Message: validationErr.Error(), Data: map[string]interface{}{}})
+		if err := validate.Struct(&jsonUser); err != nil {
+			log.Printf("Error validating request body: %s\n", err.Error())
+			helper.HandleError(c, http.StatusBadRequest, err, "invalid or missing data in request body")
 			return
 		}
 
@@ -137,7 +137,7 @@ func CreateUser() gin.HandlerFunc {
 		// Send welcome email.
 		email.SendWelcomeEmail(jsonUser.Email, jsonUser.FirstName)
 
-		c.JSON(http.StatusCreated, responses.UserResponse{Status: http.StatusCreated, Message: "success", Data: map[string]interface{}{"data": result}})
+		helper.HandleSuccess(c, http.StatusOK, "signup successful", result.InsertedID)
 	}
 }
 
