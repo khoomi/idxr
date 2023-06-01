@@ -746,14 +746,14 @@ func DeleteThumbnail() gin.HandlerFunc {
 		now := time.Now()
 		filter := bson.M{"_id": myId}
 		update := bson.M{"$set": bson.M{"thumbnail": nil, "modified_at": now}}
-		_, err = userCollection.FindOneAndUpdate(ctx, filter, update).decode(&user)
+		err = userCollection.FindOneAndUpdate(ctx, filter, update).Decode(&user)
 		if err != nil {
 			log.Printf("Thumbnail deletion failed: %v", err)
 			helper.HandleError(c, http.StatusExpectationFailed, err, "Failed to update user's thumbnail")
 			return
 		}
 
-		filename, extension, err := extractFilenameAndExtension(urlString)
+		filename, extension, err := extractFilenameAndExtension(user.Thumbnail)
 		if err != nil {
 			helper.HandleError(c, http.StatusInternalServerError, err, "Internal server error. Please try again later")
 			return
