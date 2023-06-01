@@ -4,11 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/cloudinary/cloudinary-go/api/uploader"
-	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
-	"go.mongodb.org/mongo-driver/mongo/writeconcern"
-	"go.mongodb.org/mongo-driver/x/bsonx"
 	"khoomi-api-io/khoomi_api/auth"
 	"khoomi-api-io/khoomi_api/configs"
 	"khoomi-api-io/khoomi_api/email"
@@ -19,9 +14,17 @@ import (
 	"khoomi-api-io/khoomi_api/services"
 	"log"
 	"net/http"
+	"net/url"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"time"
+
+	"github.com/cloudinary/cloudinary-go/api/uploader"
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
+	"go.mongodb.org/mongo-driver/mongo/writeconcern"
+	"go.mongodb.org/mongo-driver/x/bsonx"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
@@ -671,13 +674,13 @@ func PasswordReset() gin.HandlerFunc {
 // ////////////////////// START USER THUMBNAIL //////////////////////////
 
 // UploadThumbnail - Upload user profile picture/thumbnail
-// api/user/thumbnail?kind=(remote | file)&url=..
+// api/user/thumbnail?remote_addr=..
 func UploadThumbnail() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ctx, cancel := context.WithTimeout(context.Background(), UserRequestTimeout*time.Second)
 		defer cancel()
 
-		kind := c.Query("kind")
+		remoteAddr := c.Query("remote_addr")
 		currentId, err := auth.ExtractTokenID(c)
 		if err != nil {
 			helper.HandleError(c, http.StatusUnauthorized, err, "Unauthorized")
@@ -687,9 +690,8 @@ func UploadThumbnail() gin.HandlerFunc {
 		now := time.Now()
 		filter := bson.M{"_id": currentId}
 
-		if kind == "remote" {
-			url := c.Query("url")
-			uploadUrl, err := services.NewMediaUpload().RemoteUpload(models.Url{Url: url})
+		if remoteAddr != "" {
+			uploadUrl, err := services.NewMediaUpload().RemoteUpload(models.Url{Url: remoteAddr})
 			if err != nil {
 				helper.HandleError(c, http.StatusInternalServerError, err, "Failed to upload remote thumbnail")
 				return
@@ -727,15 +729,12 @@ func UploadThumbnail() gin.HandlerFunc {
 	}
 }
 
-// DeleteThumbnail - Upload user profile picture/thumbnail
-// api/user/thumbnail?name=thumbnail_name&type=jpg
+// DeleteThumbnail - delete user profile picture/thumbnail
+// api/user/thumbnail
 func DeleteThumbnail() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ctx, cancel := context.WithTimeout(context.Background(), UserRequestTimeout*time.Second)
 		defer cancel()
-
-		name := c.Query("name")
-		kind := c.Query("type")
 
 		myId, err := auth.ExtractTokenID(c)
 		if err != nil {
@@ -743,29 +742,53 @@ func DeleteThumbnail() gin.HandlerFunc {
 			return
 		}
 
-		_, errOnDelete := helper.ImageDeletionHelper(uploader.DestroyParams{
-			PublicID:     name,
-			Type:         "upload",
-			ResourceType: kind,
-			Invalidate:   false,
-		})
-		if errOnDelete != nil {
-			helper.HandleError(c, http.StatusExpectationFailed, errOnDelete, "Failed to delete thumbnail image")
-			return
-		}
-
+		var user models.User
 		now := time.Now()
 		filter := bson.M{"_id": myId}
 		update := bson.M{"$set": bson.M{"thumbnail": nil, "modified_at": now}}
-		_, err = userCollection.UpdateOne(ctx, filter, update)
+		_, err = userCollection.FindOneAndUpdate(ctx, filter, update).decode(&user)
 		if err != nil {
 			log.Printf("Thumbnail deletion failed: %v", err)
 			helper.HandleError(c, http.StatusExpectationFailed, err, "Failed to update user's thumbnail")
 			return
 		}
 
+		filename, extension, err := extractFilenameAndExtension(urlString)
+		if err != nil {
+			helper.HandleError(c, http.StatusInternalServerError, err, "Internal server error. Please try again later")
+			return
+		}
+
+		_, errOnDelete := helper.ImageDeletionHelper(uploader.DestroyParams{
+			PublicID:     filename,
+			Type:         "upload",
+			ResourceType: extension,
+			Invalidate:   true,
+		})
+		if errOnDelete != nil {
+			helper.HandleError(c, http.StatusExpectationFailed, errOnDelete, "Failed to delete thumbnail image")
+			return
+		}
+
 		helper.HandleSuccess(c, http.StatusOK, "Your thumbnail has been deleted successfully.", nil)
 	}
+}
+
+func extractFilenameAndExtension(urlString string) (filename, extension string, err error) {
+	// Parse the URL
+	parsedURL, err := url.Parse(urlString)
+	if err != nil {
+		return "", "", fmt.Errorf("failed to parse URL: %w", err)
+	}
+
+	// Extract the filename from the URL path
+	filenameWithExtension := filepath.Base(parsedURL.Path)
+
+	// Split the filename and extension
+	name := filenameWithExtension[:len(filenameWithExtension)-len(filepath.Ext(filenameWithExtension))]
+	ext := filepath.Ext(filenameWithExtension)
+
+	return name, ext, nil
 }
 
 // ////////////////////// START USER ADDRESS //////////////////////////
