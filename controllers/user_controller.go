@@ -219,8 +219,6 @@ func HandleUserAuthentication() gin.HandlerFunc {
 			return
 		}
 
-		email.SendNewIpLoginNotification(validUser.PrimaryEmail, validUser.LoginName, validUser.LastLoginIp, validUser.LastLogin)
-
 		// Send new login IP notification on condition
 		email.SendNewIpLoginNotification(validUser.PrimaryEmail, validUser.LoginName, validUser.LastLoginIp, validUser.LastLogin)
 
