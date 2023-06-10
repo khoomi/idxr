@@ -1,10 +1,11 @@
 package routes
 
 import (
-	"github.com/gin-gonic/gin"
 	"khoomi-api-io/khoomi_api/configs"
 	"khoomi-api-io/khoomi_api/controllers"
 	"khoomi-api-io/khoomi_api/middleware"
+
+	"github.com/gin-gonic/gin"
 )
 
 func InitRoute() *gin.Engine {
@@ -37,6 +38,8 @@ func userRoutes(api *gin.RouterGroup) {
 		secured := api.Group("/users").Use(middleware.Auth())
 		{
 			secured.GET("/ping", controllers.Ping)
+			// change my password 
+			secured.PUT("/me/password-reset", controllers.ChangePassword())
 			// user endpoint.
 			secured.GET("/me", controllers.CurrentUser)
 			secured.PUT("/me", controllers.UpdateFirstLastName())

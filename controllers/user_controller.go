@@ -93,10 +93,10 @@ func CreateUser() gin.HandlerFunc {
 		jsonUser.Email = strings.ToLower(jsonUser.Email)
 		newUser := bson.M{
 			"_id":                    primitive.NewObjectID(),
-			"login_name":             bsonx.Null(),
+			"login_name":             services.GenerateRandomUsername(),
 			"primary_email":          strings.ToLower(jsonUser.Email),
 			"first_name":             jsonUser.FirstName,
-			"last_name":              bsonx.Null(),
+			"last_name":              jsonUser.LastName,
 			"auth":                   userAuth,
 			"thumbnail":              bsonx.Null(),
 			"bio":                    bsonx.Null(),
@@ -226,7 +226,9 @@ func HandleUserAuthentication() gin.HandlerFunc {
 			"token":          tokenString,
 			"role":           validUser.Role,
 			"email":          validUser.PrimaryEmail,
-			"name":           validUser.FirstName,
+			"first_name":     validUser.FirstName,
+			"last_name":      validUser.LastName,
+			"login_name":     validUser.LoginName,
 			"thumbnail":      validUser.Thumbnail,
 			"email_verified": validUser.Auth.EmailVerified,
 		})
@@ -269,6 +271,62 @@ func CurrentUser(c *gin.Context) {
 	user.Auth.PasswordDigest = ""
 	helper.HandleSuccess(c, http.StatusOK, "success", gin.H{"user": user})
 
+}
+
+func ChangePassword() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ctx, cancel := context.WithTimeout(context.Background(), UserRequestTimeout*time.Second)
+		defer cancel()
+
+		// Verify current user session
+		userId, err := auth.ExtractTokenID(c)
+		if err != nil {
+			helper.HandleError(c, http.StatusBadRequest, err, err.Error())
+			return
+		}
+
+		var newPasswordFromRequest models.NewPasswordRequest
+
+		if err := c.BindJSON(&newPasswordFromRequest); err != nil {
+			helper.HandleError(c, http.StatusInternalServerError, err, "failed to bind request body")
+			return
+		}
+
+		if validationErr := validate.Struct(&newPasswordFromRequest); validationErr != nil {
+			helper.HandleError(c, http.StatusUnprocessableEntity, validationErr, "invalid or missing data in request body")
+			return
+		}
+
+		// validate password.
+		err = configs.ValidatePassword(newPasswordFromRequest.Password)
+		if err != nil {
+			log.Printf("error validating password: %s\n", err.Error())
+			helper.HandleError(c, http.StatusExpectationFailed, err, err.Error())
+			return
+		}
+
+		// hash password before saving to storage.
+		hashedPassword, errHashPassword := configs.HashPassword(newPasswordFromRequest.Password)
+		if errHashPassword != nil {
+			log.Printf("error hashing password: %s\n", errHashPassword.Error())
+			helper.HandleError(c, http.StatusExpectationFailed, errHashPassword, errHashPassword.Error())
+			return
+		}
+
+		var user models.User
+		// change user pasword for userid
+		filter := bson.M{"_id": userId}
+		update := bson.M{"$set": bson.M{"auth.password_digest": hashedPassword, "modified_at": time.Now()}}
+		err = userCollection.FindOneAndUpdate(ctx, filter, update).Decode(&user)
+
+		if err != nil {
+			log.Printf("user id, %v doesn't belong to a user on Khoomi %s\n", userId.String(), errHashPassword.Error())
+			helper.HandleError(c, http.StatusExpectationFailed, errHashPassword, errHashPassword.Error())
+			return
+		}
+
+		helper.HandleSuccess(c, http.StatusOK, "your password has been updated successfuly", gin.H{"user": user})
+	}
 }
 
 // GetUserByIDOrEmail - Get user by id or email endpoint

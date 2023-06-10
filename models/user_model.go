@@ -33,6 +33,10 @@ type User struct {
 	LastLoginIp          string             `bson:"last_login_ip" json:"last_login_ip"`
 }
 
+type NewPasswordRequest struct{
+	Password string  `bson:"password" json:"password" validate:"required"`
+}
+
 type FirstLastName struct {
 	FirstName string `bson:"first_name" json:"first_name" validate:"required"`
 	LastName  string `bson:"last_name" json:"last_name" validate:"required"`
@@ -67,6 +71,7 @@ type UserAuthData struct {
 // UserRegistrationBody -> expected data for signup process
 type UserRegistrationBody struct {
 	FirstName string `json:"first_name,omitempty" validate:"required,min=3"`
+	LastName string `json:"last_name,omitempty" validate:"required,min=3"`
 	Email     string `json:"email,omitempty" validate:"required,email"`
 	Password  string `json:"password,omitempty" validate:"required"`
 }

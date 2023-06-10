@@ -4,13 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/gin-gonic/gin"
-	slug2 "github.com/gosimple/slug"
-	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/bson/primitive"
-	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
-	"go.mongodb.org/mongo-driver/mongo/writeconcern"
 	"khoomi-api-io/khoomi_api/auth"
 	"khoomi-api-io/khoomi_api/configs"
 	"khoomi-api-io/khoomi_api/helper"
@@ -20,6 +13,14 @@ import (
 	"log"
 	"net/http"
 	"time"
+
+	"github.com/gin-gonic/gin"
+	slug2 "github.com/gosimple/slug"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
+	"go.mongodb.org/mongo-driver/mongo/writeconcern"
 )
 
 var shopCollection = configs.GetCollection(configs.DB, "Shop")
@@ -100,7 +101,7 @@ func CreateShop() gin.HandlerFunc {
 			shopID := primitive.NewObjectID()
 			shop := models.Shop{
 				ID:                        shopID,
-				ShopName:                  shopName,
+				Name:                  shopName,
 				Description:               shopNameDescription,
 				LoginName:                 loginName,
 				UserID:                    userID,
@@ -1405,7 +1406,7 @@ func UpdateShopReturnPolicy() gin.HandlerFunc {
 		}
 
 		if currentShop.ID != shopId {
-			helper.HandleError(c, http.StatusUnauthorized, errors.New("You don't have write access to this shop"), "Unauthorized access")
+			helper.HandleError(c, http.StatusUnauthorized, errors.New("you don't have write access to this shop"), "Unauthorized access")
 			return
 		}
 

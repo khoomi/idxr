@@ -1,15 +1,16 @@
 package models
 
 import (
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"time"
+
+	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 type Shop struct {
 	// ID of the shop.
 	ID primitive.ObjectID `bson:"_id" json:"_id" validate:"required"`
 	// The name of the shop. and must follow the pattern specified.
-	ShopName string `bson:"shop_name" json:"shop_name" validate:"required,pattern=^\p{L}+[\p{L}\p{Pd}\p{Zs}']*\p{L}+$|^\p{L}+$"`
+	Name string `bson:"name" json:"name" validate:"required"`
 	// Description of the shop.
 	Description string `bson:"description" json:"description" validate:"required"`
 	// The login name for the shop.
@@ -139,7 +140,7 @@ type ShopReview struct {
 }
 
 type ShopReviewRequest struct {
-	Review string `bson:"review" json:"review" validate:"required,pattern=^[A-Za-z][^\.:]*[\.:]$"`
+	Review string `bson:"review" json:"review" validate:"required"`
 }
 
 type ShopAbout struct {
