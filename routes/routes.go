@@ -122,6 +122,10 @@ func ShopRoutes(api *gin.RouterGroup) {
 		secured.GET("/:shopid/policies", controllers.GetShopReturnPolicy())
 		secured.GET("/:shopid/policies/all", controllers.GetShopReturnPolicies())
 		secured.DELETE("/:shopid/policies/", controllers.DeleteShopReturnPolicy())
+		/// payment informations
+		secured.POST("/:shopid/payment-information", controllers.CreatePaymentInformation())
+		secured.GET("/:shopid/payment-information", controllers.GetPaymentInformations())
+		secured.DELETE("/:shopid/payment-information/:paymentInfoId", controllers.DeletePaymentInformation())
 
 	}
 }

@@ -231,7 +231,7 @@ func HandleUserAuthentication() gin.HandlerFunc {
 		}
 		session.EndSession(context.Background())
 
-		tokenString, err := auth.GenerateJWT(validUser.Id.Hex(), validUser.PrimaryEmail, validUser.LoginName)
+		tokenString, err := auth.GenerateJWT(validUser.Id.Hex(), validUser.PrimaryEmail, validUser.LoginName, validUser.IsSeller)
 		if err != nil {
 			helper.HandleError(c, http.StatusInternalServerError, err, "Failed to generate JWT")
 			return

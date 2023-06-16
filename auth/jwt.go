@@ -2,21 +2,23 @@ package auth
 
 import (
 	"errors"
+	"khoomi-api-io/khoomi_api/configs"
+	"time"
+
 	"github.com/dgrijalva/jwt-go"
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/bson/primitive"
-	"khoomi-api-io/khoomi_api/configs"
-	"time"
 )
 
 type JWTClaim struct {
 	Id        string `json:"id"`
 	LoginName string `json:"login_name"`
 	Email     string `json:"email"`
+	IsSeller  bool   `json:"is_seller"`
 	jwt.StandardClaims
 }
 
-func GenerateJWT(id, email, loginName string) (string, error) {
+func GenerateJWT(id, email, loginName string, seller bool) (string, error) {
 	expirationTime := time.Now().Add(24 * time.Hour)
 	jwtKey := configs.LoadEnvFor("SECRET")
 
@@ -24,6 +26,7 @@ func GenerateJWT(id, email, loginName string) (string, error) {
 		Id:        id,
 		LoginName: loginName,
 		Email:     email,
+		IsSeller:  seller,
 		StandardClaims: jwt.StandardClaims{
 			ExpiresAt: expirationTime.Unix(),
 		},
@@ -117,4 +120,27 @@ func ExtractTokenLoginName(c *gin.Context) (string, error) {
 	}
 
 	return claims.LoginName, nil
+}
+
+func IsSeller(c *gin.Context) (bool, error) {
+	tokenString := ExtractToken(c)
+	jwtKey := configs.LoadEnvFor("SECRET")
+	token, err := jwt.ParseWithClaims(
+		tokenString,
+		&JWTClaim{},
+		func(token *jwt.Token) (interface{}, error) {
+			return []byte(jwtKey), nil
+		},
+	)
+	if err != nil {
+		return false, err
+	}
+
+	claims, ok := token.Claims.(*JWTClaim)
+	if !ok {
+		err = errors.New("couldn't parse claims")
+		return false, err
+	}
+
+	return claims.IsSeller, nil
 }
