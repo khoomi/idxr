@@ -91,36 +91,54 @@ func CreateUser() gin.HandlerFunc {
 		}
 
 		jsonUser.Email = strings.ToLower(jsonUser.Email)
+		userId := primitive.NewObjectID()
 		newUser := bson.M{
-			"_id":                    primitive.NewObjectID(),
-			"login_name":             services.GenerateRandomUsername(),
-			"primary_email":          strings.ToLower(jsonUser.Email),
-			"first_name":             jsonUser.FirstName,
-			"last_name":              jsonUser.LastName,
-			"auth":                   userAuth,
-			"thumbnail":              bsonx.Null(),
-			"bio":                    bsonx.Null(),
-			"phone":                  bsonx.Null(),
-			"birthdate":              models.UserBirthdate{},
-			"is_seller":              false,
-			"transaction_buy_count":  0,
-			"transaction_sold_count": 0,
-			"referred_by_user":       bsonx.Null(),
-			"role":                   models.Regular,
-			"status":                 models.Inactive,
-			"shops":                  []string{},
-			"favorite_shops":         []string{},
-			"created_at":             time.Now(),
-			"modified_at":            time.Now(),
-			"last_login":             time.Now(),
-			"login_counts":           0,
-			"last_login_ip":          c.ClientIP(),
+			"_id":                         userId,
+			"login_name":                  services.GenerateRandomUsername(),
+			"primary_email":               strings.ToLower(jsonUser.Email),
+			"first_name":                  jsonUser.FirstName,
+			"last_name":                   jsonUser.LastName,
+			"auth":                        userAuth,
+			"thumbnail":                   bsonx.Null(),
+			"bio":                         bsonx.Null(),
+			"phone":                       bsonx.Null(),
+			"birthdate":                   models.UserBirthdate{},
+			"is_seller":                   false,
+			"transaction_buy_count":       0,
+			"transaction_sold_count":      0,
+			"referred_by_user":            bsonx.Null(),
+			"role":                        models.Regular,
+			"status":                      models.Inactive,
+			"shops":                       []string{},
+			"favorite_shops":              []string{},
+			"created_at":                  time.Now(),
+			"modified_at":                 time.Now(),
+			"last_login":                  time.Now(),
+			"login_counts":                0,
+			"last_login_ip":               c.ClientIP(),
+			"allow_login_ip_notification": true,
 		}
 
 		result, err := userCollection.InsertOne(ctx, newUser)
 		if err != nil {
 			log.Printf("Mongo Error: Request could not be completed %s\n", err.Error())
 			helper.HandleError(c, http.StatusInternalServerError, err, "Failed to create user")
+			return
+		}
+
+		notification := models.Notification{
+			ID:               primitive.NewObjectID(),
+			UserID:           userId,
+			NewMessage:       true,
+			NewFollower:      true,
+			ListingExpNotice: true,
+			SellerActivity:   true,
+			NewsAndFeature:   true,
+		}
+
+		_, err = notificationCollection.InsertOne(ctx, notification)
+		if err != nil {
+			helper.HandleError(c, http.StatusInternalServerError, err, "Error creating notification")
 			return
 		}
 
@@ -220,7 +238,9 @@ func HandleUserAuthentication() gin.HandlerFunc {
 		}
 
 		// Send new login IP notification on condition
-		email.SendNewIpLoginNotification(validUser.PrimaryEmail, validUser.LoginName, validUser.LastLoginIp, validUser.LastLogin)
+		if validUser.AllowLoginIpNotification {
+			email.SendNewIpLoginNotification(validUser.PrimaryEmail, validUser.LoginName, validUser.LastLoginIp, validUser.LastLogin)
+		}
 
 		helper.HandleSuccess(c, http.StatusCreated, "Authentication successful", gin.H{
 			"token":          tokenString,
@@ -231,6 +251,7 @@ func HandleUserAuthentication() gin.HandlerFunc {
 			"login_name":     validUser.LoginName,
 			"thumbnail":      validUser.Thumbnail,
 			"email_verified": validUser.Auth.EmailVerified,
+			"is_seller":      validUser.IsSeller,
 		})
 	}
 }

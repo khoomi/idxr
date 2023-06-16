@@ -29,6 +29,33 @@ var shopMemberCollection = configs.GetCollection(configs.DB, "ShopMember")
 var shopReviewCollection = configs.GetCollection(configs.DB, "ShopReview")
 var shopReturnPolicyCollection = configs.GetCollection(configs.DB, "ShopReturnPolicies")
 
+// CheckShopNameAvailability -> Check if a given shop name is available or not.
+// /api/shop/check/:shop_username
+func CheckShopNameAvailability() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+
+		shop_name := c.Param("username")
+		var shop models.Shop
+
+		filter := bson.M{"username": shop_name}
+		err := shopCollection.FindOne(ctx, filter).Decode(&shop)
+		if err != nil {
+			if err == mongo.ErrNoDocuments {
+				helper.HandleSuccess(c, http.StatusOK, "Congrats! shop username is available :xD", "")
+				return
+			}
+
+			helper.HandleError(c, http.StatusInternalServerError, err, "internal sever error on checking shop username availability")
+			return
+		}
+
+		helper.HandleError(c, http.StatusInternalServerError, err, "internal sever error on checking shop username availability")
+
+	}
+}
+
 func CreateShop() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -101,7 +128,7 @@ func CreateShop() gin.HandlerFunc {
 			shopID := primitive.NewObjectID()
 			shop := models.Shop{
 				ID:                        shopID,
-				Name:                  shopName,
+				Name:                      shopName,
 				Description:               shopNameDescription,
 				LoginName:                 loginName,
 				UserID:                    userID,
@@ -213,21 +240,27 @@ func GetShops() gin.HandlerFunc {
 		defer cancel()
 
 		paginationArgs := services.GetPaginationArgs(c)
+
+		// Update the query filter to include the status check
+		filter := bson.D{{Key: "status", Value: models.ShopStatusActive}}
+
 		find := options.Find().SetLimit(int64(paginationArgs.Limit)).SetSkip(int64(paginationArgs.Skip))
-		result, err := shopMemberCollection.Find(ctx, bson.D{}, find)
+		result, err := shopCollection.Find(ctx, filter, find)
 		if err != nil {
-			helper.HandleError(c, http.StatusNotFound, err, "Error finding shop members")
+			log.Printf("error finding shop members: %v", err.Error())
+			helper.HandleError(c, http.StatusNotFound, err, "error finding shop members")
 			return
 		}
 
-		var shopMembers []models.ShopMember
-		if err = result.All(ctx, &shopMembers); err != nil {
-			helper.HandleError(c, http.StatusNotFound, err, "Error decoding shop members")
+		var shops []models.Shop
+		if err = result.All(ctx, &shops); err != nil {
+			log.Printf("error decoding shop members: %v", err.Error())
+			helper.HandleError(c, http.StatusNotFound, err, "error decoding shop members")
 			return
 		}
 
 		helper.HandleSuccess(c, http.StatusOK, "Shops retrieved successfully",
-			gin.H{"members": shopMembers, "pagination": responses.Pagination{
+			gin.H{"members": shops, "pagination": responses.Pagination{
 				Limit: paginationArgs.Limit,
 				Skip:  paginationArgs.Skip,
 			}})
@@ -661,7 +694,7 @@ func JoinShopMembers() gin.HandlerFunc {
 				OwnerId:   currentShop.UserID,
 				JoinedAt:  time.Now(),
 			}
-			_, err = shopMemberCollection.InsertOne(ctx, shopMemberData)
+			_, err = shopCollection.InsertOne(ctx, shopMemberData)
 			if err != nil {
 				log.Println(err)
 				return nil, err

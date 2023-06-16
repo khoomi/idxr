@@ -1,24 +1,53 @@
+# flyctl launch added from .gitignore
+
 # If you prefer the allow list template instead of the deny list, see community template:
+
 # https://github.com/github/gitignore/blob/main/community/Golang/Go.AllowList.gitignore
+
 #
+
 # Binaries for programs and plugins
-*.exe
-*.exe~
-*.dll
-*.so
-*.dylib
+
+**/\*.exe
+**/_.exe~
+\*\*/_.dll
+**/\*.so
+**/\*.dylib
 
 # goland dirt
-.idea
+
+\*\*/.idea
 
 # Test binary, built with `go test -c`
-*.test
+
+\*_/_.test
 
 # Output of the go coverage tool, specifically when used with LiteIDE
-*.out
+
+\*_/_.out
 
 # Dependency directories (remove the comment below to include it)
-vendor/
+
+# vendor/
 
 # Go workspace file
-go.work
+
+\*\*/go.work
+
+# flyctl launch added from .idea/.gitignore
+
+# Default ignored files
+
+.idea/shelf
+.idea/workspace.xml
+
+# Editor-based HTTP Client requests
+
+.idea/httpRequests
+
+# Datasource local storage ignored files
+
+.idea/dataSources
+.idea/dataSources.local.xml
+fly.toml
+/vendor

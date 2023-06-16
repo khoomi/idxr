@@ -8,33 +8,42 @@ import (
 
 // User Khoomi user_models basic data
 type User struct {
-	Id                   primitive.ObjectID `bson:"_id" json:"_id" validate:"required"`
-	LoginName            string             `bson:"login_name" json:"login_name" validate:"required"`
-	PrimaryEmail         string             `bson:"primary_email" json:"primary_email" validate:"required"`
-	FirstName            string             `bson:"first_name" json:"first_name"`
-	LastName             string             `bson:"last_name" json:"last_name"`
-	Auth                 UserAuthData       `bson:"auth,omitempty" json:"auth,omitempty" validate:"required"`
-	Thumbnail            string             `bson:"thumbnail" json:"thumbnail"`
-	Bio                  string             `bson:"bio" json:"bio"`
-	Phone                string             `bson:"phone" json:"phone"`
-	Birthdate            UserBirthdate      `bson:"birthdate" json:"birthdate"`
-	IsSeller             bool               `bson:"is_seller" json:"is_seller"`
-	TransactionBuyCount  int                `bson:"transaction_buy_count" json:"transaction_buy_count"`
-	TransactionSoldCount int                `bson:"transaction_sold_count" json:"transaction_sold_count"`
-	ReferredByUser       string             `bson:"referred_by_user" json:"referred_by_user"`
-	Role                 UserRole           `bson:"role" json:"role"`
-	Status               UserStatus         `bson:"status" json:"status"`
-	Shops                []string           `bson:"shops" json:"shops"`
-	FavoriteShops        []string           `bson:"favorite_shops" json:"favorite_shops"`
-	CreatedAt            time.Time          `bson:"created_at" json:"created_at" validate:"required"`
-	ModifiedAt           time.Time          `bson:"modified_at" json:"modified_at" validate:"required"`
-	LastLogin            time.Time          `bson:"last_login" json:"last_login"`
-	LoginCounts          int                `bson:"login_counts" json:"login_counts" validate:"required"`
-	LastLoginIp          string             `bson:"last_login_ip" json:"last_login_ip"`
+	Id                       primitive.ObjectID `bson:"_id" json:"_id" validate:"required"`
+	LoginName                string             `bson:"login_name" json:"login_name" validate:"required"`
+	PrimaryEmail             string             `bson:"primary_email" json:"primary_email" validate:"required"`
+	FirstName                string             `bson:"first_name" json:"first_name"`
+	LastName                 string             `bson:"last_name" json:"last_name"`
+	Auth                     UserAuthData       `bson:"auth,omitempty" json:"auth,omitempty" validate:"required"`
+	Thumbnail                string             `bson:"thumbnail" json:"thumbnail"`
+	Bio                      string             `bson:"bio" json:"bio"`
+	Phone                    string             `bson:"phone" json:"phone"`
+	Birthdate                UserBirthdate      `bson:"birthdate" json:"birthdate"`
+	IsSeller                 bool               `bson:"is_seller" json:"is_seller"`
+	TransactionBuyCount      int                `bson:"transaction_buy_count" json:"transaction_buy_count"`
+	TransactionSoldCount     int                `bson:"transaction_sold_count" json:"transaction_sold_count"`
+	ReferredByUser           string             `bson:"referred_by_user" json:"referred_by_user"`
+	Role                     UserRole           `bson:"role" json:"role"`
+	Status                   UserStatus         `bson:"status" json:"status"`
+	Shops                    []string           `bson:"shops" json:"shops"`
+	FavoriteShops            []string           `bson:"favorite_shops" json:"favorite_shops"`
+	CreatedAt                time.Time          `bson:"created_at" json:"created_at" validate:"required"`
+	ModifiedAt               time.Time          `bson:"modified_at" json:"modified_at" validate:"required"`
+	LastLogin                time.Time          `bson:"last_login" json:"last_login"`
+	LoginCounts              int                `bson:"login_counts" json:"login_counts" validate:"required"`
+	LastLoginIp              string             `bson:"last_login_ip" json:"last_login_ip"`
+	AllowLoginIpNotification bool               `bson:"allow_login_ip_notification" json:"allow_login_ip_notification"`
 }
 
-type NewPasswordRequest struct{
-	Password string  `bson:"password" json:"password" validate:"required"`
+// UserRegistrationBody -> expected data for signup process
+type UserRegistrationBody struct {
+	FirstName string `json:"first_name,omitempty" validate:"required,min=3"`
+	LastName  string `json:"last_name,omitempty" validate:"required,min=3"`
+	Email     string `json:"email,omitempty" validate:"required,email"`
+	Password  string `json:"password,omitempty" validate:"required"`
+}
+
+type NewPasswordRequest struct {
+	Password string `bson:"password" json:"password" validate:"required"`
 }
 
 type FirstLastName struct {
@@ -66,14 +75,6 @@ type UserAuthData struct {
 	EmailVerified  bool      `bson:"email_verified"`
 	ModifiedAt     time.Time `bson:"modified_at"`
 	PasswordDigest string    `bson:"password_digest,omitempty" json:"-"`
-}
-
-// UserRegistrationBody -> expected data for signup process
-type UserRegistrationBody struct {
-	FirstName string `json:"first_name,omitempty" validate:"required,min=3"`
-	LastName string `json:"last_name,omitempty" validate:"required,min=3"`
-	Email     string `json:"email,omitempty" validate:"required,email"`
-	Password  string `json:"password,omitempty" validate:"required"`
 }
 
 // UserLoginBody -> expected data for login process

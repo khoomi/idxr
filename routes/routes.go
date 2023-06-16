@@ -38,11 +38,15 @@ func userRoutes(api *gin.RouterGroup) {
 		secured := api.Group("/users").Use(middleware.Auth())
 		{
 			secured.GET("/ping", controllers.Ping)
-			// change my password 
+			// change my password
 			secured.PUT("/me/password-reset", controllers.ChangePassword())
 			// user endpoint.
 			secured.GET("/me", controllers.CurrentUser)
 			secured.PUT("/me", controllers.UpdateFirstLastName())
+			// notification setting endpoint
+			secured.POST("/notication-setting", controllers.CreateUserNotificationSettings())
+			secured.GET("/notication-setting", controllers.GetUserNotificationSettings())
+			secured.PUT("/notication-setting", controllers.UpdateUserNotificationSettings())
 			// user thumbnail endpoints.
 			secured.PUT("/thumbnail", controllers.UploadThumbnail())
 			secured.DELETE("/thumbnail", controllers.DeleteThumbnail())
@@ -83,7 +87,10 @@ func ShopRoutes(api *gin.RouterGroup) {
 
 	secured := api.Group("/shops").Use(middleware.Auth())
 	{
+		// create shop
 		secured.POST("/", controllers.CreateShop())
+		// check for shop username availability.
+		secured.POST("/check/:username", controllers.CheckShopNameAvailability())
 		// shop images
 		secured.PUT("/:shopid/logo", controllers.UpdateShopLogo())
 		secured.PUT("/:shopid/banner", controllers.UpdateShopBanner())
