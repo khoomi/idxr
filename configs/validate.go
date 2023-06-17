@@ -2,9 +2,10 @@ package configs
 
 import (
 	"errors"
-	"golang.org/x/crypto/bcrypt"
 	"net/mail"
 	"regexp"
+
+	"golang.org/x/crypto/bcrypt"
 )
 
 type InputValidationError struct {

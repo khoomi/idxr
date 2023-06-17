@@ -91,7 +91,7 @@ func ExtractTokenID(c *gin.Context) (primitive.ObjectID, error) {
 	}
 
 	Id, err := primitive.ObjectIDFromHex(claims.Id)
-	if !ok {
+	if err != nil {
 		err = errors.New("invalid user id")
 		return primitive.NilObjectID, err
 	}
@@ -143,4 +143,18 @@ func IsSeller(c *gin.Context) (bool, error) {
 	}
 
 	return claims.IsSeller, nil
+}
+
+func ValidateUserID(c *gin.Context) (primitive.ObjectID, error) {
+	myID, err := ExtractTokenID(c)
+	if err != nil {
+		return primitive.NilObjectID, errors.New("unauthorized: User ID not found in authentication token")
+	}
+
+	userID := c.Param("userId")
+	if userID != myID.Hex() {
+		return primitive.NilObjectID, errors.New("unauthorized: User ID in the URL path doesn't match with currently authenticated user")
+	}
+
+	return myID, nil
 }

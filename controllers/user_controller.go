@@ -494,9 +494,9 @@ func UpdateFirstLastName() gin.HandlerFunc {
 
 		var firstLastName models.FirstLastName
 
-		myId, err := auth.ExtractTokenID(c)
+		myId, err := auth.ValidateUserID(c)
 		if err != nil {
-			helper.HandleError(c, http.StatusBadRequest, err, "Failed to extract user ID")
+			helper.HandleError(c, http.StatusBadRequest, err, err.Error())
 			return
 		}
 
@@ -543,15 +543,15 @@ func UpdateFirstLastName() gin.HandlerFunc {
 
 // ////////////////////// START USER LOGIN HISTORY //////////////////////////
 
-// GetLoginHistories - Get user login histories (/api/users/login-history?limit=50&skip=0)
+// GetLoginHistories - Get user login histories (/api/users/:userId/login-history?limit=50&skip=0)
 func GetLoginHistories() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ctx, cancel := context.WithTimeout(context.Background(), UserRequestTimeout*time.Second)
 		defer cancel()
 
-		userId, err := auth.ExtractTokenID(c)
+		userId, err := auth.ValidateUserID(c)
 		if err != nil {
-			helper.HandleError(c, http.StatusUnauthorized, err, "Failed to extract user ID")
+			helper.HandleError(c, http.StatusBadRequest, err, err.Error())
 			return
 		}
 
@@ -587,14 +587,15 @@ func GetLoginHistories() gin.HandlerFunc {
 	}
 }
 
+// DeleteLoginHistories - Get user login histories (/api/users/:userId/login-history?limit=50&skip=0)
 func DeleteLoginHistories() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 		defer cancel()
 
-		userId, err := auth.ExtractTokenID(c)
+		userId, err := auth.ValidateUserID(c)
 		if err != nil {
-			helper.HandleError(c, http.StatusBadRequest, err, "Failed to extract user ID")
+			helper.HandleError(c, http.StatusBadRequest, err, err.Error())
 			return
 		}
 
@@ -642,7 +643,6 @@ func DeleteLoginHistories() gin.HandlerFunc {
 
 		helper.HandleSuccess(c, http.StatusOK, "Login histories deleted successfully", nil)
 	}
-
 }
 
 // ////////////////////// START USER PASSWORD RESET //////////////////////////
@@ -758,9 +758,9 @@ func UploadThumbnail() gin.HandlerFunc {
 		defer cancel()
 
 		remoteAddr := c.Query("remote_addr")
-		currentId, err := auth.ExtractTokenID(c)
+		currentId, err := auth.ValidateUserID(c)
 		if err != nil {
-			helper.HandleError(c, http.StatusUnauthorized, err, "Unauthorized")
+			helper.HandleError(c, http.StatusBadRequest, err, err.Error())
 			return
 		}
 
@@ -813,9 +813,9 @@ func DeleteThumbnail() gin.HandlerFunc {
 		ctx, cancel := context.WithTimeout(context.Background(), UserRequestTimeout*time.Second)
 		defer cancel()
 
-		myId, err := auth.ExtractTokenID(c)
+		myId, err := auth.ValidateUserID(c)
 		if err != nil {
-			helper.HandleError(c, http.StatusUnauthorized, err, "Unauthorized")
+			helper.HandleError(c, http.StatusBadRequest, err, err.Error())
 			return
 		}
 
@@ -891,9 +891,9 @@ func CreateUserAddress() gin.HandlerFunc {
 		}
 
 		// Extract current user token
-		myId, err := auth.ExtractTokenID(c)
+		myId, err := auth.ValidateUserID(c)
 		if err != nil {
-			helper.HandleError(c, http.StatusUnauthorized, err, "Unauthorized")
+			helper.HandleError(c, http.StatusBadRequest, err, err.Error())
 			return
 		}
 
@@ -968,9 +968,9 @@ func UpdateUserAddress() gin.HandlerFunc {
 		}
 
 		// Extract current user token
-		myId, err := auth.ExtractTokenID(c)
+		myId, err := auth.ValidateUserID(c)
 		if err != nil {
-			helper.HandleError(c, http.StatusUnauthorized, err, "Unauthorized")
+			helper.HandleError(c, http.StatusBadRequest, err, err.Error())
 			return
 		}
 
@@ -1021,9 +1021,9 @@ func UpdateUserBirthdate() gin.HandlerFunc {
 			return
 		}
 
-		myId, err := auth.ExtractTokenID(c)
+		myId, err := auth.ValidateUserID(c)
 		if err != nil {
-			helper.HandleError(c, http.StatusUnauthorized, err, "Unauthorized")
+			helper.HandleError(c, http.StatusBadRequest, err, err.Error())
 			return
 		}
 		filter := bson.M{"_id": myId}
@@ -1047,9 +1047,9 @@ func UpdateUserSingleField() gin.HandlerFunc {
 		value := c.Query("value")
 		defer cancel()
 
-		myId, err := auth.ExtractTokenID(c)
+		myId, err := auth.ValidateUserID(c)
 		if err != nil {
-			helper.HandleError(c, http.StatusUnauthorized, err, "Unauthorized")
+			helper.HandleError(c, http.StatusBadRequest, err, err.Error())
 			return
 		}
 
@@ -1089,9 +1089,9 @@ func AddRemoveFavoriteShop() gin.HandlerFunc {
 		action := c.Query("action")
 		defer cancel()
 
-		myObjectId, err := auth.ExtractTokenID(c)
+		myObjectId, err := auth.ValidateUserID(c)
 		if err != nil {
-			helper.HandleError(c, http.StatusUnauthorized, err, "Unauthorized")
+			helper.HandleError(c, http.StatusBadRequest, err, err.Error())
 			return
 		}
 
@@ -1125,7 +1125,7 @@ func AddRemoveFavoriteShop() gin.HandlerFunc {
 }
 
 // AddWishListItem - Add to user wish list
-// api/user/wishlist?listing_id=8084051523
+// api/user/:userId/wishlist?listing_id=8084051523
 func AddWishListItem() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ctx, cancel := context.WithTimeout(context.Background(), UserRequestTimeout*time.Second)
@@ -1138,9 +1138,9 @@ func AddWishListItem() gin.HandlerFunc {
 			return
 		}
 
-		MyId, err := auth.ExtractTokenID(c)
+		MyId, err := auth.ValidateUserID(c)
 		if err != nil {
-			helper.HandleError(c, http.StatusUnauthorized, err, "Unauthorized")
+			helper.HandleError(c, http.StatusBadRequest, err, err.Error())
 			return
 		}
 
@@ -1163,7 +1163,7 @@ func AddWishListItem() gin.HandlerFunc {
 }
 
 // RemoveWishListItem - Add to user wish list
-// api/user/wishlist?listing_id=8084051523
+// api/user/:userId/wishlist?listing_id=8084051523
 func RemoveWishListItem() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ctx, cancel := context.WithTimeout(context.Background(), UserRequestTimeout*time.Second)
@@ -1176,9 +1176,9 @@ func RemoveWishListItem() gin.HandlerFunc {
 			return
 		}
 
-		MyId, err := auth.ExtractTokenID(c)
+		MyId, err := auth.ValidateUserID(c)
 		if err != nil {
-			helper.HandleError(c, http.StatusUnauthorized, err, "Unauthorized")
+			helper.HandleError(c, http.StatusBadRequest, err, err.Error())
 			return
 		}
 
@@ -1194,15 +1194,15 @@ func RemoveWishListItem() gin.HandlerFunc {
 	}
 }
 
-// GetUserWishlist - Get all wishlist items  api/user/wishlist?limit=10&skip=0
+// GetUserWishlist - Get all wishlist items  api/user/:userId/wishlist?limit=10&skip=0
 func GetUserWishlist() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ctx, cancel := context.WithTimeout(context.Background(), UserRequestTimeout*time.Second)
 		defer cancel()
 
-		MyId, err := auth.ExtractTokenID(c)
+		MyId, err := auth.ValidateUserID(c)
 		if err != nil {
-			helper.HandleError(c, http.StatusUnauthorized, err, "Unauthorized")
+			helper.HandleError(c, http.StatusBadRequest, err, err.Error())
 			return
 		}
 

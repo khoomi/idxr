@@ -39,38 +39,41 @@ func userRoutes(api *gin.RouterGroup) {
 		{
 			secured.GET("/ping", controllers.Ping)
 			// change my password
-			secured.PUT("/me/password-reset", controllers.ChangePassword())
+			secured.PUT("/password-reset", controllers.ChangePassword())
 			// user endpoint.
 			secured.GET("/me", controllers.CurrentUser)
-			secured.PUT("/me", controllers.UpdateFirstLastName())
+			secured.PUT("/:userid", controllers.UpdateFirstLastName())
 			// notification setting endpoint
-			secured.POST("/notication-setting", controllers.CreateUserNotificationSettings())
-			secured.GET("/notication-setting", controllers.GetUserNotificationSettings())
-			secured.PUT("/notication-setting", controllers.UpdateUserNotificationSettings())
+			secured.POST("/:userid/notication-setting", controllers.CreateUserNotificationSettings())
+			secured.GET("/:userid/notication-setting", controllers.GetUserNotificationSettings())
+			secured.PUT("/:userid/notication-setting", controllers.UpdateUserNotificationSettings())
 			// user thumbnail endpoints.
-			secured.PUT("/thumbnail", controllers.UploadThumbnail())
-			secured.DELETE("/thumbnail", controllers.DeleteThumbnail())
+			secured.PUT("/:userid/thumbnail", controllers.UploadThumbnail())
+			secured.DELETE("/:userid/thumbnail", controllers.DeleteThumbnail())
 			// user address endpoints.
-			secured.POST("/addresses", controllers.CreateUserAddress())
-			secured.PUT("/addresses", controllers.UpdateUserAddress())
-			secured.GET("/addresses/:userid", controllers.GetUserAddresses())
-			//secured.GET("/addresses", controllers.GetUserAddress())
+			secured.POST("/:userid/addresses", controllers.CreateUserAddress())
+			secured.PUT("/:userid/addresses", controllers.UpdateUserAddress())
+			secured.GET("/:userid/addresses", controllers.GetUserAddresses())
+			//secured.GET("/:userid/addresses", controllers.GetUserAddress())
 			// email notification.
-			secured.POST("/send-verify-email", controllers.SendVerifyEmail())
+			secured.POST("/:userid/send-verify-email", controllers.SendVerifyEmail())
 			// User birthdate
-			secured.PUT("/birthdate", controllers.UpdateUserBirthdate())
+			secured.PUT("/:userid/birthdate", controllers.UpdateUserBirthdate())
 			// Login histories.
-			secured.GET("/:userId/login-history", controllers.GetLoginHistories())
-			secured.DELETE("/:userId/login-history", controllers.DeleteLoginHistories())
+			secured.GET("/:userid/login-history", controllers.GetLoginHistories())
+			secured.DELETE("/:userid/login-history", controllers.DeleteLoginHistories())
 			// Profile update
-			secured.PUT("/update", controllers.UpdateUserSingleField())
+			secured.PUT("/:userid/update", controllers.UpdateUserSingleField())
 			// favorites shops
-			secured.POST("/shop", controllers.AddRemoveFavoriteShop())
+			secured.POST("/:userid/shop", controllers.AddRemoveFavoriteShop())
 			// wish list
-			secured.GET("/wishlist", controllers.GetUserWishlist())
-			secured.POST("/wishlist", controllers.AddWishListItem())
-			secured.DELETE("/wishlist", controllers.RemoveWishListItem())
-
+			secured.GET("/:userid/wishlist", controllers.GetUserWishlist())
+			secured.POST("/:userid/wishlist", controllers.AddWishListItem())
+			secured.DELETE("/:userid/wishlist", controllers.RemoveWishListItem())
+			/// payment informations
+			secured.POST("/:userid/payment-information", controllers.CreatePaymentInformation())
+			secured.GET("/:userid/payment-information", controllers.GetPaymentInformations())
+			secured.DELETE("/:userid/payment-information/:paymentInfoId", controllers.DeletePaymentInformation())
 		}
 
 	}
@@ -122,10 +125,6 @@ func ShopRoutes(api *gin.RouterGroup) {
 		secured.GET("/:shopid/policies", controllers.GetShopReturnPolicy())
 		secured.GET("/:shopid/policies/all", controllers.GetShopReturnPolicies())
 		secured.DELETE("/:shopid/policies/", controllers.DeleteShopReturnPolicy())
-		/// payment informations
-		secured.POST("/:shopid/payment-information", controllers.CreatePaymentInformation())
-		secured.GET("/:shopid/payment-information", controllers.GetPaymentInformations())
-		secured.DELETE("/:shopid/payment-information/:paymentInfoId", controllers.DeletePaymentInformation())
 
 	}
 }
