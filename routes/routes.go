@@ -70,7 +70,7 @@ func userRoutes(api *gin.RouterGroup) {
 
 			// User address endpoints
 			secured.POST("/:userId/addresses", controllers.CreateUserAddress())
-			secured.PUT("/:userId/addresses", controllers.UpdateUserAddress())
+			secured.PUT("/:userId/addresses/:addressId", controllers.UpdateUserAddress())
 			secured.GET("/:userId/addresses", controllers.GetUserAddresses())
 
 			// Send verify email endpoint
@@ -118,6 +118,8 @@ func ShopRoutes(api *gin.RouterGroup) {
 		shop.GET("/:shopid/members", controllers.GetShopMembers())
 		// Endpoint to search for shops
 		shop.GET("/search", controllers.SearchShops())
+		// Endpoint to get shipping profile
+		shop.GET("/shipping/:infoId", controllers.GetShopShippingProfileInfo())
 
 		// Secured endpoints that require authentication
 		secured := shop.Group("").Use(middleware.Auth())
@@ -158,7 +160,11 @@ func ShopRoutes(api *gin.RouterGroup) {
 			secured.GET("/:shopid/policies", controllers.GetShopReturnPolicy())
 			secured.GET("/:shopid/policies/all", controllers.GetShopReturnPolicies())
 			secured.DELETE("/:shopid/policies", controllers.DeleteShopReturnPolicy())
+			// Shipping routes
+			secured.POST("/:shopid/shipping", controllers.CreateShopShippingProfile())
+			secured.PUT("/:shopid/shipping", controllers.UpdateShopShippingProfileInfo())
 		}
+
 	}
 }
 

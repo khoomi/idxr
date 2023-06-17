@@ -918,7 +918,8 @@ func GetUserAddresses() gin.HandlerFunc {
 		defer cancel()
 
 		// Validate user id
-		userIdStr := c.Param("userid")
+		userIdStr := c.Param("userId")
+		println(userIdStr)
 		userId, err := primitive.ObjectIDFromHex(userIdStr)
 		if err != nil {
 			helper.HandleError(c, http.StatusUnauthorized, err, "Invalid user ID")
@@ -953,7 +954,7 @@ func UpdateUserAddress() gin.HandlerFunc {
 		ctx, cancel := context.WithTimeout(context.Background(), UserRequestTimeout*time.Second)
 		defer cancel()
 
-		var userAddress models.UserAddress
+		var userAddress models.UserAddressUpdateequest
 
 		// Validate the request body
 		if err := c.BindJSON(&userAddress); err != nil {
@@ -967,6 +968,14 @@ func UpdateUserAddress() gin.HandlerFunc {
 			return
 		}
 
+		// Extract current address Id
+		addressId := c.Param("addressId")
+		addressObjectId, err := primitive.ObjectIDFromHex(addressId)
+		if err != nil {
+			helper.HandleError(c, http.StatusBadRequest, err, err.Error())
+			return
+		}
+
 		// Extract current user token
 		myId, err := auth.ValidateUserID(c)
 		if err != nil {
@@ -974,14 +983,22 @@ func UpdateUserAddress() gin.HandlerFunc {
 			return
 		}
 
-		filter := bson.M{"user_id": myId}
+		// Set IsDefaultShippingAddress to false for other addresses belonging to the user
+		err = setOtherAddressesToFalse(ctx, myId, addressObjectId)
+		if err != nil {
+			helper.HandleError(c, http.StatusInternalServerError, err, "Failed to update user addresses")
+			return
+		}
+
+		filter := bson.M{"user_id": myId, "_id": addressObjectId}
 		update := bson.M{
 			"$set": bson.M{
-				"city":        userAddress.City,
-				"state":       userAddress.State,
-				"street":      userAddress.Street,
-				"postal_code": userAddress.PostalCode,
-				"country":     models.CountryNigeria,
+				"city":                        userAddress.City,
+				"state":                       userAddress.State,
+				"street":                      userAddress.Street,
+				"postal_code":                 userAddress.PostalCode,
+				"country":                     models.CountryNigeria,
+				"is_default_shipping_address": userAddress.IsDefaultShippingAddress,
 			},
 		}
 
@@ -998,6 +1015,22 @@ func UpdateUserAddress() gin.HandlerFunc {
 
 		helper.HandleSuccess(c, http.StatusOK, "Address updated", nil)
 	}
+}
+
+// SetOtherAddressesToFalse sets IsDefaultShippingAddress to false for other addresses belonging to the user
+func setOtherAddressesToFalse(ctx context.Context, userId primitive.ObjectID, addressId primitive.ObjectID) error {
+	filter := bson.M{
+		"user_id":                     userId,
+		"_id":                         bson.M{"$ne": addressId},
+		"is_default_shipping_address": true,
+	}
+
+	update := bson.M{
+		"$set": bson.M{"is_default_shipping_address": false},
+	}
+
+	_, err := userAddressCollection.UpdateMany(ctx, filter, update)
+	return err
 }
 
 // ////////////////////// START USER BIRTHDATE //////////////////////////

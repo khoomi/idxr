@@ -90,6 +90,7 @@ func ExtractTokenID(c *gin.Context) (primitive.ObjectID, error) {
 		return primitive.NilObjectID, err
 	}
 
+	println(claims.Id)
 	Id, err := primitive.ObjectIDFromHex(claims.Id)
 	if err != nil {
 		err = errors.New("invalid user id")
