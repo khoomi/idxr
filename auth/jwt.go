@@ -2,7 +2,9 @@ package auth
 
 import (
 	"errors"
+	"fmt"
 	"khoomi-api-io/khoomi_api/configs"
+	"log"
 	"time"
 
 	"github.com/dgrijalva/jwt-go"
@@ -18,7 +20,7 @@ type JWTClaim struct {
 	jwt.StandardClaims
 }
 
-func GenerateJWT(id, email, loginName string, seller bool) (string, error) {
+func GenerateJWT(id, email, loginName string, seller bool) (string, int, error) {
 	expirationTime := time.Now().Add(24 * time.Hour)
 	jwtKey := configs.LoadEnvFor("SECRET")
 
@@ -35,10 +37,10 @@ func GenerateJWT(id, email, loginName string, seller bool) (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	tokenString, err := token.SignedString([]byte(jwtKey))
 	if err != nil {
-		return "", err
+		return "", 0, err
 	}
 
-	return tokenString, nil
+	return tokenString, int(expirationTime.Unix()), nil
 }
 
 func ValidateToken(signedToken string) (err error) {
@@ -149,12 +151,16 @@ func IsSeller(c *gin.Context) (bool, error) {
 func ValidateUserID(c *gin.Context) (primitive.ObjectID, error) {
 	myID, err := ExtractTokenID(c)
 	if err != nil {
-		return primitive.NilObjectID, errors.New("unauthorized: User ID not found in authentication token")
+		errMsg := fmt.Sprintf("unauthorized: User ID not found in authentication token - %v", err.Error())
+		log.Println(errMsg)
+		return primitive.NilObjectID, errors.New(errMsg)
 	}
 
 	userID := c.Param("userId")
 	if userID != myID.Hex() {
-		return primitive.NilObjectID, errors.New("unauthorized: User ID in the URL path doesn't match with currently authenticated user")
+		errMsg := fmt.Sprintln("unauthorized: User ID in the URL path doesn't match with currently authenticated user")
+		log.Println(errMsg)
+		return primitive.NilObjectID, errors.New(errMsg)
 	}
 
 	return myID, nil

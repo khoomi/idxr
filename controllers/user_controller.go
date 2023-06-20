@@ -231,7 +231,7 @@ func HandleUserAuthentication() gin.HandlerFunc {
 		}
 		session.EndSession(context.Background())
 
-		tokenString, err := auth.GenerateJWT(validUser.Id.Hex(), validUser.PrimaryEmail, validUser.LoginName, validUser.IsSeller)
+		tokenString, exp_time, err := auth.GenerateJWT(validUser.Id.Hex(), validUser.PrimaryEmail, validUser.LoginName, validUser.IsSeller)
 		if err != nil {
 			helper.HandleError(c, http.StatusInternalServerError, err, "Failed to generate JWT")
 			return
@@ -244,6 +244,7 @@ func HandleUserAuthentication() gin.HandlerFunc {
 
 		helper.HandleSuccess(c, http.StatusCreated, "Authentication successful", gin.H{
 			"token":          tokenString,
+			"exp":            exp_time,
 			"role":           validUser.Role,
 			"email":          validUser.PrimaryEmail,
 			"first_name":     validUser.FirstName,
@@ -486,58 +487,77 @@ func VerifyEmail() gin.HandlerFunc {
 	}
 }
 
-// UpdateFirstLastName -> Update first and last name for current user
-func UpdateFirstLastName() gin.HandlerFunc {
+// UpdateMyProfile updates the email, thumbnail, first and last name for the current user.
+func UpdateMyProfile() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ctx, cancel := context.WithTimeout(context.Background(), UserRequestTimeout*time.Second)
 		defer cancel()
 
-		var firstLastName models.FirstLastName
-
-		myId, err := auth.ValidateUserID(c)
+		userId, err := auth.ExtractTokenID(c)
 		if err != nil {
 			helper.HandleError(c, http.StatusBadRequest, err, err.Error())
 			return
 		}
 
-		// Bind JSON request body to firstLastName struct
-		if err := c.BindJSON(&firstLastName); err != nil {
-			helper.HandleError(c, http.StatusBadRequest, err, "Invalid JSON format")
+		updateData := bson.M{}
+
+		if firstName := c.Request.FormValue("first_name"); firstName != "" {
+			if err := validateNameFormat(firstName); err != nil {
+				helper.HandleError(c, http.StatusBadRequest, err, "Invalid first name format")
+				return
+			}
+			updateData["first_name"] = firstName
+		}
+
+		if lastName := c.Request.FormValue("last_name"); lastName != "" {
+			if err := validateNameFormat(lastName); err != nil {
+				helper.HandleError(c, http.StatusBadRequest, err, "Invalid last name format")
+				return
+			}
+			updateData["last_name"] = lastName
+		}
+
+		if email := c.Request.FormValue("email"); email != "" {
+			updateData["primary_email"] = email
+		}
+
+		if fileHeader, err := c.FormFile("image"); err == nil {
+			file, err := fileHeader.Open()
+			if err != nil {
+				helper.HandleError(c, http.StatusInternalServerError, err, "Failed to retrieve uploaded file")
+				return
+			}
+			defer file.Close()
+
+			uploadUrl, err := services.NewMediaUpload().FileUpload(models.File{File: file})
+			if err != nil {
+				log.Printf("Thumbnail Image upload failed - %v", err.Error())
+				helper.HandleError(c, http.StatusInternalServerError, err, "Failed to upload file thumbnail")
+				return
+			}
+			updateData["thumbnail"] = uploadUrl
+		} else if err != http.ErrMissingFile {
+			helper.HandleError(c, http.StatusInternalServerError, err, "Failed to retrieve uploaded file")
 			return
 		}
 
-		// Validate first name
-		validFirstName, err := regexp.MatchString("([A-Z][a-zA-Z]*)", firstLastName.FirstName)
+		if len(updateData) == 0 {
+			helper.HandleError(c, http.StatusBadRequest, errors.New("no update data provided"), "No update data provided")
+			return
+		}
+
+		updateData["modified_at"] = time.Now()
+
+		filter := bson.M{"_id": userId}
+		update := bson.M{"$set": updateData}
+
+		_, err = userCollection.UpdateOne(ctx, filter, update)
 		if err != nil {
-			helper.HandleError(c, http.StatusBadRequest, err, "Invalid first name format")
-			return
-		}
-		if !validFirstName {
-			helper.HandleError(c, http.StatusBadRequest, errors.New("first name should follow naming rule"), "Invalid first name format")
+			helper.HandleError(c, http.StatusExpectationFailed, err, "Failed to update user's profile")
 			return
 		}
 
-		// Validate last name
-		validLastName, err := regexp.MatchString("([A-Z][a-zA-Z]*)", firstLastName.LastName)
-		if err != nil {
-			helper.HandleError(c, http.StatusBadRequest, err, "Invalid last name format")
-			return
-		}
-		if !validLastName {
-			helper.HandleError(c, http.StatusBadRequest, errors.New("last name should follow naming rule"), "Invalid last name format")
-			return
-		}
-
-		// Update user's first name and last name in the database
-		filter := bson.M{"_id": myId}
-		update := bson.M{"$set": bson.M{"first_name": firstLastName.FirstName, "last_name": firstLastName.LastName}}
-		result, err := userCollection.UpdateOne(ctx, filter, update)
-		if err != nil {
-			helper.HandleError(c, http.StatusBadRequest, err, "Failed to update user's first name and last name")
-			return
-		}
-
-		helper.HandleSuccess(c, http.StatusCreated, "success", result)
+		helper.HandleSuccess(c, http.StatusCreated, "Profile updated successfully", nil)
 	}
 }
 
@@ -1269,4 +1289,16 @@ func GetUserWishlist() gin.HandlerFunc {
 			},
 		})
 	}
+}
+
+// validateNameFormat checks if the provided name follows the required naming rule.
+func validateNameFormat(name string) error {
+	validName, err := regexp.MatchString("([A-Z][a-zA-Z]*)", name)
+	if err != nil {
+		return err
+	}
+	if !validName {
+		return errors.New("name should follow the naming rule")
+	}
+	return nil
 }

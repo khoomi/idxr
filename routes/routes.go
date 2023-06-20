@@ -57,7 +57,7 @@ func userRoutes(api *gin.RouterGroup) {
 			// Current user endpoint
 			secured.GET("/me", controllers.CurrentUser)
 			// Update first and last name endpoint
-			secured.PUT("/:userId", controllers.UpdateFirstLastName())
+			secured.PUT("/me", controllers.UpdateMyProfile())
 
 			// Notification settings endpoints
 			secured.POST("/:userId/notification-settings", controllers.CreateUserNotificationSettings())
