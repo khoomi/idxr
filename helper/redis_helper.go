@@ -2,14 +2,15 @@ package helper
 
 import (
 	"context"
-	"github.com/redis/go-redis/v9"
 	"log"
 	"time"
+
+	"github.com/redis/go-redis/v9"
 )
 
-func InvalidateToken(c context.Context, db *redis.Client, tokenString string) error {
+func InvalidateToken(db *redis.Client, tokenString string) error {
 	// Add the token to the blacklist with an expiration time of 24 hours
-	_, err := db.Set(c, tokenString, true, 24*time.Hour).Result()
+	_, err := db.Set(context.Background(), tokenString, true, 24*time.Hour).Result()
 	if err != nil {
 		return err
 	}
@@ -17,9 +18,9 @@ func InvalidateToken(c context.Context, db *redis.Client, tokenString string) er
 	return nil
 }
 
-func IsTokenValid(c context.Context, db *redis.Client, tokenString string) bool {
+func IsTokenValid(db *redis.Client, tokenString string) bool {
 	// Check if the token is in the blacklist
-	_, err := db.Get(c, tokenString).Result()
+	_, err := db.Get(context.Background(), tokenString).Result()
 	if err == redis.Nil {
 		// Token is not in the blacklist, so it's valid
 		return true

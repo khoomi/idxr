@@ -10,6 +10,7 @@ COPY . /app
 # Download and install any required dependencies
 RUN go mod download
 
+ENV GIN_MODE=release
 # Build the Go app
 RUN go build -buildvcs=false -o main .
 

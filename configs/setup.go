@@ -3,9 +3,10 @@ package configs
 import (
 	"context"
 	"fmt"
-	"github.com/redis/go-redis/v9"
 	"log"
 	"time"
+
+	"github.com/redis/go-redis/v9"
 
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -45,11 +46,12 @@ func GetCollection(client *mongo.Client, name string) (collection *mongo.Collect
 
 func ConnectRedis() *redis.Client {
 	// Connect to Redis
-	client := redis.NewClient(&redis.Options{
-		Addr:     "localhost:6379",
-		Password: "", // no password set
-		DB:       1,  // use default DB
-	})
+	addr, err := redis.ParseURL(LoadEnvFor("REDIS_URL"))
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	client := redis.NewClient(addr)
 
 	fmt.Println("Connected to Redis")
 	return client

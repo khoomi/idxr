@@ -52,7 +52,7 @@ func userRoutes(api *gin.RouterGroup) {
 			secured.GET("/ping", controllers.Ping)
 
 			// Change password endpoint
-			secured.PUT("/password-reset", controllers.ChangePassword())
+			secured.PUT("/me/password-change", controllers.ChangePassword())
 
 			// Current user endpoint
 			secured.GET("/me", controllers.CurrentUser)

@@ -4,35 +4,36 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 
+	"khoomi-api-io/khoomi_api/auth"
+	"khoomi-api-io/khoomi_api/configs"
+	"khoomi-api-io/khoomi_api/helper"
+
 	"github.com/gin-gonic/gin"
-	// "khoomi-api-io/khoomi_api/auth"
-	// "khoomi-api-io/khoomi_api/configs"
-	// "khoomi-api-io/khoomi_api/helper"
 )
 
 func Auth() gin.HandlerFunc {
-	return func(context *gin.Context) {
-		// tokenString := auth.ExtractToken(context)
+	return func(c *gin.Context) {
+		tokenString := auth.ExtractToken(c)
 
-		// if tokenString == "" {
-		// 	context.JSON(401, gin.H{"error": "request does not contain an access token"})
-		// 	context.Abort()
-		// 	return
-		// }
-		// err := auth.ValidateToken(tokenString)
-		// if err != nil {
-		// 	context.JSON(401, gin.H{"error": err.Error()})
-		// 	context.Abort()
-		// 	return
-		// }
+		if tokenString == "" {
+			c.JSON(401, gin.H{"error": "request does not contain an access token"})
+			c.Abort()
+			return
+		}
+		err := auth.ValidateToken(tokenString)
+		if err != nil {
+			c.JSON(401, gin.H{"error": err.Error()})
+			c.Abort()
+			return
+		}
 
-		// res := helper.IsTokenValid(context, configs.REDIS, tokenString)
-		// if res == false {
-		// 	context.JSON(401, gin.H{"error": "why are you trying to act with a blacklisted token? huh? please login again"})
-		// 	context.Abort()
-		// }
+		res := helper.IsTokenValid(configs.REDIS, tokenString)
+		if !res {
+			c.JSON(401, gin.H{"error": "why are you trying to act with a blacklisted token? huh? please login again"})
+			c.Abort()
+		}
 
-		context.Next()
+		c.Next()
 	}
 }
 

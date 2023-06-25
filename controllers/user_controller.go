@@ -260,12 +260,10 @@ func HandleUserAuthentication() gin.HandlerFunc {
 // Logout - Log user out and invalidate session key
 func Logout() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		_, cancel := context.WithTimeout(context.Background(), UserRequestTimeout*time.Second)
 		token := auth.ExtractToken(c)
-		defer cancel()
-
+		
 		log.Printf("Logging user with ip %v out\n", c.ClientIP())
-		_ = helper.InvalidateToken(c, configs.REDIS, token)
+		_ = helper.InvalidateToken(configs.REDIS, token)
 
 		helper.HandleSuccess(c, http.StatusOK, "logout successful", nil)
 	}
@@ -314,13 +312,24 @@ func ChangePassword() gin.HandlerFunc {
 			return
 		}
 
+		var validUser models.User
+		if err := userCollection.FindOne(ctx, bson.M{"_id": userId}).Decode(&validUser); err != nil {
+			helper.HandleError(c, http.StatusUnauthorized, err, "User not found")
+			return
+		}
+
+		if errPasswordCheck := configs.CheckPassword(validUser.Auth.PasswordDigest, newPasswordFromRequest.CurrentPassword); errPasswordCheck != nil {
+			helper.HandleError(c, http.StatusUnauthorized, errPasswordCheck, "Invalid current password")
+			return
+		}
+
 		if validationErr := validate.Struct(&newPasswordFromRequest); validationErr != nil {
 			helper.HandleError(c, http.StatusUnprocessableEntity, validationErr, "invalid or missing data in request body")
 			return
 		}
 
 		// validate password.
-		err = configs.ValidatePassword(newPasswordFromRequest.Password)
+		err = configs.ValidatePassword(newPasswordFromRequest.NewPassword)
 		if err != nil {
 			log.Printf("error validating password: %s\n", err.Error())
 			helper.HandleError(c, http.StatusExpectationFailed, err, err.Error())
@@ -328,7 +337,7 @@ func ChangePassword() gin.HandlerFunc {
 		}
 
 		// hash password before saving to storage.
-		hashedPassword, errHashPassword := configs.HashPassword(newPasswordFromRequest.Password)
+		hashedPassword, errHashPassword := configs.HashPassword(newPasswordFromRequest.NewPassword)
 		if errHashPassword != nil {
 			log.Printf("error hashing password: %s\n", errHashPassword.Error())
 			helper.HandleError(c, http.StatusExpectationFailed, errHashPassword, errHashPassword.Error())
