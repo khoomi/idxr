@@ -231,7 +231,7 @@ func HandleUserAuthentication() gin.HandlerFunc {
 		}
 		session.EndSession(context.Background())
 
-		tokenString, exp_time, err := auth.GenerateJWT(validUser.Id.Hex(), validUser.PrimaryEmail, validUser.LoginName, validUser.IsSeller)
+		tokenString, _, err := auth.GenerateJWT(validUser.Id.Hex(), validUser.PrimaryEmail, validUser.LoginName, validUser.IsSeller)
 		if err != nil {
 			helper.HandleError(c, http.StatusInternalServerError, err, "Failed to generate JWT")
 			return
@@ -244,7 +244,6 @@ func HandleUserAuthentication() gin.HandlerFunc {
 
 		helper.HandleSuccess(c, http.StatusCreated, "Authentication successful", gin.H{
 			"token":          tokenString,
-			"exp":            exp_time,
 			"role":           validUser.Role,
 			"email":          validUser.PrimaryEmail,
 			"first_name":     validUser.FirstName,
