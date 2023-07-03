@@ -1414,6 +1414,6 @@ func GetMyCompliancePolicy() gin.HandlerFunc {
 			return
 		}
 
-		helper.HandleSuccess(c, http.StatusOK, "compliance information added successfuly.", gin.H{"compliance_information": compliance})
+		helper.HandleSuccess(c, http.StatusOK, "compliance information retrieved successfuly.", gin.H{"compliance_information": compliance})
 	}
 }
