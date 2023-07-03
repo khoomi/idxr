@@ -140,7 +140,7 @@ func ChangeDefaultPaymentInformation() gin.HandlerFunc {
 			helper.HandleError(c, http.StatusBadRequest, err, "Unauthorized")
 			return
 		}
-		if !isSeller {
+	 	if !isSeller {
 			helper.HandleError(c, http.StatusUnauthorized, errors.New("Only sellers can perform this action!"), "Unauthorized")
 			return
 		}

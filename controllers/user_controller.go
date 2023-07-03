@@ -269,8 +269,8 @@ func Logout() gin.HandlerFunc {
 	}
 }
 
-// DeleteUserAccount -> Delete current user account
-func DeleteUserAccount() gin.HandlerFunc {
+// SendDeleteUserAccount -> Delete current user account
+func SendDeleteUserAccount() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ctx, cancel := context.WithTimeout(context.Background(), UserRequestTimeout*time.Second)
 		defer cancel()
@@ -281,7 +281,7 @@ func DeleteUserAccount() gin.HandlerFunc {
 			return
 		}
 
-		_, err = userDeletionCollection.InsertOne(ctx, bson.M{"user_id": userId})
+		_, err = userDeletionCollection.InsertOne(ctx, bson.M{"user_id": userId, "created_at": time.Now()})
 		if err != nil {
 			helper.HandleError(c, http.StatusUnauthorized, err, "error while requesting for account deletion")
 			return
