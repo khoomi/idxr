@@ -39,12 +39,25 @@ var passwordResetTokenCollection = configs.GetCollection(configs.DB, "UserPasswo
 var emailVerificationTokenCollection = configs.GetCollection(configs.DB, "UserEmailVerificationToken")
 var wishListCollection = configs.GetCollection(configs.DB, "UserWishList")
 var userDeletionCollection = configs.GetCollection(configs.DB, "UserDeletionRequest")
+var complianceInformationCollection = configs.GetCollection(configs.DB, "UserComplianceInformation")
 
 var validate = validator.New()
 
 const (
 	UserRequestTimeout = 20
 )
+
+// validateNameFormat checks if the provided name follows the required naming rule.
+func validateNameFormat(name string) error {
+	validName, err := regexp.MatchString("([A-Z][a-zA-Z]*)", name)
+	if err != nil {
+		return err
+	}
+	if !validName {
+		return errors.New("name should follow the naming rule")
+	}
+	return nil
+}
 
 func CreateUser() gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -1344,14 +1357,63 @@ func GetUserWishlist() gin.HandlerFunc {
 	}
 }
 
-// validateNameFormat checks if the provided name follows the required naming rule.
-func validateNameFormat(name string) error {
-	validName, err := regexp.MatchString("([A-Z][a-zA-Z]*)", name)
-	if err != nil {
-		return err
+// CreateCompliancePolicy - PUT api/user/:userId/compliance-information
+func CreateCompliancePolicy() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ctx, cancel := context.WithTimeout(context.Background(), UserRequestTimeout*time.Second)
+		defer cancel()
+
+		MyId, err := auth.ExtractTokenID(c)
+		if err != nil {
+			helper.HandleError(c, http.StatusBadRequest, err, err.Error())
+			return
+		}
+
+		var compliance models.ComplianceInformation
+		if err := c.BindJSON(&compliance); err != nil {
+			log.Printf("Error binding request body: %s\n", err.Error())
+			helper.HandleError(c, http.StatusBadRequest, err, "Invalid or missing data in request body")
+			return
+		}
+
+		if err := validate.Struct(&compliance); err != nil {
+			log.Printf("Error validating request body: %s\n", err.Error())
+			helper.HandleError(c, http.StatusBadRequest, err, "Invalid or missing data in request body")
+			return
+		}
+
+		insert := bson.M{"user_id": MyId, "terms_of_use": compliance.TermsOfUse, "seller_policies": compliance.SellerPolicie, "intellectual_property": compliance.IntellectualProperty}
+		res, err := complianceInformationCollection.InsertOne(ctx, insert)
+		if err != nil {
+			helper.HandleError(c, http.StatusInternalServerError, err, "error while saving compliance information")
+			return
+		}
+
+		helper.HandleSuccess(c, http.StatusOK, "compliance information added successfuly.", res)
 	}
-	if !validName {
-		return errors.New("name should follow the naming rule")
+}
+
+// CreateCompliancePolicy - GET api/user/:userId/compliance-information
+func GetMyCompliancePolicy() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ctx, cancel := context.WithTimeout(context.Background(), UserRequestTimeout*time.Second)
+		defer cancel()
+
+		MyId, err := auth.ExtractTokenID(c)
+		if err != nil {
+			helper.HandleError(c, http.StatusBadRequest, err, err.Error())
+			return
+		}
+
+		var compliance models.ComplianceInformation
+
+		filter := bson.M{"user_id": MyId}
+		err = complianceInformationCollection.FindOne(ctx, filter).Decode(&compliance)
+		if err != nil {
+			helper.HandleError(c, http.StatusInternalServerError, err, "error retrieving user compliance information")
+			return
+		}
+
+		helper.HandleSuccess(c, http.StatusOK, "compliance information added successfuly.", gin.H{"compliance_information": compliance})
 	}
-	return nil
 }
