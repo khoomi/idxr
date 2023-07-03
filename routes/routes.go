@@ -54,6 +54,10 @@ func userRoutes(api *gin.RouterGroup) {
 			// Change password endpoint
 			secured.PUT("/me/password-change", controllers.ChangePassword())
 
+			// Delete user request
+			secured.POST("/me/delete", controllers.DeleteUserAccount())
+			// Cancel delete user request
+			secured.DELETE("/me/delete", controllers.DeleteUserAccount())
 			// Current user endpoint
 			secured.GET("/me", controllers.CurrentUser)
 			// Update first and last name endpoint
@@ -95,8 +99,9 @@ func userRoutes(api *gin.RouterGroup) {
 			secured.DELETE("/:userId/wishlist", controllers.RemoveWishListItem())
 
 			// Payment information endpoints
-			secured.POST("/:userId/payment-information", controllers.CreatePaymentInformation())
+			secured.POST("/:userId/payment-information/", controllers.CreatePaymentInformation())
 			secured.GET("/:userId/payment-information", controllers.GetPaymentInformations())
+			secured.PUT("/:userId/payment-information/:paymentInfoId", controllers.ChangeDefaultPaymentInformation())
 			secured.DELETE("/:userId/payment-information/:paymentInfoId", controllers.DeletePaymentInformation())
 		}
 	}

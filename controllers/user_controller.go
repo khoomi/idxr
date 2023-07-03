@@ -38,6 +38,7 @@ var loginHistoryCollection = configs.GetCollection(configs.DB, "UserLoginHistory
 var passwordResetTokenCollection = configs.GetCollection(configs.DB, "UserPasswordResetToken")
 var emailVerificationTokenCollection = configs.GetCollection(configs.DB, "UserEmailVerificationToken")
 var wishListCollection = configs.GetCollection(configs.DB, "UserWishList")
+var userDeletionCollection = configs.GetCollection(configs.DB, "UserDeletionRequest")
 
 var validate = validator.New()
 
@@ -260,11 +261,55 @@ func HandleUserAuthentication() gin.HandlerFunc {
 func Logout() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		token := auth.ExtractToken(c)
-		
+
 		log.Printf("Logging user with ip %v out\n", c.ClientIP())
 		_ = helper.InvalidateToken(configs.REDIS, token)
 
 		helper.HandleSuccess(c, http.StatusOK, "logout successful", nil)
+	}
+}
+
+// DeleteUserAccount -> Delete current user account
+func DeleteUserAccount() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ctx, cancel := context.WithTimeout(context.Background(), UserRequestTimeout*time.Second)
+		defer cancel()
+
+		userId, err := auth.ExtractTokenID(c)
+		if err != nil {
+			helper.HandleError(c, http.StatusUnauthorized, err, "action is for authorized users")
+			return
+		}
+
+		_, err = userDeletionCollection.InsertOne(ctx, bson.M{"user_id": userId})
+		if err != nil {
+			helper.HandleError(c, http.StatusUnauthorized, err, "error while requesting for account deletion")
+			return
+		}
+
+		helper.HandleSuccess(c, http.StatusOK, "account is now pending deletion", nil)
+	}
+}
+
+// DeleteUserAccount -> Delete current user account
+func CancelDeleteUserAccount() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ctx, cancel := context.WithTimeout(context.Background(), UserRequestTimeout*time.Second)
+		defer cancel()
+
+		userId, err := auth.ExtractTokenID(c)
+		if err != nil {
+			helper.HandleError(c, http.StatusUnauthorized, err, "action is for authorized users")
+			return
+		}
+
+		_, err = userDeletionCollection.DeleteOne(ctx, bson.M{"user_id": userId})
+		if err != nil {
+			helper.HandleError(c, http.StatusUnauthorized, err, "error while cancelling account deletion request")
+			return
+		}
+
+		helper.HandleSuccess(c, http.StatusOK, "account deletion request cancelled", nil)
 	}
 }
 

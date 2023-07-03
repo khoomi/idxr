@@ -130,3 +130,8 @@ type UserWishlist struct {
 	ListingId primitive.ObjectID `bson:"listing_id" json:"listing_id"`
 	CreatedAt time.Time          `bson:"created_at" json:"created_at"`
 }
+
+type AccountDeletionRequested struct {
+	ID     primitive.ObjectID `bson:"_id" json:"_id"`
+	UserID primitive.ObjectID `bson:"user_id" json:"user_id"`
+}

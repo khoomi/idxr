@@ -19,6 +19,7 @@ import (
 
 var paymentInformationCollection = configs.GetCollection(configs.DB, "PaymentInformation")
 
+// / CreatePaymentInformation -> POST /:userId/payment-information/
 func CreatePaymentInformation() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ctx, cancel := context.WithTimeout(context.Background(), UserRequestTimeout*time.Second)
@@ -57,6 +58,7 @@ func CreatePaymentInformation() gin.HandlerFunc {
 			BankName:      paymentInfo.BankName,
 			AccountName:   paymentInfo.AccountName,
 			AccountNumber: paymentInfo.AccountNumber,
+			IsDefault:     paymentInfo.IsDefault,
 		}
 
 		count, err := paymentInformationCollection.CountDocuments(ctx, bson.M{"user_id": userId})
@@ -81,6 +83,7 @@ func CreatePaymentInformation() gin.HandlerFunc {
 	}
 }
 
+// / GetPaymentInformations -> GET /:userId/payment-information/
 func GetPaymentInformations() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ctx, cancel := context.WithTimeout(context.Background(), UserRequestTimeout*time.Second)
@@ -121,12 +124,77 @@ func GetPaymentInformations() gin.HandlerFunc {
 	}
 }
 
+// / ChangeDefaultPaymentInformation -> PUT /:userId/payment-information/:paymentInfoId
+func ChangeDefaultPaymentInformation() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ctx, cancel := context.WithTimeout(context.Background(), UserRequestTimeout*time.Second)
+		defer cancel()
+
+		userId, err := auth.ExtractTokenID(c)
+		if err != nil {
+			helper.HandleError(c, http.StatusBadRequest, err, "Unauthorized")
+			return
+		}
+		isSeller, err := auth.IsSeller(c) // Check if the user is a seller
+		if err != nil {
+			helper.HandleError(c, http.StatusBadRequest, err, "Unauthorized")
+			return
+		}
+		if !isSeller {
+			helper.HandleError(c, http.StatusUnauthorized, errors.New("Only sellers can perform this action!"), "Unauthorized")
+			return
+		}
+
+		paymentInfoID := c.Param("paymentInfoId")
+		if paymentInfoID == "" {
+			helper.HandleError(c, http.StatusBadRequest, errors.New("No payment id was provided!"), "bad request")
+			return
+		}
+
+		paymentObjectID, err := primitive.ObjectIDFromHex(paymentInfoID)
+		if err != nil {
+			helper.HandleError(c, http.StatusBadRequest, errors.New("bad payment id"), "bad request")
+			return
+		}
+
+		// Set all other payment information records to is_default=false
+		_, err = paymentInformationCollection.UpdateMany(ctx, bson.M{"user_id": userId, "_id": bson.M{"$ne": paymentObjectID}}, bson.M{"$set": bson.M{"is_default": false}})
+		if err != nil {
+			log.Printf("Error updating payment informations: %v", err)
+			helper.HandleError(c, http.StatusInternalServerError, err, "error modifying payment information")
+			return
+		}
+
+		filter := bson.M{"user_id": userId, "_id": paymentObjectID}
+		res, err := paymentInformationCollection.UpdateOne(ctx, filter, bson.M{"$set": bson.M{"is_default": true}})
+		if err != nil {
+			log.Printf("Error updating default payment informations: %v", err)
+			helper.HandleError(c, http.StatusNotFound, err, "error modifying payment information")
+			return
+		}
+
+		if res.ModifiedCount < 1 {
+			log.Printf("Error updating default payment informations: %v", err)
+			helper.HandleError(c, http.StatusNotFound, err, "payment information not modified")
+			return
+		}
+
+		helper.HandleSuccess(c, http.StatusOK, "Default payment has been succesfuly changed.", gin.H{"modified": res.ModifiedCount})
+	}
+}
+
+// / DeletePaymentInformation -> DELETE /:userId/payment-information/:paymentInfoId
 func DeletePaymentInformation() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ctx, cancel := context.WithTimeout(context.Background(), UserRequestTimeout*time.Second)
 		defer cancel()
 
 		paymentInfoID := c.Param("paymentInfoId")
+		paymentObjectID, err := primitive.ObjectIDFromHex(paymentInfoID)
+		if err != nil {
+			helper.HandleError(c, http.StatusBadRequest, errors.New("bad payment id"), "bad request")
+			return
+		}
 		userID, err := auth.ExtractTokenID(c)
 		if err != nil {
 			helper.HandleError(c, http.StatusBadRequest, err, "Unauthorized")
@@ -143,7 +211,7 @@ func DeletePaymentInformation() gin.HandlerFunc {
 			return
 		}
 
-		filter := bson.M{"_id": paymentInfoID, "user_id": userID}
+		filter := bson.M{"_id": paymentObjectID, "user_id": userID}
 		result, err := paymentInformationCollection.DeleteOne(ctx, filter)
 		if err != nil {
 			log.Printf("Error deleting payment information: %v", err)
