@@ -257,6 +257,7 @@ func HandleUserAuthentication() gin.HandlerFunc {
 		}
 
 		helper.HandleSuccess(c, http.StatusCreated, "Authentication successful", gin.H{
+			"_id":            validUser.Id.Hex(),
 			"token":          tokenString,
 			"role":           validUser.Role,
 			"email":          validUser.PrimaryEmail,
