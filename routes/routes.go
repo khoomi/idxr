@@ -87,7 +87,7 @@ func userRoutes(api *gin.RouterGroup) {
 			secured.GET("/:userId/login-history", controllers.GetLoginHistories())
 			secured.DELETE("/:userId/login-history", controllers.DeleteLoginHistories())
 			secured.PUT("/:userId/login-notification", controllers.UpdateSecurityNotificationSetting())
-			secured.GET("/:userId/login-notification", controllers.UpdateSecurityNotificationSetting())
+			secured.GET("/:userId/login-notification", controllers.GetSecurityNotificationSetting())
 
 			// Profile update endpoint
 			secured.PUT("/:userId/update", controllers.UpdateUserSingleField())
