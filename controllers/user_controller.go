@@ -1418,3 +1418,72 @@ func GetMyCompliancePolicy() gin.HandlerFunc {
 		helper.HandleSuccess(c, http.StatusOK, "compliance information retrieved successfuly.", gin.H{"compliance_information": compliance})
 	}
 }
+
+// UpdateSecurityNotificationSetting - GET api/user/:userId/login-notification?set=true
+func UpdateSecurityNotificationSetting() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ctx, cancel := context.WithTimeout(context.Background(), UserRequestTimeout*time.Second)
+		defer cancel()
+
+		MyId, err := auth.ExtractTokenID(c)
+		if err != nil {
+			helper.HandleError(c, http.StatusBadRequest, err, err.Error())
+			return
+		}
+
+		set := c.Query("set")
+		if set == "" {
+			helper.HandleError(c, http.StatusBadRequest, errors.New("set can't be empty"), "set can't be empty")
+			return
+		}
+
+		var setBool bool
+		if strings.ToLower(set) == "true" {
+			setBool = true
+		} else {
+			setBool = false
+		}
+
+		update := bson.M{"$set": bson.M{"allow_login_ip_notification": setBool}}
+		filter := bson.M{"user_id": MyId}
+		res, err := userCollection.UpdateOne(ctx, filter, update)
+		if err != nil {
+			helper.HandleError(c, http.StatusNotFound, err, "error updating user login notification setting")
+			return
+		}
+
+		if res.ModifiedCount < 1 {
+			helper.HandleError(c, http.StatusNotFound, err, "error updating user login notification setting")
+			return
+		}
+
+		helper.HandleSuccess(c, http.StatusOK, "login notification setting updated successfuly.", nil)
+	}
+}
+
+// GetSecurityNotificationSetting - GET api/user/:userId/login-notification
+func GetSecurityNotificationSetting() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ctx, cancel := context.WithTimeout(context.Background(), UserRequestTimeout*time.Second)
+		defer cancel()
+
+		MyId, err := auth.ExtractTokenID(c)
+		if err != nil {
+			helper.HandleError(c, http.StatusBadRequest, err, err.Error())
+			return
+		}
+
+		projection := bson.M{"allow_login_ip_notification": 1}
+		options := options.FindOne().SetProjection(projection)
+
+		var result bson.M
+		filter := bson.M{"user_id": MyId}
+		err = userCollection.FindOne(ctx, filter, options).Decode(&result)
+		if err != nil {
+			helper.HandleError(c, http.StatusInternalServerError, err, "error retrieving user login notification setting")
+			return
+		}
+
+		helper.HandleSuccess(c, http.StatusOK, "login notification setting retrieved successfuly.", gin.H{"data": result})
+	}
+}
