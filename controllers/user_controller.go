@@ -1445,7 +1445,7 @@ func UpdateSecurityNotificationSetting() gin.HandlerFunc {
 		}
 
 		update := bson.M{"$set": bson.M{"allow_login_ip_notification": setBool}}
-		filter := bson.M{"user_id": MyId}
+		filter := bson.M{"_id": MyId}
 		res, err := userCollection.UpdateOne(ctx, filter, update)
 		if err != nil {
 			helper.HandleError(c, http.StatusNotFound, err, "error updating user login notification setting")
@@ -1477,13 +1477,13 @@ func GetSecurityNotificationSetting() gin.HandlerFunc {
 		options := options.FindOne().SetProjection(projection)
 
 		var result bson.M
-		filter := bson.M{"user_id": MyId}
+		filter := bson.M{"_id": MyId}
 		err = userCollection.FindOne(ctx, filter, options).Decode(&result)
 		if err != nil {
-			helper.HandleError(c, http.StatusInternalServerError, err, "error retrieving user login notification setting")
+			helper.HandleError(c, http.StatusNotFound, err, "error retrieving user login notification setting")
 			return
 		}
 
-		helper.HandleSuccess(c, http.StatusOK, "login notification setting retrieved successfuly.", gin.H{"data": result})
+		helper.HandleSuccess(c, http.StatusOK, "login notification setting retrieved successfuly.", gin.H{"setting": result})
 	}
 }
