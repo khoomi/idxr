@@ -74,7 +74,7 @@ func CreateShop() gin.HandlerFunc {
 		}
 
 		shopName := c.Request.FormValue("name")
-		err = configs.ValidateShopName(shopName)
+		err = helper.ValidateShopName(shopName)
 		if err != nil {
 			helper.HandleError(c, http.StatusBadRequest, err, "Invalid shop name")
 			return

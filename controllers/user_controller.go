@@ -16,7 +16,6 @@ import (
 	"net/http"
 	"net/url"
 	"path/filepath"
-	"regexp"
 	"strings"
 	"time"
 
@@ -47,18 +46,6 @@ const (
 	UserRequestTimeout = 20
 )
 
-// validateNameFormat checks if the provided name follows the required naming rule.
-func validateNameFormat(name string) error {
-	validName, err := regexp.MatchString("([A-Z][a-zA-Z]*)", name)
-	if err != nil {
-		return err
-	}
-	if !validName {
-		return errors.New("name should follow the naming rule")
-	}
-	return nil
-}
-
 func CreateUser() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ctx, cancel := context.WithTimeout(context.Background(), UserRequestTimeout*time.Second)
@@ -77,21 +64,21 @@ func CreateUser() gin.HandlerFunc {
 			return
 		}
 
-		errEmail := configs.ValidateEmailAddress(jsonUser.Email)
+		errEmail := helper.ValidateEmailAddress(jsonUser.Email)
 		if errEmail != nil {
 			log.Printf("Invalid email address from user %s with IP %s at %s: %s\n", jsonUser.FirstName, c.ClientIP(), time.Now().Format(time.RFC3339), errEmail.Error())
 			helper.HandleError(c, http.StatusExpectationFailed, errEmail, "Invalid email address")
 			return
 		}
 
-		err := configs.ValidatePassword(jsonUser.Password)
+		err := helper.ValidatePassword(jsonUser.Password)
 		if err != nil {
 			log.Printf("Error validating password: %s\n", err.Error())
 			helper.HandleError(c, http.StatusExpectationFailed, err, err.Error())
 			return
 		}
 
-		hashedPassword, errHashPassword := configs.HashPassword(jsonUser.Password)
+		hashedPassword, errHashPassword := helper.HashPassword(jsonUser.Password)
 		if errHashPassword != nil {
 			log.Printf("Error hashing password: %s\n", errHashPassword.Error())
 			helper.HandleError(c, http.StatusExpectationFailed, errHashPassword, errHashPassword.Error())
@@ -189,7 +176,7 @@ func HandleUserAuthentication() gin.HandlerFunc {
 			return
 		}
 
-		if errPasswordCheck := configs.CheckPassword(validUser.Auth.PasswordDigest, jsonUser.Password); errPasswordCheck != nil {
+		if errPasswordCheck := helper.CheckPassword(validUser.Auth.PasswordDigest, jsonUser.Password); errPasswordCheck != nil {
 			helper.HandleError(c, http.StatusUnauthorized, errPasswordCheck, "Invalid password")
 			return
 		}
@@ -403,7 +390,7 @@ func ChangePassword() gin.HandlerFunc {
 			return
 		}
 
-		if errPasswordCheck := configs.CheckPassword(validUser.Auth.PasswordDigest, newPasswordFromRequest.CurrentPassword); errPasswordCheck != nil {
+		if errPasswordCheck := helper.CheckPassword(validUser.Auth.PasswordDigest, newPasswordFromRequest.CurrentPassword); errPasswordCheck != nil {
 			helper.HandleError(c, http.StatusUnauthorized, errPasswordCheck, "Invalid current password")
 			return
 		}
@@ -414,7 +401,7 @@ func ChangePassword() gin.HandlerFunc {
 		}
 
 		// validate password.
-		err = configs.ValidatePassword(newPasswordFromRequest.NewPassword)
+		err = helper.ValidatePassword(newPasswordFromRequest.NewPassword)
 		if err != nil {
 			log.Printf("error validating password: %s\n", err.Error())
 			helper.HandleError(c, http.StatusExpectationFailed, err, err.Error())
@@ -422,7 +409,7 @@ func ChangePassword() gin.HandlerFunc {
 		}
 
 		// hash password before saving to storage.
-		hashedPassword, errHashPassword := configs.HashPassword(newPasswordFromRequest.NewPassword)
+		hashedPassword, errHashPassword := helper.HashPassword(newPasswordFromRequest.NewPassword)
 		if errHashPassword != nil {
 			log.Printf("error hashing password: %s\n", errHashPassword.Error())
 			helper.HandleError(c, http.StatusExpectationFailed, errHashPassword, errHashPassword.Error())
@@ -499,7 +486,7 @@ func SendVerifyEmail() gin.HandlerFunc {
 		}
 
 		// Verify current user email
-		err = configs.ValidateEmailAddress(emailCurrent)
+		err = helper.ValidateEmailAddress(emailCurrent)
 		if err != nil {
 			helper.HandleError(c, http.StatusBadRequest, err, "Invalid email address")
 			return
@@ -597,7 +584,7 @@ func UpdateMyProfile() gin.HandlerFunc {
 		updateData := bson.M{}
 
 		if firstName := c.Request.FormValue("first_name"); firstName != "" {
-			if err := validateNameFormat(firstName); err != nil {
+			if err := services.ValidateNameFormat(firstName); err != nil {
 				helper.HandleError(c, http.StatusBadRequest, err, "Invalid first name format")
 				return
 			}
@@ -605,7 +592,7 @@ func UpdateMyProfile() gin.HandlerFunc {
 		}
 
 		if lastName := c.Request.FormValue("last_name"); lastName != "" {
-			if err := validateNameFormat(lastName); err != nil {
+			if err := services.ValidateNameFormat(lastName); err != nil {
 				helper.HandleError(c, http.StatusBadRequest, err, "Invalid last name format")
 				return
 			}
@@ -841,13 +828,13 @@ func PasswordReset() gin.HandlerFunc {
 			return
 		}
 
-		err = configs.ValidatePassword(newPassword)
+		err = helper.ValidatePassword(newPassword)
 		if err != nil {
 			helper.HandleError(c, http.StatusNotFound, err, "Invalid new password")
 			return
 		}
 
-		hashedPassword, err := configs.HashPassword(newPassword)
+		hashedPassword, err := helper.HashPassword(newPassword)
 		if err != nil {
 			helper.HandleError(c, http.StatusNotFound, err, "Failed to hash new password")
 			return

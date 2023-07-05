@@ -2,7 +2,6 @@ package configs
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"time"
 
@@ -31,7 +30,7 @@ func ConnectDB() (client *mongo.Client) {
 		log.Fatal(err)
 	}
 
-	fmt.Println("Connected to MongoDB")
+	log.Println("Connected to MongoDB")
 	return
 }
 
@@ -53,7 +52,7 @@ func ConnectRedis() *redis.Client {
 
 	client := redis.NewClient(addr)
 
-	fmt.Println("Connected to Redis")
+	log.Println("Connected to Redis")
 	return client
 }
 

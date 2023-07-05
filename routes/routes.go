@@ -1,7 +1,6 @@
 package routes
 
 import (
-	"khoomi-api-io/khoomi_api/configs"
 	"khoomi-api-io/khoomi_api/controllers"
 	"khoomi-api-io/khoomi_api/middleware"
 
@@ -16,7 +15,7 @@ func InitRoute() *gin.Engine {
 	router.Use(middleware.CorsMiddleware())
 
 	// Create the "/api" group for API endpoints
-	api := router.Group("/api", configs.KhoomiRateLimiter())
+	api := router.Group("/api", middleware.KhoomiRateLimiter())
 	{
 		// Public endpoints
 		api.POST("/signup", controllers.CreateUser())

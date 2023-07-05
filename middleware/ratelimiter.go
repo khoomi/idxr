@@ -1,10 +1,11 @@
-package configs
+package middleware
 
 import (
+	"time"
+
 	ratelimit "github.com/JGLTechnologies/gin-rate-limit"
 	"github.com/gin-gonic/gin"
 	"github.com/redis/go-redis/v9"
-	"time"
 )
 
 func keyFunc(c *gin.Context) string {
