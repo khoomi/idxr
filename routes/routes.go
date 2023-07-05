@@ -54,10 +54,13 @@ func userRoutes(api *gin.RouterGroup) {
 			// Change password endpoint
 			secured.PUT("/me/password-change", controllers.ChangePassword())
 
+			// Get delete user request
+			secured.GET("/me/delete", controllers.IsAccountPendingDeletion())
 			// Send delete user request
 			secured.POST("/me/delete", controllers.SendDeleteUserAccount())
 			// Cancel delete user request
 			secured.DELETE("/me/delete", controllers.CancelDeleteUserAccount())
+
 			// Current user endpoint
 			secured.GET("/me", controllers.CurrentUser)
 			// Update first and last name endpoint

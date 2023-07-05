@@ -305,6 +305,33 @@ func SendDeleteUserAccount() gin.HandlerFunc {
 	}
 }
 
+// IsAccountPendingDeletion -> Check if current user account is pending deletion
+func IsAccountPendingDeletion() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ctx, cancel := context.WithTimeout(context.Background(), UserRequestTimeout*time.Second)
+		defer cancel()
+
+		userId, err := auth.ExtractTokenID(c)
+		if err != nil {
+			helper.HandleError(c, http.StatusUnauthorized, err, "action is for authorized users")
+			return
+		}
+
+		var account models.AccountDeletionRequested
+		err = userDeletionCollection.FindOne(ctx, bson.M{"user_id": userId}).Decode(&account)
+		if err != nil {
+			if err == mongo.ErrNoDocuments {
+				c.JSON(http.StatusOK, gin.H{"pending_deletion": false})
+				return
+			}
+			helper.HandleError(c, http.StatusInternalServerError, err, "error while checking account deletion status")
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{"pending_deletion": true})
+	}
+}
+
 // DeleteUserAccount -> Delete current user account
 func CancelDeleteUserAccount() gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -557,6 +584,7 @@ func VerifyEmail() gin.HandlerFunc {
 // UpdateMyProfile updates the email, thumbnail, first and last name for the current user.
 func UpdateMyProfile() gin.HandlerFunc {
 	return func(c *gin.Context) {
+		log.Println(c.Request)
 		ctx, cancel := context.WithTimeout(context.Background(), UserRequestTimeout*time.Second)
 		defer cancel()
 
@@ -644,14 +672,18 @@ func GetLoginHistories() gin.HandlerFunc {
 
 		paginationArgs := services.GetPaginationArgs(c)
 		filter := bson.M{"user_uid": userId}
-		find := options.Find().SetLimit(int64(paginationArgs.Limit)).SetSkip(int64(paginationArgs.Skip))
-		result, err := loginHistoryCollection.Find(ctx, filter, find)
+		findOptions := options.Find().
+			SetLimit(int64(paginationArgs.Limit)).
+			SetSkip(int64(paginationArgs.Skip)).
+			SetSort(bson.D{{Key: "date", Value: -1}}) // Sort by date field in descending order (-1)
+
+		result, err := loginHistoryCollection.Find(ctx, filter, findOptions)
 		if err != nil {
 			helper.HandleError(c, http.StatusNotFound, err, "Failed to find login histories")
 			return
 		}
 
-		count, err := loginHistoryCollection.CountDocuments(ctx, bson.M{"user_uid": userId})
+		count, err := loginHistoryCollection.CountDocuments(ctx, filter)
 		if err != nil {
 			helper.HandleError(c, http.StatusInternalServerError, err, "Failed to count login histories")
 			return
@@ -1425,7 +1457,7 @@ func UpdateSecurityNotificationSetting() gin.HandlerFunc {
 		ctx, cancel := context.WithTimeout(context.Background(), UserRequestTimeout*time.Second)
 		defer cancel()
 
-		MyId, err := auth.ExtractTokenID(c)
+		myID, err := auth.ExtractTokenID(c)
 		if err != nil {
 			helper.HandleError(c, http.StatusBadRequest, err, err.Error())
 			return
@@ -1444,20 +1476,21 @@ func UpdateSecurityNotificationSetting() gin.HandlerFunc {
 			setBool = false
 		}
 
+		filter := bson.M{"_id": myID}
 		update := bson.M{"$set": bson.M{"allow_login_ip_notification": setBool}}
-		filter := bson.M{"_id": MyId}
+
 		res, err := userCollection.UpdateOne(ctx, filter, update)
 		if err != nil {
-			helper.HandleError(c, http.StatusNotFound, err, "error updating user login notification setting")
+			helper.HandleError(c, http.StatusInternalServerError, err, "error updating user login notification setting")
 			return
 		}
 
 		if res.ModifiedCount < 1 {
-			helper.HandleError(c, http.StatusNotFound, err, "error updating user login notification setting")
+			helper.HandleError(c, http.StatusNotFound, errors.New("no document was modified"), "error updating user login notification setting")
 			return
 		}
 
-		helper.HandleSuccess(c, http.StatusOK, "login notification setting updated successfuly.", nil)
+		helper.HandleSuccess(c, http.StatusOK, "login notification setting updated successfully.", nil)
 	}
 }
 
