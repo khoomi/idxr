@@ -14,7 +14,7 @@ type Shop struct {
 	// Description of the shop.
 	Description string `bson:"description" json:"description" validate:"required"`
 	// The login name for the shop.
-	LoginName string `bson:"login_name" json:"login_name" validate:"required"`
+	Username string `bson:"username" json:"username" validate:"required"`
 	// ID of the user that owns the shop.
 	UserID primitive.ObjectID `bson:"user_id" json:"user_id" validate:""`
 	// Number of active listings in the shop.

@@ -110,7 +110,7 @@ func CreateUser() gin.HandlerFunc {
 			"referred_by_user":            bsonx.Null(),
 			"role":                        models.Regular,
 			"status":                      models.Inactive,
-			"shops":                       []string{},
+			"shop_id":                     bsonx.Null(),
 			"favorite_shops":              []string{},
 			"created_at":                  time.Now(),
 			"modified_at":                 time.Now(),

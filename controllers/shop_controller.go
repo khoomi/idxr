@@ -12,6 +12,7 @@ import (
 	"khoomi-api-io/khoomi_api/services"
 	"log"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -67,20 +68,26 @@ func CreateShop() gin.HandlerFunc {
 			return
 		}
 
-		loginName, err := auth.ExtractTokenLoginName(c)
-		if err != nil {
-			helper.HandleError(c, http.StatusUnauthorized, err, "Failed to extract login name from token")
-			return
-		}
-
 		shopName := c.Request.FormValue("name")
 		err = helper.ValidateShopName(shopName)
 		if err != nil {
 			helper.HandleError(c, http.StatusBadRequest, err, "Invalid shop name")
 			return
 		}
+		shopUserName := c.Request.FormValue("username")
+		err = helper.ValidateShopUserName(shopUserName)
+		if err != nil {
+			helper.HandleError(c, http.StatusBadRequest, err, "Invalid shop username name")
+			return
+		}
+		shopUserName = strings.ToLower(shopUserName)
 
-		shopNameDescription := c.Request.FormValue("description")
+		shopDescription := c.Request.FormValue("description")
+		err = helper.ValidateShopDescription(shopDescription)
+		if err != nil {
+			helper.HandleError(c, http.StatusBadRequest, err, "Invalid shop description")
+			return
+		}
 
 		logoFile, _, err := c.Request.FormFile("logo")
 		if err != nil {
@@ -118,7 +125,7 @@ func CreateShop() gin.HandlerFunc {
 		defer session.EndSession(ctx)
 		callback := func(ctx mongo.SessionContext) (interface{}, error) {
 			now := time.Now()
-			slug := slug2.Make(shopName)
+			slug := slug2.Make(shopUserName)
 			policy := models.ShopPolicy{
 				PaymentPolicy:  "",
 				ShippingPolicy: "",
@@ -129,8 +136,8 @@ func CreateShop() gin.HandlerFunc {
 			shop := models.Shop{
 				ID:                        shopID,
 				Name:                      shopName,
-				Description:               shopNameDescription,
-				LoginName:                 loginName,
+				Description:               shopDescription,
+				Username:                  shopUserName,
 				UserID:                    userID,
 				ListingActiveCount:        0,
 				Announcement:              "",
@@ -159,7 +166,7 @@ func CreateShop() gin.HandlerFunc {
 
 			// Update user profile shop
 			filter := bson.M{"_id": userID}
-			update := bson.M{"$push": bson.M{"shops": shopID}}
+			update := bson.M{"$set": bson.M{"shop_id": shopID, "is_seller": true}}
 			result, err := userCollection.UpdateOne(ctx, filter, update)
 			if err != nil {
 				return nil, err

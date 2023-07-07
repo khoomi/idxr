@@ -24,7 +24,7 @@ type User struct {
 	ReferredByUser           string             `bson:"referred_by_user" json:"referred_by_user"`
 	Role                     UserRole           `bson:"role" json:"role"`
 	Status                   UserStatus         `bson:"status" json:"status"`
-	Shops                    []string           `bson:"shops" json:"shops"`
+	ShopID                   primitive.ObjectID `bson:"shop_id" json:"shop_id"`
 	FavoriteShops            []string           `bson:"favorite_shops" json:"favorite_shops"`
 	CreatedAt                time.Time          `bson:"created_at" json:"created_at" validate:"required"`
 	ModifiedAt               time.Time          `bson:"modified_at" json:"modified_at" validate:"required"`

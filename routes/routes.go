@@ -139,7 +139,7 @@ func ShopRoutes(api *gin.RouterGroup) {
 			// Endpoint to create a new shop
 			secured.POST("/", controllers.CreateShop())
 			// Endpoint to check shop username availability
-			secured.POST("/check/:username", controllers.CheckShopNameAvailability())
+			secured.GET("/check/:username", controllers.CheckShopNameAvailability())
 			// Endpoint to update shop logo
 			secured.PUT("/:shopid/logo", controllers.UpdateShopLogo())
 			// Endpoint to update shop banner

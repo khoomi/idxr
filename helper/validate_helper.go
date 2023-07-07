@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net/mail"
 	"regexp"
+	"strings"
 
 	"golang.org/x/crypto/bcrypt"
 )
@@ -126,17 +127,58 @@ func ValidateEmailAddress(email string) error {
 	return nil
 }
 
-func ValidateShopName(email string) error {
-	done, err := regexp.MatchString("^\\p{L}+[\\p{L}\\p{Pd}\\p{Zs}']*\\p{L}+$|^\\p{L}+$", email)
-	if err != nil {
-		return err
+func ValidateShopUserName(shopUsername string) error {
+	// Trim leading and trailing spaces from the shop name
+	shopUsername = strings.TrimSpace(shopUsername)
+
+	// Check if the shop name is empty
+	if len(shopUsername) == 0 {
+		return &InputValidationError{
+			Message: "Shop username is required",
+			Field:   "username",
+			Tag:     "required",
+		}
 	}
 
-	if !done {
+	// Validate the shop name using regular expressions
+	valid := regexp.MustCompile("^[a-zA-Z0-9]+(?:-[a-zA-Z0-9]+)*$")
+	if !valid.MatchString(shopUsername) {
 		return &InputValidationError{
-			Message: "Shop name appeared to be invalid or can't be used",
-			Field:   "shop_name",
-			Tag:     "bad_name",
+			Message: "Invalid shop username",
+			Field:   "username",
+			Tag:     "invalid",
+		}
+	}
+
+	return nil
+}
+
+func ValidateShopName(shopName string) error {
+	// Trim leading and trailing spaces from the shop name
+	shopName = strings.TrimSpace(shopName)
+
+	// Check if the shop name is empty
+	if len(shopName) == 0 {
+		return &InputValidationError{
+			Message: "Shop name is required",
+			Field:   "name",
+			Tag:     "required",
+		}
+	}
+	
+	return nil
+}
+
+func ValidateShopDescription(description string) error {
+	// Trim leading and trailing spaces from the description
+	description = strings.TrimSpace(description)
+
+	// Check if the description is empty
+	if len(description) == 0 {
+		return &InputValidationError{
+			Message: "Description is required",
+			Field:   "description",
+			Tag:     "required",
 		}
 	}
 
