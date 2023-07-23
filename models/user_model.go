@@ -141,3 +141,9 @@ type ComplianceInformation struct {
 	SellerPolicie        bool `bson:"seller_policies" json:"seller_policies"`
 	IntellectualProperty bool `bson:"intellectual_property" json:"intellectual_property"`
 }
+
+type SellerVerification struct {
+	TermsOfUse           bool `bson:"terms_of_use" json:"terms_of_use"`
+	SellerPolicie        bool `bson:"seller_policies" json:"seller_policies"`
+	IntellectualProperty bool `bson:"intellectual_property" json:"intellectual_property"`
+}

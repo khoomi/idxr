@@ -104,6 +104,7 @@ func userRoutes(api *gin.RouterGroup) {
 
 			// Payment information endpoints
 			secured.POST("/:userId/payment-information/", controllers.CreatePaymentInformation())
+			secured.GET("/:userId/payment-information/onboarded", controllers.CompletedPaymentOnboarding())
 			secured.GET("/:userId/payment-information", controllers.GetPaymentInformations())
 			secured.PUT("/:userId/payment-information/:paymentInfoId", controllers.ChangeDefaultPaymentInformation())
 			secured.DELETE("/:userId/payment-information/:paymentInfoId", controllers.DeletePaymentInformation())

@@ -11,9 +11,13 @@ func CorsMiddleware() gin.HandlerFunc {
 		c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
 		c.Writer.Header().Set("Access-Control-Allow-Methods", "POST, GET, PUT, DELETE, OPTIONS")
 		c.Writer.Header().Set("Access-Control-Allow-Headers", "Origin, Authorization, Content-Type, Cache-Control, expires, pragma")
+
 		c.Writer.Header().Set("Access-Control-Max-Age", "3600")
 
 		if c.Request.Method == "OPTIONS" {
+			c.Writer.Header().Set("Access-Control-Allow-Methods", "POST, GET, PUT, DELETE, OPTIONS")
+			c.Writer.Header().Set("Access-Control-Allow-Headers", "Origin, Authorization, Content-Type, Cache-Control, expires, pragma")
+			c.Writer.Header().Set("Access-Control-Max-Age", "3600")
 			c.AbortWithStatus(204)
 			return
 		}

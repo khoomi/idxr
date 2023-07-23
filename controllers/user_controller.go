@@ -161,17 +161,20 @@ func HandleUserAuthentication() gin.HandlerFunc {
 		now := time.Now()
 
 		if err := c.BindJSON(&jsonUser); err != nil {
+			log.Println(err)
 			helper.HandleError(c, http.StatusInternalServerError, err, "Failed to bind request body")
 			return
 		}
 
-		if validationErr := validate.Struct(&jsonUser); validationErr != nil {
-			helper.HandleError(c, http.StatusUnprocessableEntity, validationErr, "Invalid or missing data in request body")
+		if err := validate.Struct(&jsonUser); err != nil {
+			log.Println(err)
+			helper.HandleError(c, http.StatusUnprocessableEntity, err, "Invalid or missing data in request body")
 			return
 		}
 
 		var validUser models.User
 		if err := userCollection.FindOne(ctx, bson.M{"primary_email": jsonUser.Email}).Decode(&validUser); err != nil {
+			log.Println(err)
 			helper.HandleError(c, http.StatusNotFound, err, "User not found")
 			return
 		}
@@ -185,6 +188,7 @@ func HandleUserAuthentication() gin.HandlerFunc {
 		txnOptions := options.Transaction().SetWriteConcern(wc)
 		session, err := configs.DB.StartSession()
 		if err != nil {
+			log.Println(err)
 			helper.HandleError(c, http.StatusInternalServerError, err, "Failed to start database session")
 			return
 		}
@@ -222,11 +226,13 @@ func HandleUserAuthentication() gin.HandlerFunc {
 
 		_, err = session.WithTransaction(context.Background(), callback, txnOptions)
 		if err != nil {
+			log.Println(err)
 			helper.HandleError(c, http.StatusBadRequest, err, "Failed to execute transaction")
 			return
 		}
 
 		if err := session.CommitTransaction(context.Background()); err != nil {
+			log.Println(err)
 			helper.HandleError(c, http.StatusInternalServerError, err, "Failed to commit transaction")
 			return
 		}
@@ -234,6 +240,7 @@ func HandleUserAuthentication() gin.HandlerFunc {
 
 		tokenString, _, err := auth.GenerateJWT(validUser.Id.Hex(), validUser.PrimaryEmail, validUser.LoginName, validUser.IsSeller)
 		if err != nil {
+			log.Println(err)
 			helper.HandleError(c, http.StatusInternalServerError, err, "Failed to generate JWT")
 			return
 		}
@@ -315,7 +322,7 @@ func IsAccountPendingDeletion() gin.HandlerFunc {
 			return
 		}
 
-		c.JSON(http.StatusOK, gin.H{"pending_deletion": true})
+		helper.HandleSuccess(c, http.StatusOK, "Success", gin.H{"pending_deletion": true})
 	}
 }
 

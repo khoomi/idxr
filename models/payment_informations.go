@@ -8,12 +8,12 @@ type PaymentInformation struct {
 	AccountName   string             `bson:"account_name" json:"account_name" validate:"required"`
 	AccountNumber string             `bson:"account_number" json:"account_number" validate:"required"`
 	BankName      string             `bson:"bank_name" json:"bank_name" validate:"required"`
-	IsDefault     string             `bson:"is_default" json:"is_default" validate:"required"`
+	IsDefault     bool               `bson:"is_default" json:"is_default" validate:"required"`
 }
 
 type PaymentInformationRequest struct {
 	AccountName   string `bson:"account_name" json:"account_name" validate:"required"`
 	AccountNumber string `bson:"account_number" json:"account_number" validate:"required,min=10,max=10"`
 	BankName      string `bson:"bank_name" json:"bank_name" validate:"required"`
-	IsDefault     string `bson:"is_default" json:"is_default" validate:"required"`
+	IsDefault     bool   `bson:"is_default" json:"is_default" validate:"required"`
 }

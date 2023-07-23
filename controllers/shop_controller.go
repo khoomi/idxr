@@ -48,12 +48,11 @@ func CheckShopNameAvailability() gin.HandlerFunc {
 				return
 			}
 
-			helper.HandleError(c, http.StatusInternalServerError, err, "internal sever error on checking shop username availability")
+			helper.HandleError(c, http.StatusInternalServerError, errors.New("internal sever error on checking shop username availability"), "")
 			return
 		}
 
-		helper.HandleError(c, http.StatusInternalServerError, err, "internal sever error on checking shop username availability")
-
+		helper.HandleError(c, http.StatusConflict, errors.New("shop username is already taken"), "Shop username is not available")
 	}
 }
 

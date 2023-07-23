@@ -17,7 +17,7 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-var paymentInformationCollection = configs.GetCollection(configs.DB, "PaymentInformation")
+var paymentInformationCollection = configs.GetCollection(configs.DB, "SellerPaymentInformation")
 
 // / CreatePaymentInformation -> POST /:userId/payment-information/
 func CreatePaymentInformation() gin.HandlerFunc {
@@ -49,6 +49,11 @@ func CreatePaymentInformation() gin.HandlerFunc {
 
 		if len(paymentInfo.AccountNumber) != 10 {
 			helper.HandleError(c, http.StatusBadRequest, errors.New("Account number must be 10 digits"), "Invalid account number")
+			return
+		}
+
+		if len(paymentInfo.BankName) < 3 {
+			helper.HandleError(c, http.StatusBadRequest, errors.New("Bank name is missing or invalid"), "Invalid bank name")
 			return
 		}
 
@@ -140,7 +145,7 @@ func ChangeDefaultPaymentInformation() gin.HandlerFunc {
 			helper.HandleError(c, http.StatusBadRequest, err, "Unauthorized")
 			return
 		}
-	 	if !isSeller {
+		if !isSeller {
 			helper.HandleError(c, http.StatusUnauthorized, errors.New("Only sellers can perform this action!"), "Unauthorized")
 			return
 		}
@@ -226,5 +231,45 @@ func DeletePaymentInformation() gin.HandlerFunc {
 
 		helper.HandleSuccess(c, http.StatusOK, "Payment information deleted successfully",
 			gin.H{"_id": paymentInfoID, "count": result.DeletedCount})
+	}
+}
+
+func CompletedPaymentOnboarding() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ctx, cancel := context.WithTimeout(context.Background(), UserRequestTimeout*time.Second)
+		defer cancel()
+
+		userId, err := auth.ExtractTokenID(c)
+		if err != nil {
+			helper.HandleError(c, http.StatusBadRequest, err, "Unauthorized")
+			return
+		}
+		isSeller, err := auth.IsSeller(c) // Check if the user is a seller
+		if err != nil {
+			helper.HandleError(c, http.StatusBadRequest, err, "Unauthorized")
+			return
+		}
+		if !isSeller {
+			helper.HandleError(c, http.StatusUnauthorized, errors.New("Only sellers can perform this action"), "Unauthorized")
+			return
+		}
+
+		filter := bson.M{"user_id": userId}
+		findOptions := options.Find().SetLimit(1)
+		cursor, err := paymentInformationCollection.Find(ctx, filter, findOptions)
+		if err != nil {
+			log.Printf("Error fetching payment information: %v", err)
+			helper.HandleError(c, http.StatusNotFound, err, "Error fetching payment information")
+			return
+		}
+		defer cursor.Close(ctx)
+
+		hasPaymentInfo := cursor.Next(ctx)
+
+		if !hasPaymentInfo {
+			hasPaymentInfo = false
+		}
+
+		helper.HandleSuccess(c, http.StatusOK, "Success", gin.H{"has_payment_information": hasPaymentInfo})
 	}
 }
