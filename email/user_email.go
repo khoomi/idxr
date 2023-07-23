@@ -15,9 +15,6 @@ type KhoomiEmailData struct {
 	IP        string
 }
 
-func (_ *KhoomiEmailData) New(email, loginName, link string) KhoomiEmailData {
-	return KhoomiEmailData{Email: email, LoginName: loginName, Link: link}
-}
 
 func SendWelcomeEmail(email, loginName string) {
 	mail := services.KhoomiEmailComposer{
@@ -108,7 +105,7 @@ func SendNewIpLoginNotification(email, loginName, IP string, loginTime time.Time
 		ToName:     loginName,
 		Sender:     "no-reply@khoomi.com",
 		SenderName: "Khoomi Online",
-		Body:       fmt.Sprintf(" <body style=\"font-family: Arial, sans-serif; font-size: 14px;><p>Dear %v,</p><p>This is to inform you that a new IP address has been used to log in to your account at %v.</p><p>IP Address: %v</p> <p>If you did not log in from this location, please contact us or change your password immediately.</p><p>Best regards,</p><p>Your Application Team</p></body>", loginName, loginTime, IP),
+		Body:       fmt.Sprintf("<body style=\"font-family: Arial, sans-serif; font-size: 14px;><p>Dear %v,</p><p>This is to inform you that a new IP address has been used to log in to your account at %v.</p><p>IP Address: %v</p> <p>If you did not log in from this location, please contact us or change your password immediately.</p><p>Best regards,</p><p>Your Application Team</p></body>", loginName, loginTime, IP),
 		Subject:    "New IP Address Login Notification",
 	}
 	err := services.SendMail(mail)

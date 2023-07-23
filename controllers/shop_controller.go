@@ -87,32 +87,37 @@ func CreateShop() gin.HandlerFunc {
 			helper.HandleError(c, http.StatusBadRequest, err, "Invalid shop description")
 			return
 		}
-
+      
+		// Logo file handling
 		logoFile, _, err := c.Request.FormFile("logo")
-		if err != nil {
-			helper.HandleError(c, http.StatusInternalServerError, err, "Failed to get logo file")
-			return
-		}
-		logoUploadUrl, err := services.NewMediaUpload().FileUpload(models.File{File: logoFile})
-		if err != nil {
-			errMsg := fmt.Sprintf("Logo failed to upload - %v", err.Error())
-			log.Print(errMsg)
-			helper.HandleError(c, http.StatusInternalServerError, err, errMsg)
-			return
+		var logoUploadUrl string
+		if err == nil {
+			logoUploadUrl, err = services.NewMediaUpload().FileUpload(models.File{File: logoFile})
+			if err != nil {
+				errMsg := fmt.Sprintf("Logo failed to upload - %v", err.Error())
+				log.Print(errMsg)
+				helper.HandleError(c, http.StatusInternalServerError, err, errMsg)
+				return
+			}
+		} else {
+			logoUploadUrl = bson.TypeNull.String()
 		}
 
+		// Banner file handling
 		bannerFile, _, err := c.Request.FormFile("banner")
-		if err != nil {
-			helper.HandleError(c, http.StatusInternalServerError, err, "Failed to get banner file")
-			return
+		var bannerUploadUrl string
+		if err == nil {
+			bannerUploadUrl, err = services.NewMediaUpload().FileUpload(models.File{File: bannerFile})
+			if err != nil {
+				errMsg := fmt.Sprintf("Banner failed to upload - %v", err.Error())
+				log.Print(errMsg)
+				helper.HandleError(c, http.StatusInternalServerError, err, errMsg)
+				return
+			}
+		} else {
+			bannerUploadUrl = bson.TypeNull.String()
 		}
-		bannerUploadUrl, err := services.NewMediaUpload().FileUpload(models.File{File: bannerFile})
-		if err != nil {
-			errMsg := fmt.Sprintf("Banner failed to upload - %v", err.Error())
-			log.Print(errMsg)
-			helper.HandleError(c, http.StatusInternalServerError, err, errMsg)
-			return
-		}
+
 
 		wc := writeconcern.New(writeconcern.WMajority())
 		txnOptions := options.Transaction().SetWriteConcern(wc)

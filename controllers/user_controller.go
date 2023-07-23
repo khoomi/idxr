@@ -250,7 +250,7 @@ func HandleUserAuthentication() gin.HandlerFunc {
 			email.SendNewIpLoginNotification(validUser.PrimaryEmail, validUser.LoginName, validUser.LastLoginIp, validUser.LastLogin)
 		}
 
-		helper.HandleSuccess(c, http.StatusCreated, "Authentication successful", gin.H{
+		helper.HandleSuccess(c, http.StatusOK, "Authentication successful", gin.H{
 			"_id":            validUser.Id.Hex(),
 			"token":          tokenString,
 			"role":           validUser.Role,
