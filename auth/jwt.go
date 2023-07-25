@@ -20,8 +20,8 @@ type JWTClaim struct {
 	jwt.StandardClaims
 }
 
-func GenerateJWT(id, email, loginName string, seller bool) (string, int, error) {
-	expirationTime := time.Now().Add(24 * time.Hour)
+func GenerateJWT(id, email, loginName string, seller bool) (string, int64, error) {
+	expirationTime := time.Now().Add(5 * time.Minute)
 	jwtKey := configs.LoadEnvFor("SECRET")
 
 	claims := JWTClaim{
@@ -40,7 +40,30 @@ func GenerateJWT(id, email, loginName string, seller bool) (string, int, error) 
 		return "", 0, err
 	}
 
-	return tokenString, int(expirationTime.Unix()), nil
+	return tokenString, expirationTime.Unix(), nil
+}
+
+func GenerateRefreshJWT(id, email, loginName string, seller bool) (string, error) {
+	expirationTime := time.Now().Add(24 * time.Hour * 7)
+	jwtKey := configs.LoadEnvFor("REFRESH_SECRET")
+
+	claims := JWTClaim{
+		Id:        id,
+		LoginName: loginName,
+		Email:     email,
+		IsSeller:  seller,
+		StandardClaims: jwt.StandardClaims{
+			ExpiresAt: expirationTime.Unix(),
+		},
+	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	tokenString, err := token.SignedString([]byte(jwtKey))
+	if err != nil {
+		return "", err
+	}
+
+	return tokenString, nil
 }
 
 func ValidateToken(signedToken string) (err error) {
@@ -65,6 +88,31 @@ func ValidateToken(signedToken string) (err error) {
 		return
 	}
 	return
+}
+
+func ValidateRefreshToken(signedToken string) (claim JWTClaim, err error) {
+	jwtKey := configs.LoadEnvFor("REFRESH_SECRET")
+	token, err := jwt.ParseWithClaims(
+		signedToken,
+		&JWTClaim{},
+		func(token *jwt.Token) (interface{}, error) {
+			return []byte(jwtKey), nil
+		},
+	)
+	if err != nil {
+		return
+	}
+	claims, ok := token.Claims.(*JWTClaim)
+	if !ok {
+		err = errors.New("couldn't parse claims")
+		return JWTClaim{}, err
+	}
+	if claims.ExpiresAt < time.Now().Local().Unix() {
+		err = errors.New("token expired")
+		return JWTClaim{}, err
+	}
+
+	return *claims, nil
 }
 
 func ExtractToken(context *gin.Context) string {

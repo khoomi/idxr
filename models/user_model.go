@@ -147,3 +147,7 @@ type SellerVerification struct {
 	SellerPolicie        bool `bson:"seller_policies" json:"seller_policies"`
 	IntellectualProperty bool `bson:"intellectual_property" json:"intellectual_property"`
 }
+
+type RefreshTokenPayload struct {
+	Token string `json:"token" validate:"required"`
+}

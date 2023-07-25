@@ -238,10 +238,17 @@ func HandleUserAuthentication() gin.HandlerFunc {
 		}
 		session.EndSession(context.Background())
 
-		tokenString, _, err := auth.GenerateJWT(validUser.Id.Hex(), validUser.PrimaryEmail, validUser.LoginName, validUser.IsSeller)
+		accessTokenString, accessTokenExp, err := auth.GenerateJWT(validUser.Id.Hex(), validUser.PrimaryEmail, validUser.LoginName, validUser.IsSeller)
 		if err != nil {
 			log.Println(err)
 			helper.HandleError(c, http.StatusInternalServerError, err, "Failed to generate JWT")
+			return
+		}
+
+		refreshTokenString, err := auth.GenerateRefreshJWT(validUser.Id.Hex(), validUser.PrimaryEmail, validUser.LoginName, validUser.IsSeller)
+		if err != nil {
+			log.Println(err)
+			helper.HandleError(c, http.StatusInternalServerError, err, "Failed to generate refresh JWT")
 			return
 		}
 
@@ -251,17 +258,72 @@ func HandleUserAuthentication() gin.HandlerFunc {
 		}
 
 		helper.HandleSuccess(c, http.StatusOK, "Authentication successful", gin.H{
-			"_id":            validUser.Id.Hex(),
-			"token":          tokenString,
-			"role":           validUser.Role,
-			"email":          validUser.PrimaryEmail,
-			"first_name":     validUser.FirstName,
-			"last_name":      validUser.LastName,
-			"login_name":     validUser.LoginName,
-			"thumbnail":      validUser.Thumbnail,
-			"email_verified": validUser.Auth.EmailVerified,
-			"is_seller":      validUser.IsSeller,
+			"_id":              validUser.Id.Hex(),
+			"access_token":     accessTokenString,
+			"refresh_token":    refreshTokenString,
+			"access_token_exp": accessTokenExp,
+			"role":             validUser.Role,
+			"email":            validUser.PrimaryEmail,
+			"first_name":       validUser.FirstName,
+			"last_name":        validUser.LastName,
+			"login_name":       validUser.LoginName,
+			"thumbnail":        validUser.Thumbnail,
+			"email_verified":   validUser.Auth.EmailVerified,
+			"is_seller":        validUser.IsSeller,
 		})
+	}
+}
+
+func RefreshToken() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ctx, cancel := context.WithTimeout(context.Background(), UserRequestTimeout*time.Second)
+		defer cancel()
+
+		var payload models.RefreshTokenPayload
+
+		if err := c.BindJSON(&payload); err != nil {
+			log.Println(err)
+			helper.HandleError(c, http.StatusInternalServerError, err, "Invalid request body")
+			return
+		}
+
+		refreshClaims, err := auth.ValidateRefreshToken(payload.Token)
+		if err != nil {
+			helper.HandleError(c, http.StatusUnauthorized, err, "Invalid refresh token")
+			return
+		}
+
+		userObjectId, err := primitive.ObjectIDFromHex(refreshClaims.Id)
+		if err != nil {
+			log.Println(err)
+			helper.HandleError(c, http.StatusNotFound, err, "User not found")
+			return
+		}
+
+		res := userCollection.FindOne(ctx, bson.M{"_id": userObjectId})
+		if res.Err() != nil {
+			log.Println(err)
+			helper.HandleError(c, http.StatusNotFound, err, "User not found")
+			return
+		}
+
+		accessToken, accessTokenExp, err := auth.GenerateJWT(refreshClaims.Id, refreshClaims.Email, refreshClaims.LoginName, refreshClaims.IsSeller)
+		if err != nil {
+			helper.HandleError(c, http.StatusInternalServerError, err, "Failed to generate access token")
+			return
+		}
+
+		newRefreshToken, err := auth.GenerateRefreshJWT(refreshClaims.Id, refreshClaims.Email, refreshClaims.LoginName, refreshClaims.IsSeller)
+		if err != nil {
+			helper.HandleError(c, http.StatusInternalServerError, err, "Failed to generate refresh token")
+			return
+		}
+
+		helper.HandleSuccess(c, http.StatusOK, "token refreshed",
+			gin.H{"access_token": accessToken,
+				"access_token_exp": accessTokenExp,
+				"refresh_token":    newRefreshToken})
+
 	}
 }
 
@@ -274,6 +336,7 @@ func Logout() gin.HandlerFunc {
 		_ = helper.InvalidateToken(configs.REDIS, token)
 
 		helper.HandleSuccess(c, http.StatusOK, "logout successful", nil)
+
 	}
 }
 

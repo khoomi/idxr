@@ -20,6 +20,7 @@ func InitRoute() *gin.Engine {
 		// Public endpoints
 		api.POST("/signup", controllers.CreateUser())
 		api.POST("/auth", controllers.HandleUserAuthentication())
+		api.PUT("/auth/refresh-token", controllers.RefreshToken())
 		api.DELETE("/logout", controllers.Logout())
 		api.GET("/verify-email", controllers.VerifyEmail())
 		api.POST("/send-password-reset", controllers.PasswordResetEmail())
