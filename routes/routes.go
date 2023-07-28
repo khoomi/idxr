@@ -29,6 +29,7 @@ func InitRoute() *gin.Engine {
 		// Protected endpoints
 		userRoutes(api)
 		ShopRoutes(api)
+		ListingRoutes(api)
 		CategoryRoutes(api)
 		ShippingRoutes(api)
 	}
@@ -140,6 +141,10 @@ func ShopRoutes(api *gin.RouterGroup) {
 		{
 			// Endpoint to create a new shop
 			secured.POST("/", controllers.CreateShop())
+			// Shop status
+			secured.PUT("/:shopid/status", controllers.UpdateMyShopStatus())
+			// update shop information
+			secured.PUT("/:shopid/information", controllers.UpdateShopInformation())
 			// Endpoint to check shop username availability
 			secured.GET("/check/:username", controllers.CheckShopNameAvailability())
 			// Endpoint to update shop logo
@@ -179,6 +184,28 @@ func ShopRoutes(api *gin.RouterGroup) {
 			secured.PUT("/:shopid/shipping", controllers.UpdateShopShippingProfileInfo())
 		}
 
+	}
+}
+
+func ListingRoutes(api *gin.RouterGroup) {
+	// Define the "/categories" group
+	category := api.Group("/listings")
+	{
+		// Endpoint to get all categories
+		category.GET("/", controllers.GetAllCategories())
+		// Endpoint to search for categories
+		category.GET("/search", controllers.SearchCategories())
+		// Endpoint to get category children
+		category.GET("/:id/children", controllers.GetCategoryChildren())
+		// Endpoint to get category ancestor
+		category.GET("/:id/ancestor", controllers.GetCategoryAncestor())
+
+		// Secured endpoints that require authentication
+		secured := category.Group("").Use(middleware.Auth())
+		{
+			// Endpoint to create a single listing
+			secured.POST("/:shop_id", controllers.CreateListing())
+		}
 	}
 }
 

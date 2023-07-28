@@ -19,6 +19,16 @@ import (
 
 var paymentInformationCollection = configs.GetCollection(configs.DB, "SellerPaymentInformation")
 
+// isSeller, err := auth.IsSeller(c) // Check if the user is a seller
+// 	if err != nil {
+// 		helper.HandleError(c, http.StatusBadRequest, err, "Unauthorized")
+// 		return
+// 	}
+// 	if !isSeller {
+// 		helper.HandleError(c, http.StatusUnauthorized, errors.New("Only sellers can perform this action"), "Unauthorized")
+// 		return
+// 	}
+
 // / CreatePaymentInformation -> POST /:userId/payment-information/
 func CreatePaymentInformation() gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -31,12 +41,13 @@ func CreatePaymentInformation() gin.HandlerFunc {
 			return
 		}
 
-		isSeller, err := auth.IsSeller(c) // Check if the user is a seller
+		res, err := IsSeller(c, userId)
 		if err != nil {
-			helper.HandleError(c, http.StatusBadRequest, err, "Unauthorized")
+			log.Println(err)
+			helper.HandleError(c, http.StatusInternalServerError, err, "Error finding user")
 			return
 		}
-		if !isSeller {
+		if res == false {
 			helper.HandleError(c, http.StatusUnauthorized, errors.New("Only sellers can perform this action"), "Unauthorized")
 			return
 		}
@@ -77,14 +88,14 @@ func CreatePaymentInformation() gin.HandlerFunc {
 			return
 		}
 
-		res, err := paymentInformationCollection.InsertOne(ctx, paymentInfoToUpload)
-		if err != nil {
+		insertRes, insertErr := paymentInformationCollection.InsertOne(ctx, paymentInfoToUpload)
+		if insertErr != nil {
 			helper.HandleError(c, http.StatusInternalServerError, err, "Error creating payment information")
 			return
 		}
 
 		log.Printf("User %v added their payment account information", userId)
-		helper.HandleSuccess(c, http.StatusOK, "Payment account information created successfully", gin.H{"inserted_id": res.InsertedID})
+		helper.HandleSuccess(c, http.StatusOK, "Payment account information created successfully", gin.H{"inserted_id": insertRes.InsertedID})
 	}
 }
 
@@ -99,12 +110,13 @@ func GetPaymentInformations() gin.HandlerFunc {
 			helper.HandleError(c, http.StatusBadRequest, err, "Unauthorized")
 			return
 		}
-		isSeller, err := auth.IsSeller(c) // Check if the user is a seller
+		res, err := IsSeller(c, userId)
 		if err != nil {
-			helper.HandleError(c, http.StatusBadRequest, err, "Unauthorized")
+			log.Println(err)
+			helper.HandleError(c, http.StatusInternalServerError, err, "Error finding user")
 			return
 		}
-		if !isSeller {
+		if res == false {
 			helper.HandleError(c, http.StatusUnauthorized, errors.New("Only sellers can perform this action"), "Unauthorized")
 			return
 		}
@@ -140,13 +152,14 @@ func ChangeDefaultPaymentInformation() gin.HandlerFunc {
 			helper.HandleError(c, http.StatusBadRequest, err, "Unauthorized")
 			return
 		}
-		isSeller, err := auth.IsSeller(c) // Check if the user is a seller
+		res, err := IsSeller(c, userId)
 		if err != nil {
-			helper.HandleError(c, http.StatusBadRequest, err, "Unauthorized")
+			log.Println(err)
+			helper.HandleError(c, http.StatusInternalServerError, err, "Error finding user")
 			return
 		}
-		if !isSeller {
-			helper.HandleError(c, http.StatusUnauthorized, errors.New("Only sellers can perform this action!"), "Unauthorized")
+		if res == false {
+			helper.HandleError(c, http.StatusUnauthorized, errors.New("Only sellers can perform this action"), "Unauthorized")
 			return
 		}
 
@@ -171,20 +184,20 @@ func ChangeDefaultPaymentInformation() gin.HandlerFunc {
 		}
 
 		filter := bson.M{"user_id": userId, "_id": paymentObjectID}
-		res, err := paymentInformationCollection.UpdateOne(ctx, filter, bson.M{"$set": bson.M{"is_default": true}})
-		if err != nil {
+		insertRes, insertErr := paymentInformationCollection.UpdateOne(ctx, filter, bson.M{"$set": bson.M{"is_default": true}})
+		if insertErr != nil {
 			log.Printf("Error updating default payment informations: %v", err)
 			helper.HandleError(c, http.StatusNotFound, err, "error modifying payment information")
 			return
 		}
 
-		if res.ModifiedCount < 1 {
+		if insertRes.ModifiedCount < 1 {
 			log.Printf("Error updating default payment informations: %v", err)
 			helper.HandleError(c, http.StatusNotFound, err, "payment information not modified")
 			return
 		}
 
-		helper.HandleSuccess(c, http.StatusOK, "Default payment has been succesfuly changed.", gin.H{"modified": res.ModifiedCount})
+		helper.HandleSuccess(c, http.StatusOK, "Default payment has been succesfuly changed.", gin.H{"modified": insertRes.ModifiedCount})
 	}
 }
 
@@ -200,23 +213,23 @@ func DeletePaymentInformation() gin.HandlerFunc {
 			helper.HandleError(c, http.StatusBadRequest, errors.New("bad payment id"), "bad request")
 			return
 		}
-		userID, err := auth.ExtractTokenID(c)
+		userId, err := auth.ExtractTokenID(c)
 		if err != nil {
 			helper.HandleError(c, http.StatusBadRequest, err, "Unauthorized")
 			return
 		}
 
-		isSeller, err := auth.IsSeller(c) // Check if the user is a seller
+		res, err := IsSeller(c, userId)
 		if err != nil {
-			helper.HandleError(c, http.StatusBadRequest, err, "Unauthorized")
+			log.Println(err)
+			helper.HandleError(c, http.StatusInternalServerError, err, "Error finding user")
 			return
 		}
-		if !isSeller {
+		if res == false {
 			helper.HandleError(c, http.StatusUnauthorized, errors.New("Only sellers can perform this action"), "Unauthorized")
 			return
 		}
-
-		filter := bson.M{"_id": paymentObjectID, "user_id": userID}
+		filter := bson.M{"_id": paymentObjectID, "user_id": userId}
 		result, err := paymentInformationCollection.DeleteOne(ctx, filter)
 		if err != nil {
 			log.Printf("Error deleting payment information: %v", err)
@@ -244,16 +257,16 @@ func CompletedPaymentOnboarding() gin.HandlerFunc {
 			helper.HandleError(c, http.StatusBadRequest, err, "Unauthorized")
 			return
 		}
-		isSeller, err := auth.IsSeller(c) // Check if the user is a seller
+		res, err := IsSeller(c, userId)
 		if err != nil {
-			helper.HandleError(c, http.StatusBadRequest, err, "Unauthorized")
+			log.Println(err)
+			helper.HandleError(c, http.StatusInternalServerError, err, "Error finding user")
 			return
 		}
-		if !isSeller {
+		if res == false {
 			helper.HandleError(c, http.StatusUnauthorized, errors.New("Only sellers can perform this action"), "Unauthorized")
 			return
 		}
-
 		filter := bson.M{"user_id": userId}
 		findOptions := options.Find().SetLimit(1)
 		cursor, err := paymentInformationCollection.Find(ctx, filter, findOptions)

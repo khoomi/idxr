@@ -21,7 +21,7 @@ type JWTClaim struct {
 }
 
 func GenerateJWT(id, email, loginName string, seller bool) (string, int64, error) {
-	expirationTime := time.Now().Add(5 * time.Minute)
+	expirationTime := time.Now().Add(15 * time.Minute)
 	jwtKey := configs.LoadEnvFor("SECRET")
 
 	claims := JWTClaim{
@@ -150,7 +150,7 @@ func ExtractTokenID(c *gin.Context) (primitive.ObjectID, error) {
 	return Id, nil
 }
 
-func ExtractTokenLoginName(c *gin.Context) (string, error) {
+func ExtractTokenLoginNameEmail(c *gin.Context) (string, string, error) {
 	tokenString := ExtractToken(c)
 	jwtKey := configs.LoadEnvFor("SECRET")
 	token, err := jwt.ParseWithClaims(
@@ -161,40 +161,40 @@ func ExtractTokenLoginName(c *gin.Context) (string, error) {
 		},
 	)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 
 	claims, ok := token.Claims.(*JWTClaim)
 	if !ok {
 		err = errors.New("couldn't parse claims")
-		return "", err
+		return "", "", err
 	}
 
-	return claims.LoginName, nil
+	return claims.LoginName, claims.Email, nil
 }
 
-func IsSeller(c *gin.Context) (bool, error) {
-	tokenString := ExtractToken(c)
-	jwtKey := configs.LoadEnvFor("SECRET")
-	token, err := jwt.ParseWithClaims(
-		tokenString,
-		&JWTClaim{},
-		func(token *jwt.Token) (interface{}, error) {
-			return []byte(jwtKey), nil
-		},
-	)
-	if err != nil {
-		return false, err
-	}
+// func IsSeller(c *gin.Context) (bool, error) {
+// 	tokenString := ExtractToken(c)
+// 	jwtKey := configs.LoadEnvFor("SECRET")
+// 	token, err := jwt.ParseWithClaims(
+// 		tokenString,
+// 		&JWTClaim{},
+// 		func(token *jwt.Token) (interface{}, error) {
+// 			return []byte(jwtKey), nil
+// 		},
+// 	)
+// 	if err != nil {
+// 		return false, err
+// 	}
 
-	claims, ok := token.Claims.(*JWTClaim)
-	if !ok {
-		err = errors.New("couldn't parse claims")
-		return false, err
-	}
+// 	claims, ok := token.Claims.(*JWTClaim)
+// 	if !ok {
+// 		err = errors.New("couldn't parse claims")
+// 		return false, err
+// 	}
 
-	return claims.IsSeller, nil
-}
+// 	return claims.IsSeller, nil
+// }
 
 func ValidateUserID(c *gin.Context) (primitive.ObjectID, error) {
 	myID, err := ExtractTokenID(c)

@@ -41,6 +41,7 @@ type Shop struct {
 	Members []ShopMember `bson:"members" json:"members"`
 	// Status of the shop. and must be one of the specified values.
 	Status ShopStatus `bson:"status" json:"status" validate:"required,oneof=inactive active banned suspended warning pendingreview"`
+	IsLive bool       `bson:"is_live" json:"is_live"`
 	// Date and time when the shop was created.
 	CreatedAt time.Time `bson:"created_at" json:"created_at" validate:"required"`
 	// Date and time when the shop was last modified.
@@ -172,4 +173,8 @@ type ShopReturnPolicies struct {
 	AcceptsReturn    bool               `bson:"accepts_return" json:"accepts_return"  validate:"default=false"`
 	AcceptsExchanges bool               `bson:"accepts_exchanges" json:"accepts_exchanges"  validate:"default=false"`
 	Deadline         int                `bson:"deadline" json:"deadline" validate:"oneof=7 14 21 30 45 60 90, default=7"`
+}
+
+type UpdateShopStatusReq struct {
+	Status bool `json:"status" validate:"required"`
 }

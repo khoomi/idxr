@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"khoomi-api-io/khoomi_api/auth"
 	"khoomi-api-io/khoomi_api/configs"
+	"khoomi-api-io/khoomi_api/email"
 	"khoomi-api-io/khoomi_api/helper"
 	"khoomi-api-io/khoomi_api/models"
 	"khoomi-api-io/khoomi_api/responses"
@@ -67,6 +68,13 @@ func CreateShop() gin.HandlerFunc {
 			return
 		}
 
+		loginName, userEmail, err := auth.ExtractTokenLoginNameEmail(c)
+		if err != nil {
+			log.Println(err)
+			helper.HandleError(c, http.StatusUnauthorized, err, "unathorized")
+			return
+		}
+
 		shopName := c.Request.FormValue("name")
 		err = helper.ValidateShopName(shopName)
 		if err != nil {
@@ -87,7 +95,7 @@ func CreateShop() gin.HandlerFunc {
 			helper.HandleError(c, http.StatusBadRequest, err, "Invalid shop description")
 			return
 		}
-      
+
 		// Logo file handling
 		logoFile, _, err := c.Request.FormFile("logo")
 		var logoUploadUrl string
@@ -100,7 +108,7 @@ func CreateShop() gin.HandlerFunc {
 				return
 			}
 		} else {
-			logoUploadUrl = bson.TypeNull.String()
+			logoUploadUrl = ""
 		}
 
 		// Banner file handling
@@ -115,9 +123,8 @@ func CreateShop() gin.HandlerFunc {
 				return
 			}
 		} else {
-			bannerUploadUrl = bson.TypeNull.String()
+			bannerUploadUrl = ""
 		}
-
 
 		wc := writeconcern.New(writeconcern.WMajority())
 		txnOptions := options.Transaction().SetWriteConcern(wc)
@@ -154,7 +161,8 @@ func CreateShop() gin.HandlerFunc {
 				Favorers:                  []string{},
 				FavorerCount:              0,
 				Members:                   []models.ShopMember{},
-				Status:                    models.ShopStatusPendingReview,
+				Status:                    models.ShopStatusActive,
+				IsLive:                    true,
 				CreatedAt:                 now,
 				ModifiedAt:                now,
 				Policy:                    policy,
@@ -192,7 +200,137 @@ func CreateShop() gin.HandlerFunc {
 
 		session.EndSession(context.Background())
 
+		// send success shop creation notification
+		email.SendNewShopEmail(userEmail, loginName, shopName)
+
 		helper.HandleSuccess(c, http.StatusOK, "Shop creation was successful", "")
+	}
+}
+
+func UpdateShopInformation() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+
+		shopId, myId, err := services.MyShopIdAndMyId(c)
+		if err != nil {
+			helper.HandleError(c, http.StatusBadRequest, err, "Error getting shop ID and user ID")
+			return
+		}
+
+		updateData := bson.M{}
+
+		if shopName := c.Request.FormValue("name"); shopName != "" {
+			if err := helper.ValidateShopName(shopName); err != nil {
+				helper.HandleError(c, http.StatusBadRequest, err, "Invalid shop name format")
+				return
+			}
+			updateData["name"] = shopName
+		}
+
+		if shopUsername := c.Request.FormValue("username"); shopUsername != "" {
+			if err := helper.ValidateShopUserName(shopUsername); err != nil {
+				helper.HandleError(c, http.StatusBadRequest, err, "Invalid shop username format")
+				return
+			}
+			updateData["username"] = shopUsername
+		}
+
+		if description := c.Request.FormValue("description"); description != "" {
+			updateData["description"] = description
+		}
+
+		if fileHeader, err := c.FormFile("logo_url"); err == nil {
+			file, err := fileHeader.Open()
+			if err != nil {
+				helper.HandleError(c, http.StatusInternalServerError, err, "Failed to retrieve uploaded file")
+				return
+			}
+			defer file.Close()
+
+			uploadUrl, err := services.NewMediaUpload().FileUpload(models.File{File: file})
+			if err != nil {
+				log.Printf("Logo Image upload failed - %v", err.Error())
+				helper.HandleError(c, http.StatusInternalServerError, err, "Failed to upload file logo")
+				return
+			}
+			updateData["logo_url"] = uploadUrl
+		} else if err != http.ErrMissingFile {
+			helper.HandleError(c, http.StatusInternalServerError, err, "Failed to retrieve uploaded file")
+			return
+		}
+
+		if fileHeader, err := c.FormFile("banner_url"); err == nil {
+			file, err := fileHeader.Open()
+			if err != nil {
+				helper.HandleError(c, http.StatusInternalServerError, err, "Failed to retrieve uploaded file")
+				return
+			}
+			defer file.Close()
+
+			uploadUrl, err := services.NewMediaUpload().FileUpload(models.File{File: file})
+			if err != nil {
+				log.Printf("Banner Image upload failed - %v", err.Error())
+				helper.HandleError(c, http.StatusInternalServerError, err, "Failed to upload file banner")
+				return
+			}
+			updateData["banner_url"] = uploadUrl
+		} else if err != http.ErrMissingFile {
+			helper.HandleError(c, http.StatusInternalServerError, err, "Failed to retrieve uploaded file")
+			return
+		}
+
+		if len(updateData) == 0 {
+			helper.HandleError(c, http.StatusOK, errors.New("no update data provided"), "No update data provided")
+			return
+		}
+
+		updateData["modified_at"] = time.Now()
+
+		filter := bson.M{"_id": shopId, "user_id": myId}
+		update := bson.M{"$set": updateData}
+
+		_, err = shopCollection.UpdateOne(ctx, filter, update)
+		if err != nil {
+			helper.HandleError(c, http.StatusExpectationFailed, err, "Failed to update user's shop information")
+			return
+		}
+
+		helper.HandleSuccess(c, http.StatusOK, "Shop information updated successfully", nil)
+	}
+}
+
+func UpdateMyShopStatus() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+
+		var payload models.UpdateShopStatusReq
+		if err := c.BindJSON(&payload); err != nil {
+			log.Println(err)
+			helper.HandleError(c, http.StatusBadRequest, err, "Invalid request body")
+			return
+		}
+
+		shopId, myId, err := services.MyShopIdAndMyId(c)
+		if err != nil {
+			helper.HandleError(c, http.StatusBadRequest, err, "Error getting shop ID and user ID")
+			return
+		}
+
+		filter := bson.M{"_id": shopId, "user_id": myId}
+		update := bson.M{"$set": bson.M{"is_live": payload.Status, "modified_at": time.Now()}}
+		res, err := shopCollection.UpdateOne(ctx, filter, update)
+		if err != nil {
+			helper.HandleError(c, http.StatusInternalServerError, err, "Error updating shop status")
+			return
+		}
+		if res.ModifiedCount == 0 {
+			helper.HandleError(c, http.StatusNotFound, errors.New("no matching documents found"), "No matching documents found")
+			return
+		}
+
+		helper.HandleSuccess(c, http.StatusOK, "Shop status was updated successful", "")
 	}
 }
 
@@ -651,7 +789,7 @@ func JoinShopMembers() gin.HandlerFunc {
 			return
 		}
 
-		loginName, err := auth.ExtractTokenLoginName(c)
+		loginName, _, err := auth.ExtractTokenLoginNameEmail(c)
 		if err != nil {
 			helper.HandleError(c, http.StatusBadRequest, err, "Error extracting login name")
 			return
@@ -946,7 +1084,7 @@ func CreateShopReview() gin.HandlerFunc {
 			helper.HandleError(c, http.StatusBadRequest, err, "Invalid shop or member ID")
 			return
 		}
-		loginName, err := auth.ExtractTokenLoginName(c)
+		loginName, _, err := auth.ExtractTokenLoginNameEmail(c)
 		if err != nil {
 			helper.HandleError(c, http.StatusBadRequest, err, "Failed to extract token login name")
 			return

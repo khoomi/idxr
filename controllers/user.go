@@ -46,6 +46,20 @@ const (
 	UserRequestTimeout = 20
 )
 
+func IsSeller(c *gin.Context, userId primitive.ObjectID) (bool, error) {
+	err := userCollection.FindOne(c, bson.M{"_id": userId, "is_seller": true}).Err()
+	if err == mongo.ErrNoDocuments {
+		// User not found or not a seller
+		return false, nil
+	} else if err != nil {
+		// Other error occurred
+		return false, err
+	}
+
+	// User is a seller
+	return true, nil
+}
+
 func CreateUser() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ctx, cancel := context.WithTimeout(context.Background(), UserRequestTimeout*time.Second)
@@ -283,7 +297,7 @@ func RefreshToken() gin.HandlerFunc {
 
 		if err := c.BindJSON(&payload); err != nil {
 			log.Println(err)
-			helper.HandleError(c, http.StatusInternalServerError, err, "Invalid request body")
+			helper.HandleError(c, http.StatusBadRequest, err, "Invalid request body")
 			return
 		}
 
@@ -303,7 +317,7 @@ func RefreshToken() gin.HandlerFunc {
 		res := userCollection.FindOne(ctx, bson.M{"_id": userObjectId})
 		if res.Err() != nil {
 			log.Println(err)
-			helper.HandleError(c, http.StatusNotFound, err, "User not found")
+			helper.HandleError(c, http.StatusNotFound, res.Err(), "User not found")
 			return
 		}
 
@@ -641,7 +655,6 @@ func VerifyEmail() gin.HandlerFunc {
 // UpdateMyProfile updates the email, thumbnail, first and last name for the current user.
 func UpdateMyProfile() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		log.Println(c.Request)
 		ctx, cancel := context.WithTimeout(context.Background(), UserRequestTimeout*time.Second)
 		defer cancel()
 
