@@ -4,9 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"khoomi-api-io/khoomi_api/auth"
 	"khoomi-api-io/khoomi_api/configs"
-	"khoomi-api-io/khoomi_api/email"
 	"khoomi-api-io/khoomi_api/helper"
 	"khoomi-api-io/khoomi_api/models"
 	"khoomi-api-io/khoomi_api/services"
@@ -15,6 +13,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	slug2 "github.com/gosimple/slug"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
@@ -27,16 +26,17 @@ func CreateListing() gin.HandlerFunc {
 
 		shopId, myId, err := services.MyShopIdAndMyId(c)
 		if err != nil {
+			log.Println(err)
 			helper.HandleError(c, http.StatusBadRequest, err, "Error getting shop ID and user ID")
 			return
 		}
 
-		loginName, loginEmail, err := auth.ExtractTokenLoginNameEmail(c)
-		if err != nil {
-			log.Println(err)
-			helper.HandleError(c, http.StatusUnauthorized, err, "unathorized")
-			return
-		}
+		// loginName, loginEmail, err := auth.ExtractTokenLoginNameEmail(c)
+		// if err != nil {
+		// 	log.Println(err)
+		// 	helper.HandleError(c, http.StatusUnauthorized, err, "unathorized")
+		// 	return
+		// }
 
 		var newListing models.NewListing
 
@@ -49,17 +49,31 @@ func CreateListing() gin.HandlerFunc {
 		}
 
 		if validationErr := validate.Struct(&newListing); validationErr != nil {
+			log.Println(validationErr)
 			helper.HandleError(c, http.StatusBadRequest, validationErr, "invalid or missing data in request body")
 			return
 		}
+		// main_image file handling
+		mainImage, _, err := c.Request.FormFile("main_image")
+		var mainImageUploadUrl string
+		if err == nil {
+			mainImageUploadUrl, err = services.NewMediaUpload().FileUpload(models.File{File: mainImage})
+			if err != nil {
+				errMsg := fmt.Sprintf("Logo failed to upload - %v", err.Error())
+				log.Print(errMsg)
+				helper.HandleError(c, http.StatusInternalServerError, err, errMsg)
+				return
+			}
+		} else {
+			mainImageUploadUrl = ""
+		}
 
-		log.Println(jsonData)
 		_, _, err = c.Request.FormFile("images")
 		var imagesUploadUrls []string
 
 		if err == nil {
 			// FormFile returns a single file, so you need to use MultipartForm to get multiple files
-			err := c.Request.ParseMultipartForm(10 << 20) // Set a reasonable maxMemory value for parsing the form
+			err := c.Request.ParseMultipartForm(10 << 20)
 			if err != nil {
 				errMsg := fmt.Sprintf("Failed to parse multipart form - %v", err.Error())
 				log.Print(errMsg)
@@ -145,11 +159,11 @@ func CreateListing() gin.HandlerFunc {
 			State:             models.ListingState{State: models.ListingStateActive, StateUpdatedAt: now},
 			UserId:            myId,
 			ShopId:            shopId,
-			MainImage:         "",
+			MainImage:         mainImageUploadUrl,
 			Images:            imagesUploadUrls,
 			ListingDetails:    listingDetails,
 			Date:              listingDate,
-			Slug:              "",
+			Slug:              slug2.Make(newListing.ListingDetails.Title),
 			Views:             0,
 			FavorersCount:     0,
 			ShippingProfileId: primitive.NilObjectID,
@@ -171,7 +185,7 @@ func CreateListing() gin.HandlerFunc {
 		}
 
 		// send new listing email notification to user
-		email.SendNewListingEmail(loginEmail, loginName, newListing.ListingDetails.Title)
+		// email.SendNewListingEmail(loginEmail, loginName, newListing.ListingDetails.Title)
 
 		helper.HandleSuccess(c, http.StatusOK, "Lisating was created successfully", gin.H{"_id": res.InsertedID})
 

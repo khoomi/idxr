@@ -116,7 +116,7 @@ type ListingDetails struct {
 	WhoMade                     string          `bson:"who_made" json:"who_made" validate:"oneof=i_did collective someone_else"`
 	WhenMade                    string          `bson:"when_made" json:"when_made"  validate:"oneof=in2020_2023 in2010_2019 in2003_2009 before_2003 in2000_2002 in1990s in1980s in1970s in1960s in1950s in1940s in1930s in1920s in1910s in1900s in1800s in1700s before_1700"`
 	Type                        string          `bson:"type" json:"type"`
-	Keywords                    string          `bson:"keywords" json:"keywords"`
+	Keywords                    []string        `bson:"keywords" json:"keywords"`
 	Tags                        []string        `bson:"tags" json:"tags"`
 	Dynamic                     interface{}     `bson:"dynamic" json:"dynamic"`
 	HasVariations               bool            `bson:"has_variations" json:"has_variations"`
@@ -154,7 +154,7 @@ type ListingDiscountsPromotions struct {
 }
 
 type Inventory struct {
-	DomesticPricing bool    `bson:"domestic_priceing" json:"domestic_priceing" validate:"required"`
+	DomesticPricing bool    `bson:"domestic_pricing" json:"domestic_pricing" validate:"required"`
 	DomesticPrice   float64 `bson:"domestic_price" json:"domestic_price"`
 	Price           float64 `bson:"price" json:"price" validate:"required"`
 	Quantity        int     `bson:"quantity" json:"quantity" validate:"required"`
@@ -168,20 +168,20 @@ type ListingRating struct {
 }
 
 type NewListing struct {
-	Inventory      Inventory                  `json:"inventory" validate:"required"`
-	Variations     []ListingVariation         `json:"variations"`
-	Processing     ListingProcessing          `json:"processing" validate:"required"`
-	ListingDetails NewListingDetails          `json:"details"`
+	Inventory      Inventory          `json:"inventory" validate:"required"`
+	Variations     []ListingVariation `json:"variations"`
+	Processing     ListingProcessing  `json:"processing" validate:"required"`
+	ListingDetails NewListingDetails  `json:"details"`
 }
 
 type NewListingDetails struct {
-	Title                       string          `json:"title" validate:"required min=5 max=30"`
+	Title                       string          `json:"title" validate:"required,min=10,max=50"`
 	Category                    ListingCategory `json:"category" validate:"required"`
-	Description                 string          `json:"description" validate:"required min=10 max=500"`
+	Description                 string          `json:"description" validate:"required,min=50,max=500"`
 	WhoMade                     string          `json:"who_made" validate:"oneof=i_did collective someone_else"`
 	WhenMade                    string          `json:"when_made"  validate:"oneof=in2020_2023 in2010_2019 in2003_2009 before_2003 in2000_2002 in1990s in1980s in1970s in1960s in1950s in1940s in1930s in1920s in1910s in1900s in1800s in1700s before_1700"`
 	Type                        string          `json:"type"`
-	Keywords                    string          `json:"keywords"`
+	Keywords                    []string        `json:"keywords"`
 	Tags                        []string        `json:"tags"`
 	Personalization             bool            `json:"personalization"`
 	PersonalizationText         string          `json:"personalization_text"`

@@ -204,7 +204,7 @@ func ListingRoutes(api *gin.RouterGroup) {
 		secured := category.Group("").Use(middleware.Auth())
 		{
 			// Endpoint to create a single listing
-			secured.POST("/:shop_id", controllers.CreateListing())
+			secured.POST("/:shopid", controllers.CreateListing())
 		}
 	}
 }
