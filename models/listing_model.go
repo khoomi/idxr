@@ -92,7 +92,7 @@ type Listing struct {
 	ShopId            primitive.ObjectID         `bson:"shop_id" json:"shop_id"`
 	MainImage         string                     `bson:"main_image" json:"main_image"`
 	Images            []string                   `bson:"images" json:"images"`
-	ListingDetails    ListingDetails             `json:"details"`
+	ListingDetails    ListingDetails             `bson:"details" json:"details"`
 	Date              ListingDateMeta            `bson:"date" json:"date"`
 	Slug              string                     `bson:"slug" json:"slug"`
 	Views             int                        `bson:"views" json:"views"`
@@ -138,12 +138,12 @@ type ListingReview struct {
 }
 
 type ListingVariation struct {
-	VariationType string  `json:"type"`
-	Value         string  `json:"value"`
-	Price         float64 `json:"price"`
-	Quantity      int     `json:"quantity"`
-	SKU           string  `json:"sku"`
-	Unit          string  `json:"unit"`
+	VariationType string `json:"type"`
+	Value         string `json:"value"`
+	Price         string `json:"price"`
+	Quantity      int    `json:"quantity"`
+	SKU           string `json:"sku"`
+	Unit          string `json:"unit"`
 }
 
 type ListingDiscountsPromotions struct {
@@ -154,12 +154,12 @@ type ListingDiscountsPromotions struct {
 }
 
 type Inventory struct {
-	DomesticPricing bool    `bson:"domestic_pricing" json:"domestic_pricing" validate:"required"`
-	DomesticPrice   float64 `bson:"domestic_price" json:"domestic_price"`
-	Price           float64 `bson:"price" json:"price" validate:"required"`
-	Quantity        int     `bson:"quantity" json:"quantity" validate:"required"`
-	SKU             string  `bson:"sku" json:"sku"`
-	CurrencyCode    string  `bson:"currency_code" json:"currency_code"`
+	DomesticPricing bool   `bson:"domestic_pricing" json:"domestic_pricing" validate:"required"`
+	DomesticPrice   string `bson:"domestic_price" json:"domestic_price"`
+	Price           string `bson:"price" json:"price" validate:"required"`
+	Quantity        int    `bson:"quantity" json:"quantity" validate:"required"`
+	SKU             string `bson:"sku" json:"sku"`
+	CurrencyCode    string `bson:"currency_code" json:"currency_code"`
 }
 
 type ListingRating struct {

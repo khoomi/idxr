@@ -47,7 +47,7 @@ func CreatePaymentInformation() gin.HandlerFunc {
 			helper.HandleError(c, http.StatusInternalServerError, err, "Error finding user")
 			return
 		}
-		if res == false {
+		if !res {
 			helper.HandleError(c, http.StatusUnauthorized, errors.New("Only sellers can perform this action"), "Unauthorized")
 			return
 		}
@@ -116,7 +116,7 @@ func GetPaymentInformations() gin.HandlerFunc {
 			helper.HandleError(c, http.StatusInternalServerError, err, "Error finding user")
 			return
 		}
-		if res == false {
+		if !res {
 			helper.HandleError(c, http.StatusUnauthorized, errors.New("Only sellers can perform this action"), "Unauthorized")
 			return
 		}

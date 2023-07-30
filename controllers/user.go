@@ -60,6 +60,20 @@ func IsSeller(c *gin.Context, userId primitive.ObjectID) (bool, error) {
 	return true, nil
 }
 
+func IsSelleWithShop(c *gin.Context, userId, shopId primitive.ObjectID) (bool, error) {
+	err := userCollection.FindOne(c, bson.M{"_id": userId, "is_seller": true, "shop_id": shopId}).Err()
+	if err == mongo.ErrNoDocuments {
+		// User not found or not a seller
+		return false, nil
+	} else if err != nil {
+		// Other error occurred
+		return false, err
+	}
+
+	// User is a seller
+	return true, nil
+}
+
 func CreateUser() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ctx, cancel := context.WithTimeout(context.Background(), UserRequestTimeout*time.Second)

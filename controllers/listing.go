@@ -4,7 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"khoomi-api-io/khoomi_api/auth"
 	"khoomi-api-io/khoomi_api/configs"
+	"khoomi-api-io/khoomi_api/email"
 	"khoomi-api-io/khoomi_api/helper"
 	"khoomi-api-io/khoomi_api/models"
 	"khoomi-api-io/khoomi_api/services"
@@ -14,10 +16,13 @@ import (
 
 	"github.com/gin-gonic/gin"
 	slug2 "github.com/gosimple/slug"
+	"github.com/pkg/errors"
+	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-var listingCollection = configs.GetCollection(configs.DB, "ListingCollection")
+var listingCollection = configs.GetCollection(configs.DB, "Listing")
 
 func CreateListing() gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -31,12 +36,12 @@ func CreateListing() gin.HandlerFunc {
 			return
 		}
 
-		// loginName, loginEmail, err := auth.ExtractTokenLoginNameEmail(c)
-		// if err != nil {
-		// 	log.Println(err)
-		// 	helper.HandleError(c, http.StatusUnauthorized, err, "unathorized")
-		// 	return
-		// }
+		loginName, loginEmail, err := auth.ExtractTokenLoginNameEmail(c)
+		if err != nil {
+			log.Println(err)
+			helper.HandleError(c, http.StatusUnauthorized, err, "unathorized")
+			return
+		}
 
 		var newListing models.NewListing
 
@@ -185,10 +190,57 @@ func CreateListing() gin.HandlerFunc {
 		}
 
 		// send new listing email notification to user
-		// email.SendNewListingEmail(loginEmail, loginName, newListing.ListingDetails.Title)
+		email.SendNewListingEmail(loginEmail, loginName, newListing.ListingDetails.Title)
 
 		helper.HandleSuccess(c, http.StatusOK, "Lisating was created successfully", gin.H{"_id": res.InsertedID})
 
 	}
+}
 
+func HasUserCreatedListingOnboarding() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ctx, cancel := context.WithTimeout(context.Background(), UserRequestTimeout*time.Second)
+		defer cancel()
+
+		shopId, userId, err := services.MyShopIdAndMyId(c)
+		if err != nil {
+			log.Println(err)
+			helper.HandleError(c, http.StatusBadRequest, err, "Error getting shop ID and user ID")
+			return
+		}
+
+		res, err := IsSelleWithShop(c, userId, shopId)
+		if err != nil {
+			log.Println(err)
+			helper.HandleError(c, http.StatusInternalServerError, err, "unauthorized")
+			return
+		}
+		if !res {
+			helper.HandleError(c, http.StatusUnauthorized, errors.New("Only sellers can perform this action"), "unauthorized")
+			return
+		}
+
+		filter := bson.M{"user_id": userId}
+		findOptions := options.Find().SetLimit(1)
+		cursor, err := listingCollection.Find(ctx, filter, findOptions)
+		if err != nil {
+			log.Printf("Error user listing: %v", err)
+			helper.HandleError(c, http.StatusNotFound, err, "Error user listing")
+			return
+		}
+		defer cursor.Close(ctx)
+
+		var listing []models.Listing
+		if err := cursor.All(ctx, &listing); err != nil {
+			helper.HandleError(c, http.StatusNotFound, err, "Error retrieving listing informations")
+			return
+		}
+
+		if len(listing) == 0 {
+			helper.HandleError(c, http.StatusNotFound, errors.New("User has no listings"), "User has no listings")
+			return
+		}
+
+		helper.HandleSuccess(c, http.StatusOK, "Success", gin.H{"listing": listing[0]})
+	}
 }
