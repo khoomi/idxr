@@ -229,7 +229,7 @@ func CategoryRoutes(api *gin.RouterGroup) {
 
 func ShippingRoutes(api *gin.RouterGroup) {
 	// Define the "/shipping/info" group
-	shipping := api.Group("/shipping/info")
+	shipping := api.Group("/shops/:shopid/shipping-info")
 	{
 		// Endpoint to get shop shipping profile info by ID
 		shipping.GET("/:infoId", controllers.GetShopShippingProfileInfo())
