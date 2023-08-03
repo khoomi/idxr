@@ -6,59 +6,105 @@
 			{
 				"_id": "64c5b1998785eacec92cf242",
 				"state": {
-					"state": "",
-					"state_updated_at": "0001-01-01T00:00:00Z"
+					"state": "active",
+					"state_updated_at": "2023-07-30T00:40:57.563Z"
 				},
-				"user_id": "000000000000000000000000",
-				"shop_id": "000000000000000000000000",
-				"main_image": "",
-				"images": null,
+				"user_id": "6477ef50bb0d50bb6f7f81a3",
+				"shop_id": "64bcef8a4c1b9098b9b9133a",
+				"main_image": "https://res.cloudinary.com/kh-oo-mi/image/upload/v1690677653/UCuy4YhFhyCvo3-jeXhNjR4yIeQ/wg7xbxsudtzqygldlm4i.jpg",
+				"images": [
+					"https://res.cloudinary.com/kh-oo-mi/image/upload/v1690677654/UCuy4YhFhyCvo3-jeXhNjR4yIeQ/opzfpsttalyp2yfsqy5m.png",
+					"https://res.cloudinary.com/kh-oo-mi/image/upload/v1690677655/UCuy4YhFhyCvo3-jeXhNjR4yIeQ/vvr4eteslubmmoum91o0.png",
+					"https://res.cloudinary.com/kh-oo-mi/image/upload/v1690677655/UCuy4YhFhyCvo3-jeXhNjR4yIeQ/b58liyb1xxwhhpgs2lrh.png",
+					"https://res.cloudinary.com/kh-oo-mi/image/upload/v1690677657/UCuy4YhFhyCvo3-jeXhNjR4yIeQ/ujurtuybhpkm21t7szvn.png"
+				],
 				"details": {
-					"title": "",
-					"description": "",
-					"condition": "",
+					"title": "Custom Night Gown",
+					"description": "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen book. It has survived not only five centuries, but also the leap into electronic typesetting, remaining essentially unchanged. It was popularised in the 1960s with the release of Letraset sheets containing Lorem Ipsum passages, and more recently with desktop p",
+					"condition": "new",
 					"category": {
-						"category_id": "",
-						"category_name": "",
-						"category_path": ""
+						"category_id": "womens-clothing",
+						"category_name": "Women's Clothing",
+						"category_path": "/clothing/womens-clothing/"
 					},
-					"who_made": "",
-					"when_made": "",
-					"type": "",
-					"keywords": null,
-					"tags": null,
-					"dynamic": null,
-					"has_variations": false,
+					"who_made": "someone_else",
+					"when_made": "in1940s",
+					"type": "finished_product",
+					"keywords": [
+						"gown",
+						"night",
+						"sexy"
+					],
+					"tags": [
+						"women cloth"
+					],
+					"dynamic": {
+						"fabric": [
+							"Silk"
+						],
+						"material": [
+							"Cotton",
+							"Wool"
+						],
+						"scale": "US/CA",
+						"size": "32"
+					},
+					"has_variations": true,
 					"personalization": false,
 					"personalization_text": "",
-					"personalization_text_chars": 0,
+					"personalization_text_chars": 20,
 					"personalization_text_optional": false
 				},
 				"date": {
-					"created_at": "0001-01-01T00:00:00Z",
-					"ending_at": "0001-01-01T00:00:00Z",
-					"modified_at": "0001-01-01T00:00:00Z"
+					"created_at": "2023-07-30T00:40:57.563Z",
+					"ending_at": "2023-07-30T00:40:57.563Z",
+					"modified_at": "2023-07-30T00:40:57.563Z"
 				},
-				"slug": "",
+				"slug": "custom-night-gown",
 				"views": 0,
 				"favorers_count": 0,
 				"shipping_profile_id": "000000000000000000000000",
 				"processing": {
-					"processing_min": 0,
-					"processing_min_unit": "",
-					"processing_max": 0,
-					"processing_max_unit": ""
+					"processing_min": 7,
+					"processing_min_unit": "days",
+					"processing_max": 7,
+					"processing_max_unit": "weeks"
 				},
-				"non_taxable": false,
-				"variations": null,
+				"non_taxable": true,
+				"variations": [
+					{
+						"type": "Color",
+						"value": "Ruby",
+						"price": "",
+						"quantity": 0,
+						"sku": "",
+						"unit": ""
+					},
+					{
+						"type": "Color",
+						"value": "Sapphire",
+						"price": "",
+						"quantity": 0,
+						"sku": "",
+						"unit": ""
+					},
+					{
+						"type": "Color",
+						"value": "Amber",
+						"price": "",
+						"quantity": 0,
+						"sku": "",
+						"unit": ""
+					}
+				],
 				"should_auto_renew": false,
 				"inventory": {
-					"domestic_pricing": false,
-					"domestic_price": "",
-					"price": "",
-					"quantity": 0,
-					"sku": "",
-					"currency_code": ""
+					"domestic_pricing": true,
+					"domestic_price": "5000",
+					"price": "5560",
+					"quantity": 50,
+					"sku": "000342",
+					"currency_code": "NGN"
 				},
 				"recent_reviews": null,
 				"reviews_count": {
