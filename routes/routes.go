@@ -201,7 +201,7 @@ func ShopRoutes(api *gin.RouterGroup) {
 }
 
 func ListingRoutes(api *gin.RouterGroup) {
-	// Define the "/categories" group
+	// Define the "/listing" group
 	listing := api.Group("/listings")
 	// Get all listings -> /api/listings/?limit=50&skip=0&sort=date.created_at
 	listing.GET("/", controllers.GetListings())
