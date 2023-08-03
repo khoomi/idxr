@@ -1,36 +1,91 @@
 {
-  "details": {
-    "personalization": true,
-    "personalization_text_chars": 20,
-    "has_variations": true,
-    "title": "Oval led light",
-    "keywords": "oval, led, light",
-    "who_made": "i_did",
-    "type": "finished_product",
-    "when_made": "in2003_2009",
-    "category": {
-      "category_name": "Women's Clothing",
-      "category_id": "womens-clothing",
-      "category_path": "/clothing/womens-clothing/"
-    },
-    "description": "Some good light for all from khoomi",
-    "tags": ["lovely", "calm", "cool"],
-    "personalization_text": "Name for customization",
-    "personalization_text_optional": true
-  },
-  "processing": {
-    "processing_min": 7,
-    "processing_min_unit": "days",
-    "processing_max": 7,
-    "processing_max_unit": "weeks"
-  },
-  "inventory": {
-    "domestic_pricing": true,
-    "domestic_price": 349,
-    "price": 544,
-    "quantity": 345,
-    "sku": "ndb4543"
-  },
-  "discounts": { "discount_percentage": 30, "promotion_code": "20" },
-  "variations": [{ "type": "Color", "value": "Crimson", "price": 234 }]
+	"status": 200,
+	"message": "success",
+	"data": {
+		"listings": [
+			{
+				"_id": "64c5b1998785eacec92cf242",
+				"state": {
+					"state": "",
+					"state_updated_at": "0001-01-01T00:00:00Z"
+				},
+				"user_id": "000000000000000000000000",
+				"shop_id": "000000000000000000000000",
+				"main_image": "",
+				"images": null,
+				"details": {
+					"title": "",
+					"description": "",
+					"condition": "",
+					"category": {
+						"category_id": "",
+						"category_name": "",
+						"category_path": ""
+					},
+					"who_made": "",
+					"when_made": "",
+					"type": "",
+					"keywords": null,
+					"tags": null,
+					"dynamic": null,
+					"has_variations": false,
+					"personalization": false,
+					"personalization_text": "",
+					"personalization_text_chars": 0,
+					"personalization_text_optional": false
+				},
+				"date": {
+					"created_at": "0001-01-01T00:00:00Z",
+					"ending_at": "0001-01-01T00:00:00Z",
+					"modified_at": "0001-01-01T00:00:00Z"
+				},
+				"slug": "",
+				"views": 0,
+				"favorers_count": 0,
+				"shipping_profile_id": "000000000000000000000000",
+				"processing": {
+					"processing_min": 0,
+					"processing_min_unit": "",
+					"processing_max": 0,
+					"processing_max_unit": ""
+				},
+				"non_taxable": false,
+				"variations": null,
+				"should_auto_renew": false,
+				"inventory": {
+					"domestic_pricing": false,
+					"domestic_price": "",
+					"price": "",
+					"quantity": 0,
+					"sku": "",
+					"currency_code": ""
+				},
+				"recent_reviews": null,
+				"reviews_count": {
+					"rating": 0,
+					"review_count": 0
+				},
+				"user": {
+					"login_name": "",
+					"first_name": "Samuel",
+					"last_name": "Onoja",
+					"thumbnail": "https://res.cloudinary.com/kh-oo-mi/image/upload/v1687191760/UCuy4YhFhyCvo3-jeXhNjR4yIeQ/e5hd5gf8wqs93fhsa6qu.jpg"
+				},
+				"shop": {
+					"name": "kansas",
+					"description": "great shop!",
+					"username": "kansas",
+					"location": "",
+					"slug": "kansas",
+					"logo_url": "https://res.cloudinary.com/kh-oo-mi/image/upload/v1690299560/UCuy4YhFhyCvo3-jeXhNjR4yIeQ/bos3xrsrvng3qajukbtt.png",
+					"reviews_count": 0
+				}
+			}
+		],
+		"pagination": {
+			"limit": 10,
+			"skip": 0,
+			"count": 1
+		}
+	}
 }
