@@ -40,7 +40,7 @@ func CreateShopShippingProfile() gin.HandlerFunc {
 			return
 		}
 
-		err = verifyShopOwnership(c, userID, shopIdObj)
+		err = VerifyShopOwnership(c, userID, shopIdObj)
 		if err != nil {
 			log.Printf("Error you the shop owner: %s\n", err.Error())
 			helper.HandleError(c, http.StatusUnauthorized, err, "shop ownership validation error")

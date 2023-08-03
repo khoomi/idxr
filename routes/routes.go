@@ -119,7 +119,6 @@ func userRoutes(api *gin.RouterGroup) {
 func ShopRoutes(api *gin.RouterGroup) {
 	// Define the "/shops" group
 	shop := api.Group("/shops")
-	shop.GET("/shops/:shopid/shipping-info/", controllers.GetShopShippingProfileInfos())
 
 	{
 		// Endpoint to get all shops
@@ -135,8 +134,8 @@ func ShopRoutes(api *gin.RouterGroup) {
 		// Endpoint to search for shops
 		shop.GET("/search", controllers.SearchShops())
 		// Endpoint to get shipping profile
-		shop.GET("/shipping/:infoId", controllers.GetShopShippingProfileInfo())
-		shop.GET("/shops/:shopid/shipping/:shippingProfileId", controllers.GetShopShippingProfileInfo())
+		shop.GET("/:shopid/shipping/", controllers.GetShopShippingProfileInfos())
+		shop.GET("/:shopid/shipping/:shippingProfileId", controllers.GetShopShippingProfileInfo())
 
 		// Secured endpoints that require authentication
 		secured := shop.Group("").Use(middleware.Auth())
@@ -183,7 +182,19 @@ func ShopRoutes(api *gin.RouterGroup) {
 			secured.DELETE("/:shopid/policies", controllers.DeleteShopReturnPolicy())
 			// Shipping routes
 			secured.POST("/:shopid/shipping", controllers.CreateShopShippingProfile())
-			secured.GET("/:shopid/shipping", controllers.GetShopShippingProfileInfos())
+			// Listing routes
+		}
+
+		listing := shop.Group("")
+		{
+			// Get shop listings -> /api/shops/{shopid}/listings/?limit=50&skip=0&sort=date.created_at
+			shop.GET("/:shopid/listings", controllers.GetShopListings())
+			secured := listing.Group("").Use(middleware.Auth())
+			{
+				// Endpoint to create a single listing
+				secured.POST("/:shopid", controllers.CreateListing())
+				secured.GET("/:shopid/check-listing-onboarding", controllers.HasUserCreatedListingOnboarding())
+			}
 		}
 
 	}
@@ -191,16 +202,11 @@ func ShopRoutes(api *gin.RouterGroup) {
 
 func ListingRoutes(api *gin.RouterGroup) {
 	// Define the "/categories" group
-	category := api.Group("/listings")
-	{
-		// Secured endpoints that require authentication
-		secured := category.Group("").Use(middleware.Auth())
-		{
-			// Endpoint to create a single listing
-			secured.POST("/:shopid", controllers.CreateListing())
-			secured.GET("/:shopid/check-listing-onboarding", controllers.HasUserCreatedListingOnboarding())
-		}
-	}
+	listing := api.Group("/listings")
+	// Get all listings -> /api/listings/?limit=50&skip=0&sort=date.created_at
+	listing.GET("/", controllers.GetListings())
+	// Get single listing by listingid -> /api/listings/{listingId}
+	listing.GET("/:listingid", controllers.GetListing())
 }
 
 func CategoryRoutes(api *gin.RouterGroup) {

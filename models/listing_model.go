@@ -86,44 +86,84 @@ const (
 )
 
 type Listing struct {
-	ID                primitive.ObjectID         `bson:"_id" json:"_id"`
-	State             ListingState               `bson:"state" json:"state"`
-	UserId            primitive.ObjectID         `bson:"user_id" json:"user_id"`
-	ShopId            primitive.ObjectID         `bson:"shop_id" json:"shop_id"`
-	MainImage         string                     `bson:"main_image" json:"main_image"`
-	Images            []string                   `bson:"images" json:"images"`
-	ListingDetails    ListingDetails             `bson:"details" json:"details"`
-	Date              ListingDateMeta            `bson:"date" json:"date"`
-	Slug              string                     `bson:"slug" json:"slug"`
-	Views             int                        `bson:"views" json:"views"`
-	FavorersCount     int                        `bson:"favorers_count" json:"favorers_count"`
-	ShippingProfileId primitive.ObjectID         `bson:"shipping_profile_id" json:"shipping_profile_id"`
-	Processing        ListingProcessing          `bson:"processing" json:"processing"`
-	NonTaxable        bool                       `bson:"non_taxable" json:"non_taxable"`
-	Variations        []ListingVariation         `bson:"variations" json:"variations"`
-	ShouldAutoRenew   bool                       `bson:"should_auto_renew" json:"should_auto_renew"`
-	Inventory         Inventory                  `bson:"inventory" json:"inventory"`
-	RecentReviews     []ListingReview            `bson:"recent_reviews" json:"recent_reviews"`
-	Rating            ListingRating              `bson:"reviews_count" json:"reviews_count"`
-	Discount          ListingDiscountsPromotions `bson:"discount" json:"discount"`
+	ID                primitive.ObjectID `bson:"_id" json:"_id"`
+	State             ListingState       `bson:"state" json:"state"`
+	UserId            primitive.ObjectID `bson:"user_id" json:"user_id"`
+	ShopId            primitive.ObjectID `bson:"shop_id" json:"shop_id"`
+	MainImage         string             `bson:"main_image" json:"main_image"`
+	Images            []string           `bson:"images" json:"images"`
+	ListingDetails    ListingDetails     `bson:"details" json:"details"`
+	Date              ListingDateMeta    `bson:"date" json:"date"`
+	Slug              string             `bson:"slug" json:"slug"`
+	Views             int                `bson:"views" json:"views"`
+	FavorersCount     int                `bson:"favorers_count" json:"favorers_count"`
+	ShippingProfileId primitive.ObjectID `bson:"shipping_profile_id" json:"shipping_profile_id"`
+	Processing        ListingProcessing  `bson:"processing" json:"processing"`
+	NonTaxable        bool               `bson:"non_taxable" json:"non_taxable"`
+	Variations        []ListingVariation `bson:"variations" json:"variations"`
+	ShouldAutoRenew   bool               `bson:"should_auto_renew" json:"should_auto_renew"`
+	Inventory         Inventory          `bson:"inventory" json:"inventory"`
+	RecentReviews     []ListingReview    `bson:"recent_reviews" json:"recent_reviews"`
+	Rating            ListingRating      `bson:"reviews_count" json:"reviews_count"`
+}
+
+type ListingExtra struct {
+	ID                primitive.ObjectID `bson:"_id" json:"_id"`
+	State             ListingState       `bson:"state" json:"state"`
+	UserId            primitive.ObjectID `bson:"user_id" json:"user_id"`
+	ShopId            primitive.ObjectID `bson:"shop_id" json:"shop_id"`
+	MainImage         string             `bson:"main_image" json:"main_image"`
+	Images            []string           `bson:"images" json:"images"`
+	ListingDetails    ListingDetails     `bson:"details" json:"details"`
+	Date              ListingDateMeta    `bson:"date" json:"date"`
+	Slug              string             `bson:"slug" json:"slug"`
+	Views             int                `bson:"views" json:"views"`
+	FavorersCount     int                `bson:"favorers_count" json:"favorers_count"`
+	ShippingProfileId primitive.ObjectID `bson:"shipping_profile_id" json:"shipping_profile_id"`
+	Processing        ListingProcessing  `bson:"processing" json:"processing"`
+	NonTaxable        bool               `bson:"non_taxable" json:"non_taxable"`
+	Variations        []ListingVariation `bson:"variations" json:"variations"`
+	ShouldAutoRenew   bool               `bson:"should_auto_renew" json:"should_auto_renew"`
+	Inventory         Inventory          `bson:"inventory" json:"inventory"`
+	RecentReviews     []ListingReview    `bson:"recent_reviews" json:"recent_reviews"`
+	Rating            ListingRating      `bson:"reviews_count" json:"reviews_count"`
+	User              ListingUserExcept  `bson:"user" json:"user"`
+	Shop              ListingShopExcept  `bson:"shop" json:"shop"`
+}
+
+type ListingUserExcept struct {
+	LoginName string `bson:"login_name" json:"login_name" validate:"required"`
+	FirstName string `bson:"first_name" json:"first_name"`
+	LastName  string `bson:"last_name" json:"last_name"`
+	Thumbnail string `bson:"thumbnail" json:"thumbnail"`
+}
+
+type ListingShopExcept struct {
+	Name         string `bson:"name" json:"name" validate:"required"`
+	Description  string `bson:"description" json:"description" validate:"required"`
+	Username     string `bson:"username" json:"username" validate:"required"`
+	Location     string `bson:"location" json:"location"`
+	Slug         string `bson:"slug" json:"slug" validate:"required"`
+	LogoURL      string `bson:"logo_url" json:"logo_url"`
+	ReviewsCount int    `bson:"reviews_count" json:"reviews_count"`
 }
 
 type ListingDetails struct {
-	Title                       string          `bson:"title" json:"title"`
-	Description                 string          `bson:"description" json:"description"`
-	Condition                   string          `bson:"condition" json:"condition" validate:"oneof=new used refurbished"`
-	Category                    ListingCategory `bson:"category" json:"category"`
-	WhoMade                     string          `bson:"who_made" json:"who_made" validate:"oneof=i_did collective someone_else"`
-	WhenMade                    string          `bson:"when_made" json:"when_made"  validate:"oneof=in2020_2023 in2010_2019 in2003_2009 before_2003 in2000_2002 in1990s in1980s in1970s in1960s in1950s in1940s in1930s in1920s in1910s in1900s in1800s in1700s before_1700"`
-	Type                        string          `bson:"type" json:"type"`
-	Keywords                    []string        `bson:"keywords" json:"keywords"`
-	Tags                        []string        `bson:"tags" json:"tags"`
-	Dynamic                     interface{}     `bson:"dynamic" json:"dynamic"`
-	HasVariations               bool            `bson:"has_variations" json:"has_variations"`
-	Personalization             bool            `bson:"personalization" json:"personalization"`
-	PersonalizationText         string          `bson:"personalization_text" json:"personalization_text"`
-	PersonalizationTextChars    int             `bson:"personalization_text_chars" json:"personalization_text_chars"`
-	PersonalizationTextOptional bool            `bson:"personalization_text_optional" json:"personalization_text_optional"`
+	Title                       string                 `bson:"title" json:"title"`
+	Description                 string                 `bson:"description" json:"description"`
+	Condition                   string                 `bson:"condition" json:"condition" validate:"oneof=new used refurbished"`
+	Category                    ListingCategory        `bson:"category" json:"category"`
+	WhoMade                     string                 `bson:"who_made" json:"who_made" validate:"oneof=i_did collective someone_else"`
+	WhenMade                    string                 `bson:"when_made" json:"when_made"  validate:"oneof=in2020_2023 in2010_2019 in2003_2009 before_2003 in2000_2002 in1990s in1980s in1970s in1960s in1950s in1940s in1930s in1920s in1910s in1900s in1800s in1700s before_1700"`
+	Type                        string                 `bson:"type" json:"type"`
+	Keywords                    []string               `bson:"keywords" json:"keywords"`
+	Tags                        []string               `bson:"tags" json:"tags"`
+	Dynamic                     map[string]interface{} `bson:"dynamic" json:"dynamic"`
+	HasVariations               bool                   `bson:"has_variations" json:"has_variations"`
+	Personalization             bool                   `bson:"personalization" json:"personalization"`
+	PersonalizationText         string                 `bson:"personalization_text" json:"personalization_text"`
+	PersonalizationTextChars    int                    `bson:"personalization_text_chars" json:"personalization_text_chars"`
+	PersonalizationTextOptional bool                   `bson:"personalization_text_optional" json:"personalization_text_optional"`
 }
 
 type ListingReview struct {
@@ -175,21 +215,21 @@ type NewListing struct {
 }
 
 type NewListingDetails struct {
-	Title                       string          `json:"title" validate:"required,min=10,max=50"`
-	Category                    ListingCategory `json:"category" validate:"required"`
-	Description                 string          `json:"description" validate:"required,min=50,max=500"`
-	WhoMade                     string          `json:"who_made" validate:"oneof=i_did collective someone_else"`
-	WhenMade                    string          `json:"when_made"  validate:"oneof=in2020_2023 in2010_2019 in2003_2009 before_2003 in2000_2002 in1990s in1980s in1970s in1960s in1950s in1940s in1930s in1920s in1910s in1900s in1800s in1700s before_1700"`
-	Type                        string          `json:"type"`
-	Keywords                    []string        `json:"keywords"`
-	Tags                        []string        `json:"tags"`
-	Personalization             bool            `json:"personalization"`
-	PersonalizationText         string          `json:"personalization_text"`
-	PersonalizationTextChars    int             `json:"personalization_text_chars"`
-	PersonalizationTextOptional bool            `json:"personalization_text_optional"`
-	Dynamic                     interface{}     `json:"dynamic"`
-	HasVariations               bool            `bson:"has_variations" json:"has_variations"`
-	Condition                   string          `bson:"condition" json:"condition" validate:"oneof=new used refurbished"`
+	Title                       string                 `json:"title" validate:"required,min=10,max=50"`
+	Category                    ListingCategory        `json:"category" validate:"required"`
+	Description                 string                 `json:"description" validate:"required,min=50,max=500"`
+	WhoMade                     string                 `json:"who_made" validate:"oneof=i_did collective someone_else"`
+	WhenMade                    string                 `json:"when_made"  validate:"oneof=in2020_2023 in2010_2019 in2003_2009 before_2003 in2000_2002 in1990s in1980s in1970s in1960s in1950s in1940s in1930s in1920s in1910s in1900s in1800s in1700s before_1700"`
+	Type                        string                 `json:"type"`
+	Keywords                    []string               `json:"keywords"`
+	Tags                        []string               `json:"tags"`
+	Personalization             bool                   `json:"personalization"`
+	PersonalizationText         string                 `json:"personalization_text"`
+	PersonalizationTextChars    int                    `json:"personalization_text_chars"`
+	PersonalizationTextOptional bool                   `json:"personalization_text_optional"`
+	Dynamic                     map[string]interface{} `json:"dynamic"`
+	HasVariations               bool                   `bson:"has_variations" json:"has_variations"`
+	Condition                   string                 `bson:"condition" json:"condition" validate:"oneof=new used refurbished"`
 }
 
 type ClothListing struct {

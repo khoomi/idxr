@@ -16,7 +16,8 @@ type Shop struct {
 	// The login name for the shop.
 	Username string `bson:"username" json:"username" validate:"required"`
 	// ID of the user that owns the shop.
-	UserID primitive.ObjectID `bson:"user_id" json:"user_id" validate:""`
+	UserID   primitive.ObjectID `bson:"user_id" json:"user_id"`
+	Location primitive.ObjectID `bson:"location" json:"location"`
 	// Number of active listings in the shop.
 	ListingActiveCount int `bson:"listing_active_count" json:"listing_active_count" validate:"required"`
 	// Announcement fo the shop. This field is optional.
@@ -53,7 +54,7 @@ type Shop struct {
 	// Numbers of reviews for the shop.
 	ReviewsCount int `bson:"reviews_count" json:"reviews_count"`
 	// A message string sent to users who complete a purchase from this shop.
-	SalesMessage              []ShopReview `bson:"sales_message" json:"sales_message" validate:""`
+	SalesMessage              []ShopReview `bson:"sales_message" json:"sales_message"`
 	IsDirectCheckoutOnboarded bool         `bson:"is_direct_checkout_onboarded" json:"is_direct_checkout_onboarded" validate:"default=false"`
 	IsKhoomiPaymentOnboarded  bool         `bson:"is_khoomi_payment_onboarded" json:"is_khoomi_payment_onboarded" validate:"default=false"`
 }

@@ -9,6 +9,7 @@ import (
 	"khoomi-api-io/khoomi_api/email"
 	"khoomi-api-io/khoomi_api/helper"
 	"khoomi-api-io/khoomi_api/models"
+	"khoomi-api-io/khoomi_api/responses"
 	"khoomi-api-io/khoomi_api/services"
 	"log"
 	"net/http"
@@ -19,10 +20,12 @@ import (
 	"github.com/pkg/errors"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
+	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 var listingCollection = configs.GetCollection(configs.DB, "Listing")
+var ListingRequestTimeout = 30
 
 func CreateListing() gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -197,6 +200,246 @@ func CreateListing() gin.HandlerFunc {
 	}
 }
 
+func GetListing() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ctx, cancel := context.WithTimeout(context.Background(), 50*time.Second)
+		defer cancel()
+
+		listingId := c.Param("listingid")
+		listingObjectId, err := primitive.ObjectIDFromHex(listingId)
+		if err != nil {
+			log.Println(err)
+			helper.HandleError(c, http.StatusBadRequest, err, "invalid listing id was provided")
+			return
+		}
+
+		pipeline := []bson.M{
+			{"$match": bson.M{"_id": listingObjectId}},
+			{
+				"$lookup": bson.M{
+					"from":         "Shop",
+					"localField":   "shop_id",
+					"foreignField": "_id",
+					"as":           "shop",
+				},
+			},
+			{"$unwind": "$shop"},
+			{
+				"$lookup": bson.M{
+					"from":         "User",
+					"localField":   "user_id",
+					"foreignField": "_id",
+					"as":           "user",
+				},
+			},
+			{"$unwind": "$user"},
+			{
+				"$project": bson.M{
+					"user": bson.M{
+						"login_name": "$user.login_name",
+						"first_name": "$user.first_name",
+						"last_name":  "$user.last_name",
+						"thumbnail":  "$user.thumbnail",
+					},
+					"shop": bson.M{
+						"name":          "$shop.username",
+						"username":      "$shop.username",
+						"slug":          "$shop.slug",
+						"logo_url":      "$shop.logo_url",
+						"location":      "$shop.location",
+						"description":   "$shop.description",
+						"reviews_count": "$shop.reviews_count",
+					},
+				},
+			},
+		}
+
+		cursor, err := listingCollection.Aggregate(ctx, pipeline)
+		if err != nil {
+			log.Println(err)
+			helper.HandleError(c, http.StatusInternalServerError, err, "error while retrieving listing")
+			return
+		}
+
+		var listing models.ListingExtra
+
+		if cursor.Next(ctx) {
+			if err := cursor.Decode(&listing); err != nil {
+				log.Println(err)
+				helper.HandleError(c, http.StatusInternalServerError, err, "error while decoding listing")
+				return
+			}
+		} else {
+			helper.HandleError(c, http.StatusNotFound, err, "no listing found")
+			return
+		}
+
+		helper.HandleSuccess(c, http.StatusOK, "Success", gin.H{"listing": listing})
+	}
+}
+
+func GetListings() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ctx, cancel := context.WithTimeout(context.Background(), 50*time.Second)
+		defer cancel()
+
+		paginationArgs := services.GetPaginationArgs(c)
+		sort := bson.D{{Key: "data.created_at", Value: -1}}
+		if paginationArgs.Sort != "" {
+			sort = bson.D{{Key: paginationArgs.Sort, Value: -1}}
+		}
+
+		pipeline := []bson.M{
+			{"$match": bson.M{}},
+			{
+				"$lookup": bson.M{
+					"from":         "Shop",
+					"localField":   "shop_id",
+					"foreignField": "_id",
+					"as":           "shop",
+				},
+			},
+			{"$unwind": "$shop"},
+			{
+				"$lookup": bson.M{
+					"from":         "User",
+					"localField":   "user_id",
+					"foreignField": "_id",
+					"as":           "user",
+				},
+			},
+			{"$unwind": "$user"},
+			{
+				"$project": bson.M{
+					"user": bson.M{
+						"login_name": "$user.login_name",
+						"first_name": "$user.first_name",
+						"last_name":  "$user.last_name",
+						"thumbnail":  "$user.thumbnail",
+					},
+					"shop": bson.M{
+						"name":          "$shop.username",
+						"username":      "$shop.username",
+						"slug":          "$shop.slug",
+						"logo_url":      "$shop.logo_url",
+						"location":      "$shop.location",
+						"description":   "$shop.description",
+						"reviews_count": "$shop.reviews_count",
+					},
+				},
+			},
+			{"$skip": int64(paginationArgs.Skip)},
+			{"$limit": int64(paginationArgs.Limit)},
+			{"$sort": sort},
+		}
+
+		cursor, err := listingCollection.Aggregate(ctx, pipeline)
+		if err != nil {
+			log.Println(err)
+			helper.HandleError(c, http.StatusInternalServerError, err, "error while retrieving listing")
+			return
+		}
+
+		var listings []models.ListingExtra
+		if err := cursor.All(ctx, &listings); err != nil {
+			log.Println(err)
+			helper.HandleError(c, http.StatusInternalServerError, err, "error while decoding listing")
+			return
+		}
+
+		countPipeline := []bson.M{
+			{"$match": bson.M{}},
+			{"$count": "total"},
+		}
+		countCursor, err := listingCollection.Aggregate(ctx, countPipeline)
+		if err != nil {
+			log.Println(err)
+			helper.HandleError(c, http.StatusInternalServerError, err, "error while counting listings")
+			return
+		}
+		var countResult struct {
+			Total int64 `bson:"total"`
+		}
+		if countCursor.Next(ctx) {
+			if err := countCursor.Decode(&countResult); err != nil {
+				log.Println(err)
+				helper.HandleError(c, http.StatusInternalServerError, err, "error while decoding count")
+				return
+			}
+		}
+
+		helper.HandleSuccess(c, http.StatusOK, "success", gin.H{
+			"listings": listings,
+			"pagination": responses.Pagination{
+				Limit: paginationArgs.Limit,
+				Skip:  paginationArgs.Skip,
+				Count: countResult.Total,
+			},
+		})
+	}
+}
+
+func GetShopListings() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ctx, cancel := context.WithTimeout(context.Background(), 50*time.Second)
+		defer cancel()
+
+		shopId := c.Param("shopid")
+		shopObjectId, err := primitive.ObjectIDFromHex(shopId)
+		if err != nil {
+			log.Println(err)
+			helper.HandleError(c, http.StatusBadRequest, err, "invalid shop id was provided")
+			return
+		}
+
+		var listing models.Listing
+		err = listingCollection.FindOne(ctx, bson.M{"shop_id": shopObjectId}).Decode(&listing)
+		if err != nil {
+			log.Println(err)
+			if err == mongo.ErrNoDocuments {
+				helper.HandleError(c, http.StatusNotFound, err, "no listing found or shop doesn't have any listing yet")
+				return
+			}
+
+			helper.HandleError(c, http.StatusBadRequest, err, "error while retrieving listing")
+			return
+		}
+
+		paginationArgs := services.GetPaginationArgs(c)
+		findOptions := options.Find().
+			SetLimit(int64(paginationArgs.Limit)).
+			SetSkip(int64(paginationArgs.Skip)).
+			SetSort(bson.D{{Key: "date", Value: -1}}) // Sort by date field in descending order (-1)
+
+		result, err := listingCollection.Find(ctx, bson.M{}, findOptions)
+		if err != nil {
+			helper.HandleError(c, http.StatusNotFound, err, "error retrieving listings")
+			return
+		}
+
+		count, err := listingCollection.CountDocuments(ctx, bson.M{})
+		if err != nil {
+			helper.HandleError(c, http.StatusInternalServerError, err, "Failed to count shipping profiles")
+			return
+		}
+
+		var listings []models.Listing
+		if err = result.All(ctx, &listings); err != nil {
+			helper.HandleError(c, http.StatusInternalServerError, err, "Failed to decode listings")
+			return
+		}
+
+		helper.HandleSuccess(c, http.StatusOK, "success", gin.H{
+			"listings": listings,
+			"pagination": responses.Pagination{
+				Limit: paginationArgs.Limit,
+				Skip:  paginationArgs.Skip,
+				Count: count,
+			},
+		})
+	}
+}
+
 func HasUserCreatedListingOnboarding() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ctx, cancel := context.WithTimeout(context.Background(), UserRequestTimeout*time.Second)
@@ -209,13 +452,9 @@ func HasUserCreatedListingOnboarding() gin.HandlerFunc {
 			return
 		}
 
-		res, err := IsSelleWithShop(c, userId, shopId)
+		err = VerifyShopOwnership(c, userId, shopId)
 		if err != nil {
 			log.Println(err)
-			helper.HandleError(c, http.StatusInternalServerError, err, "unauthorized")
-			return
-		}
-		if !res {
 			helper.HandleError(c, http.StatusUnauthorized, errors.New("Only sellers can perform this action"), "unauthorized")
 			return
 		}
@@ -224,8 +463,8 @@ func HasUserCreatedListingOnboarding() gin.HandlerFunc {
 		findOptions := options.Find().SetLimit(1)
 		cursor, err := listingCollection.Find(ctx, filter, findOptions)
 		if err != nil {
-			log.Printf("Error user listing: %v", err)
-			helper.HandleError(c, http.StatusNotFound, err, "Error user listing")
+			log.Printf("error retrieving user listing: %v", err)
+			helper.HandleError(c, http.StatusNotFound, err, "error retrieving user listing")
 			return
 		}
 		defer cursor.Close(ctx)

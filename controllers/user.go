@@ -60,7 +60,7 @@ func IsSeller(c *gin.Context, userId primitive.ObjectID) (bool, error) {
 	return true, nil
 }
 
-func verifyShopOwnership(ctx context.Context, userId, shopId primitive.ObjectID) error {
+func VerifyShopOwnership(ctx context.Context, userId, shopId primitive.ObjectID) error {
 	shop := models.Shop{}
 	err := shopCollection.FindOne(ctx, bson.M{"_id": shopId, "user_id": userId}).Decode(&shop)
 	if err != nil {
