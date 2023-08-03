@@ -23,50 +23,58 @@ type UserAddressUpdateequest struct {
 }
 
 type ShopShippingProfile struct {
-	// The unique identifier of the shipping profile.
-	ID primitive.ObjectID `bson:"_id" json:"_id" validate:"omitempty"`
-	// The identifier of the associated shop.
-	ShopID primitive.ObjectID `bson:"shop_id" json:"shop_id" validate:"required"`
-	// The name of this shipping profile.
-	Title string `bson:"title" json:"title" validate:"required"`
-	// The minimum time required to process and ship listings with this shipping profile.
-	MinProcessingTime int `bson:"min_processing_time" json:"min_processing_time" validate:"required"`
-	// The maximum time required to process and ship listings with this shipping profile.
-	MaxProcessingTime int `bson:"max_processing_time" json:"max_processing_time" validate:"required"`
-	// The unit used to represent the processing time. Valid values: "business_days", "weeks". Default: "business_days".
-	ProcessingTimeUnit string `bson:"processing_time_unit" json:"processing_time_unit" validate:"required,oneof=business_days weeks,default=business_days"`
-	// The states/regions where this shipping profile applies. Default: ["all"].
-	DestinationStates []string `bson:"destination_states" json:"destination_states" validate:"required,default=all"`
-	// The regions where this shipping profile applies. Default: ["all"].
-	DestinationRegion []string `bson:"destination_region" json:"destination_region" validate:"required,default=all"`
-	// The minimum number of days for delivery.
-	MinDeliveryDays int `bson:"min_delivery_days" json:"min_delivery_days"`
-	// The maximum number of days for delivery.
-	MaxDeliveryDays int `bson:"max_delivery_days" json:"max_delivery_days"`
-	// The state from which the listing ships.
-	OriginState string `bson:"origin_state" json:"origin_state"`
-	// The postal code from which the listing ships.
-	OriginPostalCode int `bson:"origin_postal_code" json:"origin_postal_code"`
-	// The cost of shipping to this region alone.
-	PrimaryCost float64 `bson:"primary_cost" json:"primary_cost"`
-	// The domestic handling fee.
-	DomesticHandlingFee float32 `bson:"domestic_handling_fee" json:"domestic_handling_fee"`
-	// The available shipping methods. Valid values: "standard", "express", "next-day".
-	ShippingMethods []string `bson:"shipping_methods" json:"shipping_methods" validate:"dive,oneof=standard express next-day"`
+	ID                       primitive.ObjectID `bson:"_id" json:"_id" validate:"omitempty"`
+	ShopID                   primitive.ObjectID `bson:"shop_id" json:"shop_id" validate:"required"`
+	Title                    string             `bson:"title" json:"title" validate:"required"`
+	MinProcessingTime        int                `bson:"min_processing_time" json:"min_processing_time" validate:"required"`
+	MaxProcessingTime        int                `bson:"max_processing_time" json:"max_processing_time" validate:"required"`
+	ProcessingTimeUnit       string             `bson:"processing_time_unit" json:"processing_time_unit" validate:"required,oneof=days weeks,default=days"`
+	DestinationBy            string             `bson:"destination_by" json:"destination_by"`
+	Destinations             []string           `bson:"destination" json:"destination" validate:"required,default=all"`
+	MinDeliveryDays          int                `bson:"min_delivery_days" json:"min_delivery_days"`
+	MaxDeliveryDays          int                `bson:"max_delivery_days" json:"max_delivery_days"`
+	OriginState              string             `bson:"origin_state" json:"origin_state"`
+	OriginPostalCode         int                `bson:"origin_postal_code" json:"origin_postal_code"`
+	PrimaryPrice             string             `bson:"primary_price" json:"primary_price"`
+	SecondaryPrice           string             `bson:"secondary_price" json:"secondary_price"`
+	HandlingFee              string             `bson:"handling_fee" json:"handling_fee"`
+	ShippingMethods          []string           `bson:"shipping_methods" json:"shipping_methods" validate:"oneof=standard express next-day"`
+	PolicyId                 primitive.ObjectID `bson:"policy_id" json:"policy_id"`
+	IsDefaultShippingProfile bool               `bson:"is_default_profile" json:"is_default_profile"`
+	OffersFreeShipping       bool               `bson:"offers_free_shipping" json:"offers_free_shipping"`
+	AutoCalculatePrice       bool               `bson:"auto_calculate_price" json:"auto_calculate_price"`
+	ShippingService          bool               `bson:"service" json:"service"`
+	Policy                   ShippingPolicy     `bson:"policy" json:"policy"`
+	CreatedAt                primitive.DateTime `bson:"created_at" json:"created_at"`
+	ModifiedAt               primitive.DateTime `bson:"modified_at" json:"modified_at"`
 }
 
 type ShopShippingProfileRequest struct {
-	Title               string   `json:"title" validate:"required"`
-	MinProcessingTime   int      `json:"min_processing_time" validate:"required"`
-	MaxProcessingTime   int      `json:"max_processing_time" validate:"required"`
-	ProcessingTimeUnit  string   `json:"processing_time_unit" validate:"required,oneof=business_days weeks,default=business_days"`
-	DestinationStates   []string `json:"destination_states" validate:"required,default=all"`
-	DestinationRegion   []string `json:"destination_region" validate:"required,default=all"`
-	MinDeliveryDays     int      `json:"min_delivery_days"`
-	MaxDeliveryDays     int      `json:"max_delivery_days"`
-	OriginState         string   `json:"origin_state"`
-	OriginPostalCode    int      `json:"origin_postal_code"`
-	PrimaryCost         float64  `json:"primary_cost"`
-	DomesticHandlingFee float32  `json:"domestic_handling_fee"`
-	ShippingMethods     []string `json:"shipping_methods" validate:"required,gt=0,dive,oneof=standard express next-day"`
+	ID                       primitive.ObjectID `bson:"_id" json:"_id" validate:"omitempty"`
+	Title                    string             `bson:"title" json:"title" validate:"required"`
+	MinProcessingTime        int                `bson:"min_processing_time" json:"min_processing_time" validate:"required"`
+	MaxProcessingTime        int                `bson:"max_processing_time" json:"max_processing_time" validate:"required"`
+	ProcessingTimeUnit       string             `bson:"processing_time_unit" json:"processing_time_unit" validate:"required,oneof=days weeks,default=days"`
+	DestinationBy            string             `bson:"destination_by" json:"destination_by"`
+	Destinations             []string           `bson:"destination" json:"destination" validate:"required,default=all"`
+	MinDeliveryDays          int                `bson:"min_delivery_days" json:"min_delivery_days"`
+	MaxDeliveryDays          int                `bson:"max_delivery_days" json:"max_delivery_days"`
+	OriginState              string             `bson:"origin_state" json:"origin_state"`
+	OriginPostalCode         int                `bson:"origin_postal_code" json:"origin_postal_code"`
+	PrimaryPrice             string             `bson:"primary_price" json:"primary_price"`
+	SecondaryPrice           string             `bson:"secondary_price" json:"secondary_price"`
+	HandlingFee              string             `bson:"handling_fee" json:"handling_fee"`
+	IsDefaultShippingProfile bool               `bson:"is_default_profile" json:"is_default_profile"`
+	OffersFreeShipping       bool               `bson:"offers_free_shipping" json:"offers_free_shipping"`
+	AutoCalculatePrice       bool               `bson:"auto_calculate_price" json:"auto_calculate_price"`
+	ShippingService          bool               `bson:"service" json:"service"`
+	Policy                   ShippingPolicy     `bson:"policy" json:"policy"`
+}
+
+type ShippingPolicy struct {
+	ReturnPeriod   int      `bson:"return_period" json:"return_period" validate:"omitempty"`
+	ReturnUnit     string   `bson:"return_unit" json:"return_unit" validate:"oneof=days weeks,default=days"`
+	AcceptReturns  bool     `bson:"accept_returns" json:"accept_returns" validate:"omitempty"`
+	AcceptExchange bool     `bson:"accept_exchange" json:"accept_exchange" validate:"omitempty"`
+	Conditions     []string `bson:"conditons" json:"conditons" validate:"omitempty"`
 }

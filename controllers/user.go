@@ -60,18 +60,16 @@ func IsSeller(c *gin.Context, userId primitive.ObjectID) (bool, error) {
 	return true, nil
 }
 
-func IsSelleWithShop(c *gin.Context, userId, shopId primitive.ObjectID) (bool, error) {
-	err := userCollection.FindOne(c, bson.M{"_id": userId, "is_seller": true, "shop_id": shopId}).Err()
-	if err == mongo.ErrNoDocuments {
-		// User not found or not a seller
-		return false, nil
-	} else if err != nil {
-		// Other error occurred
-		return false, err
+func verifyShopOwnership(ctx context.Context, userId, shopId primitive.ObjectID) error {
+	shop := models.Shop{}
+	err := shopCollection.FindOne(ctx, bson.M{"_id": shopId, "user_id": userId}).Decode(&shop)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return errors.New("User does not own the shop")
+		}
+		return err
 	}
-
-	// User is a seller
-	return true, nil
+	return nil
 }
 
 func CreateUser() gin.HandlerFunc {

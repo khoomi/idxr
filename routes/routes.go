@@ -31,7 +31,6 @@ func InitRoute() *gin.Engine {
 		ShopRoutes(api)
 		ListingRoutes(api)
 		CategoryRoutes(api)
-		ShippingRoutes(api)
 	}
 
 	return router
@@ -120,6 +119,8 @@ func userRoutes(api *gin.RouterGroup) {
 func ShopRoutes(api *gin.RouterGroup) {
 	// Define the "/shops" group
 	shop := api.Group("/shops")
+	shop.GET("/shops/:shopid/shipping-info/", controllers.GetShopShippingProfileInfos())
+
 	{
 		// Endpoint to get all shops
 		shop.GET("/", controllers.GetShops())
@@ -135,6 +136,7 @@ func ShopRoutes(api *gin.RouterGroup) {
 		shop.GET("/search", controllers.SearchShops())
 		// Endpoint to get shipping profile
 		shop.GET("/shipping/:infoId", controllers.GetShopShippingProfileInfo())
+		shop.GET("/shops/:shopid/shipping/:shippingProfileId", controllers.GetShopShippingProfileInfo())
 
 		// Secured endpoints that require authentication
 		secured := shop.Group("").Use(middleware.Auth())
@@ -181,7 +183,7 @@ func ShopRoutes(api *gin.RouterGroup) {
 			secured.DELETE("/:shopid/policies", controllers.DeleteShopReturnPolicy())
 			// Shipping routes
 			secured.POST("/:shopid/shipping", controllers.CreateShopShippingProfile())
-			secured.PUT("/:shopid/shipping", controllers.UpdateShopShippingProfileInfo())
+			secured.GET("/:shopid/shipping", controllers.GetShopShippingProfileInfos())
 		}
 
 	}
@@ -223,24 +225,6 @@ func CategoryRoutes(api *gin.RouterGroup) {
 			secured.POST("/multi", controllers.CreateCategoryMulti())
 			// Endpoint to delete all categories
 			secured.DELETE("/", controllers.DeleteAllCategories())
-		}
-	}
-}
-
-func ShippingRoutes(api *gin.RouterGroup) {
-	// Define the "/shipping/info" group
-	shipping := api.Group("/shops/:shopid/shipping-info")
-	{
-		// Endpoint to get shop shipping profile info by ID
-		shipping.GET("/:infoId", controllers.GetShopShippingProfileInfo())
-
-		// Secured endpoints that require authentication
-		secured := shipping.Group("").Use(middleware.Auth())
-		{
-			// Endpoint to create shop shipping profile
-			secured.POST("/", controllers.CreateShopShippingProfile())
-			// Endpoint to update shop shipping profile info
-			secured.PUT("/", controllers.UpdateShopShippingProfileInfo())
 		}
 	}
 }
