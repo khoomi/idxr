@@ -184,8 +184,8 @@ func ShopRoutes(api *gin.RouterGroup) {
 			secured.POST("/:shopid/verification", controllers.CreateSellerVerificationProfile())
 			secured.GET("/:shopid/verification", controllers.GetSellerVerificationProfile())
 			// Compliance information endpoints
-			secured.POST("/:userId/compliance/", controllers.CreateShopComplianceInformation())
-			secured.GET("/:userId/compliance", controllers.GetShopComplianceInformation())
+			secured.POST("/:shopid/compliance", controllers.CreateShopComplianceInformation())
+			secured.GET("/:shopid/compliance", controllers.GetShopComplianceInformation())
 		}
 
 		listing := shop.Group("")
