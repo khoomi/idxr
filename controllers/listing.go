@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"khoomi-api-io/khoomi_api/auth"
 	"khoomi-api-io/khoomi_api/configs"
 	"khoomi-api-io/khoomi_api/email"
 	"khoomi-api-io/khoomi_api/helper"
@@ -39,7 +38,7 @@ func CreateListing() gin.HandlerFunc {
 			return
 		}
 
-		loginName, loginEmail, err := auth.ExtractTokenLoginNameEmail(c)
+		loginName, loginEmail, err := configs.ExtractTokenLoginNameEmail(c)
 		if err != nil {
 			log.Println(err)
 			helper.HandleError(c, http.StatusUnauthorized, err, "unathorized")

@@ -2,7 +2,6 @@ package controllers
 
 import (
 	"context"
-	"khoomi-api-io/khoomi_api/auth"
 	"khoomi-api-io/khoomi_api/configs"
 	"khoomi-api-io/khoomi_api/helper"
 	"khoomi-api-io/khoomi_api/models"
@@ -19,7 +18,7 @@ import (
 
 var paymentInformationCollection = configs.GetCollection(configs.DB, "SellerPaymentInformation")
 
-// isSeller, err := auth.IsSeller(c) // Check if the user is a seller
+// isSeller, err := configs.IsSeller(c) // Check if the user is a seller
 // 	if err != nil {
 // 		helper.HandleError(c, http.StatusBadRequest, err, "Unauthorized")
 // 		return
@@ -35,7 +34,7 @@ func CreatePaymentInformation() gin.HandlerFunc {
 		ctx, cancel := context.WithTimeout(context.Background(), UserRequestTimeout*time.Second)
 		defer cancel()
 
-		userId, err := auth.ExtractTokenID(c)
+		userId, err := configs.ExtractTokenID(c)
 		if err != nil {
 			helper.HandleError(c, http.StatusBadRequest, err, "Unauthorized")
 			return
@@ -105,7 +104,7 @@ func GetPaymentInformations() gin.HandlerFunc {
 		ctx, cancel := context.WithTimeout(context.Background(), UserRequestTimeout*time.Second)
 		defer cancel()
 
-		userId, err := auth.ExtractTokenID(c)
+		userId, err := configs.ExtractTokenID(c)
 		if err != nil {
 			helper.HandleError(c, http.StatusBadRequest, err, "Unauthorized")
 			return
@@ -147,7 +146,7 @@ func ChangeDefaultPaymentInformation() gin.HandlerFunc {
 		ctx, cancel := context.WithTimeout(context.Background(), UserRequestTimeout*time.Second)
 		defer cancel()
 
-		userId, err := auth.ExtractTokenID(c)
+		userId, err := configs.ExtractTokenID(c)
 		if err != nil {
 			helper.HandleError(c, http.StatusBadRequest, err, "Unauthorized")
 			return
@@ -213,7 +212,7 @@ func DeletePaymentInformation() gin.HandlerFunc {
 			helper.HandleError(c, http.StatusBadRequest, errors.New("bad payment id"), "bad request")
 			return
 		}
-		userId, err := auth.ExtractTokenID(c)
+		userId, err := configs.ExtractTokenID(c)
 		if err != nil {
 			helper.HandleError(c, http.StatusBadRequest, err, "Unauthorized")
 			return
@@ -252,7 +251,7 @@ func CompletedPaymentOnboarding() gin.HandlerFunc {
 		ctx, cancel := context.WithTimeout(context.Background(), UserRequestTimeout*time.Second)
 		defer cancel()
 
-		userId, err := auth.ExtractTokenID(c)
+		userId, err := configs.ExtractTokenID(c)
 		if err != nil {
 			helper.HandleError(c, http.StatusBadRequest, err, "Unauthorized")
 			return

@@ -109,9 +109,7 @@ func userRoutes(api *gin.RouterGroup) {
 			secured.GET("/:userId/payment-information", controllers.GetPaymentInformations())
 			secured.PUT("/:userId/payment-information/:paymentInfoId", controllers.ChangeDefaultPaymentInformation())
 			secured.DELETE("/:userId/payment-information/:paymentInfoId", controllers.DeletePaymentInformation())
-			// Payment information endpoints
-			secured.POST("/:userId/compliance-information/", controllers.CreateCompliancePolicy())
-			secured.GET("/:userId/compliance-information", controllers.GetMyCompliancePolicy())
+
 		}
 	}
 }
@@ -182,7 +180,12 @@ func ShopRoutes(api *gin.RouterGroup) {
 			secured.DELETE("/:shopid/policies", controllers.DeleteShopReturnPolicy())
 			// Shipping routes
 			secured.POST("/:shopid/shipping", controllers.CreateShopShippingProfile())
-			// Listing routes
+			// Verification routes
+			secured.POST("/:shopid/verification", controllers.CreateSellerVerificationProfile())
+			secured.GET("/:shopid/verification", controllers.GetSellerVerificationProfile())
+			// Compliance information endpoints
+			secured.POST("/:userId/compliance/", controllers.CreateShopComplianceInformation())
+			secured.GET("/:userId/compliance", controllers.GetShopComplianceInformation())
 		}
 
 		listing := shop.Group("")

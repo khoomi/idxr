@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"khoomi-api-io/khoomi_api/auth"
 	"khoomi-api-io/khoomi_api/configs"
 	"khoomi-api-io/khoomi_api/email"
 	"khoomi-api-io/khoomi_api/helper"
@@ -30,6 +29,7 @@ var shopAboutCollection = configs.GetCollection(configs.DB, "ShopAbout")
 var shopMemberCollection = configs.GetCollection(configs.DB, "ShopMember")
 var shopReviewCollection = configs.GetCollection(configs.DB, "ShopReview")
 var shopReturnPolicyCollection = configs.GetCollection(configs.DB, "ShopReturnPolicies")
+var shopCompliancePolicyCollection = configs.GetCollection(configs.DB, "ShopCompliancePolicy")
 
 // CheckShopNameAvailability -> Check if a given shop name is available or not.
 // /api/shop/check/:shop_username
@@ -62,13 +62,13 @@ func CreateShop() gin.HandlerFunc {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
 
-		userID, err := auth.ExtractTokenID(c)
+		userID, err := configs.ExtractTokenID(c)
 		if err != nil {
 			helper.HandleError(c, http.StatusUnauthorized, err, "Failed to extract user ID from token")
 			return
 		}
 
-		loginName, userEmail, err := auth.ExtractTokenLoginNameEmail(c)
+		loginName, userEmail, err := configs.ExtractTokenLoginNameEmail(c)
 		if err != nil {
 			log.Println(err)
 			helper.HandleError(c, http.StatusUnauthorized, err, "unathorized")
@@ -350,7 +350,11 @@ func GetShop() gin.HandlerFunc {
 		var shop models.Shop
 		err = shopCollection.FindOne(ctx, bson.M{"_id": shopObjectID}).Decode(&shop)
 		if err != nil {
-			helper.HandleError(c, http.StatusNotFound, err, "Shop not found")
+			if err == mongo.ErrNoDocuments {
+				helper.HandleError(c, http.StatusNotFound, err, "Shop not found")
+				return
+			}
+			helper.HandleError(c, http.StatusNotFound, err, "error retrieving shop by id")
 			return
 		}
 
@@ -688,6 +692,13 @@ func DeleteFromShopGallery() gin.HandlerFunc {
 			return
 		}
 
+		err = VerifyShopOwnership(c, myID, shopID)
+		if err != nil {
+			log.Printf("You don't have write access to this shop: %s\n", err.Error())
+			helper.HandleError(c, http.StatusUnauthorized, err, "You don't have write access to this shop")
+			return
+		}
+
 		filter := bson.M{"_id": shopID, "user_id": myID}
 		update := bson.M{"$pull": bson.M{"gallery": imageURL}, "modified_at": now}
 		res, err := shopCollection.UpdateOne(ctx, filter, update)
@@ -713,13 +724,13 @@ func AddShopFavorer() gin.HandlerFunc {
 		userId := c.Query("userId")
 		now := time.Now()
 
-		shopId, myId, err := services.MyShopIdAndMyId(c)
+		shopId, _, err := services.MyShopIdAndMyId(c)
 		if err != nil {
 			helper.HandleError(c, http.StatusBadRequest, err, "Error getting shop ID and user ID")
 			return
 		}
 
-		filter := bson.M{"_id": shopId, "user_id": myId}
+		filter := bson.M{"_id": shopId}
 		update := bson.M{
 			"$push":       bson.M{"favorers": userId},
 			"$inc":        bson.M{"favorer_count": 1},
@@ -789,7 +800,7 @@ func JoinShopMembers() gin.HandlerFunc {
 			return
 		}
 
-		loginName, _, err := auth.ExtractTokenLoginNameEmail(c)
+		loginName, _, err := configs.ExtractTokenLoginNameEmail(c)
 		if err != nil {
 			helper.HandleError(c, http.StatusBadRequest, err, "Error extracting login name")
 			return
@@ -1084,7 +1095,7 @@ func CreateShopReview() gin.HandlerFunc {
 			helper.HandleError(c, http.StatusBadRequest, err, "Invalid shop or member ID")
 			return
 		}
-		loginName, _, err := auth.ExtractTokenLoginNameEmail(c)
+		loginName, _, err := configs.ExtractTokenLoginNameEmail(c)
 		if err != nil {
 			helper.HandleError(c, http.StatusBadRequest, err, "Failed to extract token login name")
 			return
@@ -1295,6 +1306,13 @@ func DeleteOtherReview() gin.HandlerFunc {
 			return
 		}
 
+		err = VerifyShopOwnership(c, myId, shopId)
+		if err != nil {
+			log.Printf("You don't have write access to this shop: %s\n", err.Error())
+			helper.HandleError(c, http.StatusUnauthorized, err, "You don't have write access to this shop")
+			return
+		}
+
 		// Shop review session
 		wc := writeconcern.New(writeconcern.WMajority())
 		txnOptions := options.Transaction().SetWriteConcern(wc)
@@ -1305,17 +1323,6 @@ func DeleteOtherReview() gin.HandlerFunc {
 		defer session.EndSession(ctx)
 
 		callback := func(ctx mongo.SessionContext) (interface{}, error) {
-			var currentShop models.Shop
-			err := shopCollection.FindOne(ctx, bson.M{"_id": shopId}).Decode(&currentShop)
-			if err != nil {
-				log.Println(err)
-				return nil, err
-			}
-
-			if currentShop.UserID != myId {
-				return nil, errors.New("this is not your shop")
-			}
-
 			// Attempt to remove review from review collection table
 			filter := bson.M{"shop_id": shopId, "owner_id": myId, "user_id": userToBeRemovedId}
 			_, err = shopMemberCollection.DeleteOne(ctx, filter)
@@ -1361,9 +1368,16 @@ func CreateShopAbout() gin.HandlerFunc {
 
 		var shopAboutJson models.ShopAboutRequest
 
-		shopId, _, err := services.MyShopIdAndMyId(c)
+		shopId, myId, err := services.MyShopIdAndMyId(c)
 		if err != nil {
 			helper.HandleError(c, http.StatusBadRequest, err, "Error retrieving shop ID and user ID")
+			return
+		}
+
+		err = VerifyShopOwnership(c, myId, shopId)
+		if err != nil {
+			log.Printf("You don't have write access to this shop: %s\n", err.Error())
+			helper.HandleError(c, http.StatusUnauthorized, err, "You don't have write access to this shop")
 			return
 		}
 
@@ -1433,9 +1447,16 @@ func UpdateShopAbout() gin.HandlerFunc {
 
 		var shopAboutJson models.ShopAboutRequest
 
-		shopId, _, err := services.MyShopIdAndMyId(c)
+		shopId, myId, err := services.MyShopIdAndMyId(c)
 		if err != nil {
 			helper.HandleError(c, http.StatusBadRequest, err, "Error getting shop ID")
+			return
+		}
+
+		err = VerifyShopOwnership(c, myId, shopId)
+		if err != nil {
+			log.Printf("You don't have write access to this shop: %s\n", err.Error())
+			helper.HandleError(c, http.StatusUnauthorized, err, "You don't have write access to this shop")
 			return
 		}
 
@@ -1482,9 +1503,16 @@ func UpdateShopAboutStatus() gin.HandlerFunc {
 		defer cancel()
 
 		status := c.Query("status")
-		shopId, _, err := services.MyShopIdAndMyId(c)
+		shopId, myId, err := services.MyShopIdAndMyId(c)
 		if err != nil {
 			helper.HandleError(c, http.StatusBadRequest, err, "Error getting shop ID")
+			return
+		}
+
+		err = VerifyShopOwnership(c, myId, shopId)
+		if err != nil {
+			log.Printf("You don't have write access to this shop: %s\n", err.Error())
+			helper.HandleError(c, http.StatusUnauthorized, err, "You don't have write access to this shop")
 			return
 		}
 
@@ -1532,15 +1560,10 @@ func CreateShopReturnPolicy() gin.HandlerFunc {
 			return
 		}
 
-		var currentShop models.Shop
-		err = shopCollection.FindOne(ctx, bson.M{"user_id": myId}).Decode(&currentShop)
+		err = VerifyShopOwnership(c, myId, shopId)
 		if err != nil {
+			log.Printf("You don't have write access to this shop: %s\n", err.Error())
 			helper.HandleError(c, http.StatusUnauthorized, err, "You don't have write access to this shop")
-			return
-		}
-
-		if currentShop.ID != shopId {
-			helper.HandleError(c, http.StatusUnauthorized, errors.New("you don't have write access to this shop"), "Unauthorized access")
 			return
 		}
 
@@ -1580,15 +1603,10 @@ func UpdateShopReturnPolicy() gin.HandlerFunc {
 			return
 		}
 
-		var currentShop models.Shop
-		err = shopCollection.FindOne(ctx, bson.M{"user_id": myId}).Decode(&currentShop)
+		err = VerifyShopOwnership(c, myId, shopId)
 		if err != nil {
+			log.Printf("You don't have write access to this shop: %s\n", err.Error())
 			helper.HandleError(c, http.StatusUnauthorized, err, "You don't have write access to this shop")
-			return
-		}
-
-		if currentShop.ID != shopId {
-			helper.HandleError(c, http.StatusUnauthorized, errors.New("you don't have write access to this shop"), "Unauthorized access")
 			return
 		}
 
@@ -1628,15 +1646,10 @@ func DeleteShopReturnPolicy() gin.HandlerFunc {
 			return
 		}
 
-		var currentShop models.Shop
-		err = shopCollection.FindOne(ctx, bson.M{"user_id": myId}).Decode(&currentShop)
+		err = VerifyShopOwnership(c, myId, shopId)
 		if err != nil {
+			log.Printf("You don't have write access to this shop: %s\n", err.Error())
 			helper.HandleError(c, http.StatusUnauthorized, err, "You don't have write access to this shop")
-			return
-		}
-
-		if currentShop.ID != shopId {
-			helper.HandleError(c, http.StatusUnauthorized, errors.New("you don't have write access to this shop"), "Unauthorized access")
 			return
 		}
 
@@ -1718,5 +1731,81 @@ func GetShopReturnPolicies() gin.HandlerFunc {
 		}
 
 		helper.HandleSuccess(c, http.StatusOK, "success", gin.H{"policies": policies})
+	}
+}
+
+// CreateShopCompliance - api/shops/:shopid/compliance
+func CreateShopComplianceInformation() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		var complianceJson models.ComplianceInformationRequest
+		defer cancel()
+
+		shopId, myId, err := services.MyShopIdAndMyId(c)
+		if err != nil {
+			helper.HandleError(c, http.StatusBadRequest, err, "Error getting shop ID and user ID")
+			return
+		}
+
+		if err := c.BindJSON(&complianceJson); err != nil {
+			helper.HandleError(c, http.StatusBadRequest, err, "Error binding JSON")
+			return
+		}
+
+		if validationErr := validate.Struct(&complianceJson); validationErr != nil {
+			helper.HandleError(c, http.StatusBadRequest, validationErr, "Validation error")
+			return
+		}
+
+		err = VerifyShopOwnership(c, myId, shopId)
+		if err != nil {
+			log.Printf("Error verifying if you the shop owner: %s\n", err.Error())
+			helper.HandleError(c, http.StatusUnauthorized, err, "shop ownership validation error")
+			return
+		}
+
+		complianceInformation := models.ComplianceInformation{
+			ID:                   primitive.NewObjectID(),
+			ShopID:               shopId,
+			TermsOfUse:           complianceJson.TermsOfUse,
+			IntellectualProperty: complianceJson.IntellectualProperty,
+			SellerPolicie:        complianceJson.SellerPolicie,
+		}
+
+		_, err = shopCompliancePolicyCollection.InsertOne(ctx, complianceInformation)
+		if err != nil {
+			helper.HandleError(c, http.StatusInternalServerError, err, "Error creating shop compliance policy")
+			return
+		}
+
+		helper.HandleSuccess(c, http.StatusOK, "Shop compliance policy created successfully", nil)
+	}
+}
+
+// GetShopComplianceInformation - api/shops/:shopid/compliance
+func GetShopComplianceInformation() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+
+		shopId, _, err := services.MyShopIdAndMyId(c)
+		if err != nil {
+			helper.HandleError(c, http.StatusBadRequest, err, "Error getting shop ID and user ID")
+			return
+		}
+
+		var complianceInformation models.ComplianceInformation
+
+		err = shopCompliancePolicyCollection.FindOne(ctx, bson.M{"shop_id": shopId}).Decode(&complianceInformation)
+		if err != nil {
+			if err == mongo.ErrNoDocuments {
+				helper.HandleError(c, http.StatusNotFound, err, "Shop compliance information not found")
+				return
+			}
+			helper.HandleError(c, http.StatusInternalServerError, err, "Error retrieving shop compliance information")
+			return
+		}
+
+		helper.HandleSuccess(c, http.StatusOK, "Shop compliance information created successfully", gin.H{"compliance_information": complianceInformation})
 	}
 }

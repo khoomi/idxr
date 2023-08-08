@@ -1,9 +1,8 @@
-package auth
+package configs
 
 import (
 	"errors"
 	"fmt"
-	"khoomi-api-io/khoomi_api/configs"
 	"log"
 	"time"
 
@@ -22,7 +21,7 @@ type JWTClaim struct {
 
 func GenerateJWT(id, email, loginName string, seller bool) (string, int64, error) {
 	expirationTime := time.Now().Add(15 * time.Minute)
-	jwtKey := configs.LoadEnvFor("SECRET")
+	jwtKey := LoadEnvFor("SECRET")
 
 	claims := JWTClaim{
 		Id:        id,
@@ -45,7 +44,7 @@ func GenerateJWT(id, email, loginName string, seller bool) (string, int64, error
 
 func GenerateRefreshJWT(id, email, loginName string, seller bool) (string, error) {
 	expirationTime := time.Now().Add(24 * time.Hour * 7)
-	jwtKey := configs.LoadEnvFor("REFRESH_SECRET")
+	jwtKey := LoadEnvFor("REFRESH_SECRET")
 
 	claims := JWTClaim{
 		Id:        id,
@@ -67,7 +66,7 @@ func GenerateRefreshJWT(id, email, loginName string, seller bool) (string, error
 }
 
 func ValidateToken(signedToken string) (err error) {
-	jwtKey := configs.LoadEnvFor("SECRET")
+	jwtKey := LoadEnvFor("SECRET")
 	token, err := jwt.ParseWithClaims(
 		signedToken,
 		&JWTClaim{},
@@ -91,7 +90,7 @@ func ValidateToken(signedToken string) (err error) {
 }
 
 func ValidateRefreshToken(signedToken string) (claim JWTClaim, err error) {
-	jwtKey := configs.LoadEnvFor("REFRESH_SECRET")
+	jwtKey := LoadEnvFor("REFRESH_SECRET")
 	token, err := jwt.ParseWithClaims(
 		signedToken,
 		&JWTClaim{},
@@ -122,7 +121,7 @@ func ExtractToken(context *gin.Context) string {
 
 func ExtractTokenID(c *gin.Context) (primitive.ObjectID, error) {
 	tokenString := ExtractToken(c)
-	jwtKey := configs.LoadEnvFor("SECRET")
+	jwtKey := LoadEnvFor("SECRET")
 	token, err := jwt.ParseWithClaims(
 		tokenString,
 		&JWTClaim{},
@@ -152,7 +151,7 @@ func ExtractTokenID(c *gin.Context) (primitive.ObjectID, error) {
 
 func ExtractTokenLoginNameEmail(c *gin.Context) (string, string, error) {
 	tokenString := ExtractToken(c)
-	jwtKey := configs.LoadEnvFor("SECRET")
+	jwtKey := LoadEnvFor("SECRET")
 	token, err := jwt.ParseWithClaims(
 		tokenString,
 		&JWTClaim{},
@@ -175,7 +174,7 @@ func ExtractTokenLoginNameEmail(c *gin.Context) (string, string, error) {
 
 // func IsSeller(c *gin.Context) (bool, error) {
 // 	tokenString := ExtractToken(c)
-// 	jwtKey := configs.LoadEnvFor("SECRET")
+// 	jwtKey := LoadEnvFor("SECRET")
 // 	token, err := jwt.ParseWithClaims(
 // 		tokenString,
 // 		&JWTClaim{},

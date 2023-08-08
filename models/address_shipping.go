@@ -28,9 +28,9 @@ type ShopShippingProfile struct {
 	Title                    string             `bson:"title" json:"title" validate:"required"`
 	MinProcessingTime        int                `bson:"min_processing_time" json:"min_processing_time" validate:"required"`
 	MaxProcessingTime        int                `bson:"max_processing_time" json:"max_processing_time" validate:"required"`
-	ProcessingTimeUnit       string             `bson:"processing_time_unit" json:"processing_time_unit" validate:"required,oneof=days weeks,default=days"`
+	ProcessingTimeUnit       string             `bson:"processing_time_unit" json:"processing_time_unit" validate:"required,oneof=days weeks"`
 	DestinationBy            string             `bson:"destination_by" json:"destination_by"`
-	Destinations             []string           `bson:"destination" json:"destination" validate:"required,default=all"`
+	Destinations             []string           `bson:"destinations" json:"destinations"`
 	MinDeliveryDays          int                `bson:"min_delivery_days" json:"min_delivery_days"`
 	MaxDeliveryDays          int                `bson:"max_delivery_days" json:"max_delivery_days"`
 	OriginState              string             `bson:"origin_state" json:"origin_state"`
@@ -39,7 +39,6 @@ type ShopShippingProfile struct {
 	SecondaryPrice           string             `bson:"secondary_price" json:"secondary_price"`
 	HandlingFee              string             `bson:"handling_fee" json:"handling_fee"`
 	ShippingMethods          []string           `bson:"shipping_methods" json:"shipping_methods" validate:"oneof=standard express next-day"`
-	PolicyId                 primitive.ObjectID `bson:"policy_id" json:"policy_id"`
 	IsDefaultShippingProfile bool               `bson:"is_default_profile" json:"is_default_profile"`
 	OffersFreeShipping       bool               `bson:"offers_free_shipping" json:"offers_free_shipping"`
 	AutoCalculatePrice       bool               `bson:"auto_calculate_price" json:"auto_calculate_price"`
@@ -54,9 +53,9 @@ type ShopShippingProfileRequest struct {
 	Title                    string             `bson:"title" json:"title" validate:"required"`
 	MinProcessingTime        int                `bson:"min_processing_time" json:"min_processing_time" validate:"required"`
 	MaxProcessingTime        int                `bson:"max_processing_time" json:"max_processing_time" validate:"required"`
-	ProcessingTimeUnit       string             `bson:"processing_time_unit" json:"processing_time_unit" validate:"required,oneof=days weeks,default=days"`
+	ProcessingTimeUnit       string             `bson:"processing_time_unit" json:"processing_time_unit" validate:"required,oneof=days weeks"`
 	DestinationBy            string             `bson:"destination_by" json:"destination_by"`
-	Destinations             []string           `bson:"destination" json:"destination" validate:"required,default=all"`
+	Destinations             []string           `bson:"destination" json:"destination"`
 	MinDeliveryDays          int                `bson:"min_delivery_days" json:"min_delivery_days"`
 	MaxDeliveryDays          int                `bson:"max_delivery_days" json:"max_delivery_days"`
 	OriginState              string             `bson:"origin_state" json:"origin_state"`
@@ -73,7 +72,7 @@ type ShopShippingProfileRequest struct {
 
 type ShippingPolicy struct {
 	ReturnPeriod   int      `bson:"return_period" json:"return_period" validate:"omitempty"`
-	ReturnUnit     string   `bson:"return_unit" json:"return_unit" validate:"oneof=days weeks,default=days"`
+	ReturnUnit     string   `bson:"return_unit" json:"return_unit" validate:"oneof=days weeks"`
 	AcceptReturns  bool     `bson:"accept_returns" json:"accept_returns" validate:"omitempty"`
 	AcceptExchange bool     `bson:"accept_exchange" json:"accept_exchange" validate:"omitempty"`
 	Conditions     []string `bson:"conditons" json:"conditons" validate:"omitempty"`

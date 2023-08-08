@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"khoomi-api-io/khoomi_api/auth"
 	"khoomi-api-io/khoomi_api/configs"
 	"khoomi-api-io/khoomi_api/email"
 	"khoomi-api-io/khoomi_api/helper"
@@ -38,7 +37,6 @@ var passwordResetTokenCollection = configs.GetCollection(configs.DB, "UserPasswo
 var emailVerificationTokenCollection = configs.GetCollection(configs.DB, "UserEmailVerificationToken")
 var wishListCollection = configs.GetCollection(configs.DB, "UserWishList")
 var userDeletionCollection = configs.GetCollection(configs.DB, "UserDeletionRequest")
-var complianceInformationCollection = configs.GetCollection(configs.DB, "UserComplianceInformation")
 
 var validate = validator.New()
 
@@ -65,7 +63,7 @@ func VerifyShopOwnership(ctx context.Context, userId, shopId primitive.ObjectID)
 	err := shopCollection.FindOne(ctx, bson.M{"_id": shopId, "user_id": userId}).Decode(&shop)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
-			return errors.New("User does not own the shop")
+			return errors.New("user does not own the shop")
 		}
 		return err
 	}
@@ -264,14 +262,14 @@ func HandleUserAuthentication() gin.HandlerFunc {
 		}
 		session.EndSession(context.Background())
 
-		accessTokenString, accessTokenExp, err := auth.GenerateJWT(validUser.Id.Hex(), validUser.PrimaryEmail, validUser.LoginName, validUser.IsSeller)
+		accessTokenString, accessTokenExp, err := configs.GenerateJWT(validUser.Id.Hex(), validUser.PrimaryEmail, validUser.LoginName, validUser.IsSeller)
 		if err != nil {
 			log.Println(err)
 			helper.HandleError(c, http.StatusInternalServerError, err, "Failed to generate JWT")
 			return
 		}
 
-		refreshTokenString, err := auth.GenerateRefreshJWT(validUser.Id.Hex(), validUser.PrimaryEmail, validUser.LoginName, validUser.IsSeller)
+		refreshTokenString, err := configs.GenerateRefreshJWT(validUser.Id.Hex(), validUser.PrimaryEmail, validUser.LoginName, validUser.IsSeller)
 		if err != nil {
 			log.Println(err)
 			helper.HandleError(c, http.StatusInternalServerError, err, "Failed to generate refresh JWT")
@@ -313,7 +311,7 @@ func RefreshToken() gin.HandlerFunc {
 			return
 		}
 
-		refreshClaims, err := auth.ValidateRefreshToken(payload.Token)
+		refreshClaims, err := configs.ValidateRefreshToken(payload.Token)
 		if err != nil {
 			helper.HandleError(c, http.StatusUnauthorized, err, "Invalid refresh token")
 			return
@@ -333,13 +331,13 @@ func RefreshToken() gin.HandlerFunc {
 			return
 		}
 
-		accessToken, accessTokenExp, err := auth.GenerateJWT(refreshClaims.Id, refreshClaims.Email, refreshClaims.LoginName, refreshClaims.IsSeller)
+		accessToken, accessTokenExp, err := configs.GenerateJWT(refreshClaims.Id, refreshClaims.Email, refreshClaims.LoginName, refreshClaims.IsSeller)
 		if err != nil {
 			helper.HandleError(c, http.StatusInternalServerError, err, "Failed to generate access token")
 			return
 		}
 
-		newRefreshToken, err := auth.GenerateRefreshJWT(refreshClaims.Id, refreshClaims.Email, refreshClaims.LoginName, refreshClaims.IsSeller)
+		newRefreshToken, err := configs.GenerateRefreshJWT(refreshClaims.Id, refreshClaims.Email, refreshClaims.LoginName, refreshClaims.IsSeller)
 		if err != nil {
 			helper.HandleError(c, http.StatusInternalServerError, err, "Failed to generate refresh token")
 			return
@@ -356,7 +354,7 @@ func RefreshToken() gin.HandlerFunc {
 // Logout - Log user out and invalidate session key
 func Logout() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		token := auth.ExtractToken(c)
+		token := configs.ExtractToken(c)
 
 		log.Printf("Logging user with ip %v out\n", c.ClientIP())
 		_ = helper.InvalidateToken(configs.REDIS, token)
@@ -372,7 +370,7 @@ func SendDeleteUserAccount() gin.HandlerFunc {
 		ctx, cancel := context.WithTimeout(context.Background(), UserRequestTimeout*time.Second)
 		defer cancel()
 
-		userId, err := auth.ExtractTokenID(c)
+		userId, err := configs.ExtractTokenID(c)
 		if err != nil {
 			helper.HandleError(c, http.StatusUnauthorized, err, "action is for authorized users")
 			return
@@ -394,7 +392,7 @@ func IsAccountPendingDeletion() gin.HandlerFunc {
 		ctx, cancel := context.WithTimeout(context.Background(), UserRequestTimeout*time.Second)
 		defer cancel()
 
-		userId, err := auth.ExtractTokenID(c)
+		userId, err := configs.ExtractTokenID(c)
 		if err != nil {
 			helper.HandleError(c, http.StatusUnauthorized, err, "action is for authorized users")
 			return
@@ -421,7 +419,7 @@ func CancelDeleteUserAccount() gin.HandlerFunc {
 		ctx, cancel := context.WithTimeout(context.Background(), UserRequestTimeout*time.Second)
 		defer cancel()
 
-		userId, err := auth.ExtractTokenID(c)
+		userId, err := configs.ExtractTokenID(c)
 		if err != nil {
 			helper.HandleError(c, http.StatusUnauthorized, err, "action is for authorized users")
 			return
@@ -442,7 +440,7 @@ func CurrentUser(c *gin.Context) {
 	defer cancel()
 
 	// Extract user id from request header
-	userId, err := auth.ExtractTokenID(c)
+	userId, err := configs.ExtractTokenID(c)
 	if err != nil {
 		log.Printf("User with IP %v tried to gain access with an invalid user ID or token\n", c.ClientIP())
 		helper.HandleError(c, http.StatusBadRequest, err, "Invalid user ID or token")
@@ -467,7 +465,7 @@ func ChangePassword() gin.HandlerFunc {
 		defer cancel()
 
 		// Verify current user session
-		userId, err := auth.ExtractTokenID(c)
+		userId, err := configs.ExtractTokenID(c)
 		if err != nil {
 			helper.HandleError(c, http.StatusBadRequest, err, err.Error())
 			return
@@ -575,7 +573,7 @@ func SendVerifyEmail() gin.HandlerFunc {
 		now := time.Now()
 
 		// Verify current user
-		userId, err := auth.ExtractTokenID(c)
+		userId, err := configs.ExtractTokenID(c)
 		if err != nil {
 			helper.HandleError(c, http.StatusBadRequest, err, err.Error())
 			return
@@ -670,7 +668,7 @@ func UpdateMyProfile() gin.HandlerFunc {
 		ctx, cancel := context.WithTimeout(context.Background(), UserRequestTimeout*time.Second)
 		defer cancel()
 
-		userId, err := auth.ExtractTokenID(c)
+		userId, err := configs.ExtractTokenID(c)
 		if err != nil {
 			helper.HandleError(c, http.StatusBadRequest, err, err.Error())
 			return
@@ -746,7 +744,7 @@ func GetLoginHistories() gin.HandlerFunc {
 		ctx, cancel := context.WithTimeout(context.Background(), UserRequestTimeout*time.Second)
 		defer cancel()
 
-		userId, err := auth.ValidateUserID(c)
+		userId, err := configs.ValidateUserID(c)
 		if err != nil {
 			helper.HandleError(c, http.StatusBadRequest, err, err.Error())
 			return
@@ -794,7 +792,7 @@ func DeleteLoginHistories() gin.HandlerFunc {
 		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 		defer cancel()
 
-		userId, err := auth.ValidateUserID(c)
+		userId, err := configs.ValidateUserID(c)
 		if err != nil {
 			helper.HandleError(c, http.StatusBadRequest, err, err.Error())
 			return
@@ -959,7 +957,7 @@ func UploadThumbnail() gin.HandlerFunc {
 		defer cancel()
 
 		remoteAddr := c.Query("remote_addr")
-		currentId, err := auth.ValidateUserID(c)
+		currentId, err := configs.ValidateUserID(c)
 		if err != nil {
 			helper.HandleError(c, http.StatusBadRequest, err, err.Error())
 			return
@@ -1014,7 +1012,7 @@ func DeleteThumbnail() gin.HandlerFunc {
 		ctx, cancel := context.WithTimeout(context.Background(), UserRequestTimeout*time.Second)
 		defer cancel()
 
-		myId, err := auth.ValidateUserID(c)
+		myId, err := configs.ValidateUserID(c)
 		if err != nil {
 			helper.HandleError(c, http.StatusBadRequest, err, err.Error())
 			return
@@ -1092,7 +1090,7 @@ func CreateUserAddress() gin.HandlerFunc {
 		}
 
 		// Extract current user token
-		myId, err := auth.ValidateUserID(c)
+		myId, err := configs.ValidateUserID(c)
 		if err != nil {
 			helper.HandleError(c, http.StatusBadRequest, err, err.Error())
 			return
@@ -1178,7 +1176,7 @@ func UpdateUserAddress() gin.HandlerFunc {
 		}
 
 		// Extract current user token
-		myId, err := auth.ValidateUserID(c)
+		myId, err := configs.ValidateUserID(c)
 		if err != nil {
 			helper.HandleError(c, http.StatusBadRequest, err, err.Error())
 			return
@@ -1255,7 +1253,7 @@ func UpdateUserBirthdate() gin.HandlerFunc {
 			return
 		}
 
-		myId, err := auth.ValidateUserID(c)
+		myId, err := configs.ValidateUserID(c)
 		if err != nil {
 			helper.HandleError(c, http.StatusBadRequest, err, err.Error())
 			return
@@ -1281,7 +1279,7 @@ func UpdateUserSingleField() gin.HandlerFunc {
 		value := c.Query("value")
 		defer cancel()
 
-		myId, err := auth.ValidateUserID(c)
+		myId, err := configs.ValidateUserID(c)
 		if err != nil {
 			helper.HandleError(c, http.StatusBadRequest, err, err.Error())
 			return
@@ -1323,7 +1321,7 @@ func AddRemoveFavoriteShop() gin.HandlerFunc {
 		action := c.Query("action")
 		defer cancel()
 
-		myObjectId, err := auth.ValidateUserID(c)
+		myObjectId, err := configs.ValidateUserID(c)
 		if err != nil {
 			helper.HandleError(c, http.StatusBadRequest, err, err.Error())
 			return
@@ -1372,7 +1370,7 @@ func AddWishListItem() gin.HandlerFunc {
 			return
 		}
 
-		MyId, err := auth.ValidateUserID(c)
+		MyId, err := configs.ValidateUserID(c)
 		if err != nil {
 			helper.HandleError(c, http.StatusBadRequest, err, err.Error())
 			return
@@ -1410,7 +1408,7 @@ func RemoveWishListItem() gin.HandlerFunc {
 			return
 		}
 
-		MyId, err := auth.ValidateUserID(c)
+		MyId, err := configs.ValidateUserID(c)
 		if err != nil {
 			helper.HandleError(c, http.StatusBadRequest, err, err.Error())
 			return
@@ -1434,7 +1432,7 @@ func GetUserWishlist() gin.HandlerFunc {
 		ctx, cancel := context.WithTimeout(context.Background(), UserRequestTimeout*time.Second)
 		defer cancel()
 
-		MyId, err := auth.ValidateUserID(c)
+		MyId, err := configs.ValidateUserID(c)
 		if err != nil {
 			helper.HandleError(c, http.StatusBadRequest, err, err.Error())
 			return
@@ -1472,74 +1470,13 @@ func GetUserWishlist() gin.HandlerFunc {
 	}
 }
 
-// CreateCompliancePolicy - PUT api/user/:userId/compliance-information
-func CreateCompliancePolicy() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), UserRequestTimeout*time.Second)
-		defer cancel()
-
-		MyId, err := auth.ExtractTokenID(c)
-		if err != nil {
-			helper.HandleError(c, http.StatusBadRequest, err, err.Error())
-			return
-		}
-
-		var compliance models.ComplianceInformation
-		if err := c.BindJSON(&compliance); err != nil {
-			log.Printf("Error binding request body: %s\n", err.Error())
-			helper.HandleError(c, http.StatusBadRequest, err, "Invalid or missing data in request body")
-			return
-		}
-
-		if err := validate.Struct(&compliance); err != nil {
-			log.Printf("Error validating request body: %s\n", err.Error())
-			helper.HandleError(c, http.StatusBadRequest, err, "Invalid or missing data in request body")
-			return
-		}
-
-		insert := bson.M{"user_id": MyId, "terms_of_use": compliance.TermsOfUse, "seller_policies": compliance.SellerPolicie, "intellectual_property": compliance.IntellectualProperty}
-		res, err := complianceInformationCollection.InsertOne(ctx, insert)
-		if err != nil {
-			helper.HandleError(c, http.StatusInternalServerError, err, "error while saving compliance information")
-			return
-		}
-
-		helper.HandleSuccess(c, http.StatusOK, "compliance information added successfuly.", res)
-	}
-}
-
-// CreateCompliancePolicy - GET api/user/:userId/compliance-information
-func GetMyCompliancePolicy() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), UserRequestTimeout*time.Second)
-		defer cancel()
-
-		MyId, err := auth.ExtractTokenID(c)
-		if err != nil {
-			helper.HandleError(c, http.StatusBadRequest, err, err.Error())
-			return
-		}
-
-		var compliance models.ComplianceInformation
-
-		filter := bson.M{"user_id": MyId}
-		err = complianceInformationCollection.FindOne(ctx, filter).Decode(&compliance)
-		if err != nil {
-			helper.HandleError(c, http.StatusInternalServerError, err, "error retrieving user compliance information")
-			return
-		}
-
-		helper.HandleSuccess(c, http.StatusOK, "compliance information retrieved successfuly.", gin.H{"compliance_information": compliance})
-	}
-}
-
 // UpdateSecurityNotificationSetting - GET api/user/:userId/login-notification?set=true
 func UpdateSecurityNotificationSetting() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ctx, cancel := context.WithTimeout(context.Background(), UserRequestTimeout*time.Second)
 		defer cancel()
 
-		myID, err := auth.ExtractTokenID(c)
+		myID, err := configs.ExtractTokenID(c)
 		if err != nil {
 			helper.HandleError(c, http.StatusBadRequest, err, err.Error())
 			return
@@ -1582,7 +1519,7 @@ func GetSecurityNotificationSetting() gin.HandlerFunc {
 		ctx, cancel := context.WithTimeout(context.Background(), UserRequestTimeout*time.Second)
 		defer cancel()
 
-		MyId, err := auth.ExtractTokenID(c)
+		MyId, err := configs.ExtractTokenID(c)
 		if err != nil {
 			helper.HandleError(c, http.StatusBadRequest, err, err.Error())
 			return

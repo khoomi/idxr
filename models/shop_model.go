@@ -179,3 +179,17 @@ type ShopReturnPolicies struct {
 type UpdateShopStatusReq struct {
 	Status bool `json:"status" validate:"required"`
 }
+
+type ComplianceInformation struct {
+	ID                   primitive.ObjectID `bson:"_id" json:"_id"`
+	ShopID               primitive.ObjectID `bson:"shop_id" json:"shop_id"`
+	TermsOfUse           bool               `bson:"terms_of_use" json:"terms_of_use"`
+	SellerPolicie        bool               `bson:"seller_policies" json:"seller_policies"`
+	IntellectualProperty bool               `bson:"intellectual_property" json:"intellectual_property"`
+}
+
+type ComplianceInformationRequest struct {
+	TermsOfUse           bool `bson:"terms_of_use" json:"terms_of_use"`
+	SellerPolicie        bool `bson:"seller_policies" json:"seller_policies"`
+	IntellectualProperty bool `bson:"intellectual_property" json:"intellectual_property"`
+}

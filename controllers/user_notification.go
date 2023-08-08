@@ -2,7 +2,6 @@ package controllers
 
 import (
 	"context"
-	"khoomi-api-io/khoomi_api/auth"
 	"khoomi-api-io/khoomi_api/configs"
 	"khoomi-api-io/khoomi_api/helper"
 	"khoomi-api-io/khoomi_api/models"
@@ -22,7 +21,7 @@ func CreateUserNotificationSettings() gin.HandlerFunc {
 		ctx, cancel := context.WithTimeout(context.Background(), UserRequestTimeout*time.Second)
 		defer cancel()
 
-		userId, err := auth.ExtractTokenID(c)
+		userId, err := configs.ExtractTokenID(c)
 		if err != nil {
 			helper.HandleError(c, http.StatusBadRequest, err, "Authorization error")
 			return
@@ -60,7 +59,7 @@ func GetUserNotificationSettings() gin.HandlerFunc {
 		ctx, cancel := context.WithTimeout(context.Background(), UserRequestTimeout*time.Second)
 		defer cancel()
 
-		userId, err := auth.ExtractTokenID(c)
+		userId, err := configs.ExtractTokenID(c)
 		if err != nil {
 			helper.HandleError(c, http.StatusBadRequest, err, "Authorization error")
 			return
@@ -83,7 +82,7 @@ func UpdateUserNotificationSettings() gin.HandlerFunc {
 		ctx, cancel := context.WithTimeout(context.Background(), UserRequestTimeout*time.Second)
 		defer cancel()
 
-		userId, err := auth.ExtractTokenID(c)
+		userId, err := configs.ExtractTokenID(c)
 		if err != nil {
 			helper.HandleError(c, http.StatusBadRequest, err, "Authorization error")
 			return

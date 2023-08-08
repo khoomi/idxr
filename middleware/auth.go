@@ -4,7 +4,6 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 
-	"khoomi-api-io/khoomi_api/auth"
 	"khoomi-api-io/khoomi_api/configs"
 	"khoomi-api-io/khoomi_api/helper"
 
@@ -13,14 +12,14 @@ import (
 
 func Auth() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		tokenString := auth.ExtractToken(c)
+		tokenString := configs.ExtractToken(c)
 
 		if tokenString == "" {
 			c.JSON(401, gin.H{"error": "request does not contain an access token"})
 			c.Abort()
 			return
 		}
-		err := auth.ValidateToken(tokenString)
+		err := configs.ValidateToken(tokenString)
 		if err != nil {
 			c.JSON(401, gin.H{"error": err.Error()})
 			c.Abort()

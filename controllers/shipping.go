@@ -2,7 +2,6 @@ package controllers
 
 import (
 	"context"
-	"khoomi-api-io/khoomi_api/auth"
 	"khoomi-api-io/khoomi_api/configs"
 	"khoomi-api-io/khoomi_api/helper"
 	"khoomi-api-io/khoomi_api/models"
@@ -33,7 +32,7 @@ func CreateShopShippingProfile() gin.HandlerFunc {
 		}
 
 		// Check if the user owns the shop
-		userID, err := auth.ExtractTokenID(c)
+		userID, err := configs.ExtractTokenID(c)
 		if err != nil {
 			log.Println(err)
 			helper.HandleError(c, http.StatusUnauthorized, err, "unauthorized")
@@ -57,8 +56,8 @@ func CreateShopShippingProfile() gin.HandlerFunc {
 
 		// Validate request body
 		if validationErr := validate.Struct(&shippingJson); validationErr != nil {
-			log.Println(err)
-			helper.HandleError(c, http.StatusBadRequest, err, "invalid request body")
+			log.Println(validationErr)
+			helper.HandleError(c, http.StatusBadRequest, validationErr, "invalid request body")
 			return
 		}
 		shippingPolicy := models.ShippingPolicy{
@@ -101,7 +100,7 @@ func CreateShopShippingProfile() gin.HandlerFunc {
 			return
 		}
 
-		helper.HandleSuccess(c, http.StatusOK, "document insert error", gin.H{"inserted_id": res.InsertedID})
+		helper.HandleSuccess(c, http.StatusOK, "document inserted", gin.H{"inserted_id": res.InsertedID})
 	}
 }
 
@@ -134,7 +133,7 @@ func GetShopShippingProfileInfos() gin.HandlerFunc {
 		defer cancel()
 
 		// Check if the user owns the shop
-		shopIDStr := c.Query("shopid")
+		shopIDStr := c.Param("shopid")
 		shopIDObject, err := primitive.ObjectIDFromHex(shopIDStr)
 		if err != nil {
 			log.Println(err)
@@ -192,7 +191,7 @@ func GetShopShippingProfileInfos() gin.HandlerFunc {
 // 		}
 
 // 		// Check if the user owns the shop
-// 		userID, err := auth.ExtractTokenID(c)
+// 		userID, err := configs.ExtractTokenID(c)
 // 		if err != nil {
 // 			c.JSON(http.StatusUnauthorized, responses.UserResponse{Status: http.StatusUnauthorized, Message: "error", Data: map[string]interface{}{"error": err.Error()}})
 // 			return
