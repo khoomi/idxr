@@ -340,15 +340,24 @@ func GetShop() gin.HandlerFunc {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
 
+		var shop models.Shop
+		var err error
+
 		shopID := c.Param("shopid")
-		shopObjectID, err := primitive.ObjectIDFromHex(shopID)
-		if err != nil {
-			helper.HandleError(c, http.StatusNotFound, err, "Invalid shop ID")
-			return
+		if primitive.IsValidObjectID(shopID) {
+			// If shopid is a valid object ID string
+			shopObjectID, e := primitive.ObjectIDFromHex(shopID)
+			if e != nil {
+				helper.HandleError(c, http.StatusNotFound, err, "Invalid shop ID")
+				return
+			}
+
+			err = shopCollection.FindOne(ctx, bson.M{"_id": shopObjectID}).Decode(&shop)
+		} else {
+			// If shopid is a string (e.g., slug)
+			err = shopCollection.FindOne(ctx, bson.M{"slug": shopID}).Decode(&shop)
 		}
 
-		var shop models.Shop
-		err = shopCollection.FindOne(ctx, bson.M{"_id": shopObjectID}).Decode(&shop)
 		if err != nil {
 			if err == mongo.ErrNoDocuments {
 				helper.HandleError(c, http.StatusNotFound, err, "Shop not found")

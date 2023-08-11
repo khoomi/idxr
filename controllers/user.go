@@ -536,27 +536,25 @@ func ChangePassword() gin.HandlerFunc {
 	}
 }
 
-// GetUserByIDOrEmail - Get user by id or email endpoint
-func GetUserByIDOrEmail() gin.HandlerFunc {
+// GetUser - Get user by id or email endpoint
+func GetUser() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ctx, cancel := context.WithTimeout(context.Background(), UserRequestTimeout*time.Second)
 		defer cancel()
 
-		userID := c.Query("id")
-		userEmail := c.Query("email")
+		var filter bson.M
+		userID := c.Param("userid")
+		if primitive.IsValidObjectID(userID) {
+			// If shopid is a valid object ID string
+			userObjectID, e := primitive.ObjectIDFromHex(userID)
+			if e != nil {
+				helper.HandleError(c, http.StatusBadRequest, e, "invalid user id was provided")
+				return
+			}
 
-		// Check if either the user ID or email is missing
-		if userID == "" && userEmail == "" {
-			helper.HandleError(c, http.StatusBadRequest, errors.New("missing user ID or email"), "Missing user ID or email")
-			return
-		}
-
-		// Prepare the filter based on the available query parameter
-		filter := bson.M{}
-		if userID != "" {
-			filter["_id"] = userID
+			filter = bson.M{"_id": userObjectID}
 		} else {
-			filter["email"] = userEmail
+			filter = bson.M{"username": userID}
 		}
 
 		// Query the database to find the user based on the specified field and value

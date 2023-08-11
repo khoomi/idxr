@@ -204,16 +204,24 @@ func GetListing() gin.HandlerFunc {
 		ctx, cancel := context.WithTimeout(context.Background(), 50*time.Second)
 		defer cancel()
 
+		var listingIdentifier bson.M
+
 		listingId := c.Param("listingid")
-		listingObjectId, err := primitive.ObjectIDFromHex(listingId)
-		if err != nil {
-			log.Println(err)
-			helper.HandleError(c, http.StatusBadRequest, err, "invalid listing id was provided")
-			return
+		if primitive.IsValidObjectID(listingId) {
+			// If shopid is a valid object ID string
+			shopObjectID, e := primitive.ObjectIDFromHex(listingId)
+			if e != nil {
+				helper.HandleError(c, http.StatusBadRequest, e, "invalid listing id was provided")
+				return
+			}
+
+			listingIdentifier = bson.M{"_id": shopObjectID}
+		} else {
+			listingIdentifier = bson.M{"username": listingId}
 		}
 
 		pipeline := []bson.M{
-			{"$match": bson.M{"_id": listingObjectId}},
+			{"$match": listingIdentifier},
 			{
 				"$lookup": bson.M{
 					"from":         "Shop",
