@@ -41,7 +41,8 @@ var userDeletionCollection = configs.GetCollection(configs.DB, "UserDeletionRequ
 var validate = validator.New()
 
 const (
-	UserRequestTimeout = 20
+	UserRequestTimeout    = 20
+	MongoDuplicateKeyCode = 11000
 )
 
 func IsSeller(c *gin.Context, userId primitive.ObjectID) (bool, error) {
@@ -91,21 +92,21 @@ func CreateUser() gin.HandlerFunc {
 		errEmail := helper.ValidateEmailAddress(jsonUser.Email)
 		if errEmail != nil {
 			log.Printf("Invalid email address from user %s with IP %s at %s: %s\n", jsonUser.FirstName, c.ClientIP(), time.Now().Format(time.RFC3339), errEmail.Error())
-			helper.HandleError(c, http.StatusExpectationFailed, errEmail, "Invalid email address")
+			helper.HandleError(c, http.StatusBadRequest, errEmail, "Invalid email address")
 			return
 		}
 
 		err := helper.ValidatePassword(jsonUser.Password)
 		if err != nil {
 			log.Printf("Error validating password: %s\n", err.Error())
-			helper.HandleError(c, http.StatusExpectationFailed, err, err.Error())
+			helper.HandleError(c, http.StatusBadRequest, err, err.Error())
 			return
 		}
 
 		hashedPassword, errHashPassword := helper.HashPassword(jsonUser.Password)
 		if errHashPassword != nil {
 			log.Printf("Error hashing password: %s\n", errHashPassword.Error())
-			helper.HandleError(c, http.StatusExpectationFailed, errHashPassword, errHashPassword.Error())
+			helper.HandleError(c, http.StatusBadRequest, errHashPassword, errHashPassword.Error())
 			return
 		}
 
@@ -146,11 +147,21 @@ func CreateUser() gin.HandlerFunc {
 
 		result, err := userCollection.InsertOne(ctx, newUser)
 		if err != nil {
+			writeException, ok := err.(mongo.WriteException)
+			if ok {
+				for _, writeError := range writeException.WriteErrors {
+					if writeError.Code == MongoDuplicateKeyCode {
+						log.Printf("User with email already exists: %s\n", writeError.Message)
+						helper.HandleError(c, http.StatusBadRequest, writeError, "User with email already exists")
+						return
+					}
+				}
+			}
+
 			log.Printf("Mongo Error: Request could not be completed %s\n", err.Error())
-			helper.HandleError(c, http.StatusInternalServerError, err, "Failed to create user")
+			helper.HandleError(c, http.StatusInternalServerError, err, "Request could not be completed")
 			return
 		}
-
 		notification := models.Notification{
 			ID:               primitive.NewObjectID(),
 			UserID:           userId,
@@ -449,7 +460,6 @@ func CurrentUser(c *gin.Context) {
 
 	user, err := services.GetUserById(ctx, userId)
 	if err != nil {
-		log.Printf("Logging out user with IP %v\n", c.ClientIP())
 		helper.HandleError(c, http.StatusNotFound, err, "User not found")
 		return
 	}

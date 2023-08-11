@@ -139,7 +139,7 @@ func ShopRoutes(api *gin.RouterGroup) {
 		secured := shop.Group("").Use(middleware.Auth())
 		{
 			// Endpoint to create a new shop
-			secured.POST("/", controllers.CreateShop())
+			secured.POST("", controllers.CreateShop())
 			// Shop status
 			secured.PUT("/:shopid/status", controllers.UpdateMyShopStatus())
 			// update shop information
