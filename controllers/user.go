@@ -458,8 +458,10 @@ func CurrentUser(c *gin.Context) {
 		return
 	}
 
-	user, err := services.GetUserById(ctx, userId)
+	var user models.User
+	err = userCollection.FindOne(ctx, bson.M{"_id": userId}).Decode(&user)
 	if err != nil {
+		log.Println(err)
 		helper.HandleError(c, http.StatusNotFound, err, "User not found")
 		return
 	}

@@ -217,7 +217,7 @@ func GetListing() gin.HandlerFunc {
 
 			listingIdentifier = bson.M{"_id": shopObjectID}
 		} else {
-			listingIdentifier = bson.M{"username": listingId}
+			listingIdentifier = bson.M{"slug": listingId}
 		}
 
 		pipeline := []bson.M{
@@ -296,7 +296,7 @@ func GetListing() gin.HandlerFunc {
 				return
 			}
 		} else {
-			helper.HandleError(c, http.StatusNotFound, err, "no listing found")
+			helper.HandleError(c, http.StatusNotFound, errors.New("no listing found"), "no listing found")
 			return
 		}
 
