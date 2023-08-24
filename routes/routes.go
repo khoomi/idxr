@@ -127,8 +127,8 @@ func ShopRoutes(api *gin.RouterGroup) {
 		shop.GET("/:shopid/about", controllers.GetShopAbout())
 		// Endpoint to get shop reviews
 		shop.GET("/:shopid/reviews", controllers.GetShopReviews())
-		// Endpoint to get shop members
-		shop.GET("/:shopid/members", controllers.GetShopMembers())
+		// Endpoint to get shop followers
+		shop.GET("/:shopid/followers", controllers.GetShopFollowers())
 		// Endpoint to search for shops
 		shop.GET("/search", controllers.SearchShops())
 		// Endpoint to get shipping profile
@@ -161,13 +161,10 @@ func ShopRoutes(api *gin.RouterGroup) {
 			secured.DELETE("/:shopid/gallery", controllers.DeleteFromShopGallery())
 			// Endpoint to update shop announcement
 			secured.PUT("/:shopid/announcement", controllers.UpdateShopAnnouncement())
-			// Endpoint to add/remove shop favorers
-			secured.PUT("/:shopid/favorers", controllers.AddShopFavorer())
-			secured.DELETE("/:shopid/favorers", controllers.RemoveShopFavorer())
-			// Endpoint to join/leave shop members
-			shop.POST("/:shopid/members", controllers.JoinShopMembers())
-			secured.DELETE("/:shopid/members", controllers.LeaveShopMembers())
-			secured.DELETE("/:shopid/members/other", controllers.RemoveOtherMember())
+			// Endpoint to follow shop
+			shop.POST("/:shopid/followers", controllers.FollowShop())
+			secured.DELETE("/:shopid/followers", controllers.UnfollowShop())
+			secured.DELETE("/:shopid/followers/other", controllers.RemoveOtherFollower())
 			// Endpoint to create/delete shop reviews
 			shop.POST("/:shopid/reviews", controllers.CreateShopReview())
 			secured.DELETE("/:shopid/reviews", controllers.DeleteMyReview())

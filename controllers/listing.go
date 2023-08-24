@@ -138,9 +138,11 @@ func CreateListing() gin.HandlerFunc {
 			DomesticPricing: newListing.Inventory.DomesticPricing,
 			DomesticPrice:   newListing.Inventory.DomesticPrice,
 			Price:           newListing.Inventory.Price,
+			InitialQuantity: newListing.Inventory.InitialQuantity,
 			Quantity:        newListing.Inventory.Quantity,
 			SKU:             newListing.Inventory.SKU,
 			CurrencyCode:    "NGN",
+			ModifiedAt:      now,
 		}
 
 		listingDate := models.ListingDateMeta{
@@ -208,14 +210,14 @@ func GetListing() gin.HandlerFunc {
 
 		listingId := c.Param("listingid")
 		if primitive.IsValidObjectID(listingId) {
-			// If shopid is a valid object ID string
-			shopObjectID, e := primitive.ObjectIDFromHex(listingId)
+			// If listingid is a valid object ID string
+			listingObjectID, e := primitive.ObjectIDFromHex(listingId)
 			if e != nil {
 				helper.HandleError(c, http.StatusBadRequest, e, "invalid listing id was provided")
 				return
 			}
 
-			listingIdentifier = bson.M{"_id": shopObjectID}
+			listingIdentifier = bson.M{"_id": listingObjectID}
 		} else {
 			listingIdentifier = bson.M{"slug": listingId}
 		}
@@ -262,10 +264,12 @@ func GetListing() gin.HandlerFunc {
 					"recent_reviews":      1,
 					"reviews_count":       1,
 					"user": bson.M{
-						"login_name": "$user.login_name",
-						"first_name": "$user.first_name",
-						"last_name":  "$user.last_name",
-						"thumbnail":  "$user.thumbnail",
+						"login_name":             "$user.login_name",
+						"first_name":             "$user.first_name",
+						"last_name":              "$user.last_name",
+						"thumbnail":              "$user.thumbnail",
+						"transaction_buy_count":  "$user.transaction_buy_count",
+						"transaction_sold_count": "$user.transaction_sold_count",
 					},
 					"shop": bson.M{
 						"name":          "$shop.username",
@@ -275,6 +279,7 @@ func GetListing() gin.HandlerFunc {
 						"location":      "$shop.location",
 						"description":   "$shop.description",
 						"reviews_count": "$shop.reviews_count",
+						"is_live":       "$shop.is_live",
 					},
 				},
 			},
