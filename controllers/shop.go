@@ -337,7 +337,6 @@ func GetShop() gin.HandlerFunc {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
 
-		var shop models.Shop
 		var err error
 		var shopIdentifier bson.M
 
@@ -365,7 +364,11 @@ func GetShop() gin.HandlerFunc {
 					"as":           "address",
 				},
 			},
-			{"$unwind": "$address"},
+			{"$unwind": bson.M{
+				"path":	"$address",
+				"preserveNullAndEmptyArrays": true,
+			},
+		},
 			{
 				"$lookup": bson.M{
 					"from":         "User",
@@ -374,7 +377,11 @@ func GetShop() gin.HandlerFunc {
 					"as":           "user",
 				},
 			},
-			{"$unwind": "$user"},
+			{"$unwind": bson.M{
+				"path": "$user",
+				"preserveNullAndEmptyArrays": true,
+			},
+		},
 			{
 				"$project": bson.M{
 					"_id":                      1,
@@ -421,23 +428,23 @@ func GetShop() gin.HandlerFunc {
 			},
 		}
 
-		cursor, err := listingCollection.Aggregate(ctx, pipeline)
+		cursor, err := shopCollection.Aggregate(ctx, pipeline)
+
+		var shop models.Shop
 		if err != nil {
 			log.Println(err)
 			helper.HandleError(c, http.StatusInternalServerError, err, "error while retrieving listing")
 			return
 		}
-
-		var listing models.ListingExtra
-
 		if cursor.Next(ctx) {
-			if err := cursor.Decode(&listing); err != nil {
+			if err := cursor.Decode(&shop); err != nil {
 				log.Println(err)
 				helper.HandleError(c, http.StatusInternalServerError, err, "error while decoding listing")
 				return
 			}
 		} else {
-			helper.HandleError(c, http.StatusNotFound, errors.New("no listing found"), "no listing found")
+			log.Printf("NotFound, %v %v", shopIdentifier, err);
+			helper.HandleError(c, http.StatusNotFound, errors.New("no shop found"), "no shop found")
 			return
 		}
 
