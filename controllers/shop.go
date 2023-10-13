@@ -343,8 +343,8 @@ func GetShop() gin.HandlerFunc {
 		shopID := c.Param("shopid")
 		if primitive.IsValidObjectID(shopID) {
 			// If shopid is a valid object ID string
-			shopObjectID, e := primitive.ObjectIDFromHex(shopID)
-			if e != nil {
+			shopObjectID, err := primitive.ObjectIDFromHex(shopID)
+			if err != nil {
 				helper.HandleError(c, http.StatusNotFound, err, "Invalid shop ID")
 				return
 			}
@@ -825,6 +825,7 @@ func FollowShop() gin.HandlerFunc {
 
 		shopId, myId, err := services.MyShopIdAndMyId(c)
 		if err != nil {
+			log.Println(err);
 			helper.HandleError(c, http.StatusBadRequest, err, "Error getting shop ID and user ID")
 			return
 		}
@@ -842,7 +843,7 @@ func FollowShop() gin.HandlerFunc {
 
 		callback := func(ctx mongo.SessionContext) (interface{}, error) {
 			var user models.User
-			err := userCollection.FindOne(ctx, bson.M{"_id": shopId}).Decode(&user)
+			err := userCollection.FindOne(ctx, bson.M{"_id": myId}).Decode(&user)
 			if err != nil {
 				log.Println(err)
 				return nil, err
@@ -969,6 +970,37 @@ func GetShopFollowers() gin.HandlerFunc {
 	}
 }
 
+// IsfollowingShop - api/shops/:shopid/followers/is-following
+func IsFollowingShop() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+
+		shopId, myId, err := services.MyShopIdAndMyId(c)
+		if err != nil {
+			helper.HandleError(c, http.StatusBadRequest, err, "Invalid shop or user ID")
+			return
+		}
+
+		filter := bson.M{"user_id": myId, "shop_id": shopId}
+		var follower models.ShopFollower
+		err = shopFollowerCollection.FindOne(ctx, filter).Decode(&follower)
+		if err != nil {
+			if err == mongo.ErrNoDocuments {
+				helper.HandleSuccess(c, http.StatusOK, "Success", gin.H{"is_following": false})
+				return
+			}
+
+			helper.HandleError(c, http.StatusInternalServerError, err, "Error retrieving shop follower")
+			return
+		}
+
+
+		helper.HandleSuccess(c, http.StatusOK, "Success", gin.H{"is_following": true})
+
+	}
+}
+
 // UnfollowShop - api/shops/:shopid/followers
 func UnfollowShop() gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -1001,7 +1033,7 @@ func UnfollowShop() gin.HandlerFunc {
 
 			// attempt to remove member from embedded field in shop
 			filter = bson.M{"_id": shopId}
-			update := bson.M{"$pull": bson.M{"members": bson.M{"user_id": myId}}}
+			update := bson.M{"$pull": bson.M{"followers": bson.M{"user_id": myId}}}
 			result2, err := shopCollection.UpdateOne(ctx, filter, update)
 			if err != nil {
 				return nil, err

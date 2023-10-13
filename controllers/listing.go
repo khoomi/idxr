@@ -429,6 +429,7 @@ func GetListings() gin.HandlerFunc {
 	}
 }
 
+// GetShopListings - Get single shop listings.
 func GetShopListings() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ctx, cancel := context.WithTimeout(context.Background(), 50*time.Second)

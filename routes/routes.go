@@ -165,6 +165,7 @@ func ShopRoutes(api *gin.RouterGroup) {
 			shop.POST("/:shopid/followers", controllers.FollowShop())
 			secured.DELETE("/:shopid/followers", controllers.UnfollowShop())
 			secured.DELETE("/:shopid/followers/other", controllers.RemoveOtherFollower())
+			secured.GET("/:shopid/followers/is-following", controllers.IsFollowingShop())
 			// Endpoint to create/delete shop reviews
 			shop.POST("/:shopid/reviews", controllers.CreateShopReview())
 			secured.DELETE("/:shopid/reviews", controllers.DeleteMyReview())
