@@ -23,9 +23,6 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-var listingCollection = configs.GetCollection(configs.DB, "Listing")
-var ListingRequestTimeout = 30
-
 func CreateListing() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ctx, cancel := context.WithTimeout(context.Background(), 50*time.Second)
@@ -55,7 +52,7 @@ func CreateListing() gin.HandlerFunc {
 			return
 		}
 
-		if validationErr := validate.Struct(&newListing); validationErr != nil {
+		if validationErr := Validate.Struct(&newListing); validationErr != nil {
 			log.Println(validationErr)
 			helper.HandleError(c, http.StatusBadRequest, validationErr, "invalid or missing data in request body")
 			return
@@ -185,7 +182,7 @@ func CreateListing() gin.HandlerFunc {
 			Rating:            listingRating,
 		}
 
-		res, err := listingCollection.InsertOne(ctx, listing)
+		res, err := ListingCollection.InsertOne(ctx, listing)
 		if err != nil {
 			errMsg := fmt.Sprintf("Failed to create new listing — %v", err.Error())
 			log.Print(errMsg)
@@ -285,7 +282,7 @@ func GetListing() gin.HandlerFunc {
 			},
 		}
 
-		cursor, err := listingCollection.Aggregate(ctx, pipeline)
+		cursor, err := ListingCollection.Aggregate(ctx, pipeline)
 		if err != nil {
 			log.Println(err)
 			helper.HandleError(c, http.StatusInternalServerError, err, "error while retrieving listing")
@@ -383,7 +380,7 @@ func GetListings() gin.HandlerFunc {
 			{"$sort": sort},
 		}
 
-		cursor, err := listingCollection.Aggregate(ctx, pipeline)
+		cursor, err := ListingCollection.Aggregate(ctx, pipeline)
 		if err != nil {
 			log.Println(err)
 			helper.HandleError(c, http.StatusInternalServerError, err, "error while retrieving listing")
@@ -401,7 +398,7 @@ func GetListings() gin.HandlerFunc {
 			{"$match": bson.M{}},
 			{"$count": "total"},
 		}
-		countCursor, err := listingCollection.Aggregate(ctx, countPipeline)
+		countCursor, err := ListingCollection.Aggregate(ctx, countPipeline)
 		if err != nil {
 			log.Println(err)
 			helper.HandleError(c, http.StatusInternalServerError, err, "error while counting listings")
@@ -444,7 +441,7 @@ func GetShopListings() gin.HandlerFunc {
 		}
 
 		var listing models.Listing
-		err = listingCollection.FindOne(ctx, bson.M{"shop_id": shopObjectId}).Decode(&listing)
+		err = ListingCollection.FindOne(ctx, bson.M{"shop_id": shopObjectId}).Decode(&listing)
 		if err != nil {
 			log.Println(err)
 			if err == mongo.ErrNoDocuments {
@@ -462,13 +459,13 @@ func GetShopListings() gin.HandlerFunc {
 			SetSkip(int64(paginationArgs.Skip)).
 			SetSort(bson.D{{Key: "date", Value: -1}}) // Sort by date field in descending order (-1)
 
-		result, err := listingCollection.Find(ctx, bson.M{}, findOptions)
+		result, err := ListingCollection.Find(ctx, bson.M{}, findOptions)
 		if err != nil {
 			helper.HandleError(c, http.StatusNotFound, err, "error retrieving listings")
 			return
 		}
 
-		count, err := listingCollection.CountDocuments(ctx, bson.M{})
+		count, err := ListingCollection.CountDocuments(ctx, bson.M{})
 		if err != nil {
 			helper.HandleError(c, http.StatusInternalServerError, err, "Failed to count shipping profiles")
 			return
@@ -493,7 +490,7 @@ func GetShopListings() gin.HandlerFunc {
 
 func HasUserCreatedListingOnboarding() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), UserRequestTimeout*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), KhoomiRequestTimeoutSec)
 		defer cancel()
 
 		shopId, userId, err := services.MyShopIdAndMyId(c)
@@ -512,7 +509,7 @@ func HasUserCreatedListingOnboarding() gin.HandlerFunc {
 
 		filter := bson.M{"user_id": userId}
 		findOptions := options.Find().SetLimit(1)
-		cursor, err := listingCollection.Find(ctx, filter, findOptions)
+		cursor, err := ListingCollection.Find(ctx, filter, findOptions)
 		if err != nil {
 			log.Printf("error retrieving user listing: %v", err)
 			helper.HandleError(c, http.StatusNotFound, err, "error retrieving user listing")

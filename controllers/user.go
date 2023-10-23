@@ -25,28 +25,12 @@ import (
 	"go.mongodb.org/mongo-driver/x/bsonx"
 
 	"github.com/gin-gonic/gin"
-	"github.com/go-playground/validator/v10"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
-var userCollection = configs.GetCollection(configs.DB, "User")
-var userAddressCollection = configs.GetCollection(configs.DB, "UserAddress")
-var loginHistoryCollection = configs.GetCollection(configs.DB, "UserLoginHistory")
-var passwordResetTokenCollection = configs.GetCollection(configs.DB, "UserPasswordResetToken")
-var emailVerificationTokenCollection = configs.GetCollection(configs.DB, "UserEmailVerificationToken")
-var wishListCollection = configs.GetCollection(configs.DB, "UserWishList")
-var userDeletionCollection = configs.GetCollection(configs.DB, "UserDeletionRequest")
-
-var validate = validator.New()
-
-const (
-	UserRequestTimeout    = 20
-	MongoDuplicateKeyCode = 11000
-)
-
 func IsSeller(c *gin.Context, userId primitive.ObjectID) (bool, error) {
-	err := userCollection.FindOne(c, bson.M{"_id": userId, "is_seller": true}).Err()
+	err := UserCollection.FindOne(c, bson.M{"_id": userId, "is_seller": true}).Err()
 	if err == mongo.ErrNoDocuments {
 		// User not found or not a seller
 		return false, nil
@@ -61,7 +45,7 @@ func IsSeller(c *gin.Context, userId primitive.ObjectID) (bool, error) {
 
 func VerifyShopOwnership(ctx context.Context, userId, shopId primitive.ObjectID) error {
 	shop := models.Shop{}
-	err := shopCollection.FindOne(ctx, bson.M{"_id": shopId, "user_id": userId}).Decode(&shop)
+	err := ShopCollection.FindOne(ctx, bson.M{"_id": shopId, "user_id": userId}).Decode(&shop)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
 			return errors.New("user does not own the shop")
@@ -73,7 +57,7 @@ func VerifyShopOwnership(ctx context.Context, userId, shopId primitive.ObjectID)
 
 func CreateUser() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), UserRequestTimeout*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), KhoomiRequestTimeoutSec)
 		defer cancel()
 
 		var jsonUser models.UserRegistrationBody
@@ -83,7 +67,7 @@ func CreateUser() gin.HandlerFunc {
 			return
 		}
 
-		if err := validate.Struct(&jsonUser); err != nil {
+		if err := Validate.Struct(&jsonUser); err != nil {
 			log.Printf("Error validating request body: %s\n", err.Error())
 			helper.HandleError(c, http.StatusBadRequest, err, "Invalid or missing data in request body")
 			return
@@ -145,7 +129,7 @@ func CreateUser() gin.HandlerFunc {
 			"allow_login_ip_notification": true,
 		}
 
-		result, err := userCollection.InsertOne(ctx, newUser)
+		result, err := UserCollection.InsertOne(ctx, newUser)
 		if err != nil {
 			writeException, ok := err.(mongo.WriteException)
 			if ok {
@@ -172,7 +156,7 @@ func CreateUser() gin.HandlerFunc {
 			NewsAndFeature:   true,
 		}
 
-		_, err = notificationCollection.InsertOne(ctx, notification)
+		_, err = NotificationCollection.InsertOne(ctx, notification)
 		if err != nil {
 			helper.HandleError(c, http.StatusInternalServerError, err, "Error creating notification")
 			return
@@ -188,7 +172,7 @@ func CreateUser() gin.HandlerFunc {
 // HandleUserAuthentication - Authenticate user into the server
 func HandleUserAuthentication() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), UserRequestTimeout*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), KhoomiRequestTimeoutSec)
 		defer cancel()
 
 		var jsonUser models.UserLoginBody
@@ -201,14 +185,14 @@ func HandleUserAuthentication() gin.HandlerFunc {
 			return
 		}
 
-		if err := validate.Struct(&jsonUser); err != nil {
+		if err := Validate.Struct(&jsonUser); err != nil {
 			log.Println(err)
 			helper.HandleError(c, http.StatusUnprocessableEntity, err, "Invalid or missing data in request body")
 			return
 		}
 
 		var validUser models.User
-		if err := userCollection.FindOne(ctx, bson.M{"primary_email": jsonUser.Email}).Decode(&validUser); err != nil {
+		if err := UserCollection.FindOne(ctx, bson.M{"primary_email": jsonUser.Email}).Decode(&validUser); err != nil {
 			log.Println(err)
 			helper.HandleError(c, http.StatusNotFound, err, "User not found")
 			return
@@ -238,7 +222,7 @@ func HandleUserAuthentication() gin.HandlerFunc {
 					"last_login_ip": clientIP,
 				},
 			}
-			errUpdateLoginCounts := userCollection.FindOneAndUpdate(ctx, filter, update).Decode(&validUser)
+			errUpdateLoginCounts := UserCollection.FindOneAndUpdate(ctx, filter, update).Decode(&validUser)
 			if errUpdateLoginCounts != nil {
 				log.Println(errUpdateLoginCounts)
 				return nil, errUpdateLoginCounts
@@ -251,7 +235,7 @@ func HandleUserAuthentication() gin.HandlerFunc {
 				UserAgent: c.Request.UserAgent(),
 				IpAddr:    clientIP,
 			}
-			result, errLoginHistory := loginHistoryCollection.InsertOne(ctx, doc)
+			result, errLoginHistory := LoginHistoryCollection.InsertOne(ctx, doc)
 			if errLoginHistory != nil {
 				return result, errLoginHistory
 			}
@@ -311,7 +295,7 @@ func HandleUserAuthentication() gin.HandlerFunc {
 
 func RefreshToken() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), UserRequestTimeout*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), KhoomiRequestTimeoutSec)
 		defer cancel()
 
 		var payload models.RefreshTokenPayload
@@ -335,7 +319,7 @@ func RefreshToken() gin.HandlerFunc {
 			return
 		}
 
-		res := userCollection.FindOne(ctx, bson.M{"_id": userObjectId})
+		res := UserCollection.FindOne(ctx, bson.M{"_id": userObjectId})
 		if res.Err() != nil {
 			log.Println(err)
 			helper.HandleError(c, http.StatusNotFound, res.Err(), "User not found")
@@ -378,7 +362,7 @@ func Logout() gin.HandlerFunc {
 // SendDeleteUserAccount -> Delete current user account
 func SendDeleteUserAccount() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), UserRequestTimeout*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), KhoomiRequestTimeoutSec)
 		defer cancel()
 
 		userId, err := configs.ExtractTokenID(c)
@@ -387,7 +371,7 @@ func SendDeleteUserAccount() gin.HandlerFunc {
 			return
 		}
 
-		_, err = userDeletionCollection.InsertOne(ctx, bson.M{"user_id": userId, "created_at": time.Now()})
+		_, err = UserDeletionCollection.InsertOne(ctx, bson.M{"user_id": userId, "created_at": time.Now()})
 		if err != nil {
 			helper.HandleError(c, http.StatusUnauthorized, err, "error while requesting for account deletion")
 			return
@@ -400,7 +384,7 @@ func SendDeleteUserAccount() gin.HandlerFunc {
 // IsAccountPendingDeletion -> Check if current user account is pending deletion
 func IsAccountPendingDeletion() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), UserRequestTimeout*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), KhoomiRequestTimeoutSec)
 		defer cancel()
 
 		userId, err := configs.ExtractTokenID(c)
@@ -410,7 +394,7 @@ func IsAccountPendingDeletion() gin.HandlerFunc {
 		}
 
 		var account models.AccountDeletionRequested
-		err = userDeletionCollection.FindOne(ctx, bson.M{"user_id": userId}).Decode(&account)
+		err = UserDeletionCollection.FindOne(ctx, bson.M{"user_id": userId}).Decode(&account)
 		if err != nil {
 			if err == mongo.ErrNoDocuments {
 				c.JSON(http.StatusOK, gin.H{"pending_deletion": false})
@@ -427,7 +411,7 @@ func IsAccountPendingDeletion() gin.HandlerFunc {
 // DeleteUserAccount -> Delete current user account
 func CancelDeleteUserAccount() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), UserRequestTimeout*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), KhoomiRequestTimeoutSec)
 		defer cancel()
 
 		userId, err := configs.ExtractTokenID(c)
@@ -436,7 +420,7 @@ func CancelDeleteUserAccount() gin.HandlerFunc {
 			return
 		}
 
-		_, err = userDeletionCollection.DeleteOne(ctx, bson.M{"user_id": userId})
+		_, err = UserDeletionCollection.DeleteOne(ctx, bson.M{"user_id": userId})
 		if err != nil {
 			helper.HandleError(c, http.StatusUnauthorized, err, "error while cancelling account deletion request")
 			return
@@ -447,7 +431,7 @@ func CancelDeleteUserAccount() gin.HandlerFunc {
 }
 
 func CurrentUser(c *gin.Context) {
-	ctx, cancel := context.WithTimeout(context.Background(), UserRequestTimeout*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), KhoomiRequestTimeoutSec)
 	defer cancel()
 
 	// Extract user id from request header
@@ -459,7 +443,7 @@ func CurrentUser(c *gin.Context) {
 	}
 
 	var user models.User
-	err = userCollection.FindOne(ctx, bson.M{"_id": userId}).Decode(&user)
+	err = UserCollection.FindOne(ctx, bson.M{"_id": userId}).Decode(&user)
 	if err != nil {
 		log.Println(err)
 		helper.HandleError(c, http.StatusNotFound, err, "User not found")
@@ -473,7 +457,7 @@ func CurrentUser(c *gin.Context) {
 
 func ChangePassword() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), UserRequestTimeout*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), KhoomiRequestTimeoutSec)
 		defer cancel()
 
 		// Verify current user session
@@ -491,7 +475,7 @@ func ChangePassword() gin.HandlerFunc {
 		}
 
 		var validUser models.User
-		if err := userCollection.FindOne(ctx, bson.M{"_id": userId}).Decode(&validUser); err != nil {
+		if err := UserCollection.FindOne(ctx, bson.M{"_id": userId}).Decode(&validUser); err != nil {
 			helper.HandleError(c, http.StatusUnauthorized, err, "User not found")
 			return
 		}
@@ -501,7 +485,7 @@ func ChangePassword() gin.HandlerFunc {
 			return
 		}
 
-		if validationErr := validate.Struct(&newPasswordFromRequest); validationErr != nil {
+		if validationErr := Validate.Struct(&newPasswordFromRequest); validationErr != nil {
 			helper.HandleError(c, http.StatusUnprocessableEntity, validationErr, "invalid or missing data in request body")
 			return
 		}
@@ -526,7 +510,7 @@ func ChangePassword() gin.HandlerFunc {
 		// change user pasword for userid
 		filter := bson.M{"_id": userId}
 		update := bson.M{"$set": bson.M{"auth.password_digest": hashedPassword, "modified_at": time.Now()}}
-		err = userCollection.FindOneAndUpdate(ctx, filter, update).Decode(&user)
+		err = UserCollection.FindOneAndUpdate(ctx, filter, update).Decode(&user)
 
 		if err != nil {
 			log.Printf("user id, %v doesn't belong to a user on Khoomi %s\n", userId.String(), errHashPassword.Error())
@@ -541,7 +525,7 @@ func ChangePassword() gin.HandlerFunc {
 // GetUser - Get user by id or email endpoint
 func GetUser() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), UserRequestTimeout*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), KhoomiRequestTimeoutSec)
 		defer cancel()
 
 		var filter bson.M
@@ -561,7 +545,7 @@ func GetUser() gin.HandlerFunc {
 
 		// Query the database to find the user based on the specified field and value
 		var user models.User
-		err := userCollection.FindOne(ctx, filter).Decode(&user)
+		err := UserCollection.FindOne(ctx, filter).Decode(&user)
 		if err != nil {
 			helper.HandleError(c, http.StatusNotFound, err, "User not found")
 			return
@@ -575,7 +559,7 @@ func GetUser() gin.HandlerFunc {
 // SendVerifyEmail - api/send-verify-email?email=...&name=user_login_name
 func SendVerifyEmail() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), UserRequestTimeout*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), KhoomiRequestTimeoutSec)
 		defer cancel()
 
 		emailCurrent := c.Query("email")
@@ -608,7 +592,7 @@ func SendVerifyEmail() gin.HandlerFunc {
 		}
 		opts := options.Replace().SetUpsert(true)
 		filter := bson.M{"user_uid": userId}
-		_, err = emailVerificationTokenCollection.ReplaceOne(ctx, filter, verifyEmail, opts)
+		_, err = EmailVerificationTokenCollection.ReplaceOne(ctx, filter, verifyEmail, opts)
 		if err != nil {
 			helper.HandleError(c, http.StatusBadRequest, err, err.Error())
 			return
@@ -625,7 +609,7 @@ func SendVerifyEmail() gin.HandlerFunc {
 // VerifyEmail - api/send-verify-email?email=...&name=user_login_name
 func VerifyEmail() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), UserRequestTimeout*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), KhoomiRequestTimeoutSec)
 		defer cancel()
 
 		currentId := c.Query("id")
@@ -640,7 +624,7 @@ func VerifyEmail() gin.HandlerFunc {
 		}
 
 		// Get and delete email verification
-		err = emailVerificationTokenCollection.FindOneAndDelete(ctx, bson.M{"user_uid": userId}).Decode(&emailVerificationData)
+		err = EmailVerificationTokenCollection.FindOneAndDelete(ctx, bson.M{"user_uid": userId}).Decode(&emailVerificationData)
 		if err != nil {
 			helper.HandleError(c, http.StatusNotFound, err, "Email verification token not found")
 			return
@@ -662,7 +646,7 @@ func VerifyEmail() gin.HandlerFunc {
 		// Change user email verification status
 		filter := bson.M{"_id": emailVerificationData.UserId}
 		update := bson.M{"$set": bson.M{"status": "Active", "modified_at": now, "auth.modified_at": now, "auth.email_verified": true}}
-		err = userCollection.FindOneAndUpdate(ctx, filter, update).Decode(&user)
+		err = UserCollection.FindOneAndUpdate(ctx, filter, update).Decode(&user)
 		if err != nil {
 			helper.HandleError(c, http.StatusNotModified, err, "Failed to update user")
 			return
@@ -675,7 +659,7 @@ func VerifyEmail() gin.HandlerFunc {
 // UpdateMyProfile updates the email, thumbnail, first and last name for the current user.
 func UpdateMyProfile() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), UserRequestTimeout*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), KhoomiRequestTimeoutSec)
 		defer cancel()
 
 		userId, err := configs.ExtractTokenID(c)
@@ -736,7 +720,7 @@ func UpdateMyProfile() gin.HandlerFunc {
 		filter := bson.M{"_id": userId}
 		update := bson.M{"$set": updateData}
 
-		_, err = userCollection.UpdateOne(ctx, filter, update)
+		_, err = UserCollection.UpdateOne(ctx, filter, update)
 		if err != nil {
 			helper.HandleError(c, http.StatusExpectationFailed, err, "Failed to update user's profile")
 			return
@@ -751,7 +735,7 @@ func UpdateMyProfile() gin.HandlerFunc {
 // GetLoginHistories - Get user login histories (/api/users/:userId/login-history?limit=50&skip=0)
 func GetLoginHistories() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), UserRequestTimeout*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), KhoomiRequestTimeoutSec)
 		defer cancel()
 
 		userId, err := configs.ValidateUserID(c)
@@ -767,13 +751,13 @@ func GetLoginHistories() gin.HandlerFunc {
 			SetSkip(int64(paginationArgs.Skip)).
 			SetSort(bson.D{{Key: "date", Value: -1}}) // Sort by date field in descending order (-1)
 
-		result, err := loginHistoryCollection.Find(ctx, filter, findOptions)
+		result, err := LoginHistoryCollection.Find(ctx, filter, findOptions)
 		if err != nil {
 			helper.HandleError(c, http.StatusNotFound, err, "Failed to find login histories")
 			return
 		}
 
-		count, err := loginHistoryCollection.CountDocuments(ctx, filter)
+		count, err := LoginHistoryCollection.CountDocuments(ctx, filter)
 		if err != nil {
 			helper.HandleError(c, http.StatusInternalServerError, err, "Failed to count login histories")
 			return
@@ -831,7 +815,7 @@ func DeleteLoginHistories() gin.HandlerFunc {
 
 		callback := func(ctx mongo.SessionContext) (interface{}, error) {
 			filter := bson.M{"_id": bson.M{"$in": IdsToDelete}, "user_uid": userId}
-			result, err := loginHistoryCollection.DeleteMany(ctx, filter)
+			result, err := LoginHistoryCollection.DeleteMany(ctx, filter)
 			if err != nil {
 				return nil, err
 			}
@@ -859,13 +843,13 @@ func DeleteLoginHistories() gin.HandlerFunc {
 // PasswordResetEmail - api/send-password-reset?email=borngracedd@gmail.com
 func PasswordResetEmail() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), UserRequestTimeout*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), KhoomiRequestTimeoutSec)
 		defer cancel()
 
 		currentEmail := strings.ToLower(c.Query("email"))
 		var user models.User
 
-		err := userCollection.FindOne(ctx, bson.M{"primary_email": currentEmail}).Decode(&user)
+		err := UserCollection.FindOne(ctx, bson.M{"primary_email": currentEmail}).Decode(&user)
 		if err != nil {
 			helper.HandleError(c, http.StatusBadRequest, err, "User with email not found")
 			return
@@ -883,7 +867,7 @@ func PasswordResetEmail() gin.HandlerFunc {
 
 		opts := options.Replace().SetUpsert(true)
 		filter := bson.M{"user_uid": user.Id}
-		_, err = passwordResetTokenCollection.ReplaceOne(ctx, filter, passwordReset, opts)
+		_, err = PasswordResetTokenCollection.ReplaceOne(ctx, filter, passwordReset, opts)
 		if err != nil {
 			helper.HandleError(c, http.StatusBadRequest, err, "Failed to replace password reset token")
 			return
@@ -899,7 +883,7 @@ func PasswordResetEmail() gin.HandlerFunc {
 // PasswordReset - api/password-reset/userid?token=..&newpassword=..&id=user_uid
 func PasswordReset() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), UserRequestTimeout*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), KhoomiRequestTimeoutSec)
 		defer cancel()
 
 		currentId := c.Query("id")
@@ -914,7 +898,7 @@ func PasswordReset() gin.HandlerFunc {
 			return
 		}
 
-		err = passwordResetTokenCollection.FindOneAndDelete(ctx, bson.M{"user_uid": userId}).Decode(&passwordResetData)
+		err = PasswordResetTokenCollection.FindOneAndDelete(ctx, bson.M{"user_uid": userId}).Decode(&passwordResetData)
 		if err != nil {
 			helper.HandleError(c, http.StatusNotFound, err, "Failed to find or delete password reset token")
 			return
@@ -945,7 +929,7 @@ func PasswordReset() gin.HandlerFunc {
 
 		filter := bson.M{"_id": passwordResetData.UserId}
 		update := bson.M{"$set": bson.M{"auth.password_digest": hashedPassword, "auth.modified_at": now, "auth.email_verified": true}}
-		err = userCollection.FindOneAndUpdate(ctx, filter, update).Decode(&user)
+		err = UserCollection.FindOneAndUpdate(ctx, filter, update).Decode(&user)
 		if err != nil {
 			helper.HandleError(c, http.StatusNotModified, err, "Failed to update user password")
 			return
@@ -963,7 +947,7 @@ func PasswordReset() gin.HandlerFunc {
 // api/user/thumbnail?remote_addr=..
 func UploadThumbnail() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), UserRequestTimeout*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), KhoomiRequestTimeoutSec)
 		defer cancel()
 
 		remoteAddr := c.Query("remote_addr")
@@ -984,7 +968,7 @@ func UploadThumbnail() gin.HandlerFunc {
 			}
 
 			update := bson.M{"$set": bson.M{"thumbnail": uploadUrl, "modified_at": now}}
-			_, err = userCollection.UpdateOne(ctx, filter, update)
+			_, err = UserCollection.UpdateOne(ctx, filter, update)
 			if err != nil {
 				helper.HandleError(c, http.StatusExpectationFailed, err, "Failed to update user's thumbnail")
 				return
@@ -1005,7 +989,7 @@ func UploadThumbnail() gin.HandlerFunc {
 		}
 
 		update := bson.M{"$set": bson.M{"thumbnail": uploadUrl, "modified_at": now}}
-		_, err = userCollection.UpdateOne(ctx, filter, update)
+		_, err = UserCollection.UpdateOne(ctx, filter, update)
 		if err != nil {
 			helper.HandleError(c, http.StatusExpectationFailed, err, "Failed to update user's thumbnail")
 			return
@@ -1019,7 +1003,7 @@ func UploadThumbnail() gin.HandlerFunc {
 // api/user/thumbnail
 func DeleteThumbnail() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), UserRequestTimeout*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), KhoomiRequestTimeoutSec)
 		defer cancel()
 
 		myId, err := configs.ValidateUserID(c)
@@ -1032,7 +1016,7 @@ func DeleteThumbnail() gin.HandlerFunc {
 		now := time.Now()
 		filter := bson.M{"_id": myId}
 		update := bson.M{"$set": bson.M{"thumbnail": nil, "modified_at": now}}
-		err = userCollection.FindOneAndUpdate(ctx, filter, update).Decode(&user)
+		err = UserCollection.FindOneAndUpdate(ctx, filter, update).Decode(&user)
 		if err != nil {
 			log.Printf("Thumbnail deletion failed: %v", err)
 			helper.HandleError(c, http.StatusExpectationFailed, err, "Failed to update user's thumbnail")
@@ -1082,7 +1066,7 @@ func extractFilenameAndExtension(urlString string) (filename, extension string, 
 // CreateUserAddress - create new user address
 func CreateUserAddress() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), UserRequestTimeout*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), KhoomiRequestTimeoutSec)
 		defer cancel()
 
 		var userAddress models.UserAddress
@@ -1094,7 +1078,7 @@ func CreateUserAddress() gin.HandlerFunc {
 		}
 
 		// Validate request body
-		if validationErr := validate.Struct(&userAddress); validationErr != nil {
+		if validationErr := Validate.Struct(&userAddress); validationErr != nil {
 			helper.HandleError(c, http.StatusUnprocessableEntity, validationErr, "Validation failed")
 			return
 		}
@@ -1109,7 +1093,7 @@ func CreateUserAddress() gin.HandlerFunc {
 		// create user address
 		userAddress.UserId = myId
 		userAddress.Id = primitive.NewObjectID()
-		_, err = userAddressCollection.InsertOne(ctx, userAddress)
+		_, err = UserAddressCollection.InsertOne(ctx, userAddress)
 		if err != nil {
 			helper.HandleError(c, http.StatusInternalServerError, err, "Failed to create user address")
 			return
@@ -1123,7 +1107,7 @@ func CreateUserAddress() gin.HandlerFunc {
 // GetUserAddresses - get user address
 func GetUserAddresses() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), UserRequestTimeout*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), KhoomiRequestTimeoutSec)
 		defer cancel()
 
 		// Validate user id
@@ -1136,7 +1120,7 @@ func GetUserAddresses() gin.HandlerFunc {
 		}
 
 		filter := bson.M{"user_id": userId}
-		cursor, err := userAddressCollection.Find(ctx, filter)
+		cursor, err := UserAddressCollection.Find(ctx, filter)
 		if err != nil {
 			helper.HandleError(c, http.StatusNotFound, err, "User addresses not found")
 			return
@@ -1160,7 +1144,7 @@ func GetUserAddresses() gin.HandlerFunc {
 // UpdateUserAddress - update user address
 func UpdateUserAddress() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), UserRequestTimeout*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), KhoomiRequestTimeoutSec)
 		defer cancel()
 
 		var userAddress models.UserAddressUpdateequest
@@ -1172,7 +1156,7 @@ func UpdateUserAddress() gin.HandlerFunc {
 		}
 
 		// Validate request body
-		if validationErr := validate.Struct(&userAddress); validationErr != nil {
+		if validationErr := Validate.Struct(&userAddress); validationErr != nil {
 			helper.HandleError(c, http.StatusUnprocessableEntity, validationErr, "Validation error")
 			return
 		}
@@ -1211,7 +1195,7 @@ func UpdateUserAddress() gin.HandlerFunc {
 			},
 		}
 
-		res, err := userAddressCollection.UpdateOne(ctx, filter, update)
+		res, err := UserAddressCollection.UpdateOne(ctx, filter, update)
 		if err != nil {
 			helper.HandleError(c, http.StatusBadRequest, err, "Failed to update user address")
 			return
@@ -1238,7 +1222,7 @@ func setOtherAddressesToFalse(ctx context.Context, userId primitive.ObjectID, ad
 		"$set": bson.M{"is_default_shipping_address": false},
 	}
 
-	_, err := userAddressCollection.UpdateMany(ctx, filter, update)
+	_, err := UserAddressCollection.UpdateMany(ctx, filter, update)
 	return err
 }
 
@@ -1247,7 +1231,7 @@ func setOtherAddressesToFalse(ctx context.Context, userId primitive.ObjectID, ad
 // UpdateUserBirthdate - update user birthdate
 func UpdateUserBirthdate() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), UserRequestTimeout*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), KhoomiRequestTimeoutSec)
 		var birthDate models.UserBirthdate
 		defer cancel()
 
@@ -1258,7 +1242,7 @@ func UpdateUserBirthdate() gin.HandlerFunc {
 		}
 
 		// Validate request body
-		if validationErr := validate.Struct(&birthDate); validationErr != nil {
+		if validationErr := Validate.Struct(&birthDate); validationErr != nil {
 			helper.HandleError(c, http.StatusUnprocessableEntity, validationErr, "Validation error")
 			return
 		}
@@ -1270,7 +1254,7 @@ func UpdateUserBirthdate() gin.HandlerFunc {
 		}
 		filter := bson.M{"_id": myId}
 		update := bson.M{"$set": bson.M{"birthdate.day": birthDate.Day, "birthdate.month": birthDate.Month, "birthdate.year": birthDate.Year}}
-		result, errUpdateName := userCollection.UpdateOne(ctx, filter, update)
+		result, errUpdateName := UserCollection.UpdateOne(ctx, filter, update)
 		if errUpdateName != nil {
 			helper.HandleError(c, http.StatusBadRequest, errUpdateName, "Failed to update user birthdate")
 			return
@@ -1284,7 +1268,7 @@ func UpdateUserBirthdate() gin.HandlerFunc {
 // api/user/update?field=phone&value=8084051523
 func UpdateUserSingleField() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), UserRequestTimeout*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), KhoomiRequestTimeoutSec)
 		field := c.Query("field")
 		value := c.Query("value")
 		defer cancel()
@@ -1312,7 +1296,7 @@ func UpdateUserSingleField() gin.HandlerFunc {
 
 		filter := bson.M{"_id": myId}
 		update := bson.M{"$set": bson.M{field: value}}
-		result, errUpdateField := userCollection.UpdateOne(ctx, filter, update)
+		result, errUpdateField := UserCollection.UpdateOne(ctx, filter, update)
 		if errUpdateField != nil {
 			helper.HandleError(c, http.StatusBadRequest, errUpdateField, "Failed to update field")
 			return
@@ -1326,7 +1310,7 @@ func UpdateUserSingleField() gin.HandlerFunc {
 // api/user/update?shopid=phone&value=8084051523
 func AddRemoveFavoriteShop() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), UserRequestTimeout*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), KhoomiRequestTimeoutSec)
 		shop := c.Query("shopid")
 		action := c.Query("action")
 		defer cancel()
@@ -1340,7 +1324,7 @@ func AddRemoveFavoriteShop() gin.HandlerFunc {
 		filter := bson.M{"_id": myObjectId}
 		if action == "add" {
 			update := bson.M{"$push": bson.M{"favorite_shops": shop}}
-			res, err := userCollection.UpdateOne(ctx, filter, update)
+			res, err := UserCollection.UpdateOne(ctx, filter, update)
 			if err != nil {
 				helper.HandleError(c, http.StatusBadRequest, err, "Failed to add favorite shop")
 				return
@@ -1352,7 +1336,7 @@ func AddRemoveFavoriteShop() gin.HandlerFunc {
 
 		if action == "remove" {
 			update := bson.M{"$pull": bson.M{"favorite_shops": shop}}
-			res, err := userCollection.UpdateOne(ctx, filter, update)
+			res, err := UserCollection.UpdateOne(ctx, filter, update)
 			if err != nil {
 				helper.HandleError(c, http.StatusBadRequest, err, "Failed to remove favorite shop")
 				return
@@ -1370,7 +1354,7 @@ func AddRemoveFavoriteShop() gin.HandlerFunc {
 // api/user/:userId/wishlist?listing_id=8084051523
 func AddWishListItem() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), UserRequestTimeout*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), KhoomiRequestTimeoutSec)
 		defer cancel()
 
 		listingId := c.Query("listing_id")
@@ -1393,7 +1377,7 @@ func AddWishListItem() gin.HandlerFunc {
 			ListingId: listingObjectId,
 			CreatedAt: now,
 		}
-		res, err := wishListCollection.InsertOne(ctx, data)
+		res, err := WishListCollection.InsertOne(ctx, data)
 		if err != nil {
 			helper.HandleError(c, http.StatusNotModified, err, "Failed to add wishlist item")
 			return
@@ -1408,7 +1392,7 @@ func AddWishListItem() gin.HandlerFunc {
 // api/user/:userId/wishlist?listing_id=8084051523
 func RemoveWishListItem() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), UserRequestTimeout*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), KhoomiRequestTimeoutSec)
 		defer cancel()
 
 		listingId := c.Query("listing_id")
@@ -1425,7 +1409,7 @@ func RemoveWishListItem() gin.HandlerFunc {
 		}
 
 		filter := bson.M{"user_id": MyId, "listing_id": listingObjectId}
-		res, err := wishListCollection.DeleteOne(ctx, filter)
+		res, err := WishListCollection.DeleteOne(ctx, filter)
 		if err != nil {
 			helper.HandleError(c, http.StatusNotModified, err, "Failed to remove wishlist item")
 			return
@@ -1439,7 +1423,7 @@ func RemoveWishListItem() gin.HandlerFunc {
 // GetUserWishlist - Get all wishlist items  api/user/:userId/wishlist?limit=10&skip=0
 func GetUserWishlist() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), UserRequestTimeout*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), KhoomiRequestTimeoutSec)
 		defer cancel()
 
 		MyId, err := configs.ValidateUserID(c)
@@ -1451,7 +1435,7 @@ func GetUserWishlist() gin.HandlerFunc {
 		paginationArgs := services.GetPaginationArgs(c)
 		filter := bson.M{"user_id": MyId}
 		find := options.Find().SetLimit(int64(paginationArgs.Limit)).SetSkip(int64(paginationArgs.Skip))
-		result, err := wishListCollection.Find(ctx, filter, find)
+		result, err := WishListCollection.Find(ctx, filter, find)
 		if err != nil {
 			helper.HandleError(c, http.StatusNotFound, err, "Wishlist not found")
 			return
@@ -1463,7 +1447,7 @@ func GetUserWishlist() gin.HandlerFunc {
 			return
 		}
 
-		count, err := wishListCollection.CountDocuments(ctx, bson.M{"user_id": MyId})
+		count, err := WishListCollection.CountDocuments(ctx, bson.M{"user_id": MyId})
 		if err != nil {
 			helper.HandleError(c, http.StatusInternalServerError, err, "Error counting wishlist")
 			return
@@ -1483,7 +1467,7 @@ func GetUserWishlist() gin.HandlerFunc {
 // UpdateSecurityNotificationSetting - GET api/user/:userId/login-notification?set=true
 func UpdateSecurityNotificationSetting() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), UserRequestTimeout*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), KhoomiRequestTimeoutSec)
 		defer cancel()
 
 		myID, err := configs.ExtractTokenID(c)
@@ -1508,7 +1492,7 @@ func UpdateSecurityNotificationSetting() gin.HandlerFunc {
 		filter := bson.M{"_id": myID}
 		update := bson.M{"$set": bson.M{"allow_login_ip_notification": setBool}}
 
-		res, err := userCollection.UpdateOne(ctx, filter, update)
+		res, err := UserCollection.UpdateOne(ctx, filter, update)
 		if err != nil {
 			helper.HandleError(c, http.StatusInternalServerError, err, "error updating user login notification setting")
 			return
@@ -1526,7 +1510,7 @@ func UpdateSecurityNotificationSetting() gin.HandlerFunc {
 // GetSecurityNotificationSetting - GET api/user/:userId/login-notification
 func GetSecurityNotificationSetting() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), UserRequestTimeout*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), KhoomiRequestTimeoutSec)
 		defer cancel()
 
 		MyId, err := configs.ExtractTokenID(c)
@@ -1540,12 +1524,113 @@ func GetSecurityNotificationSetting() gin.HandlerFunc {
 
 		var result bson.M
 		filter := bson.M{"_id": MyId}
-		err = userCollection.FindOne(ctx, filter, options).Decode(&result)
+		err = UserCollection.FindOne(ctx, filter, options).Decode(&result)
 		if err != nil {
 			helper.HandleError(c, http.StatusNotFound, err, "error retrieving user login notification setting")
 			return
 		}
 
 		helper.HandleSuccess(c, http.StatusOK, "login notification setting retrieved successfuly.", gin.H{"setting": result})
+	}
+}
+
+// USER NOTIFICATIONS
+
+func CreateUserNotificationSettings() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ctx, cancel := context.WithTimeout(context.Background(), KhoomiRequestTimeoutSec)
+		defer cancel()
+
+		userId, err := configs.ExtractTokenID(c)
+		if err != nil {
+			helper.HandleError(c, http.StatusBadRequest, err, "Authorization error")
+			return
+		}
+
+		var notificationRequest models.NotificationRequest
+		if err := c.BindJSON(&notificationRequest); err != nil {
+			helper.HandleError(c, http.StatusBadRequest, err, "Invalid data detected in JSON")
+			return
+		}
+
+		notification := models.Notification{
+			ID:               primitive.NewObjectID(),
+			UserID:           userId,
+			NewMessage:       notificationRequest.NewMessage,
+			NewFollower:      notificationRequest.NewFollower,
+			ListingExpNotice: notificationRequest.ListingExpNotice,
+			SellerActivity:   notificationRequest.SellerActivity,
+			NewsAndFeature:   notificationRequest.NewsAndFeature,
+		}
+
+		_, err = NotificationCollection.InsertOne(ctx, notification)
+		if err != nil {
+			helper.HandleError(c, http.StatusInternalServerError, err, "Error creating notification")
+			return
+		}
+
+		log.Printf("Notification was created for user %v", userId)
+		helper.HandleSuccess(c, http.StatusOK, "Notification created successfully", "")
+	}
+}
+
+func GetUserNotificationSettings() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ctx, cancel := context.WithTimeout(context.Background(), KhoomiRequestTimeoutSec)
+		defer cancel()
+
+		userId, err := configs.ExtractTokenID(c)
+		if err != nil {
+			helper.HandleError(c, http.StatusBadRequest, err, "Authorization error")
+			return
+		}
+
+		var notification models.Notification
+		err = NotificationCollection.FindOne(ctx, bson.M{"user_id": userId}).Decode(&notification)
+		if err != nil {
+			log.Printf("No notification settings configured for user %v", userId)
+			helper.HandleError(c, http.StatusNotFound, err, "No notification settings found")
+			return
+		}
+
+		helper.HandleSuccess(c, http.StatusOK, "Notification settings retrieved successfully", gin.H{"notification": notification})
+	}
+}
+
+func UpdateUserNotificationSettings() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ctx, cancel := context.WithTimeout(context.Background(), KhoomiRequestTimeoutSec)
+		defer cancel()
+
+		userId, err := configs.ExtractTokenID(c)
+		if err != nil {
+			helper.HandleError(c, http.StatusBadRequest, err, "Authorization error")
+			return
+		}
+
+		var notificationRequest models.NotificationRequest
+		if err := c.BindJSON(&notificationRequest); err != nil {
+			helper.HandleError(c, http.StatusBadRequest, err, "Invalid data detected in JSON")
+			return
+		}
+
+		filter := bson.M{"user_id": userId}
+		update := bson.M{
+			"$set": bson.M{
+				"new_message":        notificationRequest.NewMessage,
+				"new_follower":       notificationRequest.NewFollower,
+				"listing_exp_notice": notificationRequest.ListingExpNotice,
+				"seller_activity":    notificationRequest.SellerActivity,
+				"news_and_feature":   notificationRequest.NewsAndFeature,
+			},
+		}
+
+		_, err = NotificationCollection.UpdateOne(ctx, filter, update)
+		if err != nil {
+			helper.HandleError(c, http.StatusInternalServerError, err, "Error updating notification settings")
+			return
+		}
+
+		helper.HandleSuccess(c, http.StatusOK, "Notification settings updated successfully", nil)
 	}
 }

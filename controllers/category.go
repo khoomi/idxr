@@ -2,6 +2,13 @@ package controllers
 
 import (
 	"context"
+	"khoomi-api-io/khoomi_api/configs"
+	"khoomi-api-io/khoomi_api/helper"
+	"khoomi-api-io/khoomi_api/models"
+	"net/http"
+	"strings"
+	"time"
+
 	"github.com/gin-gonic/gin"
 	slug2 "github.com/gosimple/slug"
 	"go.mongodb.org/mongo-driver/bson"
@@ -9,15 +16,9 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"go.mongodb.org/mongo-driver/mongo/writeconcern"
-	"khoomi-api-io/khoomi_api/configs"
-	"khoomi-api-io/khoomi_api/helper"
-	"khoomi-api-io/khoomi_api/models"
-	"net/http"
-	"strings"
-	"time"
 )
 
-var listingCategoryCollection = configs.GetCollection(configs.DB, "ListingCategory")
+var ListingCategoryCollection = configs.GetCollection(configs.DB, "ListingCategory")
 
 func CreateCategorySingle() gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -33,12 +34,12 @@ func CreateCategorySingle() gin.HandlerFunc {
 		}
 
 		// Validate the request body
-		if validationErr := validate.Struct(&categoryJson); validationErr != nil {
+		if validationErr := Validate.Struct(&categoryJson); validationErr != nil {
 			helper.HandleError(c, http.StatusUnprocessableEntity, validationErr, "Validation error")
 			return
 		}
 
-		_, err := listingCategoryCollection.InsertOne(ctx, categoryJson)
+		_, err := ListingCategoryCollection.InsertOne(ctx, categoryJson)
 		if err != nil {
 			helper.HandleError(c, http.StatusUnprocessableEntity, err, "Error creating category")
 			return
@@ -62,7 +63,7 @@ func CreateCategoryMulti() gin.HandlerFunc {
 		}
 
 		// Validate the request body
-		if validationErr := validate.Struct(&categoryJson); validationErr != nil {
+		if validationErr := Validate.Struct(&categoryJson); validationErr != nil {
 			helper.HandleError(c, http.StatusUnprocessableEntity, validationErr, "Validation error")
 			return
 		}
@@ -87,7 +88,7 @@ func CreateCategoryMulti() gin.HandlerFunc {
 				})
 			}
 			// Create many categories
-			res, err := listingCategoryCollection.InsertMany(ctx, categories)
+			res, err := ListingCategoryCollection.InsertMany(ctx, categories)
 			if err != nil {
 				return nil, err
 			}
@@ -121,7 +122,7 @@ func GetAllCategories() gin.HandlerFunc {
 		var categories []*models.Category
 
 		find := options.Find().SetSort(bson.M{"path": 1})
-		result, err := listingCategoryCollection.Find(ctx, bson.D{}, find)
+		result, err := ListingCategoryCollection.Find(ctx, bson.D{}, find)
 		if err != nil {
 			helper.HandleError(c, http.StatusInternalServerError, err, "Failed to retrieve categories")
 			return
@@ -150,7 +151,7 @@ func GetCategoryChildren() gin.HandlerFunc {
 		// find all the children of the category
 		var children []*models.Category
 		filter := bson.M{"parent_id": categoryID}
-		result, err := listingCategoryCollection.Find(ctx, filter)
+		result, err := ListingCategoryCollection.Find(ctx, filter)
 		if err != nil {
 			helper.HandleError(c, http.StatusNotFound, err, "Failed to retrieve category children")
 			return
@@ -176,7 +177,7 @@ func GetCategoryAncestor() gin.HandlerFunc {
 
 		// Find the category with the given ID
 		var category models.Category
-		err := listingCategoryCollection.FindOne(ctx, bson.M{"_id": categoryID}).Decode(&category)
+		err := ListingCategoryCollection.FindOne(ctx, bson.M{"_id": categoryID}).Decode(&category)
 		if err != nil {
 			helper.HandleError(c, http.StatusNotFound, err, "Failed to retrieve category")
 			return
@@ -192,7 +193,7 @@ func GetCategoryAncestor() gin.HandlerFunc {
 
 			// Find the parent category
 			var parent models.Category
-			err = listingCategoryCollection.FindOne(ctx, bson.M{"_id": category.ParentID}).Decode(&parent)
+			err = ListingCategoryCollection.FindOne(ctx, bson.M{"_id": category.ParentID}).Decode(&parent)
 			if err != nil {
 				helper.HandleError(c, http.StatusNotFound, err, "Failed to retrieve category parent")
 				return
@@ -221,7 +222,7 @@ func SearchCategories() gin.HandlerFunc {
 		search := c.Query("s")
 
 		// Query the database for categories that match the search query
-		result, err := listingCategoryCollection.Find(ctx, bson.M{
+		result, err := ListingCategoryCollection.Find(ctx, bson.M{
 			"$or": []bson.M{
 				{"name": bson.M{"$regex": primitive.Regex{Pattern: search, Options: "i"}}},
 				{"path": bson.M{"$regex": primitive.Regex{Pattern: search, Options: "i"}}},
@@ -256,7 +257,7 @@ func DeleteAllCategories() gin.HandlerFunc {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
 
-		res, err := listingCategoryCollection.DeleteMany(ctx, bson.M{})
+		res, err := ListingCategoryCollection.DeleteMany(ctx, bson.M{})
 		if err != nil {
 			helper.HandleError(c, http.StatusNotFound, err, "Failed to delete categories")
 			return

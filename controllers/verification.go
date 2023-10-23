@@ -15,11 +15,9 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
-var sellerVerificationCollection = configs.GetCollection(configs.DB, "SellerVerification")
-
 func CreateSellerVerificationProfile() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), UserRequestTimeout*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), KhoomiRequestTimeoutSec)
 		defer cancel()
 
 		shopId := c.Param("shopid")
@@ -53,7 +51,7 @@ func CreateSellerVerificationProfile() gin.HandlerFunc {
 		}
 
 		// Validate request body
-		if validationErr := validate.Struct(&verificationJson); validationErr != nil {
+		if validationErr := Validate.Struct(&verificationJson); validationErr != nil {
 			log.Println(validationErr)
 			helper.HandleError(c, http.StatusBadRequest, validationErr, "invalid request body")
 			return
@@ -76,7 +74,7 @@ func CreateSellerVerificationProfile() gin.HandlerFunc {
 			CreatedAt:          now,
 			ModifiedAt:         now,
 		}
-		res, err := sellerVerificationCollection.InsertOne(ctx, ShippingProfile)
+		res, err := SellerVerificationCollection.InsertOne(ctx, ShippingProfile)
 		if err != nil {
 			log.Println(err)
 			helper.HandleError(c, http.StatusBadRequest, err, "document insert error")
@@ -89,7 +87,7 @@ func CreateSellerVerificationProfile() gin.HandlerFunc {
 
 func GetSellerVerificationProfile() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), UserRequestTimeout*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), KhoomiRequestTimeoutSec)
 		defer cancel()
 
 		shopId := c.Param("shopid")
@@ -114,7 +112,7 @@ func GetSellerVerificationProfile() gin.HandlerFunc {
 		}
 
 		var verificationProfile models.SellerVerification
-		err = sellerVerificationCollection.FindOne(ctx, bson.M{"shop_id": shopIdObj}).Decode(&verificationProfile)
+		err = SellerVerificationCollection.FindOne(ctx, bson.M{"shop_id": shopIdObj}).Decode(&verificationProfile)
 		if err != nil {
 			log.Println(err)
 			if err == mongo.ErrNoDocuments {

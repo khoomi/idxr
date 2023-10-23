@@ -17,11 +17,9 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-var shippingProfileCollection = configs.GetCollection(configs.DB, "ShopShippingProfile")
-
 func CreateShopShippingProfile() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), UserRequestTimeout*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), KhoomiRequestTimeoutSec)
 		defer cancel()
 
 		shopId := c.Param("shopid")
@@ -55,7 +53,7 @@ func CreateShopShippingProfile() gin.HandlerFunc {
 		}
 
 		// Validate request body
-		if validationErr := validate.Struct(&shippingJson); validationErr != nil {
+		if validationErr := Validate.Struct(&shippingJson); validationErr != nil {
 			log.Println(validationErr)
 			helper.HandleError(c, http.StatusBadRequest, validationErr, "invalid request body")
 			return
@@ -93,7 +91,7 @@ func CreateShopShippingProfile() gin.HandlerFunc {
 			CreatedAt:          primitive.NewDateTimeFromTime(now),
 			ModifiedAt:         primitive.NewDateTimeFromTime(now),
 		}
-		res, err := shippingProfileCollection.InsertOne(ctx, ShippingProfile)
+		res, err := ShippingProfileCollection.InsertOne(ctx, ShippingProfile)
 		if err != nil {
 			log.Println(err)
 			helper.HandleError(c, http.StatusBadRequest, err, "document insert error")
@@ -106,7 +104,7 @@ func CreateShopShippingProfile() gin.HandlerFunc {
 
 func GetShopShippingProfileInfo() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), UserRequestTimeout*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), KhoomiRequestTimeoutSec)
 		defer cancel()
 
 		profileIdString := c.Param("shippingProfileId")
@@ -117,7 +115,7 @@ func GetShopShippingProfileInfo() gin.HandlerFunc {
 		}
 
 		var shippingProfile models.ShopShippingProfile
-		err = shippingProfileCollection.FindOne(ctx, bson.M{"_id": profileId}).Decode(&shippingProfile)
+		err = ShippingProfileCollection.FindOne(ctx, bson.M{"_id": profileId}).Decode(&shippingProfile)
 		if err != nil {
 			helper.HandleError(c, http.StatusBadRequest, err, "invalid shipping profile id")
 			return
@@ -129,7 +127,7 @@ func GetShopShippingProfileInfo() gin.HandlerFunc {
 
 func GetShopShippingProfileInfos() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), UserRequestTimeout*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), KhoomiRequestTimeoutSec)
 		defer cancel()
 
 		// Check if the user owns the shop
@@ -148,13 +146,13 @@ func GetShopShippingProfileInfos() gin.HandlerFunc {
 			SetSkip(int64(paginationArgs.Skip)).
 			SetSort(bson.D{{Key: "date", Value: -1}}) // Sort by date field in descending order (-1)
 
-		result, err := shippingProfileCollection.Find(ctx, filter, findOptions)
+		result, err := ShippingProfileCollection.Find(ctx, filter, findOptions)
 		if err != nil {
 			helper.HandleError(c, http.StatusNotFound, err, "Failed to find shipping profiles")
 			return
 		}
 
-		count, err := shippingProfileCollection.CountDocuments(ctx, filter)
+		count, err := ShippingProfileCollection.CountDocuments(ctx, filter)
 		if err != nil {
 			helper.HandleError(c, http.StatusInternalServerError, err, "Failed to count shipping profiles")
 			return
@@ -179,7 +177,7 @@ func GetShopShippingProfileInfos() gin.HandlerFunc {
 
 // func UpdateShopShippingProfileInfo() gin.HandlerFunc {
 // 	return func(c *gin.Context) {
-// 		ctx, cancel := context.WithTimeout(context.Background(), UserRequestTimeout*time.Second)
+// 		ctx, cancel := context.WithTimeout(context.Background(), KhoomiRequestTimeoutSec)
 // 		var shippingJson models.ShopShippingProfileRequest
 // 		defer cancel()
 
@@ -236,7 +234,7 @@ func GetShopShippingProfileInfos() gin.HandlerFunc {
 // 			PrimaryCost:         shippingJson.PrimaryCost,
 // 		}
 
-// 		res, err := shippingProfileCollection.UpdateOne(ctx, bson.M{"_id": profileId}, bson.M{"$set": ShippingProfile})
+// 		res, err := ShippingProfileCollection.UpdateOne(ctx, bson.M{"_id": profileId}, bson.M{"$set": ShippingProfile})
 // 		if err != nil {
 // 			c.JSON(http.StatusNotModified, responses.UserResponse{Status: http.StatusNotModified, Message: "error", Data: map[string]interface{}{"error": err}})
 // 			return
