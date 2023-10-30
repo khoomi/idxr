@@ -1025,7 +1025,7 @@ func UnfollowShop() gin.HandlerFunc {
 
 			// attempt to remove member from embedded field in shop
 			filter = bson.M{"_id": shopId}
-			update := bson.M{"$pull": bson.M{"followers": bson.M{"user_id": myId}}}
+			update := bson.M{"$pull": bson.M{"followers": bson.M{"user_id": myId}}, "$inc": bson.M{"follower_count": -1}}
 			result2, err := ShopCollection.UpdateOne(ctx, filter, update)
 			if err != nil {
 				return nil, err
