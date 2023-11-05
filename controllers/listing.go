@@ -19,7 +19,6 @@ import (
 	"github.com/pkg/errors"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
-	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
@@ -440,32 +439,19 @@ func GetShopListings() gin.HandlerFunc {
 			return
 		}
 
-		var listing models.Listing
-		err = ListingCollection.FindOne(ctx, bson.M{"shop_id": shopObjectId}).Decode(&listing)
-		if err != nil {
-			log.Println(err)
-			if err == mongo.ErrNoDocuments {
-				helper.HandleError(c, http.StatusNotFound, err, "no listing found or shop doesn't have any listing yet")
-				return
-			}
-
-			helper.HandleError(c, http.StatusBadRequest, err, "error while retrieving listing")
-			return
-		}
-
 		paginationArgs := services.GetPaginationArgs(c)
 		findOptions := options.Find().
 			SetLimit(int64(paginationArgs.Limit)).
 			SetSkip(int64(paginationArgs.Skip)).
 			SetSort(bson.D{{Key: "date", Value: -1}}) // Sort by date field in descending order (-1)
 
-		result, err := ListingCollection.Find(ctx, bson.M{}, findOptions)
+		result, err := ListingCollection.Find(ctx, bson.M{"shop_id": shopObjectId}, findOptions)
 		if err != nil {
 			helper.HandleError(c, http.StatusNotFound, err, "error retrieving listings")
 			return
 		}
 
-		count, err := ListingCollection.CountDocuments(ctx, bson.M{})
+		count, err := ListingCollection.CountDocuments(ctx, bson.M{"shop_id": shopObjectId})
 		if err != nil {
 			helper.HandleError(c, http.StatusInternalServerError, err, "Failed to count shipping profiles")
 			return

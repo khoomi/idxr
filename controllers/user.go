@@ -1069,7 +1069,7 @@ func CreateUserAddress() gin.HandlerFunc {
 		ctx, cancel := context.WithTimeout(context.Background(), KhoomiRequestTimeoutSec)
 		defer cancel()
 
-		var userAddress models.UserAddress
+		var userAddress models.UserAddressExcerpt
 
 		// Validate the request body
 		if err := c.BindJSON(&userAddress); err != nil {
@@ -1091,9 +1091,18 @@ func CreateUserAddress() gin.HandlerFunc {
 		}
 
 		// create user address
-		userAddress.UserId = myId
-		userAddress.Id = primitive.NewObjectID()
-		_, err = UserAddressCollection.InsertOne(ctx, userAddress)
+		userAddressTemp := models.UserAddress{
+			Id:                       primitive.NewObjectID(),
+			UserId:                   myId,
+			City:                     userAddress.City,
+			State:                    userAddress.State,
+			Street:                   userAddress.Street,
+			PostalCode:               userAddress.PostalCode,
+			Country:                  userAddress.Country,
+			IsDefaultShippingAddress: userAddress.IsDefaultShippingAddress,
+		}
+
+		_, err = UserAddressCollection.InsertOne(ctx, userAddressTemp)
 		if err != nil {
 			helper.HandleError(c, http.StatusInternalServerError, err, "Failed to create user address")
 			return
@@ -1147,7 +1156,7 @@ func UpdateUserAddress() gin.HandlerFunc {
 		ctx, cancel := context.WithTimeout(context.Background(), KhoomiRequestTimeoutSec)
 		defer cancel()
 
-		var userAddress models.UserAddressUpdateequest
+		var userAddress models.UserAddressUpdateRequest
 
 		// Validate the request body
 		if err := c.BindJSON(&userAddress); err != nil {

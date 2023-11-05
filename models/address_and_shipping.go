@@ -13,7 +13,16 @@ type UserAddress struct {
 	IsDefaultShippingAddress bool               `bson:"is_default_shipping_address" json:"is_default_shipping_address"`
 }
 
-type UserAddressUpdateequest struct {
+type UserAddressExcerpt struct {
+	City                     string  `bson:"city" json:"city" validate:"required"`
+	State                    string  `bson:"state" json:"state" validate:"required"`
+	Street                   string  `bson:"street" json:"street" validate:"required"`
+	PostalCode               string  `bson:"postal_code" json:"postal_code" validate:"required"`
+	Country                  Country `bson:"country" json:"country" validate:"required"`
+	IsDefaultShippingAddress bool    `bson:"is_default_shipping_address" json:"is_default_shipping_address"`
+}
+
+type UserAddressUpdateRequest struct {
 	City                     string  `bson:"city" json:"city" validate:"required"`
 	State                    string  `bson:"state" json:"state" validate:"required"`
 	Street                   string  `bson:"street" json:"street" validate:"required"`
