@@ -79,6 +79,7 @@ func userRoutes(api *gin.RouterGroup) {
 			secured.POST("/:userId/addresses", controllers.CreateUserAddress())
 			secured.PUT("/:userId/addresses/:addressId", controllers.UpdateUserAddress())
 			secured.GET("/:userId/addresses", controllers.GetUserAddresses())
+			secured.DELETE("/:userId/addresses/:addressId", controllers.DeleteUserAddress())
 
 			// Send verify email endpoint
 			secured.POST("/:userId/send-verify-email", controllers.SendVerifyEmail())

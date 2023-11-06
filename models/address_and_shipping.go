@@ -9,7 +9,7 @@ type UserAddress struct {
 	State                    string             `bson:"state" json:"state" validate:"required"`
 	Street                   string             `bson:"street" json:"street" validate:"required"`
 	PostalCode               string             `bson:"postal_code" json:"postal_code" validate:"required"`
-	Country                  Country            `bson:"country" json:"country" validate:"required"`
+	Country                  Country            `bson:"country" json:"country"`
 	IsDefaultShippingAddress bool               `bson:"is_default_shipping_address" json:"is_default_shipping_address"`
 }
 
@@ -18,7 +18,7 @@ type UserAddressExcerpt struct {
 	State                    string  `bson:"state" json:"state" validate:"required"`
 	Street                   string  `bson:"street" json:"street" validate:"required"`
 	PostalCode               string  `bson:"postal_code" json:"postal_code" validate:"required"`
-	Country                  Country `bson:"country" json:"country" validate:"required"`
+	Country                  Country `bson:"country" json:"country"`
 	IsDefaultShippingAddress bool    `bson:"is_default_shipping_address" json:"is_default_shipping_address"`
 }
 

@@ -1077,6 +1077,7 @@ func CreateUserAddress() gin.HandlerFunc {
 			return
 		}
 
+		log.Println(userAddress)
 		// Validate request body
 		if validationErr := Validate.Struct(&userAddress); validationErr != nil {
 			helper.HandleError(c, http.StatusUnprocessableEntity, validationErr, "Validation failed")
@@ -1098,7 +1099,7 @@ func CreateUserAddress() gin.HandlerFunc {
 			State:                    userAddress.State,
 			Street:                   userAddress.Street,
 			PostalCode:               userAddress.PostalCode,
-			Country:                  userAddress.Country,
+			Country:                  models.CountryNigeria,
 			IsDefaultShippingAddress: userAddress.IsDefaultShippingAddress,
 		}
 
@@ -1121,7 +1122,6 @@ func GetUserAddresses() gin.HandlerFunc {
 
 		// Validate user id
 		userIdStr := c.Param("userId")
-		println(userIdStr)
 		userId, err := primitive.ObjectIDFromHex(userIdStr)
 		if err != nil {
 			helper.HandleError(c, http.StatusUnauthorized, err, "Invalid user ID")
@@ -1156,7 +1156,7 @@ func UpdateUserAddress() gin.HandlerFunc {
 		ctx, cancel := context.WithTimeout(context.Background(), KhoomiRequestTimeoutSec)
 		defer cancel()
 
-		var userAddress models.UserAddressUpdateRequest
+		var userAddress models.UserAddressExcerpt
 
 		// Validate the request body
 		if err := c.BindJSON(&userAddress); err != nil {
@@ -1216,6 +1216,50 @@ func UpdateUserAddress() gin.HandlerFunc {
 		}
 
 		helper.HandleSuccess(c, http.StatusOK, "Address updated", nil)
+	}
+}
+
+// UpdateUserAddress - update user address
+func DeleteUserAddress() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ctx, cancel := context.WithTimeout(context.Background(), KhoomiRequestTimeoutSec)
+		defer cancel()
+
+		// Extract current address Id
+		addressId := c.Param("addressId")
+		addressObjectId, err := primitive.ObjectIDFromHex(addressId)
+		if err != nil {
+			helper.HandleError(c, http.StatusBadRequest, err, err.Error())
+			return
+		}
+
+		// Extract current user token
+		myId, err := configs.ValidateUserID(c)
+		if err != nil {
+			helper.HandleError(c, http.StatusBadRequest, err, err.Error())
+			return
+		}
+
+		// Set IsDefaultShippingAddress to false for other addresses belonging to the user
+		err = setOtherAddressesToFalse(ctx, myId, addressObjectId)
+		if err != nil {
+			helper.HandleError(c, http.StatusInternalServerError, err, "Failed to update user addresses")
+			return
+		}
+
+		filter := bson.M{"user_id": myId, "_id": addressObjectId}
+		res, err := UserAddressCollection.DeleteOne(ctx, filter)
+		if err != nil {
+			helper.HandleError(c, http.StatusBadRequest, err, "Failed to delete user address")
+			return
+		}
+
+		if res.DeletedCount == 0 {
+			helper.HandleError(c, http.StatusNotFound, errors.New("user address not found"), "User address not found")
+			return
+		}
+
+		helper.HandleSuccess(c, http.StatusOK, "Address deleted", nil)
 	}
 }
 

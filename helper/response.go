@@ -1,6 +1,8 @@
 package helper
 
 import (
+	"log"
+
 	"github.com/gin-gonic/gin"
 )
 
@@ -25,6 +27,7 @@ type ErrorResponse struct {
 }
 
 func HandleError(c *gin.Context, statusCode int, err error, message string) {
+	log.Println(err, "—", message)
 	c.JSON(statusCode, ErrorResponse{
 		Status:  statusCode,
 		Message: message,
