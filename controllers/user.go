@@ -1092,8 +1092,9 @@ func CreateUserAddress() gin.HandlerFunc {
 		}
 
 		// create user address
+		addressId := primitive.NewObjectID()
 		userAddressTemp := models.UserAddress{
-			Id:                       primitive.NewObjectID(),
+			Id:                       addressId,
 			UserId:                   myId,
 			City:                     userAddress.City,
 			State:                    userAddress.State,
@@ -1101,6 +1102,16 @@ func CreateUserAddress() gin.HandlerFunc {
 			PostalCode:               userAddress.PostalCode,
 			Country:                  models.CountryNigeria,
 			IsDefaultShippingAddress: userAddress.IsDefaultShippingAddress,
+		}
+
+		if userAddress.IsDefaultShippingAddress {
+			// Set IsDefaultShippingAddress to false for other addresses belonging to the user
+			err = setOtherAddressesToFalse(ctx, myId, addressId)
+			if err != nil {
+				helper.HandleError(c, http.StatusInternalServerError, err, "Failed to update user addresses")
+				return
+			}
+
 		}
 
 		_, err = UserAddressCollection.InsertOne(ctx, userAddressTemp)
@@ -1186,10 +1197,12 @@ func UpdateUserAddress() gin.HandlerFunc {
 		}
 
 		// Set IsDefaultShippingAddress to false for other addresses belonging to the user
-		err = setOtherAddressesToFalse(ctx, myId, addressObjectId)
-		if err != nil {
-			helper.HandleError(c, http.StatusInternalServerError, err, "Failed to update user addresses")
-			return
+		if userAddress.IsDefaultShippingAddress {
+			err = setOtherAddressesToFalse(ctx, myId, addressObjectId)
+			if err != nil {
+				helper.HandleError(c, http.StatusInternalServerError, err, "Failed to update user addresses")
+				return
+			}
 		}
 
 		filter := bson.M{"user_id": myId, "_id": addressObjectId}
