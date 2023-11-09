@@ -207,7 +207,6 @@ func HandleUserAuthentication() gin.HandlerFunc {
 		txnOptions := options.Transaction().SetWriteConcern(wc)
 		session, err := configs.DB.StartSession()
 		if err != nil {
-			log.Println(err)
 			helper.HandleError(c, http.StatusInternalServerError, err, "Failed to start database session")
 			return
 		}
@@ -243,19 +242,18 @@ func HandleUserAuthentication() gin.HandlerFunc {
 			return result, nil
 		}
 
-		_, err = session.WithTransaction(context.Background(), callback, txnOptions)
+		_, err = session.WithTransaction(ctx, callback, txnOptions)
 		if err != nil {
-			log.Println(err)
 			helper.HandleError(c, http.StatusBadRequest, err, "Failed to execute transaction")
 			return
 		}
 
-		if err := session.CommitTransaction(context.Background()); err != nil {
+		if err := session.CommitTransaction(ctx); err != nil {
 			log.Println(err)
 			helper.HandleError(c, http.StatusInternalServerError, err, "Failed to commit transaction")
 			return
 		}
-		session.EndSession(context.Background())
+		session.EndSession(ctx)
 
 		accessTokenString, accessTokenExp, err := configs.GenerateJWT(validUser.Id.Hex(), validUser.PrimaryEmail, validUser.LoginName, validUser.IsSeller)
 		if err != nil {
@@ -1102,6 +1100,17 @@ func CreateUserAddress() gin.HandlerFunc {
 			PostalCode:               userAddress.PostalCode,
 			Country:                  models.CountryNigeria,
 			IsDefaultShippingAddress: userAddress.IsDefaultShippingAddress,
+		}
+
+		count, err := UserAddressCollection.CountDocuments(ctx, bson.M{"user_id": myId})
+		if err != nil {
+			helper.HandleError(c, http.StatusInternalServerError, err, "Error counting current payment information")
+			return
+		}
+
+		if count >= 5 {
+			helper.HandleError(c, http.StatusInsufficientStorage, errors.New("max allowed addresses reached. please delete other address to accommodate a new one"), "max allowed payment information reached")
+			return
 		}
 
 		if userAddress.IsDefaultShippingAddress {

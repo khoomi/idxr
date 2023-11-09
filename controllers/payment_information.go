@@ -12,18 +12,26 @@ import (
 	"github.com/pkg/errors"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
+	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
+	"go.mongodb.org/mongo-driver/mongo/writeconcern"
 )
 
-// isSeller, err := configs.IsSeller(c) // Check if the user is a seller
-// 	if err != nil {
-// 		helper.HandleError(c, http.StatusBadRequest, err, "Unauthorized")
-// 		return
-// 	}
-// 	if !isSeller {
-// 		helper.HandleError(c, http.StatusUnauthorized, errors.New("Only sellers can perform this action"), "Unauthorized")
-// 		return
-// 	}
+// SetOtherAddressesToFalse sets IsDefaultShippingAddress to false for other addresses belonging to the user
+func setOtherPaymentsToFalse(ctx context.Context, userId primitive.ObjectID, paymentId primitive.ObjectID) error {
+	filter := bson.M{
+		"user_id":    userId,
+		"_id":        bson.M{"$ne": paymentId},
+		"is_default": true,
+	}
+
+	update := bson.M{
+		"$set": bson.M{"is_default": false},
+	}
+
+	_, err := PaymentInformationCollection.UpdateMany(ctx, filter, update)
+	return err
+}
 
 // / CreatePaymentInformation -> POST /:userId/payment-information/
 func CreatePaymentInformation() gin.HandlerFunc {
@@ -60,7 +68,7 @@ func CreatePaymentInformation() gin.HandlerFunc {
 		}
 
 		if len(paymentInfo.BankName) < 3 {
-			helper.HandleError(c, http.StatusBadRequest, errors.New("Bank name is missing or invalid"), "Invalid bank name")
+			helper.HandleError(c, http.StatusBadRequest, errors.New("Invalid bank name"), "Invalid bank name")
 			return
 		}
 
@@ -84,14 +92,47 @@ func CreatePaymentInformation() gin.HandlerFunc {
 			return
 		}
 
-		insertRes, insertErr := PaymentInformationCollection.InsertOne(ctx, paymentInfoToUpload)
-		if insertErr != nil {
-			helper.HandleError(c, http.StatusInternalServerError, err, "Error creating payment information")
+		wc := writeconcern.New(writeconcern.WMajority())
+		txnOptions := options.Transaction().SetWriteConcern(wc)
+		session, err := configs.DB.StartSession()
+		if err != nil {
+			helper.HandleError(c, http.StatusInternalServerError, err, "failed to start mongodb session")
+		}
+
+		defer session.EndSession(ctx)
+
+		callback := func(ctx mongo.SessionContext) (interface{}, error) {
+			log.Println("Start mongo transaction for new payament information creation")
+			if paymentInfoToUpload.IsDefault {
+				// Set IsDefaultShippingAddress to false for other addresses belonging to the user
+				err = setOtherPaymentsToFalse(ctx, userId, paymentInfoToUpload.ID)
+				if err != nil {
+					return nil, err
+				}
+
+			}
+
+			insertRes, insertErr := PaymentInformationCollection.InsertOne(ctx, paymentInfoToUpload)
+			if insertErr != nil {
+				return nil, insertErr
+			}
+
+			return insertRes, nil
+		}
+
+		result, err := session.WithTransaction(ctx, callback, txnOptions)
+		if err != nil {
+			helper.HandleError(c, http.StatusBadRequest, err, "Failed to execute transaction")
+			return
+		}
+
+		if err := session.CommitTransaction(ctx); err != nil {
+			helper.HandleError(c, http.StatusBadRequest, err, "Failed to commit transaction")
 			return
 		}
 
 		log.Printf("User %v added their payment account information", userId)
-		helper.HandleSuccess(c, http.StatusOK, "Payment account information created successfully", gin.H{"inserted_id": insertRes.InsertedID})
+		helper.HandleSuccess(c, http.StatusOK, "Payment account information created successfully", result)
 	}
 }
 
@@ -150,11 +191,10 @@ func ChangeDefaultPaymentInformation() gin.HandlerFunc {
 		}
 		res, err := IsSeller(c, userId)
 		if err != nil {
-			log.Println(err)
 			helper.HandleError(c, http.StatusInternalServerError, err, "Error finding user")
 			return
 		}
-		if res == false {
+		if !res {
 			helper.HandleError(c, http.StatusUnauthorized, errors.New("Only sellers can perform this action"), "Unauthorized")
 			return
 		}
@@ -174,7 +214,6 @@ func ChangeDefaultPaymentInformation() gin.HandlerFunc {
 		// Set all other payment information records to is_default=false
 		_, err = PaymentInformationCollection.UpdateMany(ctx, bson.M{"user_id": userId, "_id": bson.M{"$ne": paymentObjectID}}, bson.M{"$set": bson.M{"is_default": false}})
 		if err != nil {
-			log.Printf("Error updating payment informations: %v", err)
 			helper.HandleError(c, http.StatusInternalServerError, err, "error modifying payment information")
 			return
 		}
@@ -182,13 +221,11 @@ func ChangeDefaultPaymentInformation() gin.HandlerFunc {
 		filter := bson.M{"user_id": userId, "_id": paymentObjectID}
 		insertRes, insertErr := PaymentInformationCollection.UpdateOne(ctx, filter, bson.M{"$set": bson.M{"is_default": true}})
 		if insertErr != nil {
-			log.Printf("Error updating default payment informations: %v", err)
 			helper.HandleError(c, http.StatusNotFound, err, "error modifying payment information")
 			return
 		}
 
 		if insertRes.ModifiedCount < 1 {
-			log.Printf("Error updating default payment informations: %v", err)
 			helper.HandleError(c, http.StatusNotFound, err, "payment information not modified")
 			return
 		}
