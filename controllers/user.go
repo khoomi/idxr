@@ -527,7 +527,7 @@ func GetUser() gin.HandlerFunc {
 		defer cancel()
 
 		var filter bson.M
-		userID := c.Param("userid")
+		userID := c.Param("userId")
 		if primitive.IsValidObjectID(userID) {
 			// If shopid is a valid object ID string
 			userObjectID, e := primitive.ObjectIDFromHex(userID)

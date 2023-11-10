@@ -41,9 +41,9 @@ func userRoutes(api *gin.RouterGroup) {
 	user := api.Group("/users")
 	{
 		// Endpoint to get user by ID or email
-		user.GET("/:userid/", controllers.GetUser())
+		user.GET("/:userId", controllers.GetUser())
 		// Endpoint to get shops by owner user ID
-		user.GET("/:userid/shops", controllers.GetShopByOwnerUserId())
+		user.GET("/:userId/shops", controllers.GetShopByOwnerUserId())
 
 		// Secured endpoints that require authentication
 		secured := user.Group("").Use(middleware.Auth())
