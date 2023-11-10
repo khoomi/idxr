@@ -67,9 +67,9 @@ func userRoutes(api *gin.RouterGroup) {
 			secured.PUT("/me", controllers.UpdateMyProfile())
 
 			// Notification settings endpoints
-			secured.POST("/:userId/notification-settings", controllers.CreateUserNotificationSettings())
-			secured.GET("/:userId/notification-settings", controllers.GetUserNotificationSettings())
-			secured.PUT("/:userId/notification-settings", controllers.UpdateUserNotificationSettings())
+			secured.POST("/me/notification-settings", controllers.CreateUserNotificationSettings())
+			secured.GET("/me/notification-settings", controllers.GetUserNotificationSettings())
+			secured.PUT("/me/notification-settings", controllers.UpdateUserNotificationSettings())
 
 			// User thumbnail endpoints
 			secured.PUT("/:userId/thumbnail", controllers.UploadThumbnail())
