@@ -350,7 +350,7 @@ func Logout() gin.HandlerFunc {
 		token := configs.ExtractToken(c)
 
 		log.Printf("Logging user with ip %v out\n", c.ClientIP())
-		_ = helper.InvalidateToken(configs.REDIS, token)
+		_ = configs.InvalidateToken(configs.REDIS, token)
 
 		helper.HandleSuccess(c, http.StatusOK, "logout successful", nil)
 

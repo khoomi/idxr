@@ -5,7 +5,6 @@ import (
 	"encoding/hex"
 
 	"khoomi-api-io/khoomi_api/configs"
-	"khoomi-api-io/khoomi_api/helper"
 
 	"github.com/gin-gonic/gin"
 )
@@ -26,7 +25,7 @@ func Auth() gin.HandlerFunc {
 			return
 		}
 
-		res := helper.IsTokenValid(configs.REDIS, tokenString)
+		res := configs.IsTokenValid(configs.REDIS, tokenString)
 		if !res {
 			c.JSON(401, gin.H{"error": "why are you trying to act with a blacklisted token? huh? please login again"})
 			c.Abort()
