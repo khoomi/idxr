@@ -1055,7 +1055,7 @@ func UnfollowShop() gin.HandlerFunc {
 	}
 }
 
-// RemoveOtherFollower - api/shops/:shopid/follower/other?userid={user_id to remove}
+// RemoveOtherFollower - api/shops/:shopid/followers/other?userid={user_id to remove}
 func RemoveOtherFollower() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -1094,14 +1094,10 @@ func RemoveOtherFollower() gin.HandlerFunc {
 
 			// attempt to remove follower from embedded field in shop
 			filter = bson.M{"_id": shopId}
-			update := bson.M{"$pull": bson.M{"followers": bson.M{"user_id": userToBeRemovedId}}}
+			update := bson.M{"$pull": bson.M{"followers": bson.M{"user_id": userToBeRemovedId}}, "$inc": bson.M{"follower_count": -1}}
 			result2, err := ShopCollection.UpdateOne(ctx, filter, update)
 			if err != nil {
 				return nil, err
-			}
-
-			if result2.ModifiedCount == 0 {
-				return nil, errors.New("no matching documents found")
 			}
 
 			return result2, nil
