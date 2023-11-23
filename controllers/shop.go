@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"khoomi-api-io/khoomi_api/configs"
+	"khoomi-api-io/khoomi_api/controllers"
 	"khoomi-api-io/khoomi_api/email"
 	"khoomi-api-io/khoomi_api/helper"
 	"khoomi-api-io/khoomi_api/models"
@@ -1068,13 +1069,25 @@ func RemoveOtherFollower() gin.HandlerFunc {
 			return
 		}
 
+		// Let's verify shop ownership before attempting to remove follower
+		ownershipEerr := controllers.VerifyShopOwnership(ctx, myId, shopId)
+		if ownershipEerr != nil {
+			helper.HandleError(c, http.StatusBadRequest, err, "No Authorised PermissionD")
+			return
+		}
+
 		userToBeRemovedId, err := primitive.ObjectIDFromHex(userToBeRemoved)
 		if err != nil {
 			helper.HandleError(c, http.StatusBadRequest, err, "Invalid user ID")
 			return
 		}
 
-		// Shop Member section
+		if shopId == userToBeRemovedId {
+			helper.HandleError(c, http.StatusBadRequest, err, "No Authorised PermissionD")
+			return
+		}
+
+		// Shop follower session
 		wc := writeconcern.New(writeconcern.WMajority())
 		txnOptions := options.Transaction().SetWriteConcern(wc)
 
@@ -1085,8 +1098,8 @@ func RemoveOtherFollower() gin.HandlerFunc {
 		defer session.EndSession(ctx)
 
 		callback := func(ctx mongo.SessionContext) (interface{}, error) {
-			// attempt to remove member from member collection table
-			filter := bson.M{"shop_id": shopId, "owner_id": myId, "user_id": userToBeRemovedId}
+			// attempt to remove follower from shop follower collection table
+			filter := bson.M{"shop_id": shopId, "user_id": userToBeRemovedId}
 			_, err := ShopFollowerCollection.DeleteOne(ctx, filter)
 			if err != nil {
 				return nil, err
