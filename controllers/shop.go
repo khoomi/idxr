@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"khoomi-api-io/khoomi_api/configs"
-	"khoomi-api-io/khoomi_api/controllers"
 	"khoomi-api-io/khoomi_api/email"
 	"khoomi-api-io/khoomi_api/helper"
 	"khoomi-api-io/khoomi_api/models"
@@ -1070,7 +1069,7 @@ func RemoveOtherFollower() gin.HandlerFunc {
 		}
 
 		// Let's verify shop ownership before attempting to remove follower
-		ownershipEerr := controllers.VerifyShopOwnership(ctx, myId, shopId)
+		ownershipEerr := VerifyShopOwnership(ctx, myId, shopId)
 		if ownershipEerr != nil {
 			helper.HandleError(c, http.StatusBadRequest, err, "No Authorised PermissionD")
 			return
