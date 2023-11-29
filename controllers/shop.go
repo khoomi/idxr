@@ -174,6 +174,24 @@ func CreateShop() gin.HandlerFunc {
 				return nil, err
 			}
 
+			// Create shop about profile.
+			shopAboutData := models.ShopAbout{
+				ID:        primitive.NewObjectID(),
+				ShopID:    shopID,
+				Status:    models.ShopAboutStatusDraft,
+				Headline:  fmt.Sprintf("Welcome to %v!", shop.Username),
+				Story:     fmt.Sprintf("Thank you for visiting our online artisan shop. We are passionate about craftsmanship and dedicated to providing unique, handcrafted items that reflect the creativity and skill of our artisans. Explore our collection and discover the beauty of handmade products that carry a story of craftsmanship and tradition.\n\nAt %v, we believe in the art of creating something special. Each piece in our collection is carefully crafted with attention to detail and a commitment to quality. We aim to connect artisans with appreciative buyers, creating a community that values and supports the artistry behind every creation.\n\nJoin us on this journey of celebrating craftsmanship and supporting talented artisans from around the world. Your purchase not only adds a unique piece to your life but also contributes to the livelihood of skilled individuals who pour their heart and soul into their work.\n\nThank you for being a part of our community. Happy shopping!", shop.Username),
+				Instagram: fmt.Sprintf("@%v", shop.Username),
+				Facebook:  fmt.Sprintf("@%v", shop.Username),
+				X:         fmt.Sprintf("@%v", shop.Username),
+			}
+
+			_, err = ShopAboutCollection.InsertOne(ctx, shopAboutData)
+			if err != nil {
+				helper.HandleError(c, http.StatusInternalServerError, err, "Error creating shop about")
+				return nil, err
+			}
+
 			return result, nil
 		}
 
@@ -1416,8 +1434,6 @@ func CreateShopAbout() gin.HandlerFunc {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
 
-		var shopAboutJson models.ShopAboutRequest
-
 		shopId, myId, err := services.MyShopIdAndMyId(c)
 		if err != nil {
 			helper.HandleError(c, http.StatusBadRequest, err, "Error retrieving shop ID and user ID")
@@ -1431,28 +1447,20 @@ func CreateShopAbout() gin.HandlerFunc {
 			return
 		}
 
-		// Bind the request body
-		if err := c.BindJSON(&shopAboutJson); err != nil {
-			helper.HandleError(c, http.StatusBadRequest, err, "Error parsing request body")
-			return
-		}
-
-		// Validate request body
-		if validationErr := Validate.Struct(&shopAboutJson); validationErr != nil {
-			helper.HandleError(c, http.StatusUnprocessableEntity, validationErr, "Invalid request body")
-			return
-		}
-
+		// Create shop about profile.
 		shopAboutData := models.ShopAbout{
-			ID:                    primitive.NewObjectID(),
-			ShopID:                shopId,
-			Status:                shopAboutJson.Status,
-			RelatedLinks:          shopAboutJson.RelatedLinks,
-			StoryLeadingParagraph: shopAboutJson.StoryLeadingParagraph,
-			StoryHeadline:         shopAboutJson.StoryHeadline,
+			ID:        primitive.NewObjectID(),
+			ShopID:    shopId,
+			Status:    models.ShopAboutStatusDraft,
+			Headline:  "Welcome to My Shop!",
+			Story:     "Thank you for visiting our online artisan shop. We are passionate about craftsmanship and dedicated to providing unique, handcrafted items that reflect the creativity and skill of our artisans. Explore our collection and discover the beauty of handmade products that carry a story of craftsmanship and tradition.\n\nAt [My Shop], we believe in the art of creating something special. Each piece in our collection is carefully crafted with attention to detail and a commitment to quality. We aim to connect artisans with appreciative buyers, creating a community that values and supports the artistry behind every creation.\n\nJoin us on this journey of celebrating craftsmanship and supporting talented artisans from around the world. Your purchase not only adds a unique piece to your life but also contributes to the livelihood of skilled individuals who pour their heart and soul into their work.\n\nThank you for being a part of our community. Happy shopping!",
+			Instagram: "@MyShop",
+			Facebook:  "@MyShop",
+			X:         "@MyShop",
 		}
 
-		_, err = ShopAboutCollection.InsertOne(ctx, shopAboutData)
+		opts := options.Update().SetUpsert(true)
+		_, err = ShopAboutCollection.UpdateOne(ctx, bson.M{"shop_id": shopId}, bson.M{"$set": shopAboutData}, opts)
 		if err != nil {
 			helper.HandleError(c, http.StatusInternalServerError, err, "Error creating shop about")
 			return
@@ -1479,6 +1487,11 @@ func GetShopAbout() gin.HandlerFunc {
 
 		err = ShopAboutCollection.FindOne(ctx, bson.M{"shop_id": shopObjectID}).Decode(&shopAbout)
 		if err != nil {
+			if err == mongo.ErrNoDocuments {
+				helper.HandleError(c, http.StatusNotFound, err, "no document in result")
+				return
+			}
+
 			helper.HandleError(c, http.StatusInternalServerError, err, "Error retrieving shop about")
 			return
 		}
@@ -1525,10 +1538,12 @@ func UpdateShopAbout() gin.HandlerFunc {
 		filter := bson.M{"shop_id": shopId}
 		update := bson.M{
 			"$set": bson.M{
-				"status":                  shopAboutJson.Status,
-				"related_links":           shopAboutJson.RelatedLinks,
-				"story_leading_paragraph": shopAboutJson.StoryLeadingParagraph,
-				"story_headline":          shopAboutJson.StoryHeadline,
+				"status":    shopAboutJson.Status,
+				"headline":  shopAboutJson.Headline,
+				"story":     shopAboutJson.Story,
+				"instagram": shopAboutJson.Instagram,
+				"facebook":  shopAboutJson.Facebook,
+				"x":         shopAboutJson.X,
 			},
 		}
 

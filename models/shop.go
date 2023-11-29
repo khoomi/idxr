@@ -123,26 +123,30 @@ type ShopReviewRequest struct {
 }
 
 type ShopAbout struct {
-	ID                    primitive.ObjectID `bson:"_id" json:"_id" validate:"required"`
-	ShopID                primitive.ObjectID `bson:"shop_id" json:"shop_id" validate:"required"`
-	Status                ShopAboutStatus    `bson:"status" json:"status" validate:"required"`
-	RelatedLinks          string             `bson:"related_links" json:"related_links"`
-	StoryLeadingParagraph string             `bson:"story_leading_paragraph" json:"story_leading_paragraph"`
-	StoryHeadline         string             `bson:"story_headline" json:"story_headline"`
+	ID        primitive.ObjectID `bson:"_id" json:"_id" validate:"required"`
+	ShopID    primitive.ObjectID `bson:"shop_id" json:"shop_id" validate:"required"`
+	Status    ShopAboutStatus    `bson:"status" json:"status" validate:"required"`
+	Headline  string             `bson:"headline" json:"headline"`
+	Story     string             `bson:"story" json:"story" validate:"required"`
+	X         string             `bson:"x" json:"x" validate:"required"`
+	Facebook  string             `bson:"facebook" json:"facebook" validate:"required"`
+	Instagram string             `bson:"instagram" json:"instagram" validate:"required"`
 }
 
 type ShopAboutStatus string
 
-//const (
-//	ShopAboutStatusDraft  ShopAboutStatus = "draft"
-//	ShopAboutStatusActive ShopAboutStatus = "active"
-//)
+const (
+	ShopAboutStatusDraft  ShopAboutStatus = "draft"
+	ShopAboutStatusActive ShopAboutStatus = "active"
+)
 
 type ShopAboutRequest struct {
-	Status                ShopAboutStatus `bson:"status" json:"status" validate:"required,oneof=draft active"`
-	RelatedLinks          string          `bson:"related_links" json:"related_links"`
-	StoryLeadingParagraph string          `bson:"story_leading_paragraph" json:"story_leading_paragraph" validate:"required"`
-	StoryHeadline         string          `bson:"story_headline" json:"story_headline" validate:"required"`
+	Status    ShopAboutStatus `bson:"status" json:"status" validate:"required,oneof=draft active"`
+	Headline  string          `bson:"headline" json:"headline"`
+	Story     string          `bson:"story" json:"story" validate:"required"`
+	X         string          `bson:"x" json:"x" validate:"required"`
+	Facebook  string          `bson:"facebook" json:"facebook" validate:"required"`
+	Instagram string          `bson:"instagram" json:"instagram" validate:"required"`
 }
 
 type ShopReturnPolicies struct {
