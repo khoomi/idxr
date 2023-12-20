@@ -69,27 +69,28 @@ func CreateShopShippingProfile() gin.HandlerFunc {
 		shippingId := primitive.NewObjectID()
 		now := time.Now()
 		ShippingProfile := models.ShopShippingProfile{
-			ID:                 shippingId,
-			ShopID:             shopIdObj,
-			Title:              shippingJson.Title,
-			MinProcessingTime:  shippingJson.MinProcessingTime,
-			MaxProcessingTime:  shippingJson.MaxProcessingTime,
-			ProcessingTimeUnit: shippingJson.ProcessingTimeUnit,
-			HandlingFee:        shippingJson.HandlingFee,
-			OriginState:        shippingJson.OriginState,
-			OriginPostalCode:   shippingJson.OriginPostalCode,
-			MinDeliveryDays:    shippingJson.MinDeliveryDays,
-			MaxDeliveryDays:    shippingJson.MaxDeliveryDays,
-			PrimaryPrice:       shippingJson.PrimaryPrice,
-			DestinationBy:      shippingJson.DestinationBy,
-			Destinations:       shippingJson.Destinations,
-			SecondaryPrice:     shippingJson.SecondaryPrice,
-			ShippingService:    shippingJson.ShippingService,
-			AutoCalculatePrice: shippingJson.AutoCalculatePrice,
-			OffersFreeShipping: shippingJson.OffersFreeShipping,
-			Policy:             shippingPolicy,
-			CreatedAt:          primitive.NewDateTimeFromTime(now),
-			ModifiedAt:         primitive.NewDateTimeFromTime(now),
+			ID:                       shippingId,
+			ShopID:                   shopIdObj,
+			Title:                    shippingJson.Title,
+			MinProcessingTime:        shippingJson.MinProcessingTime,
+			MaxProcessingTime:        shippingJson.MaxProcessingTime,
+			ProcessingTimeUnit:       shippingJson.ProcessingTimeUnit,
+			HandlingFee:              shippingJson.HandlingFee,
+			OriginState:              shippingJson.OriginState,
+			OriginPostalCode:         shippingJson.OriginPostalCode,
+			MinDeliveryDays:          shippingJson.MinDeliveryDays,
+			MaxDeliveryDays:          shippingJson.MaxDeliveryDays,
+			PrimaryPrice:             shippingJson.PrimaryPrice,
+			DestinationBy:            shippingJson.DestinationBy,
+			Destinations:             shippingJson.Destinations,
+			SecondaryPrice:           shippingJson.SecondaryPrice,
+			ShippingService:          shippingJson.ShippingService,
+			AutoCalculatePrice:       shippingJson.AutoCalculatePrice,
+			OffersFreeShipping:       shippingJson.OffersFreeShipping,
+			Policy:                   shippingPolicy,
+			CreatedAt:                primitive.NewDateTimeFromTime(now),
+			ModifiedAt:               primitive.NewDateTimeFromTime(now),
+			IsDefaultShippingProfile: shippingJson.IsDefaultShippingProfile,
 		}
 		res, err := ShippingProfileCollection.InsertOne(ctx, ShippingProfile)
 		if err != nil {
@@ -130,7 +131,6 @@ func GetShopShippingProfileInfos() gin.HandlerFunc {
 		ctx, cancel := context.WithTimeout(context.Background(), KhoomiRequestTimeoutSec)
 		defer cancel()
 
-		// Check if the user owns the shop
 		shopIDStr := c.Param("shopid")
 		shopIDObject, err := primitive.ObjectIDFromHex(shopIDStr)
 		if err != nil {

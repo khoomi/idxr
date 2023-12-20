@@ -16,7 +16,7 @@ type Shop struct {
 	Location               primitive.ObjectID `bson:"location" json:"location"`
 	ListingActiveCount     int                `bson:"listing_active_count" json:"listing_active_count" validate:"required"`
 	Announcement           string             `bson:"announcement" json:"announcement" validate:"omitempty"`
-	AnnouncementModifiedAt string             `bson:"announcement_modified_at" json:"announcement_modified_at" validate:"omitempty"`
+	AnnouncementModifiedAt time.Time          `bson:"announcement_modified_at" json:"announcement_modified_at" validate:"omitempty"`
 	IsVacation             bool               `bson:"is_vacation" json:"is_vacation" validate:"default=false"`
 	VacationMessage        string             `bson:"vacation_message" json:"vacation_message" validate:"omitempty"`
 	Slug                   string             `bson:"slug" json:"slug" validate:"required"`
