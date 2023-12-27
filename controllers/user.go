@@ -223,7 +223,6 @@ func HandleUserAuthentication() gin.HandlerFunc {
 			}
 			errUpdateLoginCounts := UserCollection.FindOneAndUpdate(ctx, filter, update).Decode(&validUser)
 			if errUpdateLoginCounts != nil {
-				log.Println(errUpdateLoginCounts)
 				return nil, errUpdateLoginCounts
 			}
 
@@ -270,7 +269,7 @@ func HandleUserAuthentication() gin.HandlerFunc {
 		}
 
 		// Send new login IP notification on condition
-		if validUser.AllowLoginIpNotification {
+		if validUser.AllowLoginIpNotification && validUser.LastLoginIp != clientIP {
 			email.SendNewIpLoginNotification(validUser.PrimaryEmail, validUser.LoginName, validUser.LastLoginIp, validUser.LastLogin)
 		}
 
