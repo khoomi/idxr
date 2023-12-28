@@ -2,13 +2,14 @@ package helper
 
 import (
 	"context"
-	"github.com/cloudinary/cloudinary-go"
-	"github.com/cloudinary/cloudinary-go/api/uploader"
 	"khoomi-api-io/khoomi_api/configs"
 	"time"
+
+	"github.com/cloudinary/cloudinary-go"
+	"github.com/cloudinary/cloudinary-go/api/uploader"
 )
 
-func ImageUploadHelper(input interface{}) (string, error) {
+func ImageUploadHelper(input interface{}) (uploader.UploadResult, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 40*time.Second)
 	defer cancel()
 
@@ -18,17 +19,17 @@ func ImageUploadHelper(input interface{}) (string, error) {
 	//create cloudinary instance
 	cld, err := cloudinary.NewFromParams(cloudName, apiKey, apiSecret)
 	if err != nil {
-		return "", err
+		return uploader.UploadResult{}, err
 	}
 
 	//upload file
 	uploadFolder := configs.LoadEnvFor("CLOUDINARY_UPLOAD_FOLDER")
-	uploadParam, err := cld.Upload.Upload(ctx, input, uploader.UploadParams{Folder: uploadFolder})
+	uploadRes, err := cld.Upload.Upload(ctx, input, uploader.UploadParams{Folder: uploadFolder})
 	if err != nil {
-		return "", err
+		return uploader.UploadResult{}, err
 	}
 
-	return uploadParam.SecureURL, nil
+	return *uploadRes, nil
 }
 
 func ImageDeletionHelper(params uploader.DestroyParams) (string, error) {

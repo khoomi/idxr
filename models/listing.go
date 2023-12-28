@@ -197,7 +197,7 @@ type Inventory struct {
 	DomesticPricing bool      `bson:"domestic_pricing" json:"domestic_pricing" validate:"required"`
 	DomesticPrice   string    `bson:"domestic_price" json:"domestic_price"`
 	Price           string    `bson:"price" json:"price" validate:"required"`
-	InitialQuantity int       `bson:"initial_quantity" json:"initial_quantity" validate:"required"`
+	InitialQuantity int       `bson:"initial_quantity" json:"initial_quantity"`
 	Quantity        int       `bson:"quantity" json:"quantity" validate:"required"`
 	SKU             string    `bson:"sku" json:"sku"`
 	CurrencyCode    string    `bson:"currency_code" json:"currency_code"`

@@ -687,6 +687,7 @@ func UpdateMyProfile() gin.HandlerFunc {
 			updateData["primary_email"] = email
 		}
 
+		var uploadResult uploader.UploadResult
 		if fileHeader, err := c.FormFile("image"); err == nil {
 			file, err := fileHeader.Open()
 			if err != nil {
@@ -695,19 +696,23 @@ func UpdateMyProfile() gin.HandlerFunc {
 			}
 			defer file.Close()
 
-			uploadUrl, err := services.NewMediaUpload().FileUpload(models.File{File: file})
+			uploadResult, err = services.FileUpload(models.File{File: file})
 			if err != nil {
 				log.Printf("Thumbnail Image upload failed - %v", err.Error())
 				helper.HandleError(c, http.StatusInternalServerError, err, "Failed to upload file thumbnail")
 				return
 			}
-			updateData["thumbnail"] = uploadUrl
+			updateData["thumbnail"] = uploadResult.SecureURL
 		} else if err != http.ErrMissingFile {
 			helper.HandleError(c, http.StatusInternalServerError, err, "Failed to retrieve uploaded file")
 			return
 		}
 
 		if len(updateData) == 0 {
+			// delete media
+			_, err = services.DestroyMedia(uploadResult.PublicID)
+			log.Println(err)
+			// return error
 			helper.HandleError(c, http.StatusBadRequest, errors.New("no update data provided"), "No update data provided")
 			return
 		}
@@ -957,37 +962,37 @@ func UploadThumbnail() gin.HandlerFunc {
 		now := time.Now()
 		filter := bson.M{"_id": currentId}
 
+		var uploadResult uploader.UploadResult
+		var update bson.M
 		if remoteAddr != "" {
-			uploadUrl, err := services.NewMediaUpload().RemoteUpload(models.Url{Url: remoteAddr})
+			uploadResult, err = services.RemoteUpload(models.Url{Url: remoteAddr})
 			if err != nil {
 				helper.HandleError(c, http.StatusInternalServerError, err, "Failed to upload remote thumbnail")
 				return
 			}
 
-			update := bson.M{"$set": bson.M{"thumbnail": uploadUrl, "modified_at": now}}
-			_, err = UserCollection.UpdateOne(ctx, filter, update)
+			update = bson.M{"$set": bson.M{"thumbnail": uploadResult.SecureURL, "modified_at": now}}
+		} else {
+			formFile, _, err := c.Request.FormFile("file")
 			if err != nil {
-				helper.HandleError(c, http.StatusExpectationFailed, err, "Failed to update user's thumbnail")
+				helper.HandleError(c, http.StatusInternalServerError, err, "Failed to retrieve uploaded file")
 				return
 			}
+			uploadResult, err = services.FileUpload(models.File{File: formFile})
+			if err != nil {
+				log.Printf("Thumbnail Image upload failed - %v", err.Error())
+				helper.HandleError(c, http.StatusInternalServerError, err, "Failed to upload file thumbnail")
+				return
+			}
+			update = bson.M{"$set": bson.M{"thumbnail": uploadResult.SecureURL, "modified_at": now}}
 		}
 
-		formFile, _, err := c.Request.FormFile("file")
-		if err != nil {
-			helper.HandleError(c, http.StatusInternalServerError, err, "Failed to retrieve uploaded file")
-			return
-		}
-
-		uploadUrl, err := services.NewMediaUpload().FileUpload(models.File{File: formFile})
-		if err != nil {
-			log.Printf("Thumbnail Image upload failed - %v", err.Error())
-			helper.HandleError(c, http.StatusInternalServerError, err, "Failed to upload file thumbnail")
-			return
-		}
-
-		update := bson.M{"$set": bson.M{"thumbnail": uploadUrl, "modified_at": now}}
 		_, err = UserCollection.UpdateOne(ctx, filter, update)
 		if err != nil {
+			// delete media
+			_, err = services.DestroyMedia(uploadResult.PublicID)
+			log.Println(err)
+			// return error
 			helper.HandleError(c, http.StatusExpectationFailed, err, "Failed to update user's thumbnail")
 			return
 		}

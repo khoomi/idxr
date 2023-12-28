@@ -15,6 +15,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/cloudinary/cloudinary-go/api/uploader"
 	"github.com/gin-gonic/gin"
 	slug2 "github.com/gosimple/slug"
 	"go.mongodb.org/mongo-driver/bson"
@@ -92,33 +93,41 @@ func CreateShop() gin.HandlerFunc {
 		// Logo file handling
 		logoFile, _, err := c.Request.FormFile("logo")
 		var logoUploadUrl string
+		var logoUploadResult uploader.UploadResult
 		if err == nil {
-			logoUploadUrl, err = services.NewMediaUpload().FileUpload(models.File{File: logoFile})
+			logoUploadResult, err = services.FileUpload(models.File{File: logoFile})
 			if err != nil {
 				errMsg := fmt.Sprintf("Logo failed to upload - %v", err.Error())
 				log.Print(errMsg)
 				helper.HandleError(c, http.StatusInternalServerError, err, errMsg)
 				return
 			}
+			logoUploadUrl = logoUploadResult.SecureURL
 		} else {
 			logoUploadUrl = ""
+			logoUploadResult = uploader.UploadResult{}
 		}
 
 		// Banner file handling
 		bannerFile, _, err := c.Request.FormFile("banner")
 		var bannerUploadUrl string
+		var bannerUploadResult uploader.UploadResult
+
 		if err == nil {
-			bannerUploadUrl, err = services.NewMediaUpload().FileUpload(models.File{File: bannerFile})
+			bannerUploadResult, err = services.FileUpload(models.File{File: bannerFile})
 			if err != nil {
 				errMsg := fmt.Sprintf("Banner failed to upload - %v", err.Error())
 				log.Print(errMsg)
 				helper.HandleError(c, http.StatusInternalServerError, err, errMsg)
 				return
 			}
+			bannerUploadUrl = bannerUploadResult.SecureURL
 		} else {
 			bannerUploadUrl = ""
+			bannerUploadResult = uploader.UploadResult{}
 		}
 
+		shopID := primitive.NewObjectID()
 		wc := writeconcern.New(writeconcern.WMajority())
 		txnOptions := options.Transaction().SetWriteConcern(wc)
 		session, err := configs.DB.StartSession()
@@ -136,7 +145,6 @@ func CreateShop() gin.HandlerFunc {
 				RefundPolicy:   "",
 				AdditionalInfo: "",
 			}
-			shopID := primitive.NewObjectID()
 			shop := models.Shop{
 				ID:                 shopID,
 				Name:               shopName,
@@ -196,13 +204,14 @@ func CreateShop() gin.HandlerFunc {
 		}
 
 		_, err = session.WithTransaction(context.Background(), callback, txnOptions)
+		err = session.CommitTransaction(context.Background())
 		if err != nil {
-			helper.HandleError(c, http.StatusBadRequest, err, "Failed to create shop")
-			return
-		}
-
-		if err := session.CommitTransaction(context.Background()); err != nil {
-			helper.HandleError(c, http.StatusInternalServerError, err, "Failed to commit transaction")
+			// delete media
+			_, err := services.DestroyMedia(logoUploadResult.PublicID)
+			_, err = services.DestroyMedia(bannerUploadResult.PublicID)
+			log.Println(err)
+			// return error
+			helper.HandleError(c, http.StatusBadRequest, err, "Shop creation transaction failed")
 			return
 		}
 
@@ -211,7 +220,7 @@ func CreateShop() gin.HandlerFunc {
 		// send success shop creation notification
 		email.SendNewShopEmail(userEmail, loginName, shopName)
 
-		helper.HandleSuccess(c, http.StatusOK, "Shop creation was successful", "")
+		helper.HandleSuccess(c, http.StatusOK, shopID.Hex(), "")
 	}
 }
 
@@ -248,6 +257,7 @@ func UpdateShopInformation() gin.HandlerFunc {
 			updateData["description"] = description
 		}
 
+		var logoUploadResult uploader.UploadResult
 		if fileHeader, err := c.FormFile("logo_url"); err == nil {
 			file, err := fileHeader.Open()
 			if err != nil {
@@ -256,18 +266,19 @@ func UpdateShopInformation() gin.HandlerFunc {
 			}
 			defer file.Close()
 
-			uploadUrl, err := services.NewMediaUpload().FileUpload(models.File{File: file})
+			logoUploadResult, err = services.FileUpload(models.File{File: file})
 			if err != nil {
 				log.Printf("Logo Image upload failed - %v", err.Error())
 				helper.HandleError(c, http.StatusInternalServerError, err, "Failed to upload file logo")
 				return
 			}
-			updateData["logo_url"] = uploadUrl
+			updateData["logo_url"] = logoUploadResult.SecureURL
 		} else if err != http.ErrMissingFile {
 			helper.HandleError(c, http.StatusInternalServerError, err, "Failed to retrieve uploaded file")
 			return
 		}
 
+		var bannerUploadResult uploader.UploadResult
 		if fileHeader, err := c.FormFile("banner_url"); err == nil {
 			file, err := fileHeader.Open()
 			if err != nil {
@@ -276,19 +287,25 @@ func UpdateShopInformation() gin.HandlerFunc {
 			}
 			defer file.Close()
 
-			uploadUrl, err := services.NewMediaUpload().FileUpload(models.File{File: file})
+			bannerUploadResult, err = services.FileUpload(models.File{File: file})
 			if err != nil {
 				log.Printf("Banner Image upload failed - %v", err.Error())
 				helper.HandleError(c, http.StatusInternalServerError, err, "Failed to upload file banner")
 				return
 			}
-			updateData["banner_url"] = uploadUrl
+			updateData["banner_url"] = bannerUploadResult.SecureURL
 		} else if err != http.ErrMissingFile {
 			helper.HandleError(c, http.StatusInternalServerError, err, "Failed to retrieve uploaded file")
 			return
 		}
 
 		if len(updateData) == 0 {
+			// delete media
+			_, err := services.DestroyMedia(logoUploadResult.PublicID)
+			_, err = services.DestroyMedia(bannerUploadResult.PublicID)
+			log.Println(err)
+			// return error
+
 			helper.HandleError(c, http.StatusOK, errors.New("no update data provided"), "No update data provided")
 			return
 		}
@@ -300,6 +317,12 @@ func UpdateShopInformation() gin.HandlerFunc {
 
 		_, err = ShopCollection.UpdateOne(ctx, filter, update)
 		if err != nil {
+			// delete media
+			_, err := services.DestroyMedia(logoUploadResult.PublicID)
+			_, err = services.DestroyMedia(bannerUploadResult.PublicID)
+			log.Println(err)
+			// return error
+
 			helper.HandleError(c, http.StatusExpectationFailed, err, "Failed to update user's shop information")
 			return
 		}
@@ -679,7 +702,7 @@ func UpdateShopLogo() gin.HandlerFunc {
 			return
 		}
 
-		logoUploadUrl, err := services.NewMediaUpload().FileUpload(models.File{File: logoFile})
+		logoUploadResult, err := services.FileUpload(models.File{File: logoFile})
 		if err != nil {
 			errMsg := fmt.Sprintf("Logo failed to upload - %v", err.Error())
 			log.Print(errMsg)
@@ -689,14 +712,14 @@ func UpdateShopLogo() gin.HandlerFunc {
 
 		now := time.Now()
 		filter := bson.M{"_id": shopId, "user_id": myId}
-		update := bson.M{"logo_url": logoUploadUrl, "modified_at": now}
+		update := bson.M{"logo_url": logoUploadResult.SecureURL, "modified_at": now}
 		res, err := ShopCollection.UpdateOne(ctx, filter, update)
-		if err != nil {
-			helper.HandleError(c, http.StatusNotModified, err, "Error updating shop logo")
-			return
-		}
-		if res.ModifiedCount == 0 {
-			helper.HandleError(c, http.StatusNotFound, errors.New("no matching documents found"), "No matching documents found")
+		if err != nil || res.ModifiedCount == 0 {
+			// delete media
+			_, err = services.DestroyMedia(logoUploadResult.PublicID)
+			log.Println(err)
+			// return error
+			helper.HandleError(c, http.StatusNotModified, err, "updating shop banner not completed")
 			return
 		}
 
@@ -721,7 +744,7 @@ func UpdateShopBanner() gin.HandlerFunc {
 			return
 		}
 
-		bannerFileURL, err := services.NewMediaUpload().FileUpload(models.File{File: bannerFile})
+		bannerUploadResult, err := services.FileUpload(models.File{File: bannerFile})
 		if err != nil {
 			errMsg := fmt.Sprintf("Banner failed to upload - %v", err.Error())
 			log.Print(errMsg)
@@ -731,14 +754,14 @@ func UpdateShopBanner() gin.HandlerFunc {
 
 		now := time.Now()
 		filter := bson.M{"_id": shopId, "user_id": myId}
-		update := bson.M{"banner_url": bannerFileURL, "modified_at": now}
+		update := bson.M{"banner_url": bannerUploadResult.SecureURL, "modified_at": now}
 		res, err := ShopCollection.UpdateOne(ctx, filter, update)
-		if err != nil {
-			helper.HandleError(c, http.StatusNotModified, err, "Error updating shop banner")
-			return
-		}
-		if res.ModifiedCount == 0 {
-			helper.HandleError(c, http.StatusNotFound, errors.New("no matching documents found"), "No matching documents found")
+		if err != nil || res.ModifiedCount == 0 {
+			// delete media
+			_, err = services.DestroyMedia(bannerUploadResult.PublicID)
+			log.Println(err)
+			// return error
+			helper.HandleError(c, http.StatusNotModified, err, "updating shop banner not completed")
 			return
 		}
 
@@ -763,7 +786,7 @@ func UpdateShopGallery() gin.HandlerFunc {
 			return
 		}
 
-		imageFileURL, err := services.NewMediaUpload().FileUpload(models.File{File: imageFile})
+		imageUploadResult, err := services.FileUpload(models.File{File: imageFile})
 		if err != nil {
 			errMsg := fmt.Sprintf("Image failed to upload - %v", err.Error())
 			log.Print(errMsg)
@@ -773,14 +796,14 @@ func UpdateShopGallery() gin.HandlerFunc {
 
 		now := time.Now()
 		filter := bson.M{"_id": shopId, "user_id": myId}
-		update := bson.M{"$push": bson.M{"gallery": imageFileURL}, "modified_at": now}
+		update := bson.M{"$push": bson.M{"gallery": imageUploadResult.SecureURL}, "modified_at": now}
 		res, err := ShopCollection.UpdateOne(ctx, filter, update)
-		if err != nil {
+		if err != nil || res.ModifiedCount == 0 {
+			// delete media
+			_, err = services.DestroyMedia(imageUploadResult.PublicID)
+			log.Println(err)
+			// return error
 			helper.HandleError(c, http.StatusNotModified, err, "Error updating shop gallery")
-			return
-		}
-		if res.ModifiedCount == 0 {
-			helper.HandleError(c, http.StatusNotFound, errors.New("no matching documents found"), "No matching documents found")
 			return
 		}
 

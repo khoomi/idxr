@@ -14,6 +14,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/cloudinary/cloudinary-go/api/uploader"
 	"github.com/gin-gonic/gin"
 	slug2 "github.com/gosimple/slug"
 	"github.com/pkg/errors"
@@ -56,11 +57,12 @@ func CreateListing() gin.HandlerFunc {
 			helper.HandleError(c, http.StatusBadRequest, validationErr, "invalid or missing data in request body")
 			return
 		}
+
 		// main_image file handling
 		mainImage, _, err := c.Request.FormFile("main_image")
-		var mainImageUploadUrl string
+		var mainImageUploadUrl uploader.UploadResult
 		if err == nil {
-			mainImageUploadUrl, err = services.NewMediaUpload().FileUpload(models.File{File: mainImage})
+			mainImageUploadUrl, err = services.FileUpload(models.File{File: mainImage})
 			if err != nil {
 				errMsg := fmt.Sprintf("Logo failed to upload - %v", err.Error())
 				log.Print(errMsg)
@@ -68,11 +70,12 @@ func CreateListing() gin.HandlerFunc {
 				return
 			}
 		} else {
-			mainImageUploadUrl = ""
+			mainImageUploadUrl = uploader.UploadResult{}
 		}
 
 		_, _, err = c.Request.FormFile("images")
-		var imagesUploadUrls []string
+		var uploadedImagesUrl []string
+		var uploadedImagesResult []uploader.UploadResult
 
 		if err == nil {
 			// FormFile returns a single file, so you need to use MultipartForm to get multiple files
@@ -96,7 +99,7 @@ func CreateListing() gin.HandlerFunc {
 				defer file.Close()
 
 				// Here, you can upload each file to the desired location and get the URLs
-				imageUploadUrl, err := services.NewMediaUpload().FileUpload(models.File{File: file})
+				imageUpload, err := services.FileUpload(models.File{File: file})
 				if err != nil {
 					errMsg := fmt.Sprintf("File failed to upload - %v", err.Error())
 					log.Print(errMsg)
@@ -105,10 +108,11 @@ func CreateListing() gin.HandlerFunc {
 				}
 
 				// Append the URL to the logoUploadUrls slice
-				imagesUploadUrls = append(imagesUploadUrls, imageUploadUrl)
+				uploadedImagesUrl = append(uploadedImagesUrl, imageUpload.SecureURL)
+				uploadedImagesResult = append(uploadedImagesResult, imageUpload)
 			}
 		} else {
-			imagesUploadUrls = nil
+			uploadedImagesUrl = nil
 		}
 
 		now := time.Now()
@@ -134,7 +138,7 @@ func CreateListing() gin.HandlerFunc {
 			DomesticPricing: newListing.Inventory.DomesticPricing,
 			DomesticPrice:   newListing.Inventory.DomesticPrice,
 			Price:           newListing.Inventory.Price,
-			InitialQuantity: newListing.Inventory.InitialQuantity,
+			InitialQuantity: newListing.Inventory.Quantity,
 			Quantity:        newListing.Inventory.Quantity,
 			SKU:             newListing.Inventory.SKU,
 			CurrencyCode:    "NGN",
@@ -164,8 +168,8 @@ func CreateListing() gin.HandlerFunc {
 			State:             models.ListingState{State: models.ListingStateActive, StateUpdatedAt: now},
 			UserId:            myId,
 			ShopId:            shopId,
-			MainImage:         mainImageUploadUrl,
-			Images:            imagesUploadUrls,
+			MainImage:         mainImageUploadUrl.SecureURL,
+			Images:            uploadedImagesUrl,
 			ListingDetails:    listingDetails,
 			Date:              listingDate,
 			Slug:              slug2.Make(newListing.ListingDetails.Title),
@@ -183,8 +187,15 @@ func CreateListing() gin.HandlerFunc {
 
 		res, err := ListingCollection.InsertOne(ctx, listing)
 		if err != nil {
+			// delete images
+			_, err := services.DestroyMedia(mainImageUploadUrl.PublicID)
+			log.Println(err)
+			for _, file := range uploadedImagesResult {
+				_, err := services.DestroyMedia(file.PublicID)
+				log.Println(err)
+			}
+			// return error
 			errMsg := fmt.Sprintf("Failed to create new listing — %v", err.Error())
-			log.Print(errMsg)
 			helper.HandleError(c, http.StatusInternalServerError, err, errMsg)
 			return
 		}
