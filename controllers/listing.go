@@ -11,6 +11,7 @@ import (
 	"khoomi-api-io/khoomi_api/responses"
 	"khoomi-api-io/khoomi_api/services"
 	"log"
+	"math/rand"
 	"net/http"
 	"time"
 
@@ -22,6 +23,31 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
+
+func generateListingCode() string {
+	rand.Seed(time.Now().UnixNano())
+
+	// Define characters for letters and numbers
+	letterChars := "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+	numberChars := "0123456789"
+
+	// Generate 4 random letters
+	letters := make([]byte, 4)
+	for i := range letters {
+		letters[i] = letterChars[rand.Intn(len(letterChars))]
+	}
+
+	// Generate 4 random numbers
+	numbers := make([]byte, 4)
+	for i := range numbers {
+		numbers[i] = numberChars[rand.Intn(len(numberChars))]
+	}
+
+	// Combine letters and numbers with a hyphen
+	productCode := string(letters) + "-" + string(numbers)
+
+	return productCode
+}
 
 func CreateListing() gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -165,6 +191,7 @@ func CreateListing() gin.HandlerFunc {
 
 		listing := models.Listing{
 			ID:                primitive.NewObjectID(),
+			Code:              generateListingCode(),
 			State:             models.ListingState{State: models.ListingStateActive, StateUpdatedAt: now},
 			UserId:            myId,
 			ShopId:            shopId,

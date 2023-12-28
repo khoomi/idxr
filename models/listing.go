@@ -87,6 +87,7 @@ const (
 
 type Listing struct {
 	ID                primitive.ObjectID `bson:"_id" json:"_id"`
+	Code              string             `bson:"code" json:"code"`
 	State             ListingState       `bson:"state" json:"state"`
 	UserId            primitive.ObjectID `bson:"user_id" json:"user_id"`
 	ShopId            primitive.ObjectID `bson:"shop_id" json:"shop_id"`
