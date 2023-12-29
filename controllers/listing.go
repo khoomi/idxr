@@ -210,6 +210,8 @@ func CreateListing() gin.HandlerFunc {
 			Inventory:         listingInventory,
 			RecentReviews:     nil,
 			Rating:            listingRating,
+			TotalOrders:       0,
+			Sales:             0.0,
 		}
 
 		res, err := ListingCollection.InsertOne(ctx, listing)
@@ -395,6 +397,8 @@ func GetListings() gin.HandlerFunc {
 					"inventory":           1,
 					"recent_reviews":      1,
 					"reviews_count":       1,
+					"total_orders":        1,
+					"sales":               1,
 					"user": bson.M{
 						"login_name": "$user.login_name",
 						"first_name": "$user.first_name",
@@ -458,6 +462,61 @@ func GetListings() gin.HandlerFunc {
 				Limit: paginationArgs.Limit,
 				Skip:  paginationArgs.Skip,
 				Count: countResult.Total,
+			},
+		})
+	}
+}
+
+func GetMyListingsSummary() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ctx, cancel := context.WithTimeout(context.Background(), 50*time.Second)
+		defer cancel()
+
+		shopId, myId, err := services.MyShopIdAndMyId(c)
+		if err != nil {
+			log.Println(err)
+			helper.HandleError(c, http.StatusBadRequest, err, "Error getting shop ID and user ID")
+			return
+		}
+
+		paginationArgs := services.GetPaginationArgs(c)
+		sort := bson.D{{Key: "data.created_at", Value: -1}}
+		if paginationArgs.Sort != "" {
+			sort = bson.D{{Key: paginationArgs.Sort, Value: -1}}
+		}
+		findOptions := options.Find().
+			SetLimit(int64(paginationArgs.Limit)).
+			SetSkip(int64(paginationArgs.Skip)).
+			SetSort(sort) // Sort by date field in descending order (-1)
+		filter := bson.M{"shop_id": shopId, "user_id": myId}
+		cursor, err := ListingCollection.Find(ctx, filter, findOptions)
+		if err != nil {
+			helper.HandleError(c, http.StatusNotFound, err, "no listing found")
+			return
+		}
+		defer func() {
+			if err := cursor.Close(ctx); err != nil {
+				log.Println("Failed to close cursor:", err)
+			}
+		}()
+
+		var listings []models.ListingsSummary
+		if err := cursor.All(ctx, &listings); err != nil {
+			helper.HandleError(c, http.StatusNotFound, err, "Failed to retrieve listings")
+			return
+		}
+		count, err := ListingCollection.CountDocuments(ctx, filter)
+		if err != nil {
+			helper.HandleError(c, http.StatusInternalServerError, err, "Error counting listings")
+			return
+		}
+
+		helper.HandleSuccess(c, http.StatusOK, "success", gin.H{
+			"listings": listings,
+			"pagination": responses.Pagination{
+				Limit: paginationArgs.Limit,
+				Skip:  paginationArgs.Skip,
+				Count: count,
 			},
 		})
 	}

@@ -106,6 +106,34 @@ type Listing struct {
 	Inventory         Inventory          `bson:"inventory" json:"inventory"`
 	RecentReviews     []ListingReview    `bson:"recent_reviews" json:"recent_reviews"`
 	Rating            ListingRating      `bson:"reviews_count" json:"reviews_count"`
+	TotalOrders       int                `bson:"total_orders" json:"total_orders"`
+	Sales             float64            `bson:"sales" json:"sales"`
+}
+
+type ListingsSummary struct {
+	ID          primitive.ObjectID  `bson:"_id" json:"_id"`
+	Code        string              `bson:"code" json:"code"`
+	State       ListingState        `bson:"state" json:"state"`
+	UserId      primitive.ObjectID  `bson:"user_id" json:"user_id"`
+	ShopId      primitive.ObjectID  `bson:"shop_id" json:"shop_id"`
+	MainImage   string              `bson:"main_image" json:"main_image"`
+	Images      []string            `bson:"images" json:"images"`
+	Date        ListingDateMeta     `bson:"date" json:"date"`
+	Slug        string              `bson:"slug" json:"slug"`
+	Sales       float64             `bson:"sales" json:"sales"`
+	TotalOrders int                 `bson:"total_orders" json:"total_orders"`
+	Inventory   InventorySummary    `bson:"inventory" json:"inventory"`
+	Details     ListingDetailsSummary `bson:"details" json:"details"`
+}
+
+type ListingDetailsSummary struct {
+	Title    string          `bson:"title" json:"title"`
+	Category ListingCategory `bson:"category" json:"category"`
+}
+
+type InventorySummary struct {
+	Quantity int    `bson:"quantity" json:"quantity" validate:"required"`
+	Price    string `bson:"price" json:"price" validate:"required"`
 }
 
 type ListingExtra struct {
@@ -128,6 +156,8 @@ type ListingExtra struct {
 	Inventory         Inventory          `bson:"inventory" json:"inventory"`
 	RecentReviews     []ListingReview    `bson:"recent_reviews" json:"recent_reviews"`
 	Rating            ListingRating      `bson:"reviews_count" json:"reviews_count"`
+	TotalOrders       int                `bson:"total_orders" json:"total_orders"`
+	Sales             float64            `bson:"sales" json:"sales"`
 	User              ListingUserExcept  `bson:"user" json:"user"`
 	Shop              ListingShopExcept  `bson:"shop" json:"shop"`
 }
