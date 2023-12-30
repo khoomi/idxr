@@ -17,7 +17,7 @@ type Shop struct {
 	ListingActiveCount     int                `bson:"listing_active_count" json:"listing_active_count" validate:"required"`
 	Announcement           string             `bson:"announcement" json:"announcement" validate:"omitempty"`
 	AnnouncementModifiedAt time.Time          `bson:"announcement_modified_at" json:"announcement_modified_at" validate:"omitempty"`
-	IsVacation             bool               `bson:"is_vacation" json:"is_vacation" validate:"default=false"`
+	IsVacation             bool               `bson:"is_vacation" json:"is_vacation"`
 	VacationMessage        string             `bson:"vacation_message" json:"vacation_message" validate:"omitempty"`
 	Slug                   string             `bson:"slug" json:"slug" validate:"required"`
 	LogoURL                string             `bson:"logo_url" json:"logo_url"`
@@ -152,9 +152,9 @@ type ShopAboutRequest struct {
 type ShopReturnPolicies struct {
 	ID               primitive.ObjectID `bson:"_id" json:"_id" validate:"omitempty"`
 	ShopId           primitive.ObjectID `bson:"shop_id" json:"shop_id" validate:"omitempty"`
-	AcceptsReturn    bool               `bson:"accepts_return" json:"accepts_return"  validate:"default=false"`
-	AcceptsExchanges bool               `bson:"accepts_exchanges" json:"accepts_exchanges"  validate:"default=false"`
-	Deadline         int                `bson:"deadline" json:"deadline" validate:"oneof=7 14 21 30 45 60 90, default=7"`
+	AcceptsReturn    bool               `bson:"accepts_return" json:"accepts_return"`
+	AcceptsExchanges bool               `bson:"accepts_exchanges" json:"accepts_exchanges"`
+	Deadline         int                `bson:"deadline" json:"deadline" validate:"oneof=7 14 21 30 45 60 90"`
 }
 
 type UpdateShopStatusReq struct {
