@@ -204,12 +204,15 @@ func CreateShop() gin.HandlerFunc {
 		}
 
 		_, err = session.WithTransaction(context.Background(), callback, txnOptions)
+		if err != nil {
+			helper.HandleError(c, http.StatusBadRequest, err, "Shop creation transaction failed")
+			return
+		}
 		err = session.CommitTransaction(context.Background())
 		if err != nil {
 			// delete media
-			_, err := services.DestroyMedia(logoUploadResult.PublicID)
-			_, err = services.DestroyMedia(bannerUploadResult.PublicID)
-			log.Println(err)
+			services.DestroyMedia(logoUploadResult.PublicID)
+			services.DestroyMedia(bannerUploadResult.PublicID)
 			// return error
 			helper.HandleError(c, http.StatusBadRequest, err, "Shop creation transaction failed")
 			return
