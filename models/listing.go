@@ -111,18 +111,18 @@ type Listing struct {
 }
 
 type ListingsSummary struct {
-	ID          primitive.ObjectID  `bson:"_id" json:"_id"`
-	Code        string              `bson:"code" json:"code"`
-	State       ListingState        `bson:"state" json:"state"`
-	UserId      primitive.ObjectID  `bson:"user_id" json:"user_id"`
-	ShopId      primitive.ObjectID  `bson:"shop_id" json:"shop_id"`
-	MainImage   string              `bson:"main_image" json:"main_image"`
-	Images      []string            `bson:"images" json:"images"`
-	Date        ListingDateMeta     `bson:"date" json:"date"`
-	Slug        string              `bson:"slug" json:"slug"`
-	Sales       float64             `bson:"sales" json:"sales"`
-	TotalOrders int                 `bson:"total_orders" json:"total_orders"`
-	Inventory   InventorySummary    `bson:"inventory" json:"inventory"`
+	ID          primitive.ObjectID    `bson:"_id" json:"_id"`
+	Code        string                `bson:"code" json:"code"`
+	State       ListingState          `bson:"state" json:"state"`
+	UserId      primitive.ObjectID    `bson:"user_id" json:"user_id"`
+	ShopId      primitive.ObjectID    `bson:"shop_id" json:"shop_id"`
+	MainImage   string                `bson:"main_image" json:"main_image"`
+	Images      []string              `bson:"images" json:"images"`
+	Date        ListingDateMeta       `bson:"date" json:"date"`
+	Slug        string                `bson:"slug" json:"slug"`
+	Sales       float64               `bson:"sales" json:"sales"`
+	TotalOrders int                   `bson:"total_orders" json:"total_orders"`
+	Inventory   InventorySummary      `bson:"inventory" json:"inventory"`
 	Details     ListingDetailsSummary `bson:"details" json:"details"`
 }
 
@@ -190,6 +190,7 @@ type ListingDetails struct {
 	Keywords                    []string               `bson:"keywords" json:"keywords"`
 	Tags                        []string               `bson:"tags" json:"tags"`
 	Dynamic                     map[string]interface{} `bson:"dynamic" json:"dynamic"`
+	DynamicType                 string                 `bson:"dynamic_type" json:"dynamic_type" validate:"oneof=accessories-and-jewelry art clothing furniture gifts home"`
 	HasVariations               bool                   `bson:"has_variations" json:"has_variations"`
 	Personalization             bool                   `bson:"personalization" json:"personalization"`
 	PersonalizationText         string                 `bson:"personalization_text" json:"personalization_text"`
