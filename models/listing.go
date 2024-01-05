@@ -190,6 +190,7 @@ type ListingDetails struct {
 	Type                        string                 `bson:"type" json:"type"`
 	Keywords                    []string               `bson:"keywords" json:"keywords"`
 	Tags                        []string               `bson:"tags" json:"tags"`
+	Color                       string                 `bson:"color" json:"color"`
 	Dynamic                     map[string]interface{} `bson:"dynamic" json:"dynamic"`
 	DynamicType                 string                 `bson:"dynamic_type" json:"dynamic_type" validate:"oneof=accessories-and-jewelry art clothing furniture gifts home"`
 	HasVariations               bool                   `bson:"has_variations" json:"has_variations"`
@@ -266,6 +267,7 @@ type NewListingDetails struct {
 	Dynamic                     map[string]interface{} `json:"dynamic"`
 	HasVariations               bool                   `bson:"has_variations" json:"has_variations"`
 	Condition                   string                 `bson:"condition" json:"condition" validate:"oneof=new used refurbished"`
+	Color                       string                 `bson:"color" json:"color"`
 }
 
 type ClothListing struct {
