@@ -108,6 +108,7 @@ type Listing struct {
 	Rating            ListingRating      `bson:"reviews_count" json:"reviews_count"`
 	TotalOrders       int                `bson:"total_orders" json:"total_orders"`
 	Sales             float64            `bson:"sales" json:"sales"`
+	Measurements      ListingMeasurement `bson:"measurements" json:"measurements"`
 }
 
 type ListingsSummary struct {
@@ -246,6 +247,7 @@ type NewListing struct {
 	Variations     []ListingVariation `json:"variations"`
 	Processing     ListingProcessing  `json:"processing" validate:"required"`
 	ListingDetails NewListingDetails  `json:"details"`
+	Measurements   ListingMeasurement `bson:"measurements" json:"measurements"`
 }
 
 type NewListingDetails struct {

@@ -212,6 +212,7 @@ func CreateListing() gin.HandlerFunc {
 			Rating:            listingRating,
 			TotalOrders:       0,
 			Sales:             0.0,
+			Measurements:      newListing.Measurements,
 		}
 
 		res, err := ListingCollection.InsertOne(ctx, listing)
