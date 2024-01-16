@@ -43,10 +43,12 @@ func GetPaginationArgs(c *gin.Context) responses.PaginationArgs {
 
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
 	skip, _ := strconv.Atoi(c.DefaultQuery("skip", "0"))
+	sort := c.DefaultQuery("sort", "created_at_asc")
 
 	return responses.PaginationArgs{
 		Limit: limit,
 		Skip:  skip,
+		Sort:  sort,
 	}
 }
 

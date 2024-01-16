@@ -106,8 +106,6 @@ type Listing struct {
 	Inventory            Inventory                   `bson:"inventory" json:"inventory"`
 	RecentReviews        []ListingReview             `bson:"recent_reviews" json:"recent_reviews"`
 	Rating               ListingRating               `bson:"reviews_count" json:"reviews_count"`
-	TotalOrders          int                         `bson:"total_orders" json:"total_orders"`
-	Sales                float64                     `bson:"sales" json:"sales"`
 	Measurements         ListingMeasurement          `bson:"measurements" json:"measurements"`
 	FinancialInformation ListingFinancialInformation `bson:"financial_information" json:"financial_information"`
 }

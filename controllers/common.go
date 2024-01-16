@@ -25,7 +25,7 @@ var ShippingProfileCollection = configs.GetCollection(configs.DB, "ShopShippingP
 var SellerVerificationCollection = configs.GetCollection(configs.DB, "SellerVerification")
 var ListingCollection = configs.GetCollection(configs.DB, "Listing")
 var PaymentInformationCollection = configs.GetCollection(configs.DB, "SellerPaymentInformation")
-
+var UserNotificationCollection = configs.GetCollection(configs.DB, "UserNotification")
 var Validate = validator.New()
 
 const (

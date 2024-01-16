@@ -17,7 +17,6 @@ type PaginationArgs struct {
 	Limit int
 	Skip  int
 	Sort  string
-	Order int
 }
 
 type Pagination struct {

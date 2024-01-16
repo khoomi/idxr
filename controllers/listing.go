@@ -13,6 +13,7 @@ import (
 	"log"
 	"math/rand"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/cloudinary/cloudinary-go/api/uploader"
@@ -45,6 +46,61 @@ func generateListingCode() string {
 	return productCode
 }
 
+func getListingSortingBson(sort string) bson.D {
+	value := -1
+	var key string
+
+	switch sort {
+	case "created_at_asc":
+		key = "date.created_at"
+	case "created_at_desc":
+		key = "date.created_at"
+	case "modified_at_asc":
+		key = "date.modified_at"
+	case "modified_at_desc":
+		key = "date.modified_at"
+	case "code_asc":
+		key = "code"
+	case "code_desc":
+		key = "code"
+	case "state_updated_at_asc":
+		key = "state.updated_at"
+	case "state_updated_at_desc":
+		key = "state.updated_at"
+	case "views_asc":
+		key = "views"
+	case "views_desc":
+		key = "views"
+	case "processing_max_asc":
+		key = "processing.max"
+	case "processing_max_desc":
+		key = "processing.max"
+	case "processing_min_asc":
+		key = "processing.min"
+	case "processing_min_desc":
+		key = "processing.min"
+	case "favorers_count_asc":
+		key = "favorers_count"
+	case "favorers_count_desc":
+		key = "favorers_count"
+	case "total_orders_asc":
+		key = "financial_information.total_orders"
+	case "total_orders_desc":
+		key = "financial_information.total_orders"
+	case "sales_asc":
+		key = "financial_information.sales"
+	case "sales_desc":
+		key = "financial_information.sales"
+	default:
+		key = "date.created_at"
+	}
+
+	if strings.Contains(sort, "asc") {
+		value = 1
+	}
+	return bson.D{{Key: key, Value: value}}
+}
+
 func CreateListing() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ctx, cancel := context.WithTimeout(context.Background(), 50*time.Second)
@@ -52,7 +108,6 @@ func CreateListing() gin.HandlerFunc {
 
 		shopId, myId, err := services.MyShopIdAndMyId(c)
 		if err != nil {
-			log.Println(err)
 			helper.HandleError(c, http.StatusBadRequest, err, "Error getting shop ID and user ID")
 			return
 		}
@@ -68,7 +123,6 @@ func CreateListing() gin.HandlerFunc {
 		jsonData := c.PostForm("data")
 		// Unmarshal the JSON data to the NewListing struct
 		if err := json.Unmarshal([]byte(jsonData), &newListing); err != nil {
-			log.Println(err)
 			helper.HandleError(c, http.StatusBadRequest, err, "Invalid JSON data")
 			return
 		}
@@ -220,8 +274,6 @@ func CreateListing() gin.HandlerFunc {
 			Inventory:            listingInventory,
 			RecentReviews:        nil,
 			Rating:               listingRating,
-			TotalOrders:          0,
-			Sales:                0.0,
 			Measurements:         newListing.Measurements,
 			FinancialInformation: listingFinancialInformation,
 		}
@@ -230,7 +282,6 @@ func CreateListing() gin.HandlerFunc {
 		if err != nil {
 			// delete images
 			_, err := services.DestroyMedia(mainImageUploadUrl.PublicID)
-			log.Println(err)
 			for _, file := range uploadedImagesResult {
 				_, err := services.DestroyMedia(file.PublicID)
 				log.Println(err)
@@ -363,10 +414,7 @@ func GetListings() gin.HandlerFunc {
 		defer cancel()
 
 		paginationArgs := services.GetPaginationArgs(c)
-		sort := bson.D{{Key: "data.created_at", Value: -1}}
-		if paginationArgs.Sort != "" {
-			sort = bson.D{{Key: paginationArgs.Sort, Value: -1}}
-		}
+		sort := getListingSortingBson(paginationArgs.Sort)
 
 		pipeline := []bson.M{
 			{"$match": bson.M{}},
@@ -435,14 +483,12 @@ func GetListings() gin.HandlerFunc {
 
 		cursor, err := ListingCollection.Aggregate(ctx, pipeline)
 		if err != nil {
-			log.Println(err)
 			helper.HandleError(c, http.StatusInternalServerError, err, "error while retrieving listing")
 			return
 		}
 
 		var listings []models.ListingExtra
 		if err := cursor.All(ctx, &listings); err != nil {
-			log.Println(err)
 			helper.HandleError(c, http.StatusInternalServerError, err, "error while decoding listing")
 			return
 		}
@@ -453,7 +499,6 @@ func GetListings() gin.HandlerFunc {
 		}
 		countCursor, err := ListingCollection.Aggregate(ctx, countPipeline)
 		if err != nil {
-			log.Println(err)
 			helper.HandleError(c, http.StatusInternalServerError, err, "error while counting listings")
 			return
 		}
@@ -462,7 +507,6 @@ func GetListings() gin.HandlerFunc {
 		}
 		if countCursor.Next(ctx) {
 			if err := countCursor.Decode(&countResult); err != nil {
-				log.Println(err)
 				helper.HandleError(c, http.StatusInternalServerError, err, "error while decoding count")
 				return
 			}
@@ -486,20 +530,15 @@ func GetMyListingsSummary() gin.HandlerFunc {
 
 		shopId, myId, err := services.MyShopIdAndMyId(c)
 		if err != nil {
-			log.Println(err)
 			helper.HandleError(c, http.StatusBadRequest, err, "Error getting shop ID and user ID")
 			return
 		}
 
 		paginationArgs := services.GetPaginationArgs(c)
-		sort := bson.D{{Key: "data.created_at", Value: -1}}
-		if paginationArgs.Sort != "" {
-			sort = bson.D{{Key: paginationArgs.Sort, Value: -1}}
-		}
 		findOptions := options.Find().
 			SetLimit(int64(paginationArgs.Limit)).
 			SetSkip(int64(paginationArgs.Skip)).
-			SetSort(sort) // Sort by date field in descending order (-1)
+			SetSort(getListingSortingBson(paginationArgs.Sort))
 		filter := bson.M{"shop_id": shopId, "user_id": myId}
 		cursor, err := ListingCollection.Find(ctx, filter, findOptions)
 		if err != nil {
@@ -543,7 +582,6 @@ func GetShopListings() gin.HandlerFunc {
 		shopId := c.Param("shopid")
 		shopObjectId, err := primitive.ObjectIDFromHex(shopId)
 		if err != nil {
-			log.Println(err)
 			helper.HandleError(c, http.StatusBadRequest, err, "invalid shop id was provided")
 			return
 		}
@@ -552,7 +590,7 @@ func GetShopListings() gin.HandlerFunc {
 		findOptions := options.Find().
 			SetLimit(int64(paginationArgs.Limit)).
 			SetSkip(int64(paginationArgs.Skip)).
-			SetSort(bson.D{{Key: "date", Value: -1}}) // Sort by date field in descending order (-1)
+			SetSort(getListingSortingBson(paginationArgs.Sort))
 
 		result, err := ListingCollection.Find(ctx, bson.M{"shop_id": shopObjectId}, findOptions)
 		if err != nil {
@@ -590,14 +628,12 @@ func HasUserCreatedListingOnboarding() gin.HandlerFunc {
 
 		shopId, userId, err := services.MyShopIdAndMyId(c)
 		if err != nil {
-			log.Println(err)
 			helper.HandleError(c, http.StatusBadRequest, err, "Error getting shop ID and user ID")
 			return
 		}
 
 		err = VerifyShopOwnership(c, userId, shopId)
 		if err != nil {
-			log.Println(err)
 			helper.HandleError(c, http.StatusUnauthorized, errors.New("Only sellers can perform this action"), "unauthorized")
 			return
 		}
