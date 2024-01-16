@@ -25,27 +25,23 @@ import (
 )
 
 func generateListingCode() string {
-	rand.Seed(time.Now().UnixNano())
+	rand.New(rand.NewSource(time.Now().UnixNano()))
 
 	// Define characters for letters and numbers
 	letterChars := "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 	numberChars := "0123456789"
-
 	// Generate 4 random letters
 	letters := make([]byte, 4)
 	for i := range letters {
 		letters[i] = letterChars[rand.Intn(len(letterChars))]
 	}
-
 	// Generate 4 random numbers
 	numbers := make([]byte, 4)
 	for i := range numbers {
 		numbers[i] = numberChars[rand.Intn(len(numberChars))]
 	}
-
 	// Combine letters and numbers with a hyphen
 	productCode := string(letters) + "-" + string(numbers)
-
 	return productCode
 }
 
@@ -63,7 +59,6 @@ func CreateListing() gin.HandlerFunc {
 
 		loginName, loginEmail, err := configs.ExtractTokenLoginNameEmail(c)
 		if err != nil {
-			log.Println(err)
 			helper.HandleError(c, http.StatusUnauthorized, err, "unathorized")
 			return
 		}
@@ -155,6 +150,7 @@ func CreateListing() gin.HandlerFunc {
 			Condition:                   newListing.ListingDetails.Condition,
 			Description:                 newListing.ListingDetails.Description,
 			HasVariations:               newListing.ListingDetails.HasVariations,
+			Sustainability:              newListing.ListingDetails.Sustainability,
 			Personalization:             newListing.ListingDetails.Personalization,
 			PersonalizationText:         newListing.ListingDetails.PersonalizationText,
 			PersonalizationTextChars:    newListing.ListingDetails.PersonalizationTextChars,
@@ -186,34 +182,48 @@ func CreateListing() gin.HandlerFunc {
 		}
 
 		listingRating := models.ListingRating{
-			Rating:      0,
-			ReviewCount: 0,
+			Rating:          0,
+			ReviewCount:     0,
+			PositiveReviews: 0,
+			NegativeReviews: 0,
+		}
+
+		listingFinancialInformation := models.ListingFinancialInformation{
+			TotalOrders:     0,
+			Sales:           0,
+			OrdersPending:   0,
+			OrdersCanceled:  0,
+			OrdersCompleted: 0,
+			Revenue:         0.0,
+			Profit:          0.0,
+			ShippingRevenue: 0.0,
 		}
 
 		listing := models.Listing{
-			ID:                primitive.NewObjectID(),
-			Code:              generateListingCode(),
-			State:             models.ListingState{State: models.ListingStateActive, StateUpdatedAt: now},
-			UserId:            myId,
-			ShopId:            shopId,
-			MainImage:         mainImageUploadUrl.SecureURL,
-			Images:            uploadedImagesUrl,
-			ListingDetails:    listingDetails,
-			Date:              listingDate,
-			Slug:              slug2.Make(newListing.ListingDetails.Title),
-			Views:             0,
-			FavorersCount:     0,
-			ShippingProfileId: primitive.NilObjectID,
-			Processing:        listingProcessing,
-			NonTaxable:        true,
-			Variations:        newListing.Variations,
-			ShouldAutoRenew:   false,
-			Inventory:         listingInventory,
-			RecentReviews:     nil,
-			Rating:            listingRating,
-			TotalOrders:       0,
-			Sales:             0.0,
-			Measurements:      newListing.Measurements,
+			ID:                   primitive.NewObjectID(),
+			Code:                 generateListingCode(),
+			State:                models.ListingState{State: models.ListingStateActive, StateUpdatedAt: now},
+			UserId:               myId,
+			ShopId:               shopId,
+			MainImage:            mainImageUploadUrl.SecureURL,
+			Images:               uploadedImagesUrl,
+			ListingDetails:       listingDetails,
+			Date:                 listingDate,
+			Slug:                 slug2.Make(newListing.ListingDetails.Title),
+			Views:                0,
+			FavorersCount:        0,
+			ShippingProfileId:    primitive.NilObjectID,
+			Processing:           listingProcessing,
+			NonTaxable:           true,
+			Variations:           newListing.Variations,
+			ShouldAutoRenew:      false,
+			Inventory:            listingInventory,
+			RecentReviews:        nil,
+			Rating:               listingRating,
+			TotalOrders:          0,
+			Sales:                0.0,
+			Measurements:         newListing.Measurements,
+			FinancialInformation: listingFinancialInformation,
 		}
 
 		res, err := ListingCollection.InsertOne(ctx, listing)

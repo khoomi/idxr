@@ -86,29 +86,57 @@ const (
 )
 
 type Listing struct {
-	ID                primitive.ObjectID `bson:"_id" json:"_id"`
-	Code              string             `bson:"code" json:"code"`
-	State             ListingState       `bson:"state" json:"state"`
-	UserId            primitive.ObjectID `bson:"user_id" json:"user_id"`
-	ShopId            primitive.ObjectID `bson:"shop_id" json:"shop_id"`
-	MainImage         string             `bson:"main_image" json:"main_image"`
-	Images            []string           `bson:"images" json:"images"`
-	ListingDetails    ListingDetails     `bson:"details" json:"details"`
-	Date              ListingDateMeta    `bson:"date" json:"date"`
-	Slug              string             `bson:"slug" json:"slug"`
-	Views             int                `bson:"views" json:"views"`
-	FavorersCount     int                `bson:"favorers_count" json:"favorers_count"`
-	ShippingProfileId primitive.ObjectID `bson:"shipping_profile_id" json:"shipping_profile_id"`
-	Processing        ListingProcessing  `bson:"processing" json:"processing"`
-	NonTaxable        bool               `bson:"non_taxable" json:"non_taxable"`
-	Variations        []ListingVariation `bson:"variations" json:"variations"`
-	ShouldAutoRenew   bool               `bson:"should_auto_renew" json:"should_auto_renew"`
-	Inventory         Inventory          `bson:"inventory" json:"inventory"`
-	RecentReviews     []ListingReview    `bson:"recent_reviews" json:"recent_reviews"`
-	Rating            ListingRating      `bson:"reviews_count" json:"reviews_count"`
-	TotalOrders       int                `bson:"total_orders" json:"total_orders"`
-	Sales             float64            `bson:"sales" json:"sales"`
-	Measurements      ListingMeasurement `bson:"measurements" json:"measurements"`
+	ID                   primitive.ObjectID          `bson:"_id" json:"_id"`
+	Code                 string                      `bson:"code" json:"code"`
+	State                ListingState                `bson:"state" json:"state"`
+	UserId               primitive.ObjectID          `bson:"user_id" json:"user_id"`
+	ShopId               primitive.ObjectID          `bson:"shop_id" json:"shop_id"`
+	MainImage            string                      `bson:"main_image" json:"main_image"`
+	Images               []string                    `bson:"images" json:"images"`
+	ListingDetails       ListingDetails              `bson:"details" json:"details"`
+	Date                 ListingDateMeta             `bson:"date" json:"date"`
+	Slug                 string                      `bson:"slug" json:"slug"`
+	Views                int                         `bson:"views" json:"views"`
+	FavorersCount        int                         `bson:"favorers_count" json:"favorers_count"`
+	ShippingProfileId    primitive.ObjectID          `bson:"shipping_profile_id" json:"shipping_profile_id"`
+	Processing           ListingProcessing           `bson:"processing" json:"processing"`
+	NonTaxable           bool                        `bson:"non_taxable" json:"non_taxable"`
+	Variations           []ListingVariation          `bson:"variations" json:"variations"`
+	ShouldAutoRenew      bool                        `bson:"should_auto_renew" json:"should_auto_renew"`
+	Inventory            Inventory                   `bson:"inventory" json:"inventory"`
+	RecentReviews        []ListingReview             `bson:"recent_reviews" json:"recent_reviews"`
+	Rating               ListingRating               `bson:"reviews_count" json:"reviews_count"`
+	TotalOrders          int                         `bson:"total_orders" json:"total_orders"`
+	Sales                float64                     `bson:"sales" json:"sales"`
+	Measurements         ListingMeasurement          `bson:"measurements" json:"measurements"`
+	FinancialInformation ListingFinancialInformation `bson:"financial_information" json:"financial_information"`
+}
+
+type ListingWithAnalytics struct {
+	ID                   primitive.ObjectID          `bson:"_id" json:"_id"`
+	Code                 string                      `bson:"code" json:"code"`
+	State                ListingState                `bson:"state" json:"state"`
+	UserId               primitive.ObjectID          `bson:"user_id" json:"user_id"`
+	ShopId               primitive.ObjectID          `bson:"shop_id" json:"shop_id"`
+	MainImage            string                      `bson:"main_image" json:"main_image"`
+	Images               []string                    `bson:"images" json:"images"`
+	ListingDetails       ListingDetails              `bson:"details" json:"details"`
+	Date                 ListingDateMeta             `bson:"date" json:"date"`
+	Slug                 string                      `bson:"slug" json:"slug"`
+	Views                int                         `bson:"views" json:"views"`
+	FavorersCount        int                         `bson:"favorers_count" json:"favorers_count"`
+	ShippingProfileId    primitive.ObjectID          `bson:"shipping_profile_id" json:"shipping_profile_id"`
+	Processing           ListingProcessing           `bson:"processing" json:"processing"`
+	NonTaxable           bool                        `bson:"non_taxable" json:"non_taxable"`
+	Variations           []ListingVariation          `bson:"variations" json:"variations"`
+	ShouldAutoRenew      bool                        `bson:"should_auto_renew" json:"should_auto_renew"`
+	Inventory            Inventory                   `bson:"inventory" json:"inventory"`
+	RecentReviews        []ListingReview             `bson:"recent_reviews" json:"recent_reviews"`
+	Rating               ListingRating               `bson:"reviews_count" json:"reviews_count"`
+	TotalOrders          int                         `bson:"total_orders" json:"total_orders"`
+	Sales                float64                     `bson:"sales" json:"sales"`
+	Measurements         ListingMeasurement          `bson:"measurements" json:"measurements"`
+	FinancialInformation ListingFinancialInformation `bson:"financial_information" json:"financial_information"`
 }
 
 type ListingsSummary struct {
@@ -138,29 +166,30 @@ type InventorySummary struct {
 }
 
 type ListingExtra struct {
-	ID                primitive.ObjectID `bson:"_id" json:"_id"`
-	State             ListingState       `bson:"state" json:"state"`
-	UserId            primitive.ObjectID `bson:"user_id" json:"user_id"`
-	ShopId            primitive.ObjectID `bson:"shop_id" json:"shop_id"`
-	MainImage         string             `bson:"main_image" json:"main_image"`
-	Images            []string           `bson:"images" json:"images"`
-	ListingDetails    ListingDetails     `bson:"details" json:"details"`
-	Date              ListingDateMeta    `bson:"date" json:"date"`
-	Slug              string             `bson:"slug" json:"slug"`
-	Views             int                `bson:"views" json:"views"`
-	FavorersCount     int                `bson:"favorers_count" json:"favorers_count"`
-	ShippingProfileId primitive.ObjectID `bson:"shipping_profile_id" json:"shipping_profile_id"`
-	Processing        ListingProcessing  `bson:"processing" json:"processing"`
-	NonTaxable        bool               `bson:"non_taxable" json:"non_taxable"`
-	Variations        []ListingVariation `bson:"variations" json:"variations"`
-	ShouldAutoRenew   bool               `bson:"should_auto_renew" json:"should_auto_renew"`
-	Inventory         Inventory          `bson:"inventory" json:"inventory"`
-	RecentReviews     []ListingReview    `bson:"recent_reviews" json:"recent_reviews"`
-	Rating            ListingRating      `bson:"reviews_count" json:"reviews_count"`
-	TotalOrders       int                `bson:"total_orders" json:"total_orders"`
-	Sales             float64            `bson:"sales" json:"sales"`
-	User              ListingUserExcept  `bson:"user" json:"user"`
-	Shop              ListingShopExcept  `bson:"shop" json:"shop"`
+	ID                   primitive.ObjectID          `bson:"_id" json:"_id"`
+	State                ListingState                `bson:"state" json:"state"`
+	UserId               primitive.ObjectID          `bson:"user_id" json:"user_id"`
+	ShopId               primitive.ObjectID          `bson:"shop_id" json:"shop_id"`
+	MainImage            string                      `bson:"main_image" json:"main_image"`
+	Images               []string                    `bson:"images" json:"images"`
+	ListingDetails       ListingDetails              `bson:"details" json:"details"`
+	Date                 ListingDateMeta             `bson:"date" json:"date"`
+	Slug                 string                      `bson:"slug" json:"slug"`
+	Views                int                         `bson:"views" json:"views"`
+	FavorersCount        int                         `bson:"favorers_count" json:"favorers_count"`
+	ShippingProfileId    primitive.ObjectID          `bson:"shipping_profile_id" json:"shipping_profile_id"`
+	Processing           ListingProcessing           `bson:"processing" json:"processing"`
+	NonTaxable           bool                        `bson:"non_taxable" json:"non_taxable"`
+	Variations           []ListingVariation          `bson:"variations" json:"variations"`
+	ShouldAutoRenew      bool                        `bson:"should_auto_renew" json:"should_auto_renew"`
+	Inventory            Inventory                   `bson:"inventory" json:"inventory"`
+	RecentReviews        []ListingReview             `bson:"recent_reviews" json:"recent_reviews"`
+	Rating               ListingRating               `bson:"reviews_count" json:"reviews_count"`
+	TotalOrders          int                         `bson:"total_orders" json:"total_orders"`
+	Sales                float64                     `bson:"sales" json:"sales"`
+	User                 ListingUserExcept           `bson:"user" json:"user"`
+	Shop                 ListingShopExcept           `bson:"shop" json:"shop"`
+	FinancialInformation ListingFinancialInformation `bson:"financial_information" json:"financial_information"`
 }
 
 type ListingUserExcept struct {
@@ -194,6 +223,7 @@ type ListingDetails struct {
 	Dynamic                     map[string]interface{} `bson:"dynamic" json:"dynamic"`
 	DynamicType                 string                 `bson:"dynamic_type" json:"dynamic_type" validate:"oneof=accessories-and-jewelry art clothing furniture gifts home"`
 	HasVariations               bool                   `bson:"has_variations" json:"has_variations"`
+	Sustainability              string                 `bson:"sustainability" json:"sustainability"`
 	Personalization             bool                   `bson:"personalization" json:"personalization"`
 	PersonalizationText         string                 `bson:"personalization_text" json:"personalization_text"`
 	PersonalizationTextChars    int                    `bson:"personalization_text_chars" json:"personalization_text_chars"`
@@ -239,8 +269,21 @@ type Inventory struct {
 }
 
 type ListingRating struct {
-	Rating      float64 `json:"rating"`
-	ReviewCount int     `json:"review_count"`
+	Rating          float64 `json:"rating"`
+	ReviewCount     int     `json:"review_count"`
+	PositiveReviews int     `bson:"positive_reviews" json:"positive_reviews"`
+	NegativeReviews int     `bson:"negative_reviews" json:"negative_reviews"`
+}
+
+type ListingFinancialInformation struct {
+	TotalOrders     int     `bson:"total_orders" json:"total_orders"`
+	Sales           float64 `bson:"sales" json:"sales"`
+	OrdersCompleted int     `bson:"orders_completed" json:"orders_completed"`
+	OrdersPending   int     `bson:"orders_pending" json:"orders_pending"`
+	OrdersCanceled  int     `bson:"orders_canceled" json:"orders_canceled"`
+	Revenue         float64 `bson:"revenue" json:"revenue"`
+	Profit          float64 `bson:"profit" json:"profit"`
+	ShippingRevenue float64 `bson:"shipping_revenue" json:"shipping_revenue"`
 }
 
 type NewListing struct {
@@ -268,6 +311,7 @@ type NewListingDetails struct {
 	HasVariations               bool                   `bson:"has_variations" json:"has_variations"`
 	Condition                   string                 `bson:"condition" json:"condition" validate:"oneof=new used refurbished"`
 	Color                       string                 `bson:"color" json:"color"`
+	Sustainability              string                 `bson:"sustainability" json:"sustainability"`
 }
 
 type ClothListing struct {
