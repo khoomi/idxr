@@ -28,9 +28,9 @@ func InitRoute() *gin.Engine {
 
 		// Protected endpoints
 		userRoutes(api)
-		ShopRoutes(api)
-		ListingRoutes(api)
-		CategoryRoutes(api)
+		shopRoutes(api)
+		listingRoutes(api)
+		categoryRoutes(api)
 	}
 
 	return router
@@ -115,7 +115,7 @@ func userRoutes(api *gin.RouterGroup) {
 	}
 }
 
-func ShopRoutes(api *gin.RouterGroup) {
+func shopRoutes(api *gin.RouterGroup) {
 	// Define the "/shops" group
 	shop := api.Group("/shops")
 
@@ -203,7 +203,7 @@ func ShopRoutes(api *gin.RouterGroup) {
 	}
 }
 
-func ListingRoutes(api *gin.RouterGroup) {
+func listingRoutes(api *gin.RouterGroup) {
 	// Define the "/listing" group
 	listing := api.Group("/listings")
 	// Get all listings -> /api/listings/?limit=50&skip=0&sort=date.created_at
@@ -212,7 +212,7 @@ func ListingRoutes(api *gin.RouterGroup) {
 	listing.GET("/:listingid", controllers.GetListing())
 }
 
-func CategoryRoutes(api *gin.RouterGroup) {
+func categoryRoutes(api *gin.RouterGroup) {
 	// Define the "/categories" group
 	category := api.Group("/categories")
 	{
