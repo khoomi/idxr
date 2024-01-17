@@ -149,7 +149,7 @@ func CreateUser() gin.HandlerFunc {
 			NewFollower:      true,
 			ListingExpNotice: true,
 			SellerActivity:   true,
-			NewsAndFeature:   true,
+			NewsAndFeatures:  true,
 		}
 
 		_, err = NotificationCollection.InsertOne(ctx, notification)

@@ -149,7 +149,7 @@ type Notification struct {
 	NewFollower      bool               `bson:"new_follower" json:"new_follower" validate:"required"`
 	ListingExpNotice bool               `bson:"listing_exp_notice" json:"listing_exp_notice" validate:"required"`
 	SellerActivity   bool               `bson:"seller_activity" json:"seller_activity" validate:"required"`
-	NewsAndFeature   bool               `bson:"news_and_features" json:"news_and_features" validate:"required"`
+	NewsAndFeatures  bool               `bson:"news_and_features" json:"news_and_features" validate:"required"`
 }
 
 type NotificationRequest struct {
@@ -158,5 +158,5 @@ type NotificationRequest struct {
 	NewFollower      bool `bson:"new_follower" json:"new_follower" validate:"required"`
 	ListingExpNotice bool `bson:"listing_exp_notice" json:"listing_exp_notice" validate:"required"`
 	SellerActivity   bool `bson:"seller_activity" json:"seller_activity" validate:"required"`
-	NewsAndFeature   bool `bson:"news_and_features" json:"news_and_features" validate:"required"`
+	NewsAndFeatures  bool `bson:"news_and_features" json:"news_and_features" validate:"required"`
 }
