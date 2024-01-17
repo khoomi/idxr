@@ -314,8 +314,11 @@ func RefreshToken() gin.HandlerFunc {
 
 		res := UserCollection.FindOne(ctx, bson.M{"_id": userObjectId})
 		if res.Err() != nil {
-			log.Println(err)
-			helper.HandleError(c, http.StatusNotFound, res.Err(), "User not found")
+			if res.Err() == mongo.ErrNoDocuments {
+				helper.HandleError(c, http.StatusNotFound, res.Err(), "User not found")
+				return
+			}
+			helper.HandleError(c, http.StatusInternalServerError, res.Err(), "Internal Server Error")
 			return
 		}
 
