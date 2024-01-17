@@ -62,13 +62,11 @@ func CreateUser() gin.HandlerFunc {
 
 		var jsonUser models.UserRegistrationBody
 		if err := c.BindJSON(&jsonUser); err != nil {
-			log.Printf("Error binding request body: %s\n", err.Error())
 			helper.HandleError(c, http.StatusBadRequest, err, "Invalid or missing data in request body")
 			return
 		}
 
 		if err := Validate.Struct(&jsonUser); err != nil {
-			log.Printf("Error validating request body: %s\n", err.Error())
 			helper.HandleError(c, http.StatusBadRequest, err, "Invalid or missing data in request body")
 			return
 		}
@@ -82,15 +80,13 @@ func CreateUser() gin.HandlerFunc {
 
 		err := helper.ValidatePassword(jsonUser.Password)
 		if err != nil {
-			log.Printf("Error validating password: %s\n", err.Error())
-			helper.HandleError(c, http.StatusBadRequest, err, err.Error())
+			helper.HandleError(c, http.StatusBadRequest, err, "Error validating password")
 			return
 		}
 
 		hashedPassword, errHashPassword := helper.HashPassword(jsonUser.Password)
 		if errHashPassword != nil {
-			log.Printf("Error hashing password: %s\n", errHashPassword.Error())
-			helper.HandleError(c, http.StatusBadRequest, errHashPassword, errHashPassword.Error())
+			helper.HandleError(c, http.StatusBadRequest, errHashPassword, "Error hashing password")
 			return
 		}
 

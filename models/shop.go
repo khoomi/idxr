@@ -77,11 +77,6 @@ type ShopPolicy struct {
 	AdditionalInfo string `bson:"additional_info" json:"additional_info"`
 }
 
-type NewShopRequest struct {
-	ShopName    string `bson:"shop_name" json:"shop_name" validate:"required,pattern=^(?!s)(?!.*s$)(?=.*[a-zA-Z0-9])[a-zA-Z0-9 '~?!]{2,}$"`
-	Description string `bson:"description" json:"description" validate:"required"`
-}
-
 type ShopAnnouncementRequest struct {
 	Announcement string `bson:"announcement" json:"announcement"`
 }

@@ -84,7 +84,6 @@ func GetUserNotificationSettings() gin.HandlerFunc {
 					helper.HandleError(c, http.StatusInternalServerError, err, "Error creating notification")
 					return
 				}
-
 				helper.HandleSuccess(c, http.StatusOK, "Notification settings retrieved successfully", gin.H{"notification": notification})
 				return
 			}
