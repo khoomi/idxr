@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"context"
+	"fmt"
 	"khoomi-api-io/khoomi_api/configs"
 	"khoomi-api-io/khoomi_api/helper"
 	"khoomi-api-io/khoomi_api/models"
@@ -39,7 +40,7 @@ func CreateUserNotificationSettings() gin.HandlerFunc {
 			NewFollower:      notificationRequest.NewFollower,
 			ListingExpNotice: notificationRequest.ListingExpNotice,
 			SellerActivity:   notificationRequest.SellerActivity,
-			NewsAndFeature:   notificationRequest.NewsAndFeature,
+			NewsAndFeatures:   notificationRequest.NewsAndFeatures,
 		}
 
 		_, err = NotificationCollection.InsertOne(ctx, notification)
@@ -76,7 +77,7 @@ func GetUserNotificationSettings() gin.HandlerFunc {
 					NewFollower:      false,
 					ListingExpNotice: false,
 					SellerActivity:   false,
-					NewsAndFeature:   false,
+					NewsAndFeatures:   false,
 				}
 
 				_, err = NotificationCollection.InsertOne(ctx, notification)
@@ -116,27 +117,38 @@ func UpdateUserNotificationSettings() gin.HandlerFunc {
 			updateBool = true
 		}
 
-		update := bson.M{}
+		var update bson.M
 		switch field {
 		case "new_message":
 			{
 				update = bson.M{"$set": bson.M{"new_message": updateBool}}
+				break
 			}
 		case "new_follower":
 			{
-				update = bson.M{"$set": bson.M{"new_message": updateBool}}
+				update = bson.M{"$set": bson.M{"new_follower": updateBool}}
+				break
 			}
 		case "listing_exp_notice":
 			{
-				update = bson.M{"$set": bson.M{"new_message": updateBool}}
+				update = bson.M{"$set": bson.M{"listing_exp_notice": updateBool}}
+				break
 			}
 		case "seller_activity":
 			{
-				update = bson.M{"$set": bson.M{"new_message": updateBool}}
+				update = bson.M{"$set": bson.M{"seller_activity": updateBool}}
+				break
 			}
-		case "news_and_feature":
+		case "news_and_features":
 			{
-				update = bson.M{"$set": bson.M{"new_message": updateBool}}
+				update = bson.M{"$set": bson.M{"news_and_features": updateBool}}
+				break
+			}
+		default:
+			{
+				errorMsg := fmt.Sprintf("Invalid update field %v", field)
+				helper.HandleError(c, http.StatusBadRequest, err, errorMsg)
+				return
 			}
 		}
 		filter := bson.M{"user_id": userId}
