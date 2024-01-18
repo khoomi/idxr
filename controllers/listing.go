@@ -146,6 +146,7 @@ func CreateListing() gin.HandlerFunc {
 			}
 		} else {
 			mainImageUploadUrl = uploader.UploadResult{}
+			mainImageUploadUrl.SecureURL = DefaultThumbnail
 		}
 
 		_, _, err = c.Request.FormFile("images")
@@ -187,7 +188,9 @@ func CreateListing() gin.HandlerFunc {
 				uploadedImagesResult = append(uploadedImagesResult, imageUpload)
 			}
 		} else {
-			uploadedImagesUrl = nil
+			tempImage := uploader.UploadResult{}
+			tempImage.SecureURL = DefaultThumbnail
+			uploadedImagesResult = append(uploadedImagesResult, tempImage)
 		}
 
 		now := time.Now()

@@ -104,7 +104,7 @@ func CreateShop() gin.HandlerFunc {
 			}
 			logoUploadUrl = logoUploadResult.SecureURL
 		} else {
-			logoUploadUrl = ""
+			logoUploadUrl = DefaultLogo
 			logoUploadResult = uploader.UploadResult{}
 		}
 
@@ -123,7 +123,7 @@ func CreateShop() gin.HandlerFunc {
 			}
 			bannerUploadUrl = bannerUploadResult.SecureURL
 		} else {
-			bannerUploadUrl = ""
+			bannerUploadUrl = DefaultThumbnail
 			bannerUploadResult = uploader.UploadResult{}
 		}
 
