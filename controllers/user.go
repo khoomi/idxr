@@ -105,7 +105,7 @@ func CreateUser() gin.HandlerFunc {
 			"first_name":                  jsonUser.FirstName,
 			"last_name":                   jsonUser.LastName,
 			"auth":                        userAuth,
-			"thumbnail":                   DEFAULT_USER_THUMBNAIL,
+			"thumbnail":                   DefaultUserThumbnail,
 			"bio":                         bsonx.Null(),
 			"phone":                       bsonx.Null(),
 			"birthdate":                   models.UserBirthdate{},

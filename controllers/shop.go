@@ -53,6 +53,7 @@ func CheckShopNameAvailability() gin.HandlerFunc {
 
 func CreateShop() gin.HandlerFunc {
 	return func(c *gin.Context) {
+		now := time.Now()
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
 
@@ -137,7 +138,6 @@ func CreateShop() gin.HandlerFunc {
 		}
 		defer session.EndSession(ctx)
 		callback := func(ctx mongo.SessionContext) (interface{}, error) {
-			now := time.Now()
 			slug := slug2.Make(shopUserName)
 			policy := models.ShopPolicy{
 				PaymentPolicy:  "",
@@ -176,7 +176,7 @@ func CreateShop() gin.HandlerFunc {
 
 			// Update user profile shop
 			filter := bson.M{"_id": userID}
-			update := bson.M{"$set": bson.M{"shop_id": shopID, "is_seller": true}}
+			update := bson.M{"$set": bson.M{"shop_id": shopID, "is_seller": true, "modified_at": now}}
 			result, err := UserCollection.UpdateOne(ctx, filter, update)
 			if err != nil {
 				return nil, err
