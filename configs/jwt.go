@@ -139,7 +139,6 @@ func ExtractTokenID(c *gin.Context) (primitive.ObjectID, error) {
 		return primitive.NilObjectID, err
 	}
 
-	println(claims.Id)
 	Id, err := primitive.ObjectIDFromHex(claims.Id)
 	if err != nil {
 		err = errors.New("invalid user id")
@@ -171,29 +170,6 @@ func ExtractTokenLoginNameEmail(c *gin.Context) (string, string, error) {
 
 	return claims.LoginName, claims.Email, nil
 }
-
-// func IsSeller(c *gin.Context) (bool, error) {
-// 	tokenString := ExtractToken(c)
-// 	jwtKey := LoadEnvFor("SECRET")
-// 	token, err := jwt.ParseWithClaims(
-// 		tokenString,
-// 		&JWTClaim{},
-// 		func(token *jwt.Token) (interface{}, error) {
-// 			return []byte(jwtKey), nil
-// 		},
-// 	)
-// 	if err != nil {
-// 		return false, err
-// 	}
-
-// 	claims, ok := token.Claims.(*JWTClaim)
-// 	if !ok {
-// 		err = errors.New("couldn't parse claims")
-// 		return false, err
-// 	}
-
-// 	return claims.IsSeller, nil
-// }
 
 func ValidateUserID(c *gin.Context) (primitive.ObjectID, error) {
 	myID, err := ExtractTokenID(c)
