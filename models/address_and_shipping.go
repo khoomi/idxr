@@ -57,6 +57,28 @@ type ShopShippingProfile struct {
 	ModifiedAt               primitive.DateTime `bson:"modified_at" json:"modified_at"`
 }
 
+type ShippingProfileForListing struct {
+	Title                    string         `bson:"title" json:"title" validate:"required"`
+	MinProcessingTime        int            `bson:"min_processing_time" json:"min_processing_time" validate:"required"`
+	MaxProcessingTime        int            `bson:"max_processing_time" json:"max_processing_time" validate:"required"`
+	ProcessingTimeUnit       string         `bson:"processing_time_unit" json:"processing_time_unit" validate:"required,oneof=days weeks"`
+	DestinationBy            string         `bson:"destination_by" json:"destination_by"`
+	Destinations             []string       `bson:"destinations" json:"destinations"`
+	MinDeliveryDays          int            `bson:"min_delivery_days" json:"min_delivery_days"`
+	MaxDeliveryDays          int            `bson:"max_delivery_days" json:"max_delivery_days"`
+	OriginState              string         `bson:"origin_state" json:"origin_state"`
+	OriginPostalCode         int            `bson:"origin_postal_code" json:"origin_postal_code"`
+	PrimaryPrice             string         `bson:"primary_price" json:"primary_price"`
+	SecondaryPrice           string         `bson:"secondary_price" json:"secondary_price"`
+	HandlingFee              string         `bson:"handling_fee" json:"handling_fee"`
+	ShippingMethods          []string       `bson:"shipping_methods" json:"shipping_methods" validate:"oneof=standard express next-day"`
+	IsDefaultShippingProfile bool           `bson:"is_default_profile" json:"is_default_profile"`
+	OffersFreeShipping       bool           `bson:"offers_free_shipping" json:"offers_free_shipping"`
+	AutoCalculatePrice       bool           `bson:"auto_calculate_price" json:"auto_calculate_price"`
+	ShippingService          bool           `bson:"service" json:"service"`
+	Policy                   ShippingPolicy `bson:"policy" json:"policy"`
+}
+
 type ShopShippingProfileRequest struct {
 	ID                       primitive.ObjectID `bson:"_id" json:"_id" validate:"omitempty"`
 	Title                    string             `bson:"title" json:"title" validate:"required"`

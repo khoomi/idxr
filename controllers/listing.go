@@ -193,6 +193,21 @@ func CreateListing() gin.HandlerFunc {
 			uploadedImagesResult = append(uploadedImagesResult, tempImage)
 		}
 
+		// Verify shipping id, if null, find default shipping profile from db and use for listing.
+		var shippingId primitive.ObjectID
+		shippingObj, err := primitive.ObjectIDFromHex(newListing.ListingDetails.ShippingProfileId)
+		if err != nil {
+			var shipping models.ShopShippingProfile
+			err := ShippingProfileCollection.FindOne(ctx, bson.M{"shop_id": shopId, "is_default_profile": true}).Decode(shipping)
+			if err != nil {
+				shippingId = primitive.NilObjectID
+			} else {
+				shippingId = shipping.ID
+			}
+		} else {
+			shippingId = shippingObj
+		}
+
 		now := time.Now()
 		listingDetails := models.ListingDetails{
 			Type:                        newListing.ListingDetails.Type,
@@ -200,6 +215,7 @@ func CreateListing() gin.HandlerFunc {
 			Title:                       newListing.ListingDetails.Title,
 			Color:                       newListing.ListingDetails.Color,
 			Dynamic:                     newListing.ListingDetails.Dynamic,
+			DynamicType:                 newListing.ListingDetails.DynamicType,
 			WhoMade:                     newListing.ListingDetails.WhoMade,
 			Keywords:                    newListing.ListingDetails.Keywords,
 			WhenMade:                    newListing.ListingDetails.WhenMade,
@@ -269,7 +285,7 @@ func CreateListing() gin.HandlerFunc {
 			Slug:                 slug2.Make(newListing.ListingDetails.Title),
 			Views:                0,
 			FavorersCount:        0,
-			ShippingProfileId:    primitive.NilObjectID,
+			ShippingProfileId:    shippingId,
 			Processing:           listingProcessing,
 			NonTaxable:           true,
 			Variations:           newListing.Variations,
@@ -345,6 +361,15 @@ func GetListing() gin.HandlerFunc {
 			},
 			{"$unwind": "$user"},
 			{
+				"$lookup": bson.M{
+					"from":         "ShopShippingProfile",
+					"localField":   "shipping_profile_id",
+					"foreignField": "_id",
+					"as":           "shipping",
+				},
+			},
+			{"$unwind": "$shipping"},
+			{
 				"$project": bson.M{
 					"_id":                 1,
 					"state":               1,
@@ -365,6 +390,7 @@ func GetListing() gin.HandlerFunc {
 					"inventory":           1,
 					"recent_reviews":      1,
 					"reviews_count":       1,
+					"measurements":        1,
 					"user": bson.M{
 						"login_name":             "$user.login_name",
 						"first_name":             "$user.first_name",
@@ -382,6 +408,25 @@ func GetListing() gin.HandlerFunc {
 						"description":   "$shop.description",
 						"reviews_count": "$shop.reviews_count",
 						"is_live":       "$shop.is_live",
+					},
+					"shipping": bson.M{
+						"title":                "$shipping.title",
+						"min_processing_time":  "$shipping.min_processing_time",
+						"max_processing_time":  "$shipping.max_processing_time",
+						"destination_by":       "$shipping.destination_by",
+						"destinations":         "$shipping.destinations",
+						"min_delivery_days":    "$shipping.min_delivery_days",
+						"max_delivery_days":    "$shipping.max_delivery_days",
+						"origin_state":         "$shipping.origin_state",
+						"origin_postal_code":   "$shipping.origin_postal_code",
+						"primary_price":        "$shipping.primary_price",
+						"secondary_price":      "$shipping.secondary_price",
+						"handling_fee":         "$shipping.handling_fee",
+						"shipping_methods":     "$shipping.shipping_methods",
+						"is_default_profile":   "$shipping.is_default_profile",
+						"offers_free_shipping": "$shipping.offers_free_shipping",
+						"service":              "$shop.service",
+						"policy":               "$shipping.policy",
 					},
 				},
 			},

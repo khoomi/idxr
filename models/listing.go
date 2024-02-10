@@ -111,30 +111,8 @@ type Listing struct {
 }
 
 type ListingWithAnalytics struct {
-	ID                   primitive.ObjectID          `bson:"_id" json:"_id"`
-	Code                 string                      `bson:"code" json:"code"`
-	State                ListingState                `bson:"state" json:"state"`
-	UserId               primitive.ObjectID          `bson:"user_id" json:"user_id"`
-	ShopId               primitive.ObjectID          `bson:"shop_id" json:"shop_id"`
-	MainImage            string                      `bson:"main_image" json:"main_image"`
-	Images               []string                    `bson:"images" json:"images"`
-	ListingDetails       ListingDetails              `bson:"details" json:"details"`
-	Date                 ListingDateMeta             `bson:"date" json:"date"`
-	Slug                 string                      `bson:"slug" json:"slug"`
-	Views                int                         `bson:"views" json:"views"`
-	FavorersCount        int                         `bson:"favorers_count" json:"favorers_count"`
-	ShippingProfileId    primitive.ObjectID          `bson:"shipping_profile_id" json:"shipping_profile_id"`
-	Processing           ListingProcessing           `bson:"processing" json:"processing"`
-	NonTaxable           bool                        `bson:"non_taxable" json:"non_taxable"`
-	Variations           []ListingVariation          `bson:"variations" json:"variations"`
-	ShouldAutoRenew      bool                        `bson:"should_auto_renew" json:"should_auto_renew"`
-	Inventory            Inventory                   `bson:"inventory" json:"inventory"`
-	RecentReviews        []ListingReview             `bson:"recent_reviews" json:"recent_reviews"`
-	Rating               ListingRating               `bson:"reviews_count" json:"reviews_count"`
-	TotalOrders          int                         `bson:"total_orders" json:"total_orders"`
-	Sales                float64                     `bson:"sales" json:"sales"`
-	Measurements         ListingMeasurement          `bson:"measurements" json:"measurements"`
-	FinancialInformation ListingFinancialInformation `bson:"financial_information" json:"financial_information"`
+	Listing
+	Sales float64 `bson:"sales" json:"sales"`
 }
 
 type ListingsSummary struct {
@@ -187,6 +165,7 @@ type ListingExtra struct {
 	Sales                float64                     `bson:"sales" json:"sales"`
 	User                 ListingUserExcept           `bson:"user" json:"user"`
 	Shop                 ListingShopExcept           `bson:"shop" json:"shop"`
+	Measurements         ListingMeasurement          `bson:"measurements" json:"measurements"`
 	FinancialInformation ListingFinancialInformation `bson:"financial_information" json:"financial_information"`
 }
 
@@ -289,7 +268,7 @@ type NewListing struct {
 	Variations     []ListingVariation `json:"variations"`
 	Processing     ListingProcessing  `json:"processing" validate:"required"`
 	ListingDetails NewListingDetails  `json:"details"`
-	Measurements   ListingMeasurement `bson:"measurements" json:"measurements"`
+	Measurements   ListingMeasurement `json:"measurements"`
 }
 
 type NewListingDetails struct {
@@ -306,10 +285,12 @@ type NewListingDetails struct {
 	PersonalizationTextChars    int                    `json:"personalization_text_chars"`
 	PersonalizationTextOptional bool                   `json:"personalization_text_optional"`
 	Dynamic                     map[string]interface{} `json:"dynamic"`
-	HasVariations               bool                   `bson:"has_variations" json:"has_variations"`
-	Condition                   string                 `bson:"condition" json:"condition" validate:"oneof=new used refurbished"`
-	Color                       string                 `bson:"color" json:"color"`
-	Sustainability              string                 `bson:"sustainability" json:"sustainability"`
+	DynamicType                 string                 `json:"dynamic_type"`
+	HasVariations               bool                   `json:"has_variations"`
+	Condition                   string                 `json:"condition" validate:"oneof=new used refurbished"`
+	Color                       string                 `json:"color"`
+	ShippingProfileId           string                 `json:"shipping_profile_id"`
+	Sustainability              string                 `json:"sustainability"`
 }
 
 type ClothListing struct {

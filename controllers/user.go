@@ -750,7 +750,7 @@ func GetLoginHistories() gin.HandlerFunc {
 		findOptions := options.Find().
 			SetLimit(int64(paginationArgs.Limit)).
 			SetSkip(int64(paginationArgs.Skip)).
-			SetSort(bson.D{{Key: "date", Value: -1}}) // Sort by date field in descending order (-1)
+			SetSort(helper.GetLoginHistorySortBson(paginationArgs.Sort))
 
 		result, err := LoginHistoryCollection.Find(ctx, filter, findOptions)
 		if err != nil {
