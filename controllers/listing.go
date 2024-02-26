@@ -59,10 +59,6 @@ func getListingSortingBson(sort string) bson.D {
 		key = "date.modified_at"
 	case "modified_at_desc":
 		key = "date.modified_at"
-	case "code_asc":
-		key = "code"
-	case "code_desc":
-		key = "code"
 	case "state_updated_at_asc":
 		key = "state.updated_at"
 	case "state_updated_at_desc":
@@ -71,22 +67,6 @@ func getListingSortingBson(sort string) bson.D {
 		key = "views"
 	case "views_desc":
 		key = "views"
-	case "processing_max_asc":
-		key = "processing.max"
-	case "processing_max_desc":
-		key = "processing.max"
-	case "processing_min_asc":
-		key = "processing.min"
-	case "processing_min_desc":
-		key = "processing.min"
-	case "favorers_count_asc":
-		key = "favorers_count"
-	case "favorers_count_desc":
-		key = "favorers_count"
-	case "total_orders_asc":
-		key = "financial_information.total_orders"
-	case "total_orders_desc":
-		key = "financial_information.total_orders"
 	case "sales_asc":
 		key = "financial_information.sales"
 	case "sales_desc":
@@ -128,7 +108,6 @@ func CreateListing() gin.HandlerFunc {
 		}
 
 		if validationErr := Validate.Struct(&newListing); validationErr != nil {
-			log.Println(validationErr)
 			helper.HandleError(c, http.StatusBadRequest, validationErr, "invalid or missing data in request body")
 			return
 		}
@@ -140,7 +119,6 @@ func CreateListing() gin.HandlerFunc {
 			mainImageUploadUrl, err = services.FileUpload(models.File{File: mainImage})
 			if err != nil {
 				errMsg := fmt.Sprintf("Logo failed to upload - %v", err.Error())
-				log.Print(errMsg)
 				helper.HandleError(c, http.StatusInternalServerError, err, errMsg)
 				return
 			}
@@ -158,7 +136,6 @@ func CreateListing() gin.HandlerFunc {
 			err := c.Request.ParseMultipartForm(10 << 20)
 			if err != nil {
 				errMsg := fmt.Sprintf("Failed to parse multipart form - %v", err.Error())
-				log.Print(errMsg)
 				helper.HandleError(c, http.StatusInternalServerError, err, errMsg)
 				return
 			}
@@ -178,7 +155,6 @@ func CreateListing() gin.HandlerFunc {
 				imageUpload, err := services.FileUpload(models.File{File: file})
 				if err != nil {
 					errMsg := fmt.Sprintf("File failed to upload - %v", err.Error())
-					log.Print(errMsg)
 					helper.HandleError(c, http.StatusInternalServerError, err, errMsg)
 					return
 				}
@@ -314,7 +290,7 @@ func CreateListing() gin.HandlerFunc {
 		// send new listing email notification to user
 		email.SendNewListingEmail(loginEmail, loginName, newListing.ListingDetails.Title)
 
-		helper.HandleSuccess(c, http.StatusOK, "Lisating was created successfully", gin.H{"_id": res.InsertedID})
+		helper.HandleSuccess(c, http.StatusOK, "Listing was created successfully", gin.H{"_id": res.InsertedID})
 
 	}
 }
@@ -708,5 +684,94 @@ func HasUserCreatedListingOnboarding() gin.HandlerFunc {
 		}
 
 		helper.HandleSuccess(c, http.StatusOK, "Success", gin.H{"listing": listing[0]})
+	}
+}
+
+func DeleteListings() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ctx, cancel := context.WithTimeout(context.Background(), KhoomiRequestTimeoutSec)
+		defer cancel()
+
+		myId, err := configs.ValidateUserID(c)
+		if err != nil {
+			helper.HandleError(c, http.StatusUnauthorized, err, err.Error())
+			return
+		}
+
+		listingIDs := c.PostFormArray("ids")
+		if len(listingIDs) < 1 {
+			helper.HandleError(c, http.StatusBadRequest, errors.New("no listing IDs provided"), "No listing IDs provided")
+			return
+		}
+
+		var deletedObjectIDs []primitive.ObjectID
+		var notDeletedObjectIDs []primitive.ObjectID
+
+		for _, id := range listingIDs {
+			idObjectID, err := primitive.ObjectIDFromHex(id)
+			if err != nil {
+				notDeletedObjectIDs = append(notDeletedObjectIDs, idObjectID)
+				continue
+			}
+
+			_, err = ListingCollection.DeleteOne(ctx, bson.M{"_id": idObjectID, "user_id": myId})
+			if err != nil {
+				notDeletedObjectIDs = append(notDeletedObjectIDs, idObjectID)
+				continue
+			}
+
+			deletedObjectIDs = append(deletedObjectIDs, idObjectID)
+		}
+
+		if len(deletedObjectIDs) > 0 {
+			helper.HandleSuccess(c, http.StatusOK, "Listing(s) deleted", gin.H{"deleted": listingIDs, "not_deleted": notDeletedObjectIDs})
+		} else {
+			helper.HandleSuccess(c, http.StatusOK, "Listing(s) deleted", gin.H{"deleted": nil, "not_deleted": nil})
+		}
+	}
+}
+
+func DeactivateListings() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		now := time.Now()
+		ctx, cancel := context.WithTimeout(context.Background(), KhoomiRequestTimeoutSec)
+		defer cancel()
+
+		myId, err := configs.ValidateUserID(c)
+		if err != nil {
+			helper.HandleError(c, http.StatusUnauthorized, err, err.Error())
+			return
+		}
+
+		listingIDs := c.PostFormArray("ids")
+		if len(listingIDs) < 1 {
+			helper.HandleError(c, http.StatusBadRequest, errors.New("no listing IDs provided"), "No listing IDs provided")
+			return
+		}
+
+		var deletedObjectIDs []primitive.ObjectID
+		var notDeletedObjectIDs []primitive.ObjectID
+
+		for _, id := range listingIDs {
+			idObjectID, err := primitive.ObjectIDFromHex(id)
+			if err != nil {
+				notDeletedObjectIDs = append(notDeletedObjectIDs, idObjectID)
+				continue
+			}
+
+			_, err = ListingCollection.UpdateOne(ctx, bson.M{"_id": idObjectID, "user_id": myId}, bson.M{"state.state": models.ListingStateDeactivated, "state.state_updated_at": now, "date.modified_at": now})
+			if err != nil {
+				notDeletedObjectIDs = append(notDeletedObjectIDs, idObjectID)
+				continue
+			}
+
+			deletedObjectIDs = append(deletedObjectIDs, idObjectID)
+		}
+
+		if len(deletedObjectIDs) > 0 {
+			helper.HandleSuccess(c, http.StatusOK, "Listing(s) deleted", gin.H{"deactivated": listingIDs, "not_deactivated": notDeletedObjectIDs})
+		} else {
+			helper.HandleSuccess(c, http.StatusOK, "No listing(s) were deleted", gin.H{"deactivated": nil, "not_deactivated": nil})
+		}
 	}
 }

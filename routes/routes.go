@@ -210,6 +210,12 @@ func listingRoutes(api *gin.RouterGroup) {
 	listing.GET("/", controllers.GetListings())
 	// Get single listing by listingid -> /api/listings/{listingId}
 	listing.GET("/:listingid", controllers.GetListing())
+	// Secured endpoints that require authentication
+	secured := listing.Group("").Use(middleware.Auth())
+	{
+		secured.DELETE("/listings", controllers.DeleteListings())
+		secured.PUT("/listings/deactivate", controllers.DeactivateListings())
+	}
 }
 
 func categoryRoutes(api *gin.RouterGroup) {

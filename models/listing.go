@@ -17,6 +17,7 @@ const (
 	ListingStateDraft       ListingStateType = "draft"
 	ListingStatePrivate     ListingStateType = "private"
 	ListingStateUnavailable ListingStateType = "unavailable"
+	ListingStateDeactivated ListingStateType = "deactivated"
 )
 
 type ListingState struct {
