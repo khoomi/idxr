@@ -321,7 +321,8 @@ func UpdateShopInformation() gin.HandlerFunc {
 		_, err = ShopCollection.UpdateOne(ctx, filter, update)
 		if err != nil {
 			// delete media
-			_, err := services.DestroyMedia(logoUploadResult.PublicID)
+			_, err = services.DestroyMedia(logoUploadResult.PublicID)
+			log.Println(err)
 			_, err = services.DestroyMedia(bannerUploadResult.PublicID)
 			log.Println(err)
 			// return error
