@@ -49,22 +49,27 @@ func CreatePaymentInformation() gin.HandlerFunc {
 		if err != nil {
 			log.Println(err)
 			helper.HandleError(c, http.StatusInternalServerError, err, "Error finding user")
+			return
 		}
 		if !res {
 			helper.HandleError(c, http.StatusUnauthorized, errors.New("Only sellers can perform this action"), "Unauthorized")
+			return
 		}
 
 		var paymentInfo models.PaymentInformationRequest
 		if err := c.BindJSON(&paymentInfo); err != nil {
 			helper.HandleError(c, http.StatusBadRequest, err, "Invalid data detected in JSON")
+			return
 		}
 
 		if len(paymentInfo.AccountNumber) != 10 {
 			helper.HandleError(c, http.StatusBadRequest, errors.New("Account number must be 10 digits"), "Invalid account number")
+			return
 		}
 
 		if len(paymentInfo.BankName) < 3 {
 			helper.HandleError(c, http.StatusBadRequest, errors.New("Invalid bank name"), "Invalid bank name")
+			return
 		}
 
 		paymentInfoToUpload := models.PaymentInformation{
@@ -79,10 +84,12 @@ func CreatePaymentInformation() gin.HandlerFunc {
 		count, err := PaymentInformationCollection.CountDocuments(ctx, bson.M{"user_id": userId})
 		if err != nil {
 			helper.HandleError(c, http.StatusInternalServerError, err, "Error counting current payment information")
+			return
 		}
 
 		if count >= 3 {
 			helper.HandleError(c, http.StatusInternalServerError, errors.New("Max allowed payment information reached. Please delete other payment information to accommodate a new one."), "Max allowed payment information reached")
+			return
 		}
 
 		wc := writeconcern.New(writeconcern.WMajority())
@@ -116,10 +123,12 @@ func CreatePaymentInformation() gin.HandlerFunc {
 		result, err := session.WithTransaction(ctx, callback, txnOptions)
 		if err != nil {
 			helper.HandleError(c, http.StatusBadRequest, err, "Failed to execute transaction")
+			return
 		}
 
 		if err := session.CommitTransaction(ctx); err != nil {
 			helper.HandleError(c, http.StatusBadRequest, err, "Failed to commit transaction")
+			return
 		}
 
 		log.Printf("User %v added their payment account information", userId)
@@ -136,13 +145,17 @@ func GetPaymentInformations() gin.HandlerFunc {
 		userId, err := configs.ValidateUserID(c)
 		if err != nil {
 			helper.HandleError(c, http.StatusBadRequest, err, "Unauthorized")
+			return
 		}
 		res, err := IsSeller(c, userId)
 		if err != nil {
+			log.Println(err)
 			helper.HandleError(c, http.StatusInternalServerError, err, "Error finding user")
+			return
 		}
 		if !res {
 			helper.HandleError(c, http.StatusUnauthorized, errors.New("Only sellers can perform this action"), "Unauthorized")
+			return
 		}
 
 		filter := bson.M{"user_id": userId}
@@ -151,12 +164,14 @@ func GetPaymentInformations() gin.HandlerFunc {
 		if err != nil {
 			log.Printf("Error fetching payment informations: %v", err)
 			helper.HandleError(c, http.StatusNotFound, err, "Error fetching payment informations")
+			return
 		}
 		defer cursor.Close(ctx)
 
 		var paymentInfos []models.PaymentInformation
 		if err := cursor.All(ctx, &paymentInfos); err != nil {
 			helper.HandleError(c, http.StatusNotFound, err, "Error retrieving payment informations")
+			return
 		}
 
 		helper.HandleSuccess(c, http.StatusOK, "Success", gin.H{"accounts": paymentInfos})
@@ -172,39 +187,47 @@ func ChangeDefaultPaymentInformation() gin.HandlerFunc {
 		userId, err := configs.ValidateUserID(c)
 		if err != nil {
 			helper.HandleError(c, http.StatusUnauthorized, err, "Unauthorized")
+			return
 		}
 		res, err := IsSeller(c, userId)
 		if err != nil {
 			helper.HandleError(c, http.StatusInternalServerError, err, "Error finding user")
+			return
 		}
 		if !res {
 			helper.HandleError(c, http.StatusUnauthorized, errors.New("Only sellers can perform this action"), "Unauthorized")
+			return
 		}
 
 		paymentInfoID := c.Param("paymentInfoId")
 		if paymentInfoID == "" {
 			helper.HandleError(c, http.StatusBadRequest, errors.New("No payment id was provided!"), "bad request")
+			return
 		}
 
 		paymentObjectID, err := primitive.ObjectIDFromHex(paymentInfoID)
 		if err != nil {
 			helper.HandleError(c, http.StatusBadRequest, errors.New("bad payment id"), "bad request")
+			return
 		}
 
 		// Set all other payment information records to is_default=false
 		_, err = PaymentInformationCollection.UpdateMany(ctx, bson.M{"user_id": userId, "_id": bson.M{"$ne": paymentObjectID}}, bson.M{"$set": bson.M{"is_default": false}})
 		if err != nil {
 			helper.HandleError(c, http.StatusInternalServerError, err, "error modifying payment information")
+			return
 		}
 
 		filter := bson.M{"user_id": userId, "_id": paymentObjectID}
 		insertRes, insertErr := PaymentInformationCollection.UpdateOne(ctx, filter, bson.M{"$set": bson.M{"is_default": true}})
 		if insertErr != nil {
 			helper.HandleError(c, http.StatusNotFound, err, "error modifying payment information")
+			return
 		}
 
 		if insertRes.ModifiedCount < 1 {
 			helper.HandleError(c, http.StatusNotFound, err, "payment information not modified")
+			return
 		}
 
 		helper.HandleSuccess(c, http.StatusOK, "Default payment has been succesfuly changed.", gin.H{"modified": insertRes.ModifiedCount})
@@ -221,28 +244,34 @@ func DeletePaymentInformation() gin.HandlerFunc {
 		paymentObjectID, err := primitive.ObjectIDFromHex(paymentInfoID)
 		if err != nil {
 			helper.HandleError(c, http.StatusBadRequest, errors.New("bad payment id"), "bad request")
+			return
 		}
 		userId, err := configs.ValidateUserID(c)
 		if err != nil {
 			helper.HandleError(c, http.StatusBadRequest, err, "Unauthorized")
+			return
 		}
 
 		res, err := IsSeller(c, userId)
 		if err != nil {
 			helper.HandleError(c, http.StatusInternalServerError, err, "Error finding user")
+			return
 		}
 		if res == false {
 			helper.HandleError(c, http.StatusUnauthorized, errors.New("Only sellers can perform this action"), "Unauthorized")
+			return
 		}
 		filter := bson.M{"_id": paymentObjectID, "user_id": userId}
 		result, err := PaymentInformationCollection.DeleteOne(ctx, filter)
 		if err != nil {
 			log.Printf("Error deleting payment information: %v", err)
 			helper.HandleError(c, http.StatusNotFound, err, "Error deleting payment information")
+			return
 		}
 
 		if result.DeletedCount == 0 {
 			helper.HandleError(c, http.StatusNotFound, errors.New("No records deleted. Make sure you're using the correct _id"), "Data not found")
+			return
 		}
 
 		helper.HandleSuccess(c, http.StatusOK, "Payment information deleted successfully",
@@ -258,13 +287,17 @@ func CompletedPaymentOnboarding() gin.HandlerFunc {
 		userId, err := configs.ValidateUserID(c)
 		if err != nil {
 			helper.HandleError(c, http.StatusBadRequest, err, "Unauthorized")
+			return
 		}
 		res, err := IsSeller(c, userId)
 		if err != nil {
+			log.Println(err)
 			helper.HandleError(c, http.StatusInternalServerError, err, "Error finding user")
+			return
 		}
 		if res == false {
 			helper.HandleError(c, http.StatusUnauthorized, errors.New("Only sellers can perform this action"), "Unauthorized")
+			return
 		}
 		filter := bson.M{"user_id": userId}
 		findOptions := options.Find().SetLimit(1)
@@ -272,6 +305,7 @@ func CompletedPaymentOnboarding() gin.HandlerFunc {
 		if err != nil {
 			log.Printf("Error fetching payment information: %v", err)
 			helper.HandleError(c, http.StatusNotFound, err, "Error fetching payment information")
+			return
 		}
 		defer cursor.Close(ctx)
 

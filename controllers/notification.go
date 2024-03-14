@@ -24,11 +24,13 @@ func CreateUserNotificationSettings() gin.HandlerFunc {
 		userId, err := configs.ValidateUserID(c)
 		if err != nil {
 			helper.HandleError(c, http.StatusBadRequest, err, err.Error())
+			return
 		}
 
 		var notificationRequest models.NotificationRequest
 		if err := c.BindJSON(&notificationRequest); err != nil {
 			helper.HandleError(c, http.StatusBadRequest, err, "Invalid data detected in JSON")
+			return
 		}
 
 		notification := models.Notification{
@@ -44,6 +46,7 @@ func CreateUserNotificationSettings() gin.HandlerFunc {
 		_, err = NotificationCollection.InsertOne(ctx, notification)
 		if err != nil {
 			helper.HandleError(c, http.StatusInternalServerError, err, "Error creating notification")
+			return
 		}
 
 		log.Printf("Notification was created for user %v", userId)
@@ -59,6 +62,7 @@ func GetUserNotificationSettings() gin.HandlerFunc {
 		userId, err := configs.ValidateUserID(c)
 		if err != nil {
 			helper.HandleError(c, http.StatusBadRequest, err, err.Error())
+			return
 		}
 
 		var notification models.Notification
@@ -79,10 +83,13 @@ func GetUserNotificationSettings() gin.HandlerFunc {
 				_, err = NotificationCollection.InsertOne(ctx, notification)
 				if err != nil {
 					helper.HandleError(c, http.StatusInternalServerError, err, "Error creating notification")
+					return
 				}
 				helper.HandleSuccess(c, http.StatusOK, "Notification settings retrieved successfully", gin.H{"notification": notification})
+				return
 			}
 			helper.HandleError(c, http.StatusNotFound, err, "No notification settings found")
+			return
 		}
 
 		helper.HandleSuccess(c, http.StatusOK, "Notification settings retrieved successfully", gin.H{"notification": notification})
@@ -98,6 +105,7 @@ func UpdateUserNotificationSettings() gin.HandlerFunc {
 		userId, err := configs.ValidateUserID(c)
 		if err != nil {
 			helper.HandleError(c, http.StatusBadRequest, err, err.Error())
+			return
 		}
 
 		field := c.Query("name")
@@ -139,6 +147,7 @@ func UpdateUserNotificationSettings() gin.HandlerFunc {
 			{
 				errorMsg := fmt.Sprintf("Invalid update field %v", field)
 				helper.HandleError(c, http.StatusBadRequest, err, errorMsg)
+				return
 			}
 		}
 		filter := bson.M{"user_id": userId}
@@ -146,6 +155,7 @@ func UpdateUserNotificationSettings() gin.HandlerFunc {
 		_, err = NotificationCollection.UpdateOne(ctx, filter, update)
 		if err != nil {
 			helper.HandleError(c, http.StatusInternalServerError, err, "Error updating notification settings")
+			return
 		}
 
 		helper.HandleSuccess(c, http.StatusOK, "Notification settings updated successfully", nil)

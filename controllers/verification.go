@@ -24,11 +24,13 @@ func CreateSellerVerificationProfile() gin.HandlerFunc {
 		shopIdObj, err := primitive.ObjectIDFromHex(shopId)
 		if err != nil {
 			helper.HandleError(c, http.StatusBadRequest, err, "invalid shopid")
+			return
 		}
 
 		// Check if the user owns the shop
 		userID, err := configs.ExtractTokenID(c)
 		if err != nil {
+			log.Println(err)
 			helper.HandleError(c, http.StatusUnauthorized, err, "unauthorized")
 			return
 		}
@@ -43,12 +45,16 @@ func CreateSellerVerificationProfile() gin.HandlerFunc {
 		var verificationJson models.CreateSellerVerificationRequest
 		err = c.BindJSON(&verificationJson)
 		if err != nil {
+			log.Println(err)
 			helper.HandleError(c, http.StatusBadRequest, err, "invalid request body")
+			return
 		}
 
 		// Validate request body
 		if validationErr := Validate.Struct(&verificationJson); validationErr != nil {
+			log.Println(validationErr)
 			helper.HandleError(c, http.StatusBadRequest, validationErr, "invalid request body")
+			return
 		}
 
 		verificationId := primitive.NewObjectID()
@@ -70,7 +76,9 @@ func CreateSellerVerificationProfile() gin.HandlerFunc {
 		}
 		res, err := SellerVerificationCollection.InsertOne(ctx, ShippingProfile)
 		if err != nil {
+			log.Println(err)
 			helper.HandleError(c, http.StatusBadRequest, err, "document insert error")
+			return
 		}
 
 		helper.HandleSuccess(c, http.StatusOK, "successful", gin.H{"inserted_id": res.InsertedID})
@@ -86,6 +94,7 @@ func GetSellerVerificationProfile() gin.HandlerFunc {
 		shopIdObj, err := primitive.ObjectIDFromHex(shopId)
 		if err != nil {
 			helper.HandleError(c, http.StatusBadRequest, err, "invalid shopid")
+			return
 		}
 
 		// Check if the user owns the shop
@@ -93,20 +102,25 @@ func GetSellerVerificationProfile() gin.HandlerFunc {
 		if err != nil {
 			log.Println(err)
 			helper.HandleError(c, http.StatusUnauthorized, err, "unauthorized")
+			return
 		}
 		err = VerifyShopOwnership(c, userID, shopIdObj)
 		if err != nil {
 			log.Printf("Error you the shop owner: %s\n", err.Error())
 			helper.HandleError(c, http.StatusUnauthorized, err, "shop ownership validation error")
+			return
 		}
 
 		var verificationProfile models.SellerVerification
 		err = SellerVerificationCollection.FindOne(ctx, bson.M{"shop_id": shopIdObj}).Decode(&verificationProfile)
 		if err != nil {
+			log.Println(err)
 			if err == mongo.ErrNoDocuments {
 				helper.HandleError(c, http.StatusNotFound, err, "Shop compliance information not found")
+				return
 			}
 			helper.HandleError(c, http.StatusInternalServerError, err, "error retrieving user information")
+			return
 		}
 
 		helper.HandleSuccess(c, http.StatusOK, "Seller verification profile retrieved successfully", gin.H{"verification_profile": verificationProfile})
