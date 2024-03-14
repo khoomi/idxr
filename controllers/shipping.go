@@ -2,7 +2,7 @@ package controllers
 
 import (
 	"context"
-	"khoomi-api-io/khoomi_api/config"
+	configs "khoomi-api-io/khoomi_api/config"
 	"khoomi-api-io/khoomi_api/helper"
 	"khoomi-api-io/khoomi_api/models"
 	"khoomi-api-io/khoomi_api/responses"
@@ -26,7 +26,6 @@ func CreateShopShippingProfile() gin.HandlerFunc {
 		shopIdObj, err := primitive.ObjectIDFromHex(shopId)
 		if err != nil {
 			helper.HandleError(c, http.StatusBadRequest, err, "invalid shopid")
-			return
 		}
 
 		// Check if the user owns the shop
@@ -34,29 +33,23 @@ func CreateShopShippingProfile() gin.HandlerFunc {
 		if err != nil {
 			log.Println(err)
 			helper.HandleError(c, http.StatusUnauthorized, err, "unauthorized")
-			return
 		}
 
 		err = VerifyShopOwnership(c, userID, shopIdObj)
 		if err != nil {
 			log.Printf("Error you the shop owner: %s\n", err.Error())
 			helper.HandleError(c, http.StatusUnauthorized, err, "shop ownership validation error")
-			return
 		}
 
 		var shippingJson models.ShopShippingProfileRequest
 		err = c.BindJSON(&shippingJson)
 		if err != nil {
-			log.Println(err)
 			helper.HandleError(c, http.StatusBadRequest, err, "invalid request body")
-			return
 		}
 
 		// Validate request body
 		if validationErr := Validate.Struct(&shippingJson); validationErr != nil {
-			log.Println(validationErr)
 			helper.HandleError(c, http.StatusBadRequest, validationErr, "invalid request body")
-			return
 		}
 		shippingPolicy := models.ShippingPolicy{
 			AcceptReturns:  shippingJson.Policy.AcceptReturns,
@@ -94,9 +87,7 @@ func CreateShopShippingProfile() gin.HandlerFunc {
 		}
 		res, err := ShippingProfileCollection.InsertOne(ctx, ShippingProfile)
 		if err != nil {
-			log.Println(err)
 			helper.HandleError(c, http.StatusBadRequest, err, "document insert error")
-			return
 		}
 
 		helper.HandleSuccess(c, http.StatusOK, "document inserted", gin.H{"inserted_id": res.InsertedID})
@@ -112,14 +103,12 @@ func GetShopShippingProfileInfo() gin.HandlerFunc {
 		profileId, err := primitive.ObjectIDFromHex(profileIdString)
 		if err != nil {
 			helper.HandleError(c, http.StatusBadRequest, err, "invalid shipping profile id")
-			return
 		}
 
 		var shippingProfile models.ShopShippingProfile
 		err = ShippingProfileCollection.FindOne(ctx, bson.M{"_id": profileId}).Decode(&shippingProfile)
 		if err != nil {
 			helper.HandleError(c, http.StatusBadRequest, err, "invalid shipping profile id")
-			return
 		}
 
 		helper.HandleSuccess(c, http.StatusOK, "success", gin.H{"shipping_profile": shippingProfile})
@@ -134,9 +123,7 @@ func GetShopShippingProfileInfos() gin.HandlerFunc {
 		shopIDStr := c.Param("shopid")
 		shopIDObject, err := primitive.ObjectIDFromHex(shopIDStr)
 		if err != nil {
-			log.Println(err)
 			helper.HandleError(c, http.StatusUnauthorized, err, "unauthorized")
-			return
 		}
 
 		paginationArgs := services.GetPaginationArgs(c)
@@ -149,19 +136,16 @@ func GetShopShippingProfileInfos() gin.HandlerFunc {
 		result, err := ShippingProfileCollection.Find(ctx, filter, findOptions)
 		if err != nil {
 			helper.HandleError(c, http.StatusNotFound, err, "Failed to find shipping profiles")
-			return
 		}
 
 		count, err := ShippingProfileCollection.CountDocuments(ctx, filter)
 		if err != nil {
 			helper.HandleError(c, http.StatusInternalServerError, err, "Failed to count shipping profiles")
-			return
 		}
 
 		var shippingProfiles []models.ShopShippingProfile
 		if err = result.All(ctx, &shippingProfiles); err != nil {
 			helper.HandleError(c, http.StatusNotFound, err, "Failed to decode shipping profiles")
-			return
 		}
 
 		helper.HandleSuccess(c, http.StatusOK, "success", gin.H{

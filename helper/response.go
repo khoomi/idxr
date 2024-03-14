@@ -18,6 +18,7 @@ func HandleSuccess(c *gin.Context, statusCode int, message string, data interfac
 		Message: message,
 		Data:    data,
 	})
+	return
 }
 
 type ErrorResponse struct {
@@ -33,4 +34,5 @@ func HandleError(c *gin.Context, statusCode int, err error, message string) {
 		Message: message,
 		Error:   err.Error(),
 	})
+	return
 }

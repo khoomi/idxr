@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"khoomi-api-io/khoomi_api/config"
+	configs "khoomi-api-io/khoomi_api/config"
 	"khoomi-api-io/khoomi_api/email"
 	"khoomi-api-io/khoomi_api/helper"
 	"khoomi-api-io/khoomi_api/models"
@@ -89,13 +89,11 @@ func CreateListing() gin.HandlerFunc {
 		shopId, myId, err := services.MyShopIdAndMyId(c)
 		if err != nil {
 			helper.HandleError(c, http.StatusBadRequest, err, "Error getting shop ID and user ID")
-			return
 		}
 
 		loginName, loginEmail, err := configs.ExtractTokenLoginNameEmail(c)
 		if err != nil {
 			helper.HandleError(c, http.StatusUnauthorized, err, "unathorized")
-			return
 		}
 
 		var newListing models.NewListing
@@ -104,12 +102,10 @@ func CreateListing() gin.HandlerFunc {
 		// Unmarshal the JSON data to the NewListing struct
 		if err := json.Unmarshal([]byte(jsonData), &newListing); err != nil {
 			helper.HandleError(c, http.StatusBadRequest, err, "Invalid JSON data")
-			return
 		}
 
 		if validationErr := Validate.Struct(&newListing); validationErr != nil {
 			helper.HandleError(c, http.StatusBadRequest, validationErr, "invalid or missing data in request body")
-			return
 		}
 
 		// main_image file handling
@@ -120,7 +116,6 @@ func CreateListing() gin.HandlerFunc {
 			if err != nil {
 				errMsg := fmt.Sprintf("Logo failed to upload - %v", err.Error())
 				helper.HandleError(c, http.StatusInternalServerError, err, errMsg)
-				return
 			}
 		} else {
 			mainImageUploadUrl = uploader.UploadResult{}
@@ -137,7 +132,6 @@ func CreateListing() gin.HandlerFunc {
 			if err != nil {
 				errMsg := fmt.Sprintf("Failed to parse multipart form - %v", err.Error())
 				helper.HandleError(c, http.StatusInternalServerError, err, errMsg)
-				return
 			}
 
 			files := c.Request.MultipartForm.File["images"]
@@ -147,7 +141,6 @@ func CreateListing() gin.HandlerFunc {
 					errMsg := fmt.Sprintf("Failed to open file - %v", err.Error())
 					log.Print(errMsg)
 					helper.HandleError(c, http.StatusInternalServerError, err, errMsg)
-					return
 				}
 				defer file.Close()
 
@@ -156,7 +149,6 @@ func CreateListing() gin.HandlerFunc {
 				if err != nil {
 					errMsg := fmt.Sprintf("File failed to upload - %v", err.Error())
 					helper.HandleError(c, http.StatusInternalServerError, err, errMsg)
-					return
 				}
 
 				// Append the URL to the logoUploadUrls slice
@@ -284,7 +276,6 @@ func CreateListing() gin.HandlerFunc {
 			// return error
 			errMsg := fmt.Sprintf("Failed to create new listing — %v", err.Error())
 			helper.HandleError(c, http.StatusInternalServerError, err, errMsg)
-			return
 		}
 
 		// send new listing email notification to user
@@ -308,7 +299,6 @@ func GetListing() gin.HandlerFunc {
 			listingObjectID, e := primitive.ObjectIDFromHex(listingId)
 			if e != nil {
 				helper.HandleError(c, http.StatusBadRequest, e, "invalid listing id was provided")
-				return
 			}
 
 			listingIdentifier = bson.M{"_id": listingObjectID}
@@ -410,22 +400,17 @@ func GetListing() gin.HandlerFunc {
 
 		cursor, err := ListingCollection.Aggregate(ctx, pipeline)
 		if err != nil {
-			log.Println(err)
 			helper.HandleError(c, http.StatusInternalServerError, err, "error while retrieving listing")
-			return
 		}
 
 		var listing models.ListingExtra
 
 		if cursor.Next(ctx) {
 			if err := cursor.Decode(&listing); err != nil {
-				log.Println(err)
 				helper.HandleError(c, http.StatusInternalServerError, err, "error while decoding listing")
-				return
 			}
 		} else {
 			helper.HandleError(c, http.StatusNotFound, errors.New("no listing found"), "no listing found")
-			return
 		}
 
 		helper.HandleSuccess(c, http.StatusOK, "Success", gin.H{"listing": listing})
@@ -508,13 +493,11 @@ func GetListings() gin.HandlerFunc {
 		cursor, err := ListingCollection.Aggregate(ctx, pipeline)
 		if err != nil {
 			helper.HandleError(c, http.StatusInternalServerError, err, "error while retrieving listing")
-			return
 		}
 
 		var listings []models.ListingExtra
 		if err := cursor.All(ctx, &listings); err != nil {
 			helper.HandleError(c, http.StatusInternalServerError, err, "error while decoding listing")
-			return
 		}
 
 		countPipeline := []bson.M{
@@ -524,7 +507,6 @@ func GetListings() gin.HandlerFunc {
 		countCursor, err := ListingCollection.Aggregate(ctx, countPipeline)
 		if err != nil {
 			helper.HandleError(c, http.StatusInternalServerError, err, "error while counting listings")
-			return
 		}
 		var countResult struct {
 			Total int64 `bson:"total"`
@@ -532,7 +514,6 @@ func GetListings() gin.HandlerFunc {
 		if countCursor.Next(ctx) {
 			if err := countCursor.Decode(&countResult); err != nil {
 				helper.HandleError(c, http.StatusInternalServerError, err, "error while decoding count")
-				return
 			}
 		}
 
@@ -555,7 +536,6 @@ func GetMyListingsSummary() gin.HandlerFunc {
 		shopId, myId, err := services.MyShopIdAndMyId(c)
 		if err != nil {
 			helper.HandleError(c, http.StatusBadRequest, err, "Error getting shop ID and user ID")
-			return
 		}
 
 		paginationArgs := services.GetPaginationArgs(c)
@@ -567,7 +547,6 @@ func GetMyListingsSummary() gin.HandlerFunc {
 		cursor, err := ListingCollection.Find(ctx, filter, findOptions)
 		if err != nil {
 			helper.HandleError(c, http.StatusNotFound, err, "no listing found")
-			return
 		}
 		defer func() {
 			if err := cursor.Close(ctx); err != nil {
@@ -578,12 +557,10 @@ func GetMyListingsSummary() gin.HandlerFunc {
 		var listings []models.ListingsSummary
 		if err := cursor.All(ctx, &listings); err != nil {
 			helper.HandleError(c, http.StatusNotFound, err, "Failed to retrieve listings")
-			return
 		}
 		count, err := ListingCollection.CountDocuments(ctx, filter)
 		if err != nil {
 			helper.HandleError(c, http.StatusInternalServerError, err, "Error counting listings")
-			return
 		}
 
 		helper.HandleSuccess(c, http.StatusOK, "success", gin.H{
@@ -607,7 +584,6 @@ func GetShopListings() gin.HandlerFunc {
 		shopObjectId, err := primitive.ObjectIDFromHex(shopId)
 		if err != nil {
 			helper.HandleError(c, http.StatusBadRequest, err, "invalid shop id was provided")
-			return
 		}
 
 		paginationArgs := services.GetPaginationArgs(c)
@@ -619,19 +595,16 @@ func GetShopListings() gin.HandlerFunc {
 		result, err := ListingCollection.Find(ctx, bson.M{"shop_id": shopObjectId}, findOptions)
 		if err != nil {
 			helper.HandleError(c, http.StatusNotFound, err, "error retrieving listings")
-			return
 		}
 
 		count, err := ListingCollection.CountDocuments(ctx, bson.M{"shop_id": shopObjectId})
 		if err != nil {
 			helper.HandleError(c, http.StatusInternalServerError, err, "Failed to count shipping profiles")
-			return
 		}
 
 		var listings []models.Listing
 		if err = result.All(ctx, &listings); err != nil {
 			helper.HandleError(c, http.StatusInternalServerError, err, "Failed to decode listings")
-			return
 		}
 
 		helper.HandleSuccess(c, http.StatusOK, "success", gin.H{
@@ -653,13 +626,11 @@ func HasUserCreatedListingOnboarding() gin.HandlerFunc {
 		shopId, userId, err := services.MyShopIdAndMyId(c)
 		if err != nil {
 			helper.HandleError(c, http.StatusBadRequest, err, "Error getting shop ID and user ID")
-			return
 		}
 
 		err = VerifyShopOwnership(c, userId, shopId)
 		if err != nil {
 			helper.HandleError(c, http.StatusUnauthorized, errors.New("Only sellers can perform this action"), "unauthorized")
-			return
 		}
 
 		filter := bson.M{"user_id": userId}
@@ -675,12 +646,10 @@ func HasUserCreatedListingOnboarding() gin.HandlerFunc {
 		var listing []models.Listing
 		if err := cursor.All(ctx, &listing); err != nil {
 			helper.HandleError(c, http.StatusNotFound, err, "Error retrieving listing informations")
-			return
 		}
 
 		if len(listing) == 0 {
 			helper.HandleError(c, http.StatusNotFound, errors.New("User has no listings"), "User has no listings")
-			return
 		}
 
 		helper.HandleSuccess(c, http.StatusOK, "Success", gin.H{"listing": listing[0]})
@@ -695,13 +664,11 @@ func DeleteListings() gin.HandlerFunc {
 		myId, err := configs.ValidateUserID(c)
 		if err != nil {
 			helper.HandleError(c, http.StatusUnauthorized, err, err.Error())
-			return
 		}
 
 		listingIDs := c.PostFormArray("ids")
 		if len(listingIDs) < 1 {
 			helper.HandleError(c, http.StatusBadRequest, errors.New("no listing IDs provided"), "No listing IDs provided")
-			return
 		}
 
 		var deletedObjectIDs []primitive.ObjectID
@@ -740,13 +707,11 @@ func DeactivateListings() gin.HandlerFunc {
 		myId, err := configs.ValidateUserID(c)
 		if err != nil {
 			helper.HandleError(c, http.StatusUnauthorized, err, err.Error())
-			return
 		}
 
 		listingIDs := c.PostFormArray("ids")
 		if len(listingIDs) < 1 {
 			helper.HandleError(c, http.StatusBadRequest, errors.New("no listing IDs provided"), "No listing IDs provided")
-			return
 		}
 
 		var deletedObjectIDs []primitive.ObjectID
