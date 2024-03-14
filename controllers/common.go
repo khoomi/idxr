@@ -1,7 +1,7 @@
 package controllers
 
 import (
-	"khoomi-api-io/khoomi_api/configs"
+	"khoomi-api-io/khoomi_api/config"
 	"time"
 
 	"github.com/go-playground/validator/v10"

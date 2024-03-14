@@ -3,7 +3,7 @@ package controllers
 import (
 	"context"
 	"fmt"
-	"khoomi-api-io/khoomi_api/configs"
+	"khoomi-api-io/khoomi_api/config"
 	"khoomi-api-io/khoomi_api/helper"
 	"khoomi-api-io/khoomi_api/models"
 	"log"

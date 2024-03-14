@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"khoomi-api-io/khoomi_api/configs"
+	"khoomi-api-io/khoomi_api/config"
 	"log"
 	"net/http"
 )

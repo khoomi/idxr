@@ -5,7 +5,7 @@ import (
 	"encoding/hex"
 	"log"
 
-	"khoomi-api-io/khoomi_api/configs"
+	"khoomi-api-io/khoomi_api/config"
 
 	"github.com/gin-gonic/gin"
 )

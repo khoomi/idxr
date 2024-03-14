@@ -1,7 +1,7 @@
 package main
 
 import (
-	"khoomi-api-io/khoomi_api/configs"
+	"khoomi-api-io/khoomi_api/config"
 	"khoomi-api-io/khoomi_api/routes"
 )
 

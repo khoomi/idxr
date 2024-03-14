@@ -2,7 +2,7 @@ package helper
 
 import (
 	"context"
-	"khoomi-api-io/khoomi_api/configs"
+	"khoomi-api-io/khoomi_api/config"
 	"time"
 
 	"github.com/cloudinary/cloudinary-go"

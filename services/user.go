@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"khoomi-api-io/khoomi_api/configs"
+	"khoomi-api-io/khoomi_api/config"
 	"khoomi-api-io/khoomi_api/models"
 	"khoomi-api-io/khoomi_api/responses"
 	"math/rand"
