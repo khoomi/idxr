@@ -505,7 +505,7 @@ func GetShopByOwnerUserId() gin.HandlerFunc {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
 
-		userIDStr := c.Param("userId")
+		userIDStr := c.Param("userid")
 		userID, err := primitive.ObjectIDFromHex(userIDStr)
 		if err != nil {
 			helper.HandleError(c, http.StatusBadRequest, err, "Invalid user ID")

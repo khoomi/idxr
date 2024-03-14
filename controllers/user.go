@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"khoomi-api-io/khoomi_api/config"
+	configs "khoomi-api-io/khoomi_api/config"
 	"khoomi-api-io/khoomi_api/email"
 	"khoomi-api-io/khoomi_api/helper"
 	"khoomi-api-io/khoomi_api/middleware"
@@ -176,20 +176,18 @@ func HandleUserAuthentication() gin.HandlerFunc {
 		now := time.Now()
 
 		if err := c.BindJSON(&jsonUser); err != nil {
-			log.Println(err)
-			helper.HandleError(c, http.StatusInternalServerError, err, "Failed to bind request body")
+			helper.HandleError(c, http.StatusBadRequest, err, "Failed to bind request body")
 			return
 		}
 
 		if err := Validate.Struct(&jsonUser); err != nil {
 			log.Println(err)
-			helper.HandleError(c, http.StatusUnprocessableEntity, err, "Invalid or missing data in request body")
+			helper.HandleError(c, http.StatusBadRequest, err, "Invalid or missing data in request body")
 			return
 		}
 
 		var validUser models.User
 		if err := UserCollection.FindOne(ctx, bson.M{"primary_email": jsonUser.Email}).Decode(&validUser); err != nil {
-			log.Println(err)
 			helper.HandleError(c, http.StatusNotFound, err, "User not found")
 			return
 		}
@@ -294,7 +292,6 @@ func RefreshToken() gin.HandlerFunc {
 		var payload models.RefreshTokenPayload
 
 		if err := c.BindJSON(&payload); err != nil {
-			log.Println(err)
 			helper.HandleError(c, http.StatusBadRequest, err, "Invalid request body")
 			return
 		}
@@ -355,6 +352,29 @@ func Logout() gin.HandlerFunc {
 	}
 }
 
+func CurrentUser(c *gin.Context) {
+	ctx, cancel := context.WithTimeout(context.Background(), KhoomiRequestTimeoutSec)
+	defer cancel()
+
+	// Extract user id from request header
+	userId, err := configs.ExtractTokenID(c)
+	if err != nil {
+		log.Printf("User with IP %v tried to gain access with an invalid user ID or token\n", c.ClientIP())
+		helper.HandleError(c, http.StatusBadRequest, err, "Invalid user ID or token")
+		return
+	}
+
+	var user models.User
+	err = UserCollection.FindOne(ctx, bson.M{"_id": userId}).Decode(&user)
+	if err != nil {
+		log.Println(err)
+		helper.HandleError(c, http.StatusNotFound, err, "User not found")
+		return
+	}
+	user.Auth.PasswordDigest = ""
+	helper.HandleSuccess(c, http.StatusOK, "success", gin.H{"user": user})
+}
+
 // SendDeleteUserAccount -> Delete current user account
 func SendDeleteUserAccount() gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -383,7 +403,7 @@ func IsAccountPendingDeletion() gin.HandlerFunc {
 		ctx, cancel := context.WithTimeout(context.Background(), KhoomiRequestTimeoutSec)
 		defer cancel()
 
-		userId, err := configs.ExtractTokenID(c)
+		userId, err := configs.ValidateUserID(c)
 		if err != nil {
 			helper.HandleError(c, http.StatusUnauthorized, err, "action is for authorized users")
 			return
@@ -410,7 +430,7 @@ func CancelDeleteUserAccount() gin.HandlerFunc {
 		ctx, cancel := context.WithTimeout(context.Background(), KhoomiRequestTimeoutSec)
 		defer cancel()
 
-		userId, err := configs.ExtractTokenID(c)
+		userId, err := configs.ValidateUserID(c)
 		if err != nil {
 			helper.HandleError(c, http.StatusUnauthorized, err, "action is for authorized users")
 			return
@@ -426,38 +446,13 @@ func CancelDeleteUserAccount() gin.HandlerFunc {
 	}
 }
 
-func CurrentUser(c *gin.Context) {
-	ctx, cancel := context.WithTimeout(context.Background(), KhoomiRequestTimeoutSec)
-	defer cancel()
-
-	// Extract user id from request header
-	userId, err := configs.ExtractTokenID(c)
-	if err != nil {
-		log.Printf("User with IP %v tried to gain access with an invalid user ID or token\n", c.ClientIP())
-		helper.HandleError(c, http.StatusBadRequest, err, "Invalid user ID or token")
-		return
-	}
-
-	var user models.User
-	err = UserCollection.FindOne(ctx, bson.M{"_id": userId}).Decode(&user)
-	if err != nil {
-		log.Println(err)
-		helper.HandleError(c, http.StatusNotFound, err, "User not found")
-		return
-	}
-
-	user.Auth.PasswordDigest = ""
-	helper.HandleSuccess(c, http.StatusOK, "success", gin.H{"user": user})
-
-}
-
 func ChangePassword() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ctx, cancel := context.WithTimeout(context.Background(), KhoomiRequestTimeoutSec)
 		defer cancel()
 
 		// Verify current user session
-		userId, err := configs.ExtractTokenID(c)
+		userId, err := configs.ValidateUserID(c)
 		if err != nil {
 			helper.HandleError(c, http.StatusBadRequest, err, err.Error())
 			return
@@ -518,14 +513,16 @@ func ChangePassword() gin.HandlerFunc {
 	}
 }
 
-// GetUser - Get user by id or email endpoint
+// GetUser retrieves a user based on their user ID or username.
+// It accepts a user ID in the URL path and attempts to retrieve a user with a matching
+// ObjectID. If the user ID is not a valid ObjectID, it attempts to find the user by username.
 func GetUser() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ctx, cancel := context.WithTimeout(context.Background(), KhoomiRequestTimeoutSec)
 		defer cancel()
 
 		var filter bson.M
-		userID := c.Param("userId")
+		userID := c.Param("userid")
 		if primitive.IsValidObjectID(userID) {
 			// If shopid is a valid object ID string
 			userObjectID, e := primitive.ObjectIDFromHex(userID)
@@ -1144,7 +1141,7 @@ func GetUserAddresses() gin.HandlerFunc {
 		defer cancel()
 
 		// Validate user id
-		userIdStr := c.Param("userId")
+		userIdStr := c.Param("userid")
 		userId, err := primitive.ObjectIDFromHex(userIdStr)
 		if err != nil {
 			helper.HandleError(c, http.StatusUnauthorized, err, "Invalid user ID")
@@ -1194,7 +1191,7 @@ func UpdateUserAddress() gin.HandlerFunc {
 		}
 
 		// Extract current address Id
-		addressId := c.Param("addressId")
+		addressId := c.Param("id")
 		addressObjectId, err := primitive.ObjectIDFromHex(addressId)
 		if err != nil {
 			helper.HandleError(c, http.StatusBadRequest, err, err.Error())
@@ -1251,7 +1248,7 @@ func DeleteUserAddress() gin.HandlerFunc {
 		defer cancel()
 
 		// Extract current address Id
-		addressId := c.Param("addressId")
+		addressId := c.Param("id")
 		addressObjectId, err := primitive.ObjectIDFromHex(addressId)
 		if err != nil {
 			helper.HandleError(c, http.StatusBadRequest, err, err.Error())
@@ -1548,7 +1545,7 @@ func UpdateSecurityNotificationSetting() gin.HandlerFunc {
 		ctx, cancel := context.WithTimeout(context.Background(), KhoomiRequestTimeoutSec)
 		defer cancel()
 
-		myID, err := configs.ExtractTokenID(c)
+		myID, err := configs.ValidateUserID(c)
 		if err != nil {
 			helper.HandleError(c, http.StatusBadRequest, err, err.Error())
 			return
@@ -1591,7 +1588,7 @@ func GetSecurityNotificationSetting() gin.HandlerFunc {
 		ctx, cancel := context.WithTimeout(context.Background(), KhoomiRequestTimeoutSec)
 		defer cancel()
 
-		MyId, err := configs.ExtractTokenID(c)
+		MyId, err := configs.ValidateUserID(c)
 		if err != nil {
 			helper.HandleError(c, http.StatusBadRequest, err, err.Error())
 			return

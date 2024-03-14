@@ -26,12 +26,13 @@ type User struct {
 	Status                   UserStatus         `bson:"status" json:"status"`
 	ShopID                   primitive.ObjectID `bson:"shop_id" json:"shop_id"`
 	FavoriteShops            []string           `bson:"favorite_shops" json:"favorite_shops"`
-	CreatedAt                time.Time          `bson:"created_at" json:"created_at" validate:"required"`
-	ModifiedAt               time.Time          `bson:"modified_at" json:"modified_at" validate:"required"`
+	CreatedAt                time.Time          `bson:"created_at" json:"created_at"`
+	ModifiedAt               time.Time          `bson:"modified_at" json:"modified_at"`
 	LastLogin                time.Time          `bson:"last_login" json:"last_login"`
-	LoginCounts              int                `bson:"login_counts" json:"login_counts" validate:"required"`
-	LastLoginIp              string             `bson:"last_login_ip" json:"last_login_ip"`
+	LoginCounts              int                `bson:"login_counts" json:"-"`
+	LastLoginIp              string             `bson:"last_login_ip" json:"-"`
 	AllowLoginIpNotification bool               `bson:"allow_login_ip_notification" json:"allow_login_ip_notification"`
+	Links                    []Link             `bson:"-" json:"links"`
 }
 
 // UserRegistrationBody -> expected data for signup process
@@ -84,7 +85,7 @@ type UserLoginBody struct {
 	Password string `json:"password,omitempty" validate:"required"`
 }
 
-// LoginHistory -> User login  history
+// LoginHistory -> User login history
 type LoginHistory struct {
 	Id        primitive.ObjectID `bson:"_id" json:"_id"`
 	UserUid   primitive.ObjectID `bson:"user_uid" json:"user_uid"`

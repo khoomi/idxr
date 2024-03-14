@@ -2,7 +2,7 @@ package controllers
 
 import (
 	"context"
-	"khoomi-api-io/khoomi_api/config"
+	configs "khoomi-api-io/khoomi_api/config"
 	"khoomi-api-io/khoomi_api/helper"
 	"khoomi-api-io/khoomi_api/models"
 	"log"
@@ -39,7 +39,7 @@ func CreatePaymentInformation() gin.HandlerFunc {
 		ctx, cancel := context.WithTimeout(context.Background(), KhoomiRequestTimeoutSec)
 		defer cancel()
 
-		userId, err := configs.ExtractTokenID(c)
+		userId, err := configs.ValidateUserID(c)
 		if err != nil {
 			helper.HandleError(c, http.StatusBadRequest, err, "Unauthorized")
 			return
@@ -142,7 +142,7 @@ func GetPaymentInformations() gin.HandlerFunc {
 		ctx, cancel := context.WithTimeout(context.Background(), KhoomiRequestTimeoutSec)
 		defer cancel()
 
-		userId, err := configs.ExtractTokenID(c)
+		userId, err := configs.ValidateUserID(c)
 		if err != nil {
 			helper.HandleError(c, http.StatusBadRequest, err, "Unauthorized")
 			return
@@ -184,9 +184,9 @@ func ChangeDefaultPaymentInformation() gin.HandlerFunc {
 		ctx, cancel := context.WithTimeout(context.Background(), KhoomiRequestTimeoutSec)
 		defer cancel()
 
-		userId, err := configs.ExtractTokenID(c)
+		userId, err := configs.ValidateUserID(c)
 		if err != nil {
-			helper.HandleError(c, http.StatusBadRequest, err, "Unauthorized")
+			helper.HandleError(c, http.StatusUnauthorized, err, "Unauthorized")
 			return
 		}
 		res, err := IsSeller(c, userId)
@@ -246,7 +246,7 @@ func DeletePaymentInformation() gin.HandlerFunc {
 			helper.HandleError(c, http.StatusBadRequest, errors.New("bad payment id"), "bad request")
 			return
 		}
-		userId, err := configs.ExtractTokenID(c)
+		userId, err := configs.ValidateUserID(c)
 		if err != nil {
 			helper.HandleError(c, http.StatusBadRequest, err, "Unauthorized")
 			return
@@ -254,7 +254,6 @@ func DeletePaymentInformation() gin.HandlerFunc {
 
 		res, err := IsSeller(c, userId)
 		if err != nil {
-			log.Println(err)
 			helper.HandleError(c, http.StatusInternalServerError, err, "Error finding user")
 			return
 		}
@@ -285,7 +284,7 @@ func CompletedPaymentOnboarding() gin.HandlerFunc {
 		ctx, cancel := context.WithTimeout(context.Background(), KhoomiRequestTimeoutSec)
 		defer cancel()
 
-		userId, err := configs.ExtractTokenID(c)
+		userId, err := configs.ValidateUserID(c)
 		if err != nil {
 			helper.HandleError(c, http.StatusBadRequest, err, "Unauthorized")
 			return

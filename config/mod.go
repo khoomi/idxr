@@ -243,7 +243,7 @@ func ValidateUserID(c *gin.Context) (primitive.ObjectID, error) {
 		return primitive.NilObjectID, errors.New(errMsg)
 	}
 
-	userID := c.Param("userId")
+	userID := c.Param("userid")
 	if userID != myID.Hex() {
 		errMsg := fmt.Sprintln("unauthorized: User ID in the URL path doesn't match with currently authenticated user")
 		log.Println(errMsg)

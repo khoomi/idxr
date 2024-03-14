@@ -1,7 +1,7 @@
 package services
 
 import (
-	"khoomi-api-io/khoomi_api/config"
+	configs "khoomi-api-io/khoomi_api/config"
 
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/bson/primitive"

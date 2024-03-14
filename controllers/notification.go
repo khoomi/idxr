@@ -3,7 +3,7 @@ package controllers
 import (
 	"context"
 	"fmt"
-	"khoomi-api-io/khoomi_api/config"
+	configs "khoomi-api-io/khoomi_api/config"
 	"khoomi-api-io/khoomi_api/helper"
 	"khoomi-api-io/khoomi_api/models"
 	"log"
@@ -21,9 +21,9 @@ func CreateUserNotificationSettings() gin.HandlerFunc {
 		ctx, cancel := context.WithTimeout(context.Background(), KhoomiRequestTimeoutSec)
 		defer cancel()
 
-		userId, err := configs.ExtractTokenID(c)
+		userId, err := configs.ValidateUserID(c)
 		if err != nil {
-			helper.HandleError(c, http.StatusBadRequest, err, "Authorization error")
+			helper.HandleError(c, http.StatusBadRequest, err, err.Error())
 			return
 		}
 
@@ -40,7 +40,7 @@ func CreateUserNotificationSettings() gin.HandlerFunc {
 			NewFollower:      notificationRequest.NewFollower,
 			ListingExpNotice: notificationRequest.ListingExpNotice,
 			SellerActivity:   notificationRequest.SellerActivity,
-			NewsAndFeatures:   notificationRequest.NewsAndFeatures,
+			NewsAndFeatures:  notificationRequest.NewsAndFeatures,
 		}
 
 		_, err = NotificationCollection.InsertOne(ctx, notification)
@@ -59,9 +59,9 @@ func GetUserNotificationSettings() gin.HandlerFunc {
 		ctx, cancel := context.WithTimeout(context.Background(), KhoomiRequestTimeoutSec)
 		defer cancel()
 
-		userId, err := configs.ExtractTokenID(c)
+		userId, err := configs.ValidateUserID(c)
 		if err != nil {
-			helper.HandleError(c, http.StatusBadRequest, err, "Authorization error")
+			helper.HandleError(c, http.StatusBadRequest, err, err.Error())
 			return
 		}
 
@@ -77,7 +77,7 @@ func GetUserNotificationSettings() gin.HandlerFunc {
 					NewFollower:      false,
 					ListingExpNotice: false,
 					SellerActivity:   false,
-					NewsAndFeatures:   false,
+					NewsAndFeatures:  false,
 				}
 
 				_, err = NotificationCollection.InsertOne(ctx, notification)
@@ -102,9 +102,9 @@ func UpdateUserNotificationSettings() gin.HandlerFunc {
 		ctx, cancel := context.WithTimeout(context.Background(), KhoomiRequestTimeoutSec)
 		defer cancel()
 
-		userId, err := configs.ExtractTokenID(c)
+		userId, err := configs.ValidateUserID(c)
 		if err != nil {
-			helper.HandleError(c, http.StatusBadRequest, err, "Authorization error")
+			helper.HandleError(c, http.StatusBadRequest, err, err.Error())
 			return
 		}
 

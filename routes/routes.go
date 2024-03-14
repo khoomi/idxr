@@ -41,9 +41,9 @@ func userRoutes(api *gin.RouterGroup) {
 	user := api.Group("/users")
 	{
 		// Endpoint to get user by ID or email
-		user.GET("/:userId", controllers.GetUser())
+		user.GET("/:userid", controllers.GetUser())
 		// Endpoint to get shops by owner user ID
-		user.GET("/:userId/shops", controllers.GetShopByOwnerUserId())
+		user.GET("/:userid/shops", controllers.GetShopByOwnerUserId())
 
 		// Secured endpoints that require authentication
 		secured := user.Group("").Use(middleware.Auth())
@@ -52,62 +52,62 @@ func userRoutes(api *gin.RouterGroup) {
 			secured.GET("/ping", controllers.Ping)
 
 			// Change password endpoint
-			secured.PUT("/:userId/change-password", controllers.ChangePassword())
+			secured.PUT("/:userid/change-password", controllers.ChangePassword())
 
 			// Get delete user request
-			secured.GET("/:userId/deletion", controllers.IsAccountPendingDeletion())
+			secured.GET("/:userid/deletion", controllers.IsAccountPendingDeletion())
 			// Send delet user request
-			secured.POST("/:userId/deletion", controllers.SendDeleteUserAccount())
+			secured.POST("/:userid/deletion", controllers.SendDeleteUserAccount())
 			// Cancel delet user request
-			secured.DELETE("/:userId/deletion", controllers.CancelDeleteUserAccount())
+			secured.DELETE("/:userid/deletion", controllers.CancelDeleteUserAccount())
 
 			// Current user endpoint
-			secured.GET("/:userId/", controllers.CurrentUser)
+			secured.GET("/:userid/", controllers.CurrentUser)
 			// Update first and last name endpoint
-			secured.PUT("/:userId/", controllers.UpdateMyProfile())
-			secured.PUT("/:userId/single", controllers.UpdateUserSingleField())
+			secured.PUT("/:userid/", controllers.UpdateMyProfile())
+			secured.PUT("/:userid/single", controllers.UpdateUserSingleField())
 
 			// Notification settings endpoints
-			secured.POST("/me/notification-settings", controllers.CreateUserNotificationSettings())
-			secured.GET("/me/notification-settings", controllers.GetUserNotificationSettings())
-			secured.PUT("/me/notification-settings", controllers.UpdateUserNotificationSettings())
+			secured.POST("/:userid/notification-settings", controllers.CreateUserNotificationSettings())
+			secured.GET("/:userid/notification-settings", controllers.GetUserNotificationSettings())
+			secured.PUT("/:userid/notification-settings", controllers.UpdateUserNotificationSettings())
 
 			// User thumbnail endpoints
-			secured.PUT("/:userId/thumbnail", controllers.UploadThumbnail())
-			secured.DELETE("/:userId/thumbnail", controllers.DeleteThumbnail())
+			secured.PUT("/:userid/thumbnail", controllers.UploadThumbnail())
+			secured.DELETE("/:userid/thumbnail", controllers.DeleteThumbnail())
 
 			// User address endpoints
-			secured.POST("/:userId/addresses", controllers.CreateUserAddress())
-			secured.PUT("/:userId/addresses/:addressId", controllers.UpdateUserAddress())
-			secured.GET("/:userId/addresses", controllers.GetUserAddresses())
-			secured.DELETE("/:userId/addresses/:addressId", controllers.DeleteUserAddress())
+			secured.POST("/:userid/addresses", controllers.CreateUserAddress())
+			secured.PUT("/:userid/addresses/:id", controllers.UpdateUserAddress())
+			secured.GET("/:userid/addresses", controllers.GetUserAddresses())
+			secured.DELETE("/:userid/addresses/:id", controllers.DeleteUserAddress())
 
 			// Send verify email endpoint
-			secured.POST("/:userId/send-verify-email", controllers.SendVerifyEmail())
+			secured.POST("/:userid/send-verify-email", controllers.SendVerifyEmail())
 
 			// User birthdate endpoint
-			secured.PUT("/:userId/birthdate", controllers.UpdateUserBirthdate())
+			secured.PUT("/:userid/birthdate", controllers.UpdateUserBirthdate())
 
 			// Login histories endpoints
-			secured.GET("/:userId/login-history", controllers.GetLoginHistories())
-			secured.DELETE("/:userId/login-history", controllers.DeleteLoginHistories())
-			secured.PUT("/:userId/login-notification", controllers.UpdateSecurityNotificationSetting())
-			secured.GET("/:userId/login-notification", controllers.GetSecurityNotificationSetting())
+			secured.GET("/:userid/login-history", controllers.GetLoginHistories())
+			secured.DELETE("/:userid/login-history", controllers.DeleteLoginHistories())
+			secured.PUT("/:userid/login-notification", controllers.UpdateSecurityNotificationSetting())
+			secured.GET("/:userid/login-notification", controllers.GetSecurityNotificationSetting())
 
 			// Favorite shop endpoints
-			secured.POST("/:userId/favorite-shop", controllers.AddRemoveFavoriteShop())
+			secured.POST("/:userid/favorite-shop", controllers.AddRemoveFavoriteShop())
 
 			// Wishlist endpoints
-			secured.GET("/:userId/wishlist", controllers.GetUserWishlist())
-			secured.POST("/:userId/wishlist", controllers.AddWishListItem())
-			secured.DELETE("/:userId/wishlist", controllers.RemoveWishListItem())
+			secured.GET("/:userid/wishlist", controllers.GetUserWishlist())
+			secured.POST("/:userid/wishlist", controllers.AddWishListItem())
+			secured.DELETE("/:userid/wishlist", controllers.RemoveWishListItem())
 
 			// Payment information endpoints
-			secured.POST("/:userId/payment-information/", controllers.CreatePaymentInformation())
-			secured.GET("/:userId/payment-information/onboarded", controllers.CompletedPaymentOnboarding())
-			secured.GET("/:userId/payment-information", controllers.GetPaymentInformations())
-			secured.PUT("/:userId/payment-information/:paymentInfoId", controllers.ChangeDefaultPaymentInformation())
-			secured.DELETE("/:userId/payment-information/:paymentInfoId", controllers.DeletePaymentInformation())
+			secured.POST("/:userid/payment-information/", controllers.CreatePaymentInformation())
+			secured.GET("/:userid/payment-information/onboarded", controllers.CompletedPaymentOnboarding())
+			secured.GET("/:userid/payment-information", controllers.GetPaymentInformations())
+			secured.PUT("/:userid/payment-information/:paymentInfoId", controllers.ChangeDefaultPaymentInformation())
+			secured.DELETE("/:userid/payment-information/:paymentInfoId", controllers.DeletePaymentInformation())
 
 		}
 	}

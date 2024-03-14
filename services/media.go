@@ -19,57 +19,43 @@ type MediaUpload interface {
 }
 
 func FileUpload(file models.File) (uploader.UploadResult, error) {
-	//validate
 	err := validate.Struct(file)
 	if err != nil {
-		log.Println(err)
 		return uploader.UploadResult{}, err
 	}
 
-	//upload
 	uploadRes, err := helper.ImageUploadHelper(file.File)
 	if err != nil {
-		log.Println(err)
 		return uploader.UploadResult{}, err
 	}
 
-	log.Println(uploadRes)
 	return uploadRes, nil
 }
 
 func RemoteUpload(url models.Url) (uploader.UploadResult, error) {
-	//validate
 	err := validate.Struct(url)
 	if err != nil {
-		log.Println(err)
 		return uploader.UploadResult{}, err
 	}
 
-	//upload
 	uploadRes, errUrl := helper.ImageUploadHelper(url.Url)
 	if errUrl != nil {
-		log.Println(errUrl)
 		return uploader.UploadResult{}, err
 	}
 
-	log.Println(uploadRes)
 	return uploadRes, nil
 }
 
 func DestroyMedia(id string) (string, error) {
-	//validate
 	err := validate.Struct(id)
 	if err != nil {
 		log.Println(err)
 		return "", err
 	}
 
-	//upload
 	res, errUrl := helper.ImageDeletionHelper(uploader.DestroyParams{PublicID: id})
 	if errUrl != nil {
-		log.Println(err)
 		return "", err
 	}
-	log.Println(res)
 	return res, nil
 }
