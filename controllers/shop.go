@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"khoomi-api-io/khoomi_api/config"
+	configs "khoomi-api-io/khoomi_api/config"
 	"khoomi-api-io/khoomi_api/email"
 	"khoomi-api-io/khoomi_api/helper"
 	"khoomi-api-io/khoomi_api/models"
@@ -1724,7 +1724,7 @@ func DeleteShopReturnPolicy() gin.HandlerFunc {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
 
-		policyIdStr := c.Query("id")
+		policyIdStr := c.Param("policyid")
 		policyId, err := primitive.ObjectIDFromHex(policyIdStr)
 		if err != nil {
 			helper.HandleError(c, http.StatusBadRequest, err, "Invalid policy ID")
@@ -1761,7 +1761,7 @@ func GetShopReturnPolicy() gin.HandlerFunc {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
 
-		policyIdStr := c.Query("id")
+		policyIdStr := c.Param("policyid")
 		policyId, err := primitive.ObjectIDFromHex(policyIdStr)
 		if err != nil {
 			helper.HandleError(c, http.StatusBadRequest, err, "Invalid policy ID")

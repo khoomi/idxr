@@ -52,19 +52,20 @@ func userRoutes(api *gin.RouterGroup) {
 			secured.GET("/ping", controllers.Ping)
 
 			// Change password endpoint
-			secured.PUT("/me/password-change", controllers.ChangePassword())
+			secured.PUT("/:userId/change-password", controllers.ChangePassword())
 
 			// Get delete user request
-			secured.GET("/me/delete", controllers.IsAccountPendingDeletion())
+			secured.GET("/:userId/delete", controllers.IsAccountPendingDeletion())
 			// Send delete user request
-			secured.POST("/me/delete", controllers.SendDeleteUserAccount())
+			secured.POST("/:userId/delete", controllers.SendDeleteUserAccount())
 			// Cancel delete user request
-			secured.DELETE("/me/delete", controllers.CancelDeleteUserAccount())
+			secured.DELETE("/:userId/delete", controllers.CancelDeleteUserAccount())
 
 			// Current user endpoint
-			secured.GET("/me", controllers.CurrentUser)
+			secured.GET("/:userId/", controllers.CurrentUser)
 			// Update first and last name endpoint
-			secured.PUT("/me", controllers.UpdateMyProfile())
+			secured.PUT("/:userId/", controllers.UpdateMyProfile())
+			secured.PUT("/:userId/single", controllers.UpdateUserSingleField())
 
 			// Notification settings endpoints
 			secured.POST("/me/notification-settings", controllers.CreateUserNotificationSettings())
@@ -92,9 +93,6 @@ func userRoutes(api *gin.RouterGroup) {
 			secured.DELETE("/:userId/login-history", controllers.DeleteLoginHistories())
 			secured.PUT("/:userId/login-notification", controllers.UpdateSecurityNotificationSetting())
 			secured.GET("/:userId/login-notification", controllers.GetSecurityNotificationSetting())
-
-			// Profile update endpoint
-			secured.PUT("/:userId/update", controllers.UpdateUserSingleField())
 
 			// Favorite shop endpoints
 			secured.POST("/:userId/favorite-shop", controllers.AddRemoveFavoriteShop())
@@ -174,9 +172,9 @@ func shopRoutes(api *gin.RouterGroup) {
 			// Endpoint to create/update/delete shop return policies
 			secured.POST("/:shopid/policies", controllers.CreateShopReturnPolicy())
 			secured.PUT("/:shopid/policies", controllers.UpdateShopReturnPolicy())
-			secured.GET("/:shopid/policies", controllers.GetShopReturnPolicy())
-			secured.GET("/:shopid/policies/all", controllers.GetShopReturnPolicies())
-			secured.DELETE("/:shopid/policies", controllers.DeleteShopReturnPolicy())
+			secured.GET("/:shopid/policies/:policyid", controllers.GetShopReturnPolicy())
+			secured.GET("/:shopid/policies", controllers.GetShopReturnPolicies())
+			secured.DELETE("/:shopid/policies/:policyid", controllers.DeleteShopReturnPolicy())
 			// Shipping routes
 			secured.POST("/:shopid/shipping", controllers.CreateShopShippingProfile())
 			// Verification routes
