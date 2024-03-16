@@ -35,6 +35,7 @@ type Shop struct {
 	SalesMessage           string             `bson:"sales_message" json:"sales_message"`
 	User                   ListingUserExcept  `bson:"user" json:"user"`
 	Address                UserAddress        `bson:"address" json:"address"`
+	Links                  []Link             `bson:"-" json:"links"`
 }
 
 type ShopFollower struct {

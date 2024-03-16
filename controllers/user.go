@@ -367,11 +367,12 @@ func CurrentUser(c *gin.Context) {
 	var user models.User
 	err = UserCollection.FindOne(ctx, bson.M{"_id": userId}).Decode(&user)
 	if err != nil {
-		log.Println(err)
 		helper.HandleError(c, http.StatusNotFound, err, "User not found")
 		return
 	}
 	user.Auth.PasswordDigest = ""
+
+	user.ConstructUserLinks()
 	helper.HandleSuccess(c, http.StatusOK, "success", gin.H{"user": user})
 }
 
@@ -544,6 +545,7 @@ func GetUser() gin.HandlerFunc {
 			return
 		}
 
+		user.ConstructUserLinks()
 		// Return the user data in the response
 		helper.HandleSuccess(c, http.StatusOK, "success", gin.H{"user": user})
 	}

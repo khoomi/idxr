@@ -61,8 +61,6 @@ func userRoutes(api *gin.RouterGroup) {
 			// Cancel delet user request
 			secured.DELETE("/:userid/deletion", controllers.CancelDeleteUserAccount())
 
-			// Current user endpoint
-			secured.GET("/:userid/", controllers.CurrentUser)
 			// Update first and last name endpoint
 			secured.PUT("/:userid/", controllers.UpdateMyProfile())
 			secured.PUT("/:userid/single", controllers.UpdateUserSingleField())
@@ -103,7 +101,7 @@ func userRoutes(api *gin.RouterGroup) {
 			secured.DELETE("/:userid/wishlist", controllers.RemoveWishListItem())
 
 			// Payment information endpoints
-			secured.POST("/:userid/payment-information/", controllers.CreatePaymentInformation())
+			secured.POST("/:userid/payment-informatio/", controllers.CreatePaymentInformation())
 			secured.GET("/:userid/payment-information/onboarded", controllers.CompletedPaymentOnboarding())
 			secured.GET("/:userid/payment-information", controllers.GetPaymentInformations())
 			secured.PUT("/:userid/payment-information/:paymentInfoId", controllers.ChangeDefaultPaymentInformation())
@@ -164,7 +162,7 @@ func shopRoutes(api *gin.RouterGroup) {
 			shop.POST("/:shopid/followers", controllers.FollowShop())
 			secured.DELETE("/:shopid/followers", controllers.UnfollowShop())
 			secured.DELETE("/:shopid/followers/other", controllers.RemoveOtherFollower())
-			secured.GET("/:shopid/followers/is-following", controllers.IsFollowingShop())
+			secured.GET("/:shopid/followers/following", controllers.IsFollowingShop())
 			// Endpoint to create/delete shop reviews
 			shop.POST("/:shopid/reviews", controllers.CreateShopReview())
 			secured.DELETE("/:shopid/reviews", controllers.DeleteMyReview())

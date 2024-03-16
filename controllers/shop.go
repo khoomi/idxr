@@ -470,8 +470,12 @@ func GetShop() gin.HandlerFunc {
 
 		var shop models.Shop
 		if err != nil {
-			log.Println(err)
-			helper.HandleError(c, http.StatusInternalServerError, err, "error while retrieving listing")
+			if err == mongo.ErrNoDocuments {
+				helper.HandleError(c, http.StatusNotFound, err, "Shop not found")
+				return
+			}
+
+			helper.HandleError(c, http.StatusInternalServerError, err, "error while retrieving shop")
 			return
 		}
 		if cursor.Next(ctx) {
@@ -485,16 +489,7 @@ func GetShop() gin.HandlerFunc {
 			helper.HandleError(c, http.StatusNotFound, errors.New("no shop found"), "no shop found")
 			return
 		}
-
-		if err != nil {
-			if err == mongo.ErrNoDocuments {
-				helper.HandleError(c, http.StatusNotFound, err, "Shop not found")
-				return
-			}
-			helper.HandleError(c, http.StatusNotFound, err, "error retrieving shop by id")
-			return
-		}
-
+		shop.ConstructShopLinks()
 		helper.HandleSuccess(c, http.StatusOK, "Shop retrieved successfully", gin.H{"shop": shop})
 	}
 }
