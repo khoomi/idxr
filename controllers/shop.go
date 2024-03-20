@@ -1397,7 +1397,7 @@ func DeleteOtherReview() gin.HandlerFunc {
 
 		err = VerifyShopOwnership(c, myId, shopId)
 		if err != nil {
-			log.Printf("You don't have write access to this shop: s\n", err.Error())
+			log.Printf("You don't have write access to this shop: %v", err.Error())
 			helper.HandleError(c, http.StatusUnauthorized, err, "You don't have write access to this shop")
 			return
 		}

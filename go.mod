@@ -7,9 +7,9 @@ toolchain go1.22.0
 require (
 	github.com/JGLTechnologies/gin-rate-limit v1.5.4
 	github.com/cloudinary/cloudinary-go v1.7.0
-	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/gin-gonic/gin v1.9.1
 	github.com/go-playground/validator/v10 v10.14.0
+	github.com/golang-jwt/jwt/v5 v5.2.1
 	github.com/gosimple/slug v1.13.1
 	github.com/joho/godotenv v1.5.1
 	github.com/pkg/errors v0.9.1

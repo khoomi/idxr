@@ -504,8 +504,9 @@ func ChangePassword() gin.HandlerFunc {
 		err = UserCollection.FindOneAndUpdate(ctx, filter, update).Decode(&user)
 
 		if err != nil {
-			log.Printf("user id, %v doesn't belong to a user on Khoomi %s\n", userId.String(), errHashPassword.Error())
-			helper.HandleError(c, http.StatusExpectationFailed, errHashPassword, errHashPassword.Error())
+			errStr := err.Error()
+			log.Printf("user id, %v doesn't belong to a user on Khoomi %v", userId.String(), errStr)
+			helper.HandleError(c, http.StatusExpectationFailed, errHashPassword, errStr)
 			return
 		}
 
