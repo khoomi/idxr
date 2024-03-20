@@ -8,7 +8,6 @@ import (
 	"khoomi-api-io/khoomi_api/email"
 	"khoomi-api-io/khoomi_api/helper"
 	"khoomi-api-io/khoomi_api/models"
-	"khoomi-api-io/khoomi_api/responses"
 	"khoomi-api-io/khoomi_api/services"
 	"log"
 	"math/rand"
@@ -538,7 +537,7 @@ func GetListings() gin.HandlerFunc {
 
 		helper.HandleSuccess(c, http.StatusOK, "success", gin.H{
 			"listings": listings,
-			"pagination": responses.Pagination{
+			"pagination": helper.Pagination{
 				Limit: paginationArgs.Limit,
 				Skip:  paginationArgs.Skip,
 				Count: countResult.Total,
@@ -588,7 +587,7 @@ func GetMyListingsSummary() gin.HandlerFunc {
 
 		helper.HandleSuccess(c, http.StatusOK, "success", gin.H{
 			"listings": listings,
-			"pagination": responses.Pagination{
+			"pagination": helper.Pagination{
 				Limit: paginationArgs.Limit,
 				Skip:  paginationArgs.Skip,
 				Count: count,
@@ -636,7 +635,7 @@ func GetShopListings() gin.HandlerFunc {
 
 		helper.HandleSuccess(c, http.StatusOK, "success", gin.H{
 			"listings": listings,
-			"pagination": responses.Pagination{
+			"pagination": helper.Pagination{
 				Limit: paginationArgs.Limit,
 				Skip:  paginationArgs.Skip,
 				Count: count,

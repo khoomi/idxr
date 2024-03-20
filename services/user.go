@@ -4,9 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"khoomi-api-io/khoomi_api/config"
+	configs "khoomi-api-io/khoomi_api/config"
+	"khoomi-api-io/khoomi_api/helper"
 	"khoomi-api-io/khoomi_api/models"
-	"khoomi-api-io/khoomi_api/responses"
 	"math/rand"
 	"regexp"
 	"strconv"
@@ -39,13 +39,13 @@ func GetUserByEmail(ctx context.Context, email string) (models.User, error) {
 	return user, nil
 }
 
-func GetPaginationArgs(c *gin.Context) responses.PaginationArgs {
+func GetPaginationArgs(c *gin.Context) helper.PaginationArgs {
 
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
 	skip, _ := strconv.Atoi(c.DefaultQuery("skip", "0"))
 	sort := c.DefaultQuery("sort", "created_at_asc")
 
-	return responses.PaginationArgs{
+	return helper.PaginationArgs{
 		Limit: limit,
 		Skip:  skip,
 		Sort:  sort,

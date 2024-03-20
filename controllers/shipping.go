@@ -5,7 +5,6 @@ import (
 	configs "khoomi-api-io/khoomi_api/config"
 	"khoomi-api-io/khoomi_api/helper"
 	"khoomi-api-io/khoomi_api/models"
-	"khoomi-api-io/khoomi_api/responses"
 	"khoomi-api-io/khoomi_api/services"
 	"log"
 	"net/http"
@@ -166,7 +165,7 @@ func GetShopShippingProfileInfos() gin.HandlerFunc {
 
 		helper.HandleSuccess(c, http.StatusOK, "success", gin.H{
 			"shipping_profiles": shippingProfiles,
-			"pagination": responses.Pagination{
+			"pagination": helper.Pagination{
 				Limit: paginationArgs.Limit,
 				Skip:  paginationArgs.Skip,
 				Count: count,
@@ -184,39 +183,39 @@ func GetShopShippingProfileInfos() gin.HandlerFunc {
 // 		shopId := c.Param("shopId")
 // 		shopIdObj, err := primitive.ObjectIDFromHex(shopId)
 // 		if err != nil {
-// 			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": err.Error()}})
+// 			c.JSON(http.StatusBadRequest, helper.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": err.Error()}})
 // 			return
 // 		}
 
 // 		// Check if the user owns the shop
 // 		userID, err := configs.ExtractTokenID(c)
 // 		if err != nil {
-// 			c.JSON(http.StatusUnauthorized, responses.UserResponse{Status: http.StatusUnauthorized, Message: "error", Data: map[string]interface{}{"error": err.Error()}})
+// 			c.JSON(http.StatusUnauthorized, helper.UserResponse{Status: http.StatusUnauthorized, Message: "error", Data: map[string]interface{}{"error": err.Error()}})
 // 			return
 // 		}
 
 // 		err = verifyShopOwnership(ctx, userID, shopIdObj)
 // 		if err != nil {
-// 			c.JSON(http.StatusUnauthorized, responses.UserResponse{Status: http.StatusUnauthorized, Message: "error", Data: map[string]interface{}{"error": err.Error()}})
+// 			c.JSON(http.StatusUnauthorized, helper.UserResponse{Status: http.StatusUnauthorized, Message: "error", Data: map[string]interface{}{"error": err.Error()}})
 // 			return
 // 		}
 
 // 		err = c.BindJSON(&shippingJson)
 // 		if err != nil {
-// 			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": err.Error()}})
+// 			c.JSON(http.StatusBadRequest, helper.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": err.Error()}})
 // 			return
 // 		}
 
 // 		// Validate request body
 // 		if validationErr := validate.Struct(&shippingJson); validationErr != nil {
-// 			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": validationErr.Error()}})
+// 			c.JSON(http.StatusBadRequest, helper.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": validationErr.Error()}})
 // 			return
 // 		}
 
 // 		profileIdString := c.Param("infoId")
 // 		profileId, err := primitive.ObjectIDFromHex(profileIdString)
 // 		if err != nil {
-// 			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": err.Error()}})
+// 			c.JSON(http.StatusBadRequest, helper.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": err.Error()}})
 // 			return
 // 		}
 
@@ -236,10 +235,10 @@ func GetShopShippingProfileInfos() gin.HandlerFunc {
 
 // 		res, err := ShippingProfileCollection.UpdateOne(ctx, bson.M{"_id": profileId}, bson.M{"$set": ShippingProfile})
 // 		if err != nil {
-// 			c.JSON(http.StatusNotModified, responses.UserResponse{Status: http.StatusNotModified, Message: "error", Data: map[string]interface{}{"error": err}})
+// 			c.JSON(http.StatusNotModified, helper.UserResponse{Status: http.StatusNotModified, Message: "error", Data: map[string]interface{}{"error": err}})
 // 			return
 // 		}
 
-// 		c.JSON(http.StatusOK, responses.UserResponse{Status: http.StatusOK, Message: "success", Data: map[string]interface{}{"data": res}})
+// 		c.JSON(http.StatusOK, helper.UserResponse{Status: http.StatusOK, Message: "success", Data: map[string]interface{}{"data": res}})
 // 	}
 // }

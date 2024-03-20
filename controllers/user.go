@@ -9,7 +9,6 @@ import (
 	"khoomi-api-io/khoomi_api/helper"
 	"khoomi-api-io/khoomi_api/middleware"
 	"khoomi-api-io/khoomi_api/models"
-	"khoomi-api-io/khoomi_api/responses"
 	"khoomi-api-io/khoomi_api/services"
 	"log"
 	"net/http"
@@ -771,7 +770,7 @@ func GetLoginHistories() gin.HandlerFunc {
 
 		helper.HandleSuccess(c, http.StatusOK, "success", gin.H{
 			"history": loginHistory,
-			"pagination": responses.Pagination{
+			"pagination": helper.Pagination{
 				Limit: paginationArgs.Limit,
 				Skip:  paginationArgs.Skip,
 				Count: count,
@@ -1532,7 +1531,7 @@ func GetUserWishlist() gin.HandlerFunc {
 
 		helper.HandleSuccess(c, http.StatusOK, "success", gin.H{
 			"wishlist": myWishLists,
-			"pagination": responses.Pagination{
+			"pagination": helper.Pagination{
 				Limit: paginationArgs.Limit,
 				Skip:  paginationArgs.Skip,
 				Count: count,

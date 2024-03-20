@@ -8,7 +8,6 @@ import (
 	"khoomi-api-io/khoomi_api/email"
 	"khoomi-api-io/khoomi_api/helper"
 	"khoomi-api-io/khoomi_api/models"
-	"khoomi-api-io/khoomi_api/responses"
 	"khoomi-api-io/khoomi_api/services"
 	"log"
 	"net/http"
@@ -545,7 +544,7 @@ func GetShops() gin.HandlerFunc {
 		}
 
 		helper.HandleSuccess(c, http.StatusOK, "Shops retrieved successfully",
-			gin.H{"members": shops, "pagination": responses.Pagination{
+			gin.H{"members": shops, "pagination": helper.Pagination{
 				Limit: paginationArgs.Limit,
 				Skip:  paginationArgs.Skip,
 			}})
@@ -597,7 +596,7 @@ func SearchShops() gin.HandlerFunc {
 		}
 
 		helper.HandleSuccess(c, http.StatusOK, "Shops found",
-			gin.H{"shops": serializedShops, "pagination": responses.Pagination{
+			gin.H{"shops": serializedShops, "pagination": helper.Pagination{
 				Limit: paginationArgs.Limit,
 				Skip:  paginationArgs.Skip,
 				Count: count,
@@ -995,7 +994,7 @@ func GetShopFollowers() gin.HandlerFunc {
 
 		helper.HandleSuccess(c, http.StatusOK, "Success",
 			gin.H{"followers": shopFollowers,
-				"pagination": responses.Pagination{
+				"pagination": helper.Pagination{
 					Limit: paginationArgs.Limit,
 					Skip:  paginationArgs.Skip,
 					Count: count,
@@ -1308,7 +1307,7 @@ func GetShopReviews() gin.HandlerFunc {
 
 		helper.HandleSuccess(c, http.StatusOK, "success", gin.H{
 			"reviews": map[string]interface{}{"data": shopReviews},
-			"pagination": responses.Pagination{
+			"pagination": helper.Pagination{
 				Limit: paginationArgs.Limit,
 				Skip:  paginationArgs.Skip,
 				Count: count,
@@ -1398,7 +1397,7 @@ func DeleteOtherReview() gin.HandlerFunc {
 
 		err = VerifyShopOwnership(c, myId, shopId)
 		if err != nil {
-			log.Printf("You don't have write access to this shop: %s\n", err.Error())
+			log.Printf("You don't have write access to this shop: s\n", err.Error())
 			helper.HandleError(c, http.StatusUnauthorized, err, "You don't have write access to this shop")
 			return
 		}
