@@ -13,9 +13,9 @@ func ImageUploadHelper(input interface{}) (uploader.UploadResult, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 40*time.Second)
 	defer cancel()
 
-	cloudName := configs.LoadEnvFor("CLOUDINARY_CLOUDNAME")
-	apiKey := configs.LoadEnvFor("CLOUDINARY_API_KEY")
-	apiSecret := configs.LoadEnvFor("CLOUDINARY_API_SECRET")
+	cloudName := config.LoadEnvFor("CLOUDINARY_CLOUDNAME")
+	apiKey := config.LoadEnvFor("CLOUDINARY_API_KEY")
+	apiSecret := config.LoadEnvFor("CLOUDINARY_API_SECRET")
 	//create cloudinary instance
 	cld, err := cloudinary.NewFromParams(cloudName, apiKey, apiSecret)
 	if err != nil {
@@ -23,7 +23,7 @@ func ImageUploadHelper(input interface{}) (uploader.UploadResult, error) {
 	}
 
 	//upload file
-	uploadFolder := configs.LoadEnvFor("CLOUDINARY_UPLOAD_FOLDER")
+	uploadFolder := config.LoadEnvFor("CLOUDINARY_UPLOAD_FOLDER")
 	uploadRes, err := cld.Upload.Upload(ctx, input, uploader.UploadParams{Folder: uploadFolder})
 	if err != nil {
 		return uploader.UploadResult{}, err
@@ -36,9 +36,9 @@ func ImageDeletionHelper(params uploader.DestroyParams) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 40*time.Second)
 	defer cancel()
 
-	cloudName := configs.LoadEnvFor("CLOUDINARY_CLOUDNAME")
-	apiKey := configs.LoadEnvFor("CLOUDINARY_API_KEY")
-	apiSecret := configs.LoadEnvFor("CLOUDINARY_API_SECRET")
+	cloudName := config.LoadEnvFor("CLOUDINARY_CLOUDNAME")
+	apiKey := config.LoadEnvFor("CLOUDINARY_API_KEY")
+	apiSecret := config.LoadEnvFor("CLOUDINARY_API_SECRET")
 	//create cloudinary instance
 	cld, err := cloudinary.NewFromParams(cloudName, apiKey, apiSecret)
 	if err != nil {

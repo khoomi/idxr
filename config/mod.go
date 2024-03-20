@@ -1,4 +1,4 @@
-package configs
+package config
 
 import (
 	"context"
@@ -75,21 +75,24 @@ func ConnectRedis() *redis.Client {
 var REDIS = ConnectRedis()
 
 func ValidateUserID(c *gin.Context) (primitive.ObjectID, error) {
-	myID, err := ExtractTokenID(c)
+	auth, err := InitJwtClaim(c)
 	if err != nil {
 		errMsg := fmt.Sprintf("unauthorized: User ID not found in authentication token - %v", err.Error())
-		log.Println(errMsg)
 		return primitive.NilObjectID, errors.New(errMsg)
 	}
 
-	userID := c.Param("userid")
-	if userID != myID.Hex() {
+	userId := c.Param("userid")
+	res, err := primitive.ObjectIDFromHex(userId)
+	if err != nil {
+		return primitive.NilObjectID, err
+	}
+
+	if userId != auth.Id {
 		errMsg := fmt.Sprintln("unauthorized: User ID in the URL path doesn't match with currently authenticated user")
-		log.Println(errMsg)
 		return primitive.NilObjectID, errors.New(errMsg)
 	}
 
-	return myID, nil
+	return res, nil
 }
 
 func InvalidateToken(db *redis.Client, tokenString string) error {

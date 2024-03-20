@@ -40,8 +40,8 @@ func SendMail(mail KhoomiEmailComposer) error {
 		return err
 	}
 
-	MailApiKey := configs.LoadEnvFor("MAIL_API_KEY")
-	MailEndPoint := configs.LoadEnvFor("MAIL_ENDPOINT")
+	MailApiKey := config.LoadEnvFor("MAIL_API_KEY")
+	MailEndPoint := config.LoadEnvFor("MAIL_ENDPOINT")
 	req, err := http.NewRequest("POST", MailEndPoint, bytes.NewBuffer(jsonData))
 	if err != nil {
 		log.Println("Email service:", err)

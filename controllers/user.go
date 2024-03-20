@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"khoomi-api-io/khoomi_api/config"
 	configs "khoomi-api-io/khoomi_api/config"
 	"khoomi-api-io/khoomi_api/email"
 	"khoomi-api-io/khoomi_api/helper"
@@ -356,7 +357,12 @@ func CurrentUser(c *gin.Context) {
 	defer cancel()
 
 	// Extract user id from request header
-	userId, err := configs.ExtractTokenID(c)
+	auth, err := config.InitJwtClaim(c)
+	if err != nil {
+		helper.HandleError(c, http.StatusNotFound, err, err.Error())
+		return
+	}
+	userId, err := auth.GetUserObjectId()
 	if err != nil {
 		log.Printf("User with IP %v tried to gain access with an invalid user ID or token\n", c.ClientIP())
 		helper.HandleError(c, http.StatusBadRequest, err, "Invalid user ID or token")
@@ -381,7 +387,12 @@ func SendDeleteUserAccount() gin.HandlerFunc {
 		ctx, cancel := context.WithTimeout(context.Background(), KhoomiRequestTimeoutSec)
 		defer cancel()
 
-		userId, err := configs.ExtractTokenID(c)
+		auth, err := config.InitJwtClaim(c)
+		if err != nil {
+			helper.HandleError(c, http.StatusUnauthorized, err, "action is for authorized users")
+			return
+		}
+		userId, err := auth.GetUserObjectId()
 		if err != nil {
 			helper.HandleError(c, http.StatusUnauthorized, err, "action is for authorized users")
 			return
@@ -562,9 +573,14 @@ func SendVerifyEmail() gin.HandlerFunc {
 		now := time.Now()
 
 		// Verify current user
-		userId, err := configs.ExtractTokenID(c)
+		auth, err := config.InitJwtClaim(c)
 		if err != nil {
-			helper.HandleError(c, http.StatusBadRequest, err, err.Error())
+			helper.HandleError(c, http.StatusUnauthorized, err, "action is for authorized users")
+			return
+		}
+		userId, err := auth.GetUserObjectId()
+		if err != nil {
+			helper.HandleError(c, http.StatusUnauthorized, err, "action is for authorized users")
 			return
 		}
 
@@ -657,9 +673,14 @@ func UpdateMyProfile() gin.HandlerFunc {
 		ctx, cancel := context.WithTimeout(context.Background(), KhoomiRequestTimeoutSec)
 		defer cancel()
 
-		userId, err := configs.ExtractTokenID(c)
+		auth, err := config.InitJwtClaim(c)
 		if err != nil {
-			helper.HandleError(c, http.StatusBadRequest, err, err.Error())
+			helper.HandleError(c, http.StatusUnauthorized, err, "action is for authorized users")
+			return
+		}
+		userId, err := auth.GetUserObjectId()
+		if err != nil {
+			helper.HandleError(c, http.StatusUnauthorized, err, "action is for authorized users")
 			return
 		}
 

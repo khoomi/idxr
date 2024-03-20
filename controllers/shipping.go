@@ -2,7 +2,7 @@ package controllers
 
 import (
 	"context"
-	configs "khoomi-api-io/khoomi_api/config"
+	"khoomi-api-io/khoomi_api/config"
 	"khoomi-api-io/khoomi_api/helper"
 	"khoomi-api-io/khoomi_api/models"
 	"khoomi-api-io/khoomi_api/services"
@@ -29,9 +29,13 @@ func CreateShopShippingProfile() gin.HandlerFunc {
 		}
 
 		// Check if the user owns the shop
-		userID, err := configs.ExtractTokenID(c)
+		auth, err := config.InitJwtClaim(c)
 		if err != nil {
-			log.Println(err)
+			helper.HandleError(c, http.StatusUnauthorized, err, "unauthorized")
+			return
+		}
+		userID, err := auth.GetUserObjectId()
+		if err != nil {
 			helper.HandleError(c, http.StatusUnauthorized, err, "unauthorized")
 			return
 		}
@@ -46,14 +50,12 @@ func CreateShopShippingProfile() gin.HandlerFunc {
 		var shippingJson models.ShopShippingProfileRequest
 		err = c.BindJSON(&shippingJson)
 		if err != nil {
-			log.Println(err)
 			helper.HandleError(c, http.StatusBadRequest, err, "invalid request body")
 			return
 		}
 
 		// Validate request body
 		if validationErr := Validate.Struct(&shippingJson); validationErr != nil {
-			log.Println(validationErr)
 			helper.HandleError(c, http.StatusBadRequest, validationErr, "invalid request body")
 			return
 		}
@@ -107,7 +109,7 @@ func GetShopShippingProfileInfo() gin.HandlerFunc {
 		ctx, cancel := context.WithTimeout(context.Background(), KhoomiRequestTimeoutSec)
 		defer cancel()
 
-		profileIdString := c.Param("shippingProfileId")
+		profileIdString := c.Param("id")
 		profileId, err := primitive.ObjectIDFromHex(profileIdString)
 		if err != nil {
 			helper.HandleError(c, http.StatusBadRequest, err, "invalid shipping profile id")
@@ -133,7 +135,6 @@ func GetShopShippingProfileInfos() gin.HandlerFunc {
 		shopIDStr := c.Param("shopid")
 		shopIDObject, err := primitive.ObjectIDFromHex(shopIDStr)
 		if err != nil {
-			log.Println(err)
 			helper.HandleError(c, http.StatusUnauthorized, err, "unauthorized")
 			return
 		}

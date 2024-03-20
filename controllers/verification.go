@@ -2,7 +2,7 @@ package controllers
 
 import (
 	"context"
-	configs "khoomi-api-io/khoomi_api/config"
+	"khoomi-api-io/khoomi_api/config"
 	"khoomi-api-io/khoomi_api/helper"
 	"khoomi-api-io/khoomi_api/models"
 	"log"
@@ -28,14 +28,18 @@ func CreateSellerVerificationProfile() gin.HandlerFunc {
 		}
 
 		// Check if the user owns the shop
-		userID, err := configs.ExtractTokenID(c)
+		auth, err := config.InitJwtClaim(c)
 		if err != nil {
-			log.Println(err)
-			helper.HandleError(c, http.StatusUnauthorized, err, "unauthorized")
+			helper.HandleError(c, http.StatusUnauthorized, err, "action is for authorized users")
+			return
+		}
+		userId, err := auth.GetUserObjectId()
+		if err != nil {
+			helper.HandleError(c, http.StatusUnauthorized, err, "action is for authorized users")
 			return
 		}
 
-		err = VerifyShopOwnership(c, userID, shopIdObj)
+		err = VerifyShopOwnership(c, userId, shopIdObj)
 		if err != nil {
 			log.Printf("Error you the shop owner: %s\n", err.Error())
 			helper.HandleError(c, http.StatusUnauthorized, err, "shop ownership validation error")
@@ -98,13 +102,17 @@ func GetSellerVerificationProfile() gin.HandlerFunc {
 		}
 
 		// Check if the user owns the shop
-		userID, err := configs.ExtractTokenID(c)
+		auth, err := config.InitJwtClaim(c)
 		if err != nil {
-			log.Println(err)
-			helper.HandleError(c, http.StatusUnauthorized, err, "unauthorized")
+			helper.HandleError(c, http.StatusUnauthorized, err, "action is for authorized users")
 			return
 		}
-		err = VerifyShopOwnership(c, userID, shopIdObj)
+		userId, err := auth.GetUserObjectId()
+		if err != nil {
+			helper.HandleError(c, http.StatusUnauthorized, err, "action is for authorized users")
+			return
+		}
+		err = VerifyShopOwnership(c, userId, shopIdObj)
 		if err != nil {
 			log.Printf("Error you the shop owner: %s\n", err.Error())
 			helper.HandleError(c, http.StatusUnauthorized, err, "shop ownership validation error")
@@ -114,7 +122,6 @@ func GetSellerVerificationProfile() gin.HandlerFunc {
 		var verificationProfile models.SellerVerification
 		err = SellerVerificationCollection.FindOne(ctx, bson.M{"shop_id": shopIdObj}).Decode(&verificationProfile)
 		if err != nil {
-			log.Println(err)
 			if err == mongo.ErrNoDocuments {
 				helper.HandleError(c, http.StatusNotFound, err, "Shop compliance information not found")
 				return

@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	configs "khoomi-api-io/khoomi_api/config"
+	"khoomi-api-io/khoomi_api/config"
 	"khoomi-api-io/khoomi_api/email"
 	"khoomi-api-io/khoomi_api/helper"
 	"khoomi-api-io/khoomi_api/models"
@@ -91,11 +91,12 @@ func CreateListing() gin.HandlerFunc {
 			return
 		}
 
-		loginName, loginEmail, err := configs.ExtractTokenLoginNameEmail(c)
+		auth, err := config.InitJwtClaim(c)
 		if err != nil {
 			helper.HandleError(c, http.StatusUnauthorized, err, "unathorized")
 			return
 		}
+		loginName, loginEmail := auth.LoginName, auth.Email
 
 		var newListing models.NewListing
 
@@ -691,7 +692,7 @@ func DeleteListings() gin.HandlerFunc {
 		ctx, cancel := context.WithTimeout(context.Background(), KhoomiRequestTimeoutSec)
 		defer cancel()
 
-		myId, err := configs.ValidateUserID(c)
+		myId, err := config.ValidateUserID(c)
 		if err != nil {
 			helper.HandleError(c, http.StatusUnauthorized, err, err.Error())
 			return
@@ -736,7 +737,7 @@ func DeactivateListings() gin.HandlerFunc {
 		ctx, cancel := context.WithTimeout(context.Background(), KhoomiRequestTimeoutSec)
 		defer cancel()
 
-		myId, err := configs.ValidateUserID(c)
+		myId, err := config.ValidateUserID(c)
 		if err != nil {
 			helper.HandleError(c, http.StatusUnauthorized, err, err.Error())
 			return

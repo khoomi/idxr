@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"khoomi-api-io/khoomi_api/config"
 	configs "khoomi-api-io/khoomi_api/config"
 	"khoomi-api-io/khoomi_api/email"
 	"khoomi-api-io/khoomi_api/helper"
@@ -56,18 +57,17 @@ func CreateShop() gin.HandlerFunc {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
 
-		userID, err := configs.ExtractTokenID(c)
+		auth, err := config.InitJwtClaim(c)
+		if err != nil {
+			helper.HandleError(c, http.StatusUnauthorized, err, "unauthorized")
+			return
+		}
+		userID, err := auth.GetUserObjectId()
 		if err != nil {
 			helper.HandleError(c, http.StatusUnauthorized, err, "Failed to extract user ID from token")
 			return
 		}
-
-		loginName, userEmail, err := configs.ExtractTokenLoginNameEmail(c)
-		if err != nil {
-			log.Println(err)
-			helper.HandleError(c, http.StatusUnauthorized, err, "unathorized")
-			return
-		}
+		loginName, userEmail := auth.LoginName, auth.Email
 
 		shopName := c.Request.FormValue("name")
 		err = helper.ValidateShopName(shopName)
@@ -130,7 +130,7 @@ func CreateShop() gin.HandlerFunc {
 		shopID := primitive.NewObjectID()
 		wc := writeconcern.New(writeconcern.WMajority())
 		txnOptions := options.Transaction().SetWriteConcern(wc)
-		session, err := configs.DB.StartSession()
+		session, err := config.DB.StartSession()
 		if err != nil {
 			helper.HandleError(c, http.StatusUnprocessableEntity, err, "Failed to start new session")
 			return
@@ -824,13 +824,6 @@ func DeleteFromShopGallery() gin.HandlerFunc {
 			return
 		}
 
-		err = VerifyShopOwnership(c, myID, shopID)
-		if err != nil {
-			log.Printf("You don't have write access to this shop: %s\n", err.Error())
-			helper.HandleError(c, http.StatusUnauthorized, err, "You don't have write access to this shop")
-			return
-		}
-
 		filter := bson.M{"_id": shopID, "user_id": myID}
 		update := bson.M{"$pull": bson.M{"gallery": imageURL}, "modified_at": now}
 		res, err := ShopCollection.UpdateOne(ctx, filter, update)
@@ -866,7 +859,7 @@ func FollowShop() gin.HandlerFunc {
 		wc := writeconcern.New(writeconcern.WMajority())
 		txnOptions := options.Transaction().SetWriteConcern(wc)
 
-		session, err := configs.DB.StartSession()
+		session, err := config.DB.StartSession()
 		if err != nil {
 			helper.HandleError(c, http.StatusUnprocessableEntity, err, "Unable to start new session")
 			return
@@ -1048,7 +1041,7 @@ func UnfollowShop() gin.HandlerFunc {
 		wc := writeconcern.New(writeconcern.WMajority())
 		txnOptions := options.Transaction().SetWriteConcern(wc)
 
-		session, err := configs.DB.StartSession()
+		session, err := config.DB.StartSession()
 		if err != nil {
 			panic(err)
 		}
@@ -1129,7 +1122,7 @@ func RemoveOtherFollower() gin.HandlerFunc {
 		wc := writeconcern.New(writeconcern.WMajority())
 		txnOptions := options.Transaction().SetWriteConcern(wc)
 
-		session, err := configs.DB.StartSession()
+		session, err := config.DB.StartSession()
 		if err != nil {
 			panic(err)
 		}
@@ -1184,11 +1177,12 @@ func CreateShopReview() gin.HandlerFunc {
 			helper.HandleError(c, http.StatusBadRequest, err, "Invalid shop or member ID")
 			return
 		}
-		loginName, _, err := configs.ExtractTokenLoginNameEmail(c)
+		auth, err := config.InitJwtClaim(c)
 		if err != nil {
 			helper.HandleError(c, http.StatusBadRequest, err, "Failed to extract token login name")
 			return
 		}
+		loginName := auth.LoginName
 
 		err = c.BindJSON(&shopReviewJson)
 		if err != nil {

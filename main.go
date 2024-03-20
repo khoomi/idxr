@@ -7,7 +7,7 @@ import (
 
 func main() {
 	// Initialize database connection
-	configs.ConnectDB()
+	config.ConnectDB()
 
 	// Initialize routes
 	router := routes.InitRoute()

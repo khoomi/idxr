@@ -128,7 +128,7 @@ func shopRoutes(api *gin.RouterGroup) {
 		shop.GET("/search", controllers.SearchShops())
 		// Endpoint to get shipping profile
 		shop.GET("/:shopid/shipping/", controllers.GetShopShippingProfileInfos())
-		shop.GET("/:shopid/shipping/:shippingProfileId", controllers.GetShopShippingProfileInfo())
+		shop.GET("/:shopid/shipping/:id", controllers.GetShopShippingProfileInfo())
 
 		// Secured endpoints that require authentication
 		secured := shop.Group("").Use(middleware.Auth())
