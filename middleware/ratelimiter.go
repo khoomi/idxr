@@ -1,11 +1,11 @@
 package middleware
 
 import (
+	configs "khoomi-api-io/khoomi_api/config"
 	"time"
 
 	ratelimit "github.com/JGLTechnologies/gin-rate-limit"
 	"github.com/gin-gonic/gin"
-	"github.com/redis/go-redis/v9"
 )
 
 func keyFunc(c *gin.Context) string {
@@ -19,12 +19,11 @@ func errorHandler(c *gin.Context, info ratelimit.Info) {
 func KhoomiRateLimiter() gin.HandlerFunc {
 	// This makes it so each ip can only make 5 requests per second
 	store := ratelimit.RedisStore(&ratelimit.RedisOptions{
-		RedisClient: redis.NewClient(&redis.Options{
-			Addr: "redis:6379",
-		}),
-		Rate:  time.Second,
-		Limit: 5,
+		RedisClient: configs.REDIS,
+		Rate:        time.Second,
+		Limit:       5,
 	})
+
 	return ratelimit.RateLimiter(store, &ratelimit.Options{
 		ErrorHandler: errorHandler,
 		KeyFunc:      keyFunc,
