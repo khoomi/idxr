@@ -38,6 +38,8 @@ func InitRoute() *gin.Engine {
 
 func userRoutes(api *gin.RouterGroup) {
 	// Define the "/users" group
+	// Ping endpoint
+	api.GET("/ping", controllers.Ping)
 	user := api.Group("/users")
 	{
 		// Endpoint to get user by ID or email
@@ -47,11 +49,7 @@ func userRoutes(api *gin.RouterGroup) {
 
 		// Secured endpoints that require authentication
 		secured := user.Group("").Use(middleware.Auth())
-		{
-			// Ping endpoint
-			secured.GET("/ping", controllers.Ping)
-
-			// Change password endpoint
+		{ // Change password endpoint
 			secured.PUT("/:userid/change-password", controllers.ChangePassword())
 
 			// Get delete user request
