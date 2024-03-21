@@ -57,7 +57,7 @@ func VerifyShopOwnership(ctx context.Context, userId, shopId primitive.ObjectID)
 
 func CreateUser() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), KhoomiRequestTimeoutSec)
+		ctx, cancel := context.WithTimeout(context.Background(), REQ_TIMEOUT_SECS)
 		defer cancel()
 
 		var jsonUser models.UserRegistrationBody
@@ -168,7 +168,7 @@ func CreateUser() gin.HandlerFunc {
 // HandleUserAuthentication - Authenticate user into the server
 func HandleUserAuthentication() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), KhoomiRequestTimeoutSec)
+		ctx, cancel := context.WithTimeout(context.Background(), REQ_TIMEOUT_SECS)
 		defer cancel()
 
 		var jsonUser models.UserLoginBody
@@ -242,7 +242,6 @@ func HandleUserAuthentication() gin.HandlerFunc {
 		}
 
 		if err := session.CommitTransaction(ctx); err != nil {
-			log.Println(err)
 			helper.HandleError(c, http.StatusInternalServerError, err, "Failed to commit transaction")
 			return
 		}
@@ -286,7 +285,7 @@ func HandleUserAuthentication() gin.HandlerFunc {
 
 func RefreshToken() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), KhoomiRequestTimeoutSec)
+		ctx, cancel := context.WithTimeout(context.Background(), REQ_TIMEOUT_SECS)
 		defer cancel()
 
 		var payload models.RefreshTokenPayload
@@ -353,7 +352,7 @@ func Logout() gin.HandlerFunc {
 }
 
 func CurrentUser(c *gin.Context) {
-	ctx, cancel := context.WithTimeout(context.Background(), KhoomiRequestTimeoutSec)
+	ctx, cancel := context.WithTimeout(context.Background(), REQ_TIMEOUT_SECS)
 	defer cancel()
 
 	// Extract user id from request header
@@ -378,13 +377,13 @@ func CurrentUser(c *gin.Context) {
 	user.Auth.PasswordDigest = ""
 
 	user.ConstructUserLinks()
-	helper.HandleSuccess(c, http.StatusOK, "success", gin.H{"user": user})
+	helper.HandleSuccess(c, http.StatusOK, "success", user)
 }
 
 // SendDeleteUserAccount -> Delete current user account
 func SendDeleteUserAccount() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), KhoomiRequestTimeoutSec)
+		ctx, cancel := context.WithTimeout(context.Background(), REQ_TIMEOUT_SECS)
 		defer cancel()
 
 		auth, err := config.InitJwtClaim(c)
@@ -404,14 +403,14 @@ func SendDeleteUserAccount() gin.HandlerFunc {
 			return
 		}
 
-		helper.HandleSuccess(c, http.StatusOK, "account is now pending deletion", nil)
+		helper.HandleSuccess(c, http.StatusOK, "account is now pending deletion", gin.H{"_id": auth.Id})
 	}
 }
 
 // IsAccountPendingDeletion -> Check if current user account is pending deletion
 func IsAccountPendingDeletion() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), KhoomiRequestTimeoutSec)
+		ctx, cancel := context.WithTimeout(context.Background(), REQ_TIMEOUT_SECS)
 		defer cancel()
 
 		userId, err := configs.ValidateUserID(c)
@@ -431,14 +430,14 @@ func IsAccountPendingDeletion() gin.HandlerFunc {
 			return
 		}
 
-		helper.HandleSuccess(c, http.StatusOK, "Success", gin.H{"pending_deletion": true})
+		helper.HandleSuccess(c, http.StatusOK, "Success", gin.H{"_id": account.ID})
 	}
 }
 
 // DeleteUserAccount -> Delete current user account
 func CancelDeleteUserAccount() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), KhoomiRequestTimeoutSec)
+		ctx, cancel := context.WithTimeout(context.Background(), REQ_TIMEOUT_SECS)
 		defer cancel()
 
 		userId, err := configs.ValidateUserID(c)
@@ -453,13 +452,13 @@ func CancelDeleteUserAccount() gin.HandlerFunc {
 			return
 		}
 
-		helper.HandleSuccess(c, http.StatusOK, "account deletion request cancelled", nil)
+		helper.HandleSuccess(c, http.StatusOK, "account deletion request cancelled", gin.H{"_id": userId.Hex()})
 	}
 }
 
 func ChangePassword() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), KhoomiRequestTimeoutSec)
+		ctx, cancel := context.WithTimeout(context.Background(), REQ_TIMEOUT_SECS)
 		defer cancel()
 
 		// Verify current user session
@@ -521,7 +520,7 @@ func ChangePassword() gin.HandlerFunc {
 			return
 		}
 
-		helper.HandleSuccess(c, http.StatusOK, "your password has been updated successfuly", gin.H{"user": user})
+		helper.HandleSuccess(c, http.StatusOK, "your password has been updated successfuly", user)
 	}
 }
 
@@ -530,7 +529,7 @@ func ChangePassword() gin.HandlerFunc {
 // ObjectID. If the user ID is not a valid ObjectID, it attempts to find the user by username.
 func GetUser() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), KhoomiRequestTimeoutSec)
+		ctx, cancel := context.WithTimeout(context.Background(), REQ_TIMEOUT_SECS)
 		defer cancel()
 
 		var filter bson.M
@@ -558,14 +557,14 @@ func GetUser() gin.HandlerFunc {
 
 		user.ConstructUserLinks()
 		// Return the user data in the response
-		helper.HandleSuccess(c, http.StatusOK, "success", gin.H{"user": user})
+		helper.HandleSuccess(c, http.StatusOK, "success", user)
 	}
 }
 
 // SendVerifyEmail - api/send-verify-email?email=...&name=user_login_name
 func SendVerifyEmail() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), KhoomiRequestTimeoutSec)
+		ctx, cancel := context.WithTimeout(context.Background(), REQ_TIMEOUT_SECS)
 		defer cancel()
 
 		emailCurrent := c.Query("email")
@@ -613,14 +612,14 @@ func SendVerifyEmail() gin.HandlerFunc {
 		// Send welcome email
 		email.SendVerifyEmailNotification(emailCurrent, firstName, link)
 
-		helper.HandleSuccess(c, http.StatusOK, "Verification email successfully sent", nil)
+		helper.HandleSuccess(c, http.StatusOK, "Verification email successfully sent", gin.H{"_id": userId.Hex()})
 	}
 }
 
 // VerifyEmail - api/send-verify-email?email=...&name=user_login_name
 func VerifyEmail() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), KhoomiRequestTimeoutSec)
+		ctx, cancel := context.WithTimeout(context.Background(), REQ_TIMEOUT_SECS)
 		defer cancel()
 
 		currentId := c.Query("id")
@@ -663,14 +662,14 @@ func VerifyEmail() gin.HandlerFunc {
 			return
 		}
 
-		helper.HandleSuccess(c, http.StatusOK, "Your email has been verified successfully.", user.PrimaryEmail)
+		helper.HandleSuccess(c, http.StatusOK, "Your email has been verified successfully.", gin.H{"_id": user.Id})
 	}
 }
 
 // UpdateMyProfile updates the email, thumbnail, first and last name for the current user.
 func UpdateMyProfile() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), KhoomiRequestTimeoutSec)
+		ctx, cancel := context.WithTimeout(context.Background(), REQ_TIMEOUT_SECS)
 		defer cancel()
 
 		auth, err := config.InitJwtClaim(c)
@@ -747,7 +746,7 @@ func UpdateMyProfile() gin.HandlerFunc {
 			return
 		}
 
-		helper.HandleSuccess(c, http.StatusCreated, "Profile updated successfully", nil)
+		helper.HandleSuccess(c, http.StatusCreated, "Profile updated successfully", gin.H{"_id": auth.Id})
 	}
 }
 
@@ -756,7 +755,7 @@ func UpdateMyProfile() gin.HandlerFunc {
 // GetLoginHistories - Get user login histories (/api/users/:userId/login-history?limit=50&skip=0)
 func GetLoginHistories() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), KhoomiRequestTimeoutSec)
+		ctx, cancel := context.WithTimeout(context.Background(), REQ_TIMEOUT_SECS)
 		defer cancel()
 
 		userId, err := configs.ValidateUserID(c)
@@ -790,8 +789,7 @@ func GetLoginHistories() gin.HandlerFunc {
 			return
 		}
 
-		helper.HandleSuccess(c, http.StatusOK, "success", gin.H{
-			"history": loginHistory,
+		helper.HandleSuccessMeta(c, http.StatusOK, "success", loginHistory, gin.H{
 			"pagination": helper.Pagination{
 				Limit: paginationArgs.Limit,
 				Skip:  paginationArgs.Skip,
@@ -804,7 +802,7 @@ func GetLoginHistories() gin.HandlerFunc {
 // DeleteLoginHistories - Get user login histories (/api/users/:userId/login-history?limit=50&skip=0)
 func DeleteLoginHistories() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), REQ_TIMEOUT_SECS)
 		defer cancel()
 
 		userId, err := configs.ValidateUserID(c)
@@ -855,7 +853,7 @@ func DeleteLoginHistories() gin.HandlerFunc {
 			return
 		}
 
-		helper.HandleSuccess(c, http.StatusOK, "Login histories deleted successfully", nil)
+		helper.HandleSuccess(c, http.StatusOK, "Login histories deleted successfully", userId.Hex())
 	}
 }
 
@@ -864,7 +862,7 @@ func DeleteLoginHistories() gin.HandlerFunc {
 // PasswordResetEmail - api/send-password-reset?email=borngracedd@gmail.com
 func PasswordResetEmail() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), KhoomiRequestTimeoutSec)
+		ctx, cancel := context.WithTimeout(context.Background(), REQ_TIMEOUT_SECS)
 		defer cancel()
 
 		currentEmail := strings.ToLower(c.Query("email"))
@@ -897,14 +895,14 @@ func PasswordResetEmail() gin.HandlerFunc {
 		link := fmt.Sprintf("https://khoomi.com/password-reset/?id=%v&token=%v", user.Id.Hex(), token)
 		email.SendPasswordResetEmail(user.PrimaryEmail, user.FirstName, link)
 
-		helper.HandleSuccess(c, http.StatusOK, "Password reset email sent successfully", nil)
+		helper.HandleSuccess(c, http.StatusOK, "Password reset email sent successfully", user.Id.Hex())
 	}
 }
 
 // PasswordReset - api/password-reset/userid?token=..&newpassword=..&id=user_uid
 func PasswordReset() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), KhoomiRequestTimeoutSec)
+		ctx, cancel := context.WithTimeout(context.Background(), REQ_TIMEOUT_SECS)
 		defer cancel()
 
 		currentId := c.Query("id")
@@ -958,7 +956,7 @@ func PasswordReset() gin.HandlerFunc {
 
 		email.SendPasswordResetSuccessfulEmail(user.PrimaryEmail, user.FirstName)
 
-		helper.HandleSuccess(c, http.StatusOK, "success", nil)
+		helper.HandleSuccess(c, http.StatusOK, "success", user.Id.Hex())
 	}
 }
 
@@ -968,7 +966,7 @@ func PasswordReset() gin.HandlerFunc {
 // api/user/thumbnail?remote_addr=..
 func UploadThumbnail() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), KhoomiRequestTimeoutSec)
+		ctx, cancel := context.WithTimeout(context.Background(), REQ_TIMEOUT_SECS)
 		defer cancel()
 
 		remoteAddr := c.Query("remote_addr")
@@ -1016,7 +1014,7 @@ func UploadThumbnail() gin.HandlerFunc {
 			return
 		}
 
-		helper.HandleSuccess(c, http.StatusOK, "Your thumbnail has been changed successfully.", nil)
+		helper.HandleSuccess(c, http.StatusOK, "Your thumbnail has been changed successfully.", currentId.Hex())
 	}
 }
 
@@ -1024,7 +1022,7 @@ func UploadThumbnail() gin.HandlerFunc {
 // api/user/thumbnail
 func DeleteThumbnail() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), KhoomiRequestTimeoutSec)
+		ctx, cancel := context.WithTimeout(context.Background(), REQ_TIMEOUT_SECS)
 		defer cancel()
 
 		myId, err := configs.ValidateUserID(c)
@@ -1061,7 +1059,7 @@ func DeleteThumbnail() gin.HandlerFunc {
 			return
 		}
 
-		helper.HandleSuccess(c, http.StatusOK, "Your thumbnail has been deleted successfully.", nil)
+		helper.HandleSuccess(c, http.StatusOK, "Your thumbnail has been deleted successfully.", user.Id.Hex())
 	}
 }
 
@@ -1087,7 +1085,7 @@ func extractFilenameAndExtension(urlString string) (filename, extension string, 
 // CreateUserAddress - create new user address
 func CreateUserAddress() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), KhoomiRequestTimeoutSec)
+		ctx, cancel := context.WithTimeout(context.Background(), REQ_TIMEOUT_SECS)
 		defer cancel()
 
 		var userAddress models.UserAddressExcerpt
@@ -1152,7 +1150,7 @@ func CreateUserAddress() gin.HandlerFunc {
 			return
 		}
 
-		helper.HandleSuccess(c, http.StatusOK, "Address created!", nil)
+		helper.HandleSuccess(c, http.StatusOK, "Address created!", userAddressTemp.Id.Hex())
 	}
 
 }
@@ -1160,7 +1158,7 @@ func CreateUserAddress() gin.HandlerFunc {
 // GetUserAddresses - get user address
 func GetUserAddresses() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), KhoomiRequestTimeoutSec)
+		ctx, cancel := context.WithTimeout(context.Background(), REQ_TIMEOUT_SECS)
 		defer cancel()
 
 		// Validate user id
@@ -1189,14 +1187,14 @@ func GetUserAddresses() gin.HandlerFunc {
 			return
 		}
 
-		helper.HandleSuccess(c, http.StatusOK, "Success", gin.H{"addresses": userAddresses})
+		helper.HandleSuccess(c, http.StatusOK, "Success", userAddresses)
 	}
 }
 
 // UpdateUserAddress - update user address
 func UpdateUserAddress() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), KhoomiRequestTimeoutSec)
+		ctx, cancel := context.WithTimeout(context.Background(), REQ_TIMEOUT_SECS)
 		defer cancel()
 
 		var userAddress models.UserAddressExcerpt
@@ -1260,14 +1258,14 @@ func UpdateUserAddress() gin.HandlerFunc {
 			return
 		}
 
-		helper.HandleSuccess(c, http.StatusOK, "Address updated", nil)
+		helper.HandleSuccess(c, http.StatusOK, "Address updated", addressId)
 	}
 }
 
 // UpdateUserAddress - update user address
 func DeleteUserAddress() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), KhoomiRequestTimeoutSec)
+		ctx, cancel := context.WithTimeout(context.Background(), REQ_TIMEOUT_SECS)
 		defer cancel()
 
 		// Extract current address Id
@@ -1304,7 +1302,7 @@ func DeleteUserAddress() gin.HandlerFunc {
 			return
 		}
 
-		helper.HandleSuccess(c, http.StatusOK, "Address deleted", nil)
+		helper.HandleSuccess(c, http.StatusOK, "Address deleted", addressId)
 	}
 }
 
@@ -1329,7 +1327,7 @@ func setOtherAddressesToFalse(ctx context.Context, userId primitive.ObjectID, ad
 // UpdateUserBirthdate - update user birthdate
 func UpdateUserBirthdate() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), KhoomiRequestTimeoutSec)
+		ctx, cancel := context.WithTimeout(context.Background(), REQ_TIMEOUT_SECS)
 		var birthDate models.UserBirthdate
 		defer cancel()
 
@@ -1352,13 +1350,13 @@ func UpdateUserBirthdate() gin.HandlerFunc {
 		}
 		filter := bson.M{"_id": myId}
 		update := bson.M{"$set": bson.M{"birthdate.day": birthDate.Day, "birthdate.month": birthDate.Month, "birthdate.year": birthDate.Year}}
-		result, errUpdateName := UserCollection.UpdateOne(ctx, filter, update)
+		_, errUpdateName := UserCollection.UpdateOne(ctx, filter, update)
 		if errUpdateName != nil {
 			helper.HandleError(c, http.StatusBadRequest, errUpdateName, "Failed to update user birthdate")
 			return
 		}
 
-		helper.HandleSuccess(c, http.StatusOK, "Birthdate updated", result)
+		helper.HandleSuccess(c, http.StatusOK, "Birthdate updated", myId.Hex())
 	}
 }
 
@@ -1366,7 +1364,7 @@ func UpdateUserBirthdate() gin.HandlerFunc {
 // api/user/update?field=phone&value=8084051523
 func UpdateUserSingleField() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), KhoomiRequestTimeoutSec)
+		ctx, cancel := context.WithTimeout(context.Background(), REQ_TIMEOUT_SECS)
 		field := c.Query("field")
 		value := c.Query("value")
 		defer cancel()
@@ -1400,7 +1398,7 @@ func UpdateUserSingleField() gin.HandlerFunc {
 			return
 		}
 
-		helper.HandleSuccess(c, http.StatusOK, "Field updated", result)
+		helper.HandleSuccess(c, http.StatusOK, "Field updated", result.UpsertedID)
 	}
 }
 
@@ -1408,7 +1406,7 @@ func UpdateUserSingleField() gin.HandlerFunc {
 // api/user/update?shopid=phone&value=8084051523
 func AddRemoveFavoriteShop() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), KhoomiRequestTimeoutSec)
+		ctx, cancel := context.WithTimeout(context.Background(), REQ_TIMEOUT_SECS)
 		shop := c.Query("shopid")
 		action := c.Query("action")
 		defer cancel()
@@ -1440,7 +1438,7 @@ func AddRemoveFavoriteShop() gin.HandlerFunc {
 				return
 			}
 
-			helper.HandleSuccess(c, http.StatusOK, "Favorite shop removed", res)
+			helper.HandleSuccess(c, http.StatusOK, "Favorite shop removed", res.UpsertedID)
 			return
 		}
 
@@ -1452,7 +1450,7 @@ func AddRemoveFavoriteShop() gin.HandlerFunc {
 // api/user/:userId/wishlist?listing_id=8084051523
 func AddWishListItem() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), KhoomiRequestTimeoutSec)
+		ctx, cancel := context.WithTimeout(context.Background(), REQ_TIMEOUT_SECS)
 		defer cancel()
 
 		listingId := c.Query("listing_id")
@@ -1475,14 +1473,13 @@ func AddWishListItem() gin.HandlerFunc {
 			ListingId: listingObjectId,
 			CreatedAt: now,
 		}
-		res, err := WishListCollection.InsertOne(ctx, data)
+		_, err = WishListCollection.InsertOne(ctx, data)
 		if err != nil {
 			helper.HandleError(c, http.StatusNotModified, err, "Failed to add wishlist item")
 			return
 		}
 
-		result := fmt.Sprintf("New Wishlist item added with ID %v\n", res.InsertedID)
-		helper.HandleSuccess(c, http.StatusOK, "Wishlist item added", result)
+		helper.HandleSuccess(c, http.StatusOK, "Wishlist item added", data.ID.Hex())
 	}
 }
 
@@ -1490,7 +1487,7 @@ func AddWishListItem() gin.HandlerFunc {
 // api/user/:userId/wishlist?listing_id=8084051523
 func RemoveWishListItem() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), KhoomiRequestTimeoutSec)
+		ctx, cancel := context.WithTimeout(context.Background(), REQ_TIMEOUT_SECS)
 		defer cancel()
 
 		listingId := c.Query("listing_id")
@@ -1513,15 +1510,14 @@ func RemoveWishListItem() gin.HandlerFunc {
 			return
 		}
 
-		result := fmt.Sprintf("Removed %v item from my Wishlist", res.DeletedCount)
-		helper.HandleSuccess(c, http.StatusOK, "Wishlist item removed", result)
+		helper.HandleSuccess(c, http.StatusOK, "Wishlist item removed", res.DeletedCount)
 	}
 }
 
 // GetUserWishlist - Get all wishlist items  api/user/:userId/wishlist?limit=10&skip=0
 func GetUserWishlist() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), KhoomiRequestTimeoutSec)
+		ctx, cancel := context.WithTimeout(context.Background(), REQ_TIMEOUT_SECS)
 		defer cancel()
 
 		MyId, err := configs.ValidateUserID(c)
@@ -1551,8 +1547,7 @@ func GetUserWishlist() gin.HandlerFunc {
 			return
 		}
 
-		helper.HandleSuccess(c, http.StatusOK, "success", gin.H{
-			"wishlist": myWishLists,
+		helper.HandleSuccessMeta(c, http.StatusOK, "success", myWishLists, gin.H{
 			"pagination": helper.Pagination{
 				Limit: paginationArgs.Limit,
 				Skip:  paginationArgs.Skip,
@@ -1565,7 +1560,7 @@ func GetUserWishlist() gin.HandlerFunc {
 // UpdateSecurityNotificationSetting - GET api/user/:userId/login-notification?set=true
 func UpdateSecurityNotificationSetting() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), KhoomiRequestTimeoutSec)
+		ctx, cancel := context.WithTimeout(context.Background(), REQ_TIMEOUT_SECS)
 		defer cancel()
 
 		myID, err := configs.ValidateUserID(c)
@@ -1601,14 +1596,14 @@ func UpdateSecurityNotificationSetting() gin.HandlerFunc {
 			return
 		}
 
-		helper.HandleSuccess(c, http.StatusOK, "login notification setting updated successfully.", nil)
+		helper.HandleSuccess(c, http.StatusOK, "login notification setting updated successfully.", res.UpsertedID)
 	}
 }
 
 // GetSecurityNotificationSetting - GET api/user/:userId/login-notification
 func GetSecurityNotificationSetting() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), KhoomiRequestTimeoutSec)
+		ctx, cancel := context.WithTimeout(context.Background(), REQ_TIMEOUT_SECS)
 		defer cancel()
 
 		MyId, err := configs.ValidateUserID(c)
@@ -1628,6 +1623,6 @@ func GetSecurityNotificationSetting() gin.HandlerFunc {
 			return
 		}
 
-		helper.HandleSuccess(c, http.StatusOK, "login notification setting retrieved successfuly.", gin.H{"setting": result})
+		helper.HandleSuccess(c, http.StatusOK, "login notification setting retrieved successfuly.", result)
 	}
 }

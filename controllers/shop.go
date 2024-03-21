@@ -39,7 +39,7 @@ func CheckShopNameAvailability() gin.HandlerFunc {
 		err := ShopCollection.FindOne(ctx, filter).Decode(&shop)
 		if err != nil {
 			if err == mongo.ErrNoDocuments {
-				helper.HandleSuccess(c, http.StatusOK, "Congrats! shop username is available :xD", "")
+				helper.HandleSuccess(c, http.StatusOK, "Congrats! shop username is available :xD", true)
 				return
 			}
 
@@ -222,7 +222,7 @@ func CreateShop() gin.HandlerFunc {
 		// send success shop creation notification
 		email.SendNewShopEmail(userEmail, loginName, shopName)
 
-		helper.HandleSuccess(c, http.StatusOK, shopID.Hex(), "")
+		helper.HandleSuccess(c, http.StatusOK, shopID.Hex(), shopID.Hex())
 	}
 }
 
@@ -330,7 +330,7 @@ func UpdateShopInformation() gin.HandlerFunc {
 			return
 		}
 
-		helper.HandleSuccess(c, http.StatusOK, "Shop information updated successfully", nil)
+		helper.HandleSuccess(c, http.StatusOK, "Shop information updated successfully", shopId.Hex())
 	}
 }
 
@@ -364,7 +364,7 @@ func UpdateMyShopStatus() gin.HandlerFunc {
 			return
 		}
 
-		helper.HandleSuccess(c, http.StatusOK, "Shop status was updated successful", "")
+		helper.HandleSuccess(c, http.StatusOK, "Shop status was updated successful", shopId.Hex())
 	}
 }
 
@@ -489,7 +489,7 @@ func GetShop() gin.HandlerFunc {
 			return
 		}
 		shop.ConstructShopLinks()
-		helper.HandleSuccess(c, http.StatusOK, "Shop retrieved successfully", gin.H{"shop": shop})
+		helper.HandleSuccess(c, http.StatusOK, "Shop retrieved successfully", shop)
 	}
 }
 
@@ -513,7 +513,7 @@ func GetShopByOwnerUserId() gin.HandlerFunc {
 			return
 		}
 
-		helper.HandleSuccess(c, http.StatusOK, "Shop retrieved successfully", gin.H{"shop": shop})
+		helper.HandleSuccess(c, http.StatusOK, "Shop retrieved successfully", shop)
 	}
 }
 
@@ -543,11 +543,10 @@ func GetShops() gin.HandlerFunc {
 			return
 		}
 
-		helper.HandleSuccess(c, http.StatusOK, "Shops retrieved successfully",
-			gin.H{"members": shops, "pagination": helper.Pagination{
-				Limit: paginationArgs.Limit,
-				Skip:  paginationArgs.Skip,
-			}})
+		helper.HandleSuccessMeta(c, http.StatusOK, "Shops retrieved successfully", shops, gin.H{"pagination": helper.Pagination{
+			Limit: paginationArgs.Limit,
+			Skip:  paginationArgs.Skip,
+		}})
 	}
 }
 
@@ -595,8 +594,8 @@ func SearchShops() gin.HandlerFunc {
 			serializedShops = append(serializedShops, shop)
 		}
 
-		helper.HandleSuccess(c, http.StatusOK, "Shops found",
-			gin.H{"shops": serializedShops, "pagination": helper.Pagination{
+		helper.HandleSuccessMeta(c, http.StatusOK, "Shops found", serializedShops,
+			gin.H{"pagination": helper.Pagination{
 				Limit: paginationArgs.Limit,
 				Skip:  paginationArgs.Skip,
 				Count: count,
@@ -645,7 +644,7 @@ func UpdateShopAnnouncement() gin.HandlerFunc {
 			return
 		}
 
-		helper.HandleSuccess(c, http.StatusOK, "Shop announcement updated successfully", nil)
+		helper.HandleSuccess(c, http.StatusOK, "Shop announcement updated successfully", res.UpsertedID)
 	}
 }
 
@@ -679,7 +678,7 @@ func UpdateShopVacation() gin.HandlerFunc {
 			return
 		}
 
-		helper.HandleSuccess(c, http.StatusOK, "Shop vacation updated successfully", nil)
+		helper.HandleSuccess(c, http.StatusOK, "Shop vacation updated successfully", res.UpsertedID)
 	}
 }
 
@@ -721,7 +720,7 @@ func UpdateShopLogo() gin.HandlerFunc {
 			return
 		}
 
-		helper.HandleSuccess(c, http.StatusOK, "Shop logo updated successfully", nil)
+		helper.HandleSuccess(c, http.StatusOK, "Shop logo updated successfully", res.UpsertedID)
 	}
 }
 
@@ -763,7 +762,7 @@ func UpdateShopBanner() gin.HandlerFunc {
 			return
 		}
 
-		helper.HandleSuccess(c, http.StatusOK, "Shop banner updated successfully", nil)
+		helper.HandleSuccess(c, http.StatusOK, "Shop banner updated successfully", res.UpsertedID)
 	}
 }
 
@@ -805,7 +804,7 @@ func UpdateShopGallery() gin.HandlerFunc {
 			return
 		}
 
-		helper.HandleSuccess(c, http.StatusOK, "Image added to shop gallery successfully", nil)
+		helper.HandleSuccess(c, http.StatusOK, "Image added to shop gallery successfully", res.UpsertedCount)
 	}
 }
 
@@ -836,7 +835,7 @@ func DeleteFromShopGallery() gin.HandlerFunc {
 			return
 		}
 
-		helper.HandleSuccess(c, http.StatusOK, "Image removed from shop gallery successfully", nil)
+		helper.HandleSuccess(c, http.StatusOK, "Image removed from shop gallery successfully", res.UpsertedID)
 	}
 }
 
@@ -865,7 +864,7 @@ func FollowShop() gin.HandlerFunc {
 			return
 		}
 		defer session.EndSession(ctx)
-
+		followerId := primitive.NewObjectID()
 		callback := func(ctx mongo.SessionContext) (interface{}, error) {
 			var user models.User
 			err := UserCollection.FindOne(ctx, bson.M{"_id": myId}).Decode(&user)
@@ -882,7 +881,6 @@ func FollowShop() gin.HandlerFunc {
 			}
 
 			// Attempt to add member to member collection
-			followerId := primitive.NewObjectID()
 			shopMemberData := models.ShopFollower{
 				Id:        followerId,
 				UserId:    myId,
@@ -945,7 +943,7 @@ func FollowShop() gin.HandlerFunc {
 			return
 		}
 
-		helper.HandleSuccess(c, http.StatusOK, "You're now a follower of this shop", nil)
+		helper.HandleSuccess(c, http.StatusOK, "You're now a follower of this shop", followerId.Hex())
 	}
 }
 
@@ -985,8 +983,8 @@ func GetShopFollowers() gin.HandlerFunc {
 			return
 		}
 
-		helper.HandleSuccess(c, http.StatusOK, "Success",
-			gin.H{"followers": shopFollowers,
+		helper.HandleSuccessMeta(c, http.StatusOK, "Success", shopFollowers,
+			gin.H{
 				"pagination": helper.Pagination{
 					Limit: paginationArgs.Limit,
 					Skip:  paginationArgs.Skip,
@@ -1012,7 +1010,7 @@ func IsFollowingShop() gin.HandlerFunc {
 		err = ShopFollowerCollection.FindOne(ctx, filter).Decode(&follower)
 		if err != nil {
 			if err == mongo.ErrNoDocuments {
-				helper.HandleSuccess(c, http.StatusOK, "Success", gin.H{"is_following": false})
+				helper.HandleSuccess(c, http.StatusOK, "Success", false)
 				return
 			}
 
@@ -1020,7 +1018,7 @@ func IsFollowingShop() gin.HandlerFunc {
 			return
 		}
 
-		helper.HandleSuccess(c, http.StatusOK, "Success", gin.H{"is_following": true})
+		helper.HandleSuccess(c, http.StatusOK, "Success", true)
 
 	}
 }
@@ -1083,7 +1081,7 @@ func UnfollowShop() gin.HandlerFunc {
 
 		session.EndSession(context.Background())
 
-		helper.HandleSuccess(c, http.StatusOK, "Left shop successfully", nil)
+		helper.HandleSuccess(c, http.StatusOK, "Left shop successfully", shopId.Hex())
 	}
 }
 
@@ -1160,7 +1158,7 @@ func RemoveOtherFollower() gin.HandlerFunc {
 
 		session.EndSession(context.Background())
 
-		helper.HandleSuccess(c, http.StatusOK, "Follower removed successfully", nil)
+		helper.HandleSuccess(c, http.StatusOK, "Follower removed successfully", userToBeRemovedId.Hex())
 	}
 }
 
@@ -1207,6 +1205,7 @@ func CreateShopReview() gin.HandlerFunc {
 		}
 		defer session.EndSession(ctx)
 
+		reviewId := primitive.NewObjectID()
 		callback := func(ctx mongo.SessionContext) (interface{}, error) {
 			var userProfile models.User
 			err := UserCollection.FindOne(ctx, bson.M{"_id": myId}).Decode(&userProfile)
@@ -1217,7 +1216,7 @@ func CreateShopReview() gin.HandlerFunc {
 
 			// attempt to add review to review collection
 			shopReviewData := models.ShopReview{
-				Id:           primitive.NewObjectID(),
+				Id:           reviewId,
 				UserId:       myId,
 				ShopId:       shopId,
 				Review:       shopReviewJson.Review,
@@ -1261,7 +1260,7 @@ func CreateShopReview() gin.HandlerFunc {
 		}
 		session.EndSession(context.Background())
 
-		helper.HandleSuccess(c, http.StatusOK, "Shop creation successfuls", nil)
+		helper.HandleSuccess(c, http.StatusOK, "Shop creation successfuls", reviewId.Hex())
 	}
 }
 
@@ -1299,8 +1298,7 @@ func GetShopReviews() gin.HandlerFunc {
 			return
 		}
 
-		helper.HandleSuccess(c, http.StatusOK, "success", gin.H{
-			"reviews": map[string]interface{}{"data": shopReviews},
+		helper.HandleSuccessMeta(c, http.StatusOK, "success", shopReviews, gin.H{
 			"pagination": helper.Pagination{
 				Limit: paginationArgs.Limit,
 				Skip:  paginationArgs.Skip,
@@ -1332,6 +1330,7 @@ func DeleteMyReview() gin.HandlerFunc {
 		}
 		defer session.EndSession(ctx)
 
+		var deletedReviewId interface{}
 		callback := func(ctx mongo.SessionContext) (interface{}, error) {
 			// Attempt to remove review from review collection table
 			filter := bson.M{"shop_id": shopId, "user_id": myId}
@@ -1352,6 +1351,7 @@ func DeleteMyReview() gin.HandlerFunc {
 				return nil, errors.New("no matching documents found")
 			}
 
+			deletedReviewId = result2.UpsertedID
 			return result2, nil
 		}
 
@@ -1366,7 +1366,7 @@ func DeleteMyReview() gin.HandlerFunc {
 		}
 		session.EndSession(context.Background())
 
-		helper.HandleSuccess(c, http.StatusOK, "My review was deleted successfully", nil)
+		helper.HandleSuccess(c, http.StatusOK, "My review was deleted successfully", deletedReviewId)
 	}
 }
 
@@ -1396,6 +1396,7 @@ func DeleteOtherReview() gin.HandlerFunc {
 			return
 		}
 
+		var deletedReviewId interface{}
 		// Shop review session
 		wc := writeconcern.New(writeconcern.WMajority())
 		txnOptions := options.Transaction().SetWriteConcern(wc)
@@ -1425,6 +1426,7 @@ func DeleteOtherReview() gin.HandlerFunc {
 				return nil, errors.New("no matching documents found")
 			}
 
+			deletedReviewId = result2.UpsertedID
 			return result2, nil
 		}
 
@@ -1439,7 +1441,7 @@ func DeleteOtherReview() gin.HandlerFunc {
 		}
 		session.EndSession(context.Background())
 
-		helper.HandleSuccess(c, http.StatusOK, "Other user review deleted successfully", nil)
+		helper.HandleSuccess(c, http.StatusOK, "Other user review deleted successfully", deletedReviewId)
 	}
 }
 
@@ -1481,7 +1483,7 @@ func CreateShopAbout() gin.HandlerFunc {
 			return
 		}
 
-		helper.HandleSuccess(c, http.StatusOK, "Shop about created successfully", nil)
+		helper.HandleSuccess(c, http.StatusOK, "Shop about created successfully", shopAboutData.ID.Hex())
 	}
 }
 
@@ -1511,9 +1513,7 @@ func GetShopAbout() gin.HandlerFunc {
 			return
 		}
 
-		helper.HandleSuccess(c, http.StatusOK, "success", gin.H{
-			"about": shopAbout,
-		})
+		helper.HandleSuccess(c, http.StatusOK, "success", shopAbout)
 	}
 }
 
@@ -1572,7 +1572,7 @@ func UpdateShopAbout() gin.HandlerFunc {
 			return
 		}
 
-		helper.HandleSuccess(c, http.StatusOK, "Shop about updated successfully", nil)
+		helper.HandleSuccess(c, http.StatusOK, "Shop about updated successfully", res.UpsertedID)
 	}
 }
 
@@ -1613,7 +1613,7 @@ func UpdateShopAboutStatus() gin.HandlerFunc {
 			return
 		}
 
-		helper.HandleSuccess(c, http.StatusOK, "Shop about status updated successfully", nil)
+		helper.HandleSuccess(c, http.StatusOK, "Shop about status updated successfully", res.UpsertedID)
 	}
 }
 
@@ -1656,7 +1656,7 @@ func CreateShopReturnPolicy() gin.HandlerFunc {
 			return
 		}
 
-		helper.HandleSuccess(c, http.StatusOK, "Shop policy created successfully", nil)
+		helper.HandleSuccess(c, http.StatusOK, "Shop policy created successfully", shopReturnPolicyJson.ID.Hex())
 	}
 }
 
@@ -1703,7 +1703,7 @@ func UpdateShopReturnPolicy() gin.HandlerFunc {
 			return
 		}
 
-		helper.HandleSuccess(c, http.StatusOK, "Shop policy updated successfully", nil)
+		helper.HandleSuccess(c, http.StatusOK, "Shop policy updated successfully", res.UpsertedID)
 	}
 }
 
@@ -1734,13 +1734,13 @@ func DeleteShopReturnPolicy() gin.HandlerFunc {
 		}
 
 		filter := bson.M{"_id": policyId, "shop_id": shopId}
-		_, err = ShopReturnPolicyCollection.DeleteOne(ctx, filter)
+		res, err := ShopReturnPolicyCollection.DeleteOne(ctx, filter)
 		if err != nil {
 			helper.HandleError(c, http.StatusInternalServerError, err, "Error deleting shop policy")
 			return
 		}
 
-		helper.HandleSuccess(c, http.StatusOK, "Shop policy deleted successfully", nil)
+		helper.HandleSuccess(c, http.StatusOK, "Shop policy deleted successfully", res.DeletedCount)
 	}
 }
 
@@ -1771,7 +1771,7 @@ func GetShopReturnPolicy() gin.HandlerFunc {
 			return
 		}
 
-		helper.HandleSuccess(c, http.StatusOK, "success", gin.H{"policy": currentPolicy})
+		helper.HandleSuccess(c, http.StatusOK, "success", currentPolicy)
 	}
 }
 
@@ -1810,7 +1810,7 @@ func GetShopReturnPolicies() gin.HandlerFunc {
 			policies = append(policies, policy)
 		}
 
-		helper.HandleSuccess(c, http.StatusOK, "success", gin.H{"policies": policies})
+		helper.HandleSuccess(c, http.StatusOK, "success", policies)
 	}
 }
 

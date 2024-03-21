@@ -82,7 +82,7 @@ func getListingSortingBson(sort string) bson.D {
 
 func CreateListing() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), 50*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), REQ_TIMEOUT_SECS)
 		defer cancel()
 
 		shopId, myId, err := services.MyShopIdAndMyId(c)
@@ -290,14 +290,14 @@ func CreateListing() gin.HandlerFunc {
 		// send new listing email notification to user
 		email.SendNewListingEmail(loginEmail, loginName, newListing.ListingDetails.Title)
 
-		helper.HandleSuccess(c, http.StatusOK, "Listing was created successfully", gin.H{"_id": res.InsertedID})
+		helper.HandleSuccess(c, http.StatusOK, "Listing was created successfully", res.InsertedID)
 
 	}
 }
 
 func GetListing() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), 50*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), REQ_TIMEOUT_SECS)
 		defer cancel()
 
 		var listingIdentifier bson.M
@@ -428,13 +428,13 @@ func GetListing() gin.HandlerFunc {
 			return
 		}
 
-		helper.HandleSuccess(c, http.StatusOK, "Success", gin.H{"listing": listing})
+		helper.HandleSuccess(c, http.StatusOK, "Success", listing)
 	}
 }
 
 func GetListings() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), 50*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), REQ_TIMEOUT_SECS)
 		defer cancel()
 
 		paginationArgs := services.GetPaginationArgs(c)
@@ -536,8 +536,7 @@ func GetListings() gin.HandlerFunc {
 			}
 		}
 
-		helper.HandleSuccess(c, http.StatusOK, "success", gin.H{
-			"listings": listings,
+		helper.HandleSuccessMeta(c, http.StatusOK, "success", listings, gin.H{
 			"pagination": helper.Pagination{
 				Limit: paginationArgs.Limit,
 				Skip:  paginationArgs.Skip,
@@ -549,7 +548,7 @@ func GetListings() gin.HandlerFunc {
 
 func GetMyListingsSummary() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), 50*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), REQ_TIMEOUT_SECS)
 		defer cancel()
 
 		shopId, myId, err := services.MyShopIdAndMyId(c)
@@ -586,8 +585,7 @@ func GetMyListingsSummary() gin.HandlerFunc {
 			return
 		}
 
-		helper.HandleSuccess(c, http.StatusOK, "success", gin.H{
-			"listings": listings,
+		helper.HandleSuccessMeta(c, http.StatusOK, "success", listings, gin.H{
 			"pagination": helper.Pagination{
 				Limit: paginationArgs.Limit,
 				Skip:  paginationArgs.Skip,
@@ -600,7 +598,7 @@ func GetMyListingsSummary() gin.HandlerFunc {
 // GetShopListings - Get single shop listings.
 func GetShopListings() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), 50*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), REQ_TIMEOUT_SECS)
 		defer cancel()
 
 		shopId := c.Param("shopid")
@@ -634,8 +632,7 @@ func GetShopListings() gin.HandlerFunc {
 			return
 		}
 
-		helper.HandleSuccess(c, http.StatusOK, "success", gin.H{
-			"listings": listings,
+		helper.HandleSuccessMeta(c, http.StatusOK, "success", listings, gin.H{
 			"pagination": helper.Pagination{
 				Limit: paginationArgs.Limit,
 				Skip:  paginationArgs.Skip,
@@ -647,7 +644,7 @@ func GetShopListings() gin.HandlerFunc {
 
 func HasUserCreatedListingOnboarding() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), KhoomiRequestTimeoutSec)
+		ctx, cancel := context.WithTimeout(context.Background(), REQ_TIMEOUT_SECS)
 		defer cancel()
 
 		shopId, userId, err := services.MyShopIdAndMyId(c)
@@ -683,13 +680,13 @@ func HasUserCreatedListingOnboarding() gin.HandlerFunc {
 			return
 		}
 
-		helper.HandleSuccess(c, http.StatusOK, "Success", gin.H{"listing": listing[0]})
+		helper.HandleSuccess(c, http.StatusOK, "Success", len(listing) > 0)
 	}
 }
 
 func DeleteListings() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), KhoomiRequestTimeoutSec)
+		ctx, cancel := context.WithTimeout(context.Background(), REQ_TIMEOUT_SECS)
 		defer cancel()
 
 		myId, err := config.ValidateUserID(c)
@@ -723,18 +720,14 @@ func DeleteListings() gin.HandlerFunc {
 			deletedObjectIDs = append(deletedObjectIDs, idObjectID)
 		}
 
-		if len(deletedObjectIDs) > 0 {
-			helper.HandleSuccess(c, http.StatusOK, "Listing(s) deleted", gin.H{"deleted": listingIDs, "not_deleted": notDeletedObjectIDs})
-		} else {
-			helper.HandleSuccess(c, http.StatusOK, "Listing(s) deleted", gin.H{"deleted": nil, "not_deleted": nil})
-		}
+		helper.HandleSuccess(c, http.StatusOK, "Listing(s) deleted", gin.H{"deleted": listingIDs, "not_deleted": notDeletedObjectIDs})
 	}
 }
 
 func DeactivateListings() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		now := time.Now()
-		ctx, cancel := context.WithTimeout(context.Background(), KhoomiRequestTimeoutSec)
+		ctx, cancel := context.WithTimeout(context.Background(), REQ_TIMEOUT_SECS)
 		defer cancel()
 
 		myId, err := config.ValidateUserID(c)
@@ -768,10 +761,6 @@ func DeactivateListings() gin.HandlerFunc {
 			deletedObjectIDs = append(deletedObjectIDs, idObjectID)
 		}
 
-		if len(deletedObjectIDs) > 0 {
-			helper.HandleSuccess(c, http.StatusOK, "Listing(s) deleted", gin.H{"deactivated": listingIDs, "not_deactivated": notDeletedObjectIDs})
-		} else {
-			helper.HandleSuccess(c, http.StatusOK, "No listing(s) were deleted", gin.H{"deactivated": nil, "not_deactivated": nil})
-		}
+		helper.HandleSuccess(c, http.StatusOK, "Listing(s) deleted", gin.H{"deactivated": listingIDs, "not_deactivated": notDeletedObjectIDs})
 	}
 }

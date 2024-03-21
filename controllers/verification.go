@@ -17,32 +17,32 @@ import (
 
 func CreateSellerVerificationProfile() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), KhoomiRequestTimeoutSec)
+		ctx, cancel := context.WithTimeout(context.Background(), REQ_TIMEOUT_SECS)
 		defer cancel()
 
 		shopId := c.Param("shopid")
 		shopIdObj, err := primitive.ObjectIDFromHex(shopId)
 		if err != nil {
-			helper.HandleError(c, http.StatusBadRequest, err, "invalid shopid")
+			helper.HandleError(c, http.StatusUnprocessableEntity, err, "Invalid shop id")
 			return
 		}
 
 		// Check if the user owns the shop
 		auth, err := config.InitJwtClaim(c)
 		if err != nil {
-			helper.HandleError(c, http.StatusUnauthorized, err, "action is for authorized users")
+			helper.HandleError(c, http.StatusUnauthorized, err, "Invalid user token, id or access")
 			return
 		}
 		userId, err := auth.GetUserObjectId()
 		if err != nil {
-			helper.HandleError(c, http.StatusUnauthorized, err, "action is for authorized users")
+			helper.HandleError(c, http.StatusUnauthorized, err, "Invalid user token, id or access")
 			return
 		}
 
 		err = VerifyShopOwnership(c, userId, shopIdObj)
 		if err != nil {
 			log.Printf("Error you the shop owner: %s\n", err.Error())
-			helper.HandleError(c, http.StatusUnauthorized, err, "shop ownership validation error")
+			helper.HandleError(c, http.StatusForbidden, err, "shop ownership validation error")
 			return
 		}
 
@@ -50,14 +50,14 @@ func CreateSellerVerificationProfile() gin.HandlerFunc {
 		err = c.BindJSON(&verificationJson)
 		if err != nil {
 			log.Println(err)
-			helper.HandleError(c, http.StatusBadRequest, err, "invalid request body")
+			helper.HandleError(c, http.StatusUnprocessableEntity, err, "invalid request body")
 			return
 		}
 
 		// Validate request body
 		if validationErr := Validate.Struct(&verificationJson); validationErr != nil {
 			log.Println(validationErr)
-			helper.HandleError(c, http.StatusBadRequest, validationErr, "invalid request body")
+			helper.HandleError(c, http.StatusUnprocessableEntity, err, "invalid request body")
 			return
 		}
 
@@ -81,41 +81,41 @@ func CreateSellerVerificationProfile() gin.HandlerFunc {
 		res, err := SellerVerificationCollection.InsertOne(ctx, ShippingProfile)
 		if err != nil {
 			log.Println(err)
-			helper.HandleError(c, http.StatusBadRequest, err, "document insert error")
+			helper.HandleError(c, http.StatusUnauthorized, err, "Internal server error while creating verification")
 			return
 		}
 
-		helper.HandleSuccess(c, http.StatusOK, "successful", gin.H{"inserted_id": res.InsertedID})
+		helper.HandleSuccess(c, http.StatusOK, "successful", res.InsertedID)
 	}
 }
 
 func GetSellerVerificationProfile() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), KhoomiRequestTimeoutSec)
+		ctx, cancel := context.WithTimeout(context.Background(), REQ_TIMEOUT_SECS)
 		defer cancel()
 
 		shopId := c.Param("shopid")
 		shopIdObj, err := primitive.ObjectIDFromHex(shopId)
 		if err != nil {
-			helper.HandleError(c, http.StatusBadRequest, err, "invalid shopid")
+			helper.HandleError(c, http.StatusUnprocessableEntity, err, "invalid shopid")
 			return
 		}
 
 		// Check if the user owns the shop
 		auth, err := config.InitJwtClaim(c)
 		if err != nil {
-			helper.HandleError(c, http.StatusUnauthorized, err, "action is for authorized users")
+			helper.HandleError(c, http.StatusUnauthorized, err, "Invalid user token, id or access")
 			return
 		}
 		userId, err := auth.GetUserObjectId()
 		if err != nil {
-			helper.HandleError(c, http.StatusUnauthorized, err, "action is for authorized users")
+			helper.HandleError(c, http.StatusUnauthorized, err, "Invalid user token, id or access")
 			return
 		}
 		err = VerifyShopOwnership(c, userId, shopIdObj)
 		if err != nil {
 			log.Printf("Error you the shop owner: %s\n", err.Error())
-			helper.HandleError(c, http.StatusUnauthorized, err, "shop ownership validation error")
+			helper.HandleError(c, http.StatusForbidden, err, "shop ownership validation error")
 			return
 		}
 
@@ -123,14 +123,14 @@ func GetSellerVerificationProfile() gin.HandlerFunc {
 		err = SellerVerificationCollection.FindOne(ctx, bson.M{"shop_id": shopIdObj}).Decode(&verificationProfile)
 		if err != nil {
 			if err == mongo.ErrNoDocuments {
-				helper.HandleError(c, http.StatusNotFound, err, "Shop compliance information not found")
+				helper.HandleError(c, http.StatusNotFound, err, "verification profile not found")
 				return
 			}
-			helper.HandleError(c, http.StatusInternalServerError, err, "error retrieving user information")
+			helper.HandleError(c, http.StatusInternalServerError, err, "Internal server error while fetching verification profile")
 			return
 		}
 
-		helper.HandleSuccess(c, http.StatusOK, "Seller verification profile retrieved successfully", gin.H{"verification_profile": verificationProfile})
+		helper.HandleSuccess(c, http.StatusOK, "Seller verification profile retrieved successfully", verificationProfile)
 
 	}
 }

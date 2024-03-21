@@ -18,45 +18,47 @@ import (
 
 func CreateShopShippingProfile() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), KhoomiRequestTimeoutSec)
+		ctx, cancel := context.WithTimeout(context.Background(), REQ_TIMEOUT_SECS)
 		defer cancel()
 
 		shopId := c.Param("shopid")
 		shopIdObj, err := primitive.ObjectIDFromHex(shopId)
 		if err != nil {
-			helper.HandleError(c, http.StatusBadRequest, err, "invalid shopid")
+			log.Println(err)
+			helper.HandleError(c, http.StatusUnprocessableEntity, err, "invalid shopid")
 			return
 		}
 
 		// Check if the user owns the shop
 		auth, err := config.InitJwtClaim(c)
 		if err != nil {
-			helper.HandleError(c, http.StatusUnauthorized, err, "unauthorized")
+			helper.HandleError(c, http.StatusUnauthorized, err, "Invalid user token, id or access")
 			return
 		}
 		userID, err := auth.GetUserObjectId()
 		if err != nil {
-			helper.HandleError(c, http.StatusUnauthorized, err, "unauthorized")
+			helper.HandleError(c, http.StatusUnauthorized, err, "Invalid user token, id or access")
 			return
 		}
 
 		err = VerifyShopOwnership(c, userID, shopIdObj)
 		if err != nil {
 			log.Printf("Error you the shop owner: %s\n", err.Error())
-			helper.HandleError(c, http.StatusUnauthorized, err, "shop ownership validation error")
+			helper.HandleError(c, http.StatusForbidden, err, "shop ownership validation error")
 			return
 		}
 
 		var shippingJson models.ShopShippingProfileRequest
 		err = c.BindJSON(&shippingJson)
 		if err != nil {
-			helper.HandleError(c, http.StatusBadRequest, err, "invalid request body")
+			log.Println(err)
+			helper.HandleError(c, http.StatusUnprocessableEntity, err, "invalid request body")
 			return
 		}
 
 		// Validate request body
-		if validationErr := Validate.Struct(&shippingJson); validationErr != nil {
-			helper.HandleError(c, http.StatusBadRequest, validationErr, "invalid request body")
+		if err := Validate.Struct(&shippingJson); err != nil {
+			helper.HandleError(c, http.StatusUnprocessableEntity, err, "invalid request body")
 			return
 		}
 		shippingPolicy := models.ShippingPolicy{
@@ -96,17 +98,17 @@ func CreateShopShippingProfile() gin.HandlerFunc {
 		res, err := ShippingProfileCollection.InsertOne(ctx, ShippingProfile)
 		if err != nil {
 			log.Println(err)
-			helper.HandleError(c, http.StatusBadRequest, err, "document insert error")
+			helper.HandleError(c, http.StatusInternalServerError, err, "document insert error")
 			return
 		}
 
-		helper.HandleSuccess(c, http.StatusOK, "document inserted", gin.H{"inserted_id": res.InsertedID})
+		helper.HandleSuccess(c, http.StatusOK, "document inserted", res.InsertedID)
 	}
 }
 
 func GetShopShippingProfileInfo() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), KhoomiRequestTimeoutSec)
+		ctx, cancel := context.WithTimeout(context.Background(), REQ_TIMEOUT_SECS)
 		defer cancel()
 
 		profileIdString := c.Param("id")
@@ -123,19 +125,19 @@ func GetShopShippingProfileInfo() gin.HandlerFunc {
 			return
 		}
 
-		helper.HandleSuccess(c, http.StatusOK, "success", gin.H{"shipping_profile": shippingProfile})
+		helper.HandleSuccess(c, http.StatusOK, "success", shippingProfile)
 	}
 }
 
 func GetShopShippingProfileInfos() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), KhoomiRequestTimeoutSec)
+		ctx, cancel := context.WithTimeout(context.Background(), REQ_TIMEOUT_SECS)
 		defer cancel()
 
 		shopIDStr := c.Param("shopid")
 		shopIDObject, err := primitive.ObjectIDFromHex(shopIDStr)
 		if err != nil {
-			helper.HandleError(c, http.StatusUnauthorized, err, "unauthorized")
+			helper.HandleError(c, http.StatusUnauthorized, err, "Invalid user token, id or access")
 			return
 		}
 
@@ -148,24 +150,26 @@ func GetShopShippingProfileInfos() gin.HandlerFunc {
 
 		result, err := ShippingProfileCollection.Find(ctx, filter, findOptions)
 		if err != nil {
-			helper.HandleError(c, http.StatusNotFound, err, "Failed to find shipping profiles")
+			log.Println(err)
+			helper.HandleError(c, http.StatusInternalServerError, err, "Failed to find shipping profiles")
 			return
 		}
 
 		count, err := ShippingProfileCollection.CountDocuments(ctx, filter)
 		if err != nil {
+			log.Println(err)
 			helper.HandleError(c, http.StatusInternalServerError, err, "Failed to count shipping profiles")
 			return
 		}
 
 		var shippingProfiles []models.ShopShippingProfile
 		if err = result.All(ctx, &shippingProfiles); err != nil {
-			helper.HandleError(c, http.StatusNotFound, err, "Failed to decode shipping profiles")
+			log.Println(err)
+			helper.HandleError(c, http.StatusInternalServerError, err, "Failed to decode shipping profiles")
 			return
 		}
 
-		helper.HandleSuccess(c, http.StatusOK, "success", gin.H{
-			"shipping_profiles": shippingProfiles,
+		helper.HandleSuccessMeta(c, http.StatusOK, "success", shippingProfiles, gin.H{
 			"pagination": helper.Pagination{
 				Limit: paginationArgs.Limit,
 				Skip:  paginationArgs.Skip,
@@ -177,7 +181,7 @@ func GetShopShippingProfileInfos() gin.HandlerFunc {
 
 // func UpdateShopShippingProfileInfo() gin.HandlerFunc {
 // 	return func(c *gin.Context) {
-// 		ctx, cancel := context.WithTimeout(context.Background(), KhoomiRequestTimeoutSec)
+// 		ctx, cancel := context.WithTimeout(context.Background(), REQ_TIMEOUT_SECS)
 // 		var shippingJson models.ShopShippingProfileRequest
 // 		defer cancel()
 

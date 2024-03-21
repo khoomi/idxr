@@ -18,7 +18,7 @@ import (
 // USER NOTIFICATIONS
 func CreateUserNotificationSettings() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), KhoomiRequestTimeoutSec)
+		ctx, cancel := context.WithTimeout(context.Background(), REQ_TIMEOUT_SECS)
 		defer cancel()
 
 		userId, err := configs.ValidateUserID(c)
@@ -43,20 +43,20 @@ func CreateUserNotificationSettings() gin.HandlerFunc {
 			NewsAndFeatures:  notificationRequest.NewsAndFeatures,
 		}
 
-		_, err = NotificationCollection.InsertOne(ctx, notification)
+		res, err := NotificationCollection.InsertOne(ctx, notification)
 		if err != nil {
 			helper.HandleError(c, http.StatusInternalServerError, err, "Error creating notification")
 			return
 		}
 
 		log.Printf("Notification was created for user %v", userId)
-		helper.HandleSuccess(c, http.StatusOK, "Notification created successfully", "")
+		helper.HandleSuccess(c, http.StatusOK, "Notification created successfully", res.InsertedID)
 	}
 }
 
 func GetUserNotificationSettings() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), KhoomiRequestTimeoutSec)
+		ctx, cancel := context.WithTimeout(context.Background(), REQ_TIMEOUT_SECS)
 		defer cancel()
 
 		userId, err := configs.ValidateUserID(c)
@@ -92,14 +92,14 @@ func GetUserNotificationSettings() gin.HandlerFunc {
 			return
 		}
 
-		helper.HandleSuccess(c, http.StatusOK, "Notification settings retrieved successfully", gin.H{"notification": notification})
+		helper.HandleSuccess(c, http.StatusOK, "Notification settings retrieved successfully", notification)
 	}
 }
 
 // /api/user/:userid/?name=new_message&value=true
 func UpdateUserNotificationSettings() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), KhoomiRequestTimeoutSec)
+		ctx, cancel := context.WithTimeout(context.Background(), REQ_TIMEOUT_SECS)
 		defer cancel()
 
 		userId, err := configs.ValidateUserID(c)
@@ -152,12 +152,12 @@ func UpdateUserNotificationSettings() gin.HandlerFunc {
 		}
 		filter := bson.M{"user_id": userId}
 
-		_, err = NotificationCollection.UpdateOne(ctx, filter, update)
+		res, err := NotificationCollection.UpdateOne(ctx, filter, update)
 		if err != nil {
 			helper.HandleError(c, http.StatusInternalServerError, err, "Error updating notification settings")
 			return
 		}
 
-		helper.HandleSuccess(c, http.StatusOK, "Notification settings updated successfully", nil)
+		helper.HandleSuccess(c, http.StatusOK, "Notification settings updated successfully", res.UpsertedID)
 	}
 }

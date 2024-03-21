@@ -10,6 +10,7 @@ type SuccessResponse struct {
 	Status  int         `json:"status"`
 	Message string      `json:"message"`
 	Data    interface{} `json:"data,omitempty"`
+	Meta    interface{} `json:"meta,omitempty"`
 }
 
 func HandleSuccess(c *gin.Context, statusCode int, message string, data interface{}) {
@@ -17,21 +18,27 @@ func HandleSuccess(c *gin.Context, statusCode int, message string, data interfac
 		Status:  statusCode,
 		Message: message,
 		Data:    data,
+		Meta:    nil,
+	})
+}
+
+func HandleSuccessMeta(c *gin.Context, statusCode int, message string, data, meta interface{}) {
+	c.JSON(statusCode, SuccessResponse{
+		Status:  statusCode,
+		Message: message,
+		Data:    data,
+		Meta:    meta,
 	})
 }
 
 type ErrorResponse struct {
-	Status  int    `json:"status"`
-	Message string `json:"message"`
-	Error   string `json:"error,omitempty"`
+	Error string `json:"error,omitempty"`
 }
 
 func HandleError(c *gin.Context, statusCode int, err error, message string) {
-	log.Println(err, "—", message)
+	log.Println(err)
 	c.JSON(statusCode, ErrorResponse{
-		Status:  statusCode,
-		Message: message,
-		Error:   err.Error(),
+		Error: message,
 	})
 }
 

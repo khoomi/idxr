@@ -32,6 +32,6 @@ var DefaultThumbnail = "https://res.cloudinary.com/kh-oo-mi/image/upload/v170560
 var DefaultLogo = "https://res.cloudinary.com/kh-oo-mi/image/upload/v1703704749/UCuy4YhFhyCvo3-jeXhNjR4yIeQ/zvzr1l17hz2c3yhqhf89.png"
 
 const (
-	KhoomiRequestTimeoutSec = 100 * time.Second
-	MongoDuplicateKeyCode   = 11000
+	REQ_TIMEOUT_SECS      = 50 * time.Second
+	MongoDuplicateKeyCode = 11000
 )

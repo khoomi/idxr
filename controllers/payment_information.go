@@ -36,7 +36,7 @@ func setOtherPaymentsToFalse(ctx context.Context, userId primitive.ObjectID, pay
 // / CreatePaymentInformation -> POST /:userId/payment-information/
 func CreatePaymentInformation() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), KhoomiRequestTimeoutSec)
+		ctx, cancel := context.WithTimeout(context.Background(), REQ_TIMEOUT_SECS)
 		defer cancel()
 
 		userId, err := configs.ValidateUserID(c)
@@ -120,7 +120,7 @@ func CreatePaymentInformation() gin.HandlerFunc {
 			return insertRes, nil
 		}
 
-		result, err := session.WithTransaction(ctx, callback, txnOptions)
+		_, err = session.WithTransaction(ctx, callback, txnOptions)
 		if err != nil {
 			helper.HandleError(c, http.StatusBadRequest, err, "Failed to execute transaction")
 			return
@@ -132,14 +132,14 @@ func CreatePaymentInformation() gin.HandlerFunc {
 		}
 
 		log.Printf("User %v added their payment account information", userId)
-		helper.HandleSuccess(c, http.StatusOK, "Payment account information created successfully", result)
+		helper.HandleSuccess(c, http.StatusOK, "Payment account information created successfully", paymentInfoToUpload.ID.Hex())
 	}
 }
 
 // / GetPaymentInformations -> GET /:userId/payment-information/
 func GetPaymentInformations() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), KhoomiRequestTimeoutSec)
+		ctx, cancel := context.WithTimeout(context.Background(), REQ_TIMEOUT_SECS)
 		defer cancel()
 
 		userId, err := configs.ValidateUserID(c)
@@ -174,14 +174,14 @@ func GetPaymentInformations() gin.HandlerFunc {
 			return
 		}
 
-		helper.HandleSuccess(c, http.StatusOK, "Success", gin.H{"accounts": paymentInfos})
+		helper.HandleSuccess(c, http.StatusOK, "Success", paymentInfos)
 	}
 }
 
 // / ChangeDefaultPaymentInformation -> PUT /:userId/payment-information/:paymentInfoId
 func ChangeDefaultPaymentInformation() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), KhoomiRequestTimeoutSec)
+		ctx, cancel := context.WithTimeout(context.Background(), REQ_TIMEOUT_SECS)
 		defer cancel()
 
 		userId, err := configs.ValidateUserID(c)
@@ -230,14 +230,14 @@ func ChangeDefaultPaymentInformation() gin.HandlerFunc {
 			return
 		}
 
-		helper.HandleSuccess(c, http.StatusOK, "Default payment has been succesfuly changed.", gin.H{"modified": insertRes.ModifiedCount})
+		helper.HandleSuccess(c, http.StatusOK, "Default payment has been succesfuly changed.", insertRes.ModifiedCount)
 	}
 }
 
 // / DeletePaymentInformation -> DELETE /:userId/payment-information/:paymentInfoId
 func DeletePaymentInformation() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), KhoomiRequestTimeoutSec)
+		ctx, cancel := context.WithTimeout(context.Background(), REQ_TIMEOUT_SECS)
 		defer cancel()
 
 		paymentInfoID := c.Param("paymentInfoId")
@@ -274,14 +274,13 @@ func DeletePaymentInformation() gin.HandlerFunc {
 			return
 		}
 
-		helper.HandleSuccess(c, http.StatusOK, "Payment information deleted successfully",
-			gin.H{"_id": paymentInfoID, "count": result.DeletedCount})
+		helper.HandleSuccess(c, http.StatusOK, "Payment information deleted successfully", result.DeletedCount)
 	}
 }
 
 func CompletedPaymentOnboarding() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), KhoomiRequestTimeoutSec)
+		ctx, cancel := context.WithTimeout(context.Background(), REQ_TIMEOUT_SECS)
 		defer cancel()
 
 		userId, err := configs.ValidateUserID(c)
@@ -315,6 +314,6 @@ func CompletedPaymentOnboarding() gin.HandlerFunc {
 			hasPaymentInfo = false
 		}
 
-		helper.HandleSuccess(c, http.StatusOK, "Success", gin.H{"has_payment_information": hasPaymentInfo})
+		helper.HandleSuccess(c, http.StatusOK, "Success", hasPaymentInfo)
 	}
 }
