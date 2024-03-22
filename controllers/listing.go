@@ -145,7 +145,7 @@ func CreateListing() gin.HandlerFunc {
 				file, err := fileHeader.Open()
 				if err != nil {
 					errMsg := fmt.Sprintf("Failed to open file - %v", err.Error())
-					log.Print(errMsg)
+					println(errMsg)
 					helper.HandleError(c, http.StatusInternalServerError, err, errMsg)
 					return
 				}
@@ -279,7 +279,7 @@ func CreateListing() gin.HandlerFunc {
 			_, err := services.DestroyMedia(mainImageUploadUrl.PublicID)
 			for _, file := range uploadedImagesResult {
 				_, err := services.DestroyMedia(file.PublicID)
-				log.Println(err)
+				println(err)
 			}
 			// return error
 			errMsg := fmt.Sprintf("Failed to create new listing — %v", err.Error())
@@ -410,7 +410,7 @@ func GetListing() gin.HandlerFunc {
 
 		cursor, err := ListingCollection.Aggregate(ctx, pipeline)
 		if err != nil {
-			log.Println(err)
+			println(err)
 			helper.HandleError(c, http.StatusInternalServerError, err, "error while retrieving listing")
 			return
 		}
@@ -419,7 +419,7 @@ func GetListing() gin.HandlerFunc {
 
 		if cursor.Next(ctx) {
 			if err := cursor.Decode(&listing); err != nil {
-				log.Println(err)
+				println(err)
 				helper.HandleError(c, http.StatusInternalServerError, err, "error while decoding listing")
 				return
 			}
@@ -570,7 +570,7 @@ func GetMyListingsSummary() gin.HandlerFunc {
 		}
 		defer func() {
 			if err := cursor.Close(ctx); err != nil {
-				log.Println("Failed to close cursor:", err)
+				println("Failed to close cursor:", err)
 			}
 		}()
 
