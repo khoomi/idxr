@@ -36,6 +36,13 @@ type Shop struct {
 	User                   ListingUserExcept  `bson:"user" json:"user"`
 	Address                UserAddress        `bson:"address" json:"address"`
 	Links                  []Link             `bson:"-" json:"links"`
+	Categories             []ShopCategory     `bson:"-" json:"categories"`
+}
+
+type ShopCategory struct {
+	Name          string `bson:"name" json:"name"`
+	Path          string `bson:"path" json:"path"`
+	ListingsCount int    `bson:"count" json:"count"`
 }
 
 type ShopFollower struct {

@@ -391,7 +391,7 @@ func GetShop() gin.HandlerFunc {
 			shopIdentifier = bson.M{"slug": shopID}
 		}
 
-		pipeline := []bson.M{
+		shopPipeline := []bson.M{
 			{"$match": shopIdentifier},
 			{
 				"$lookup": bson.M{
@@ -464,8 +464,7 @@ func GetShop() gin.HandlerFunc {
 				},
 			},
 		}
-
-		cursor, err := ShopCollection.Aggregate(ctx, pipeline)
+		cursor, err := ShopCollection.Aggregate(ctx, shopPipeline)
 
 		var shop models.Shop
 		if err != nil {
@@ -479,7 +478,6 @@ func GetShop() gin.HandlerFunc {
 		}
 		if cursor.Next(ctx) {
 			if err := cursor.Decode(&shop); err != nil {
-				log.Println(err)
 				helper.HandleError(c, http.StatusInternalServerError, err, "error while decoding listing")
 				return
 			}
@@ -489,6 +487,37 @@ func GetShop() gin.HandlerFunc {
 			return
 		}
 		shop.ConstructShopLinks()
+
+		withCategory := c.Query("category")
+		if len(withCategory) > 0 {
+			listingPipeline := []bson.M{
+				{"$match": bson.M{"shop_id": shop.ID}},
+				{"$group": bson.M{"_id": "$details.category.category_name", "count": bson.M{"$sum": 1}}},
+				{"$project": bson.M{"name": "$_id", "count": 1, "_id": 0, "path": "$details.category.category_path"}},
+			}
+
+			cursor, err = ListingCollection.Aggregate(ctx, listingPipeline)
+			if err != nil {
+				if err != mongo.ErrNoDocuments {
+					helper.HandleError(c, http.StatusInternalServerError, err, "error while retrieving categories and count")
+					return
+				}
+			}
+
+			var shopCategories []models.ShopCategory
+			if cursor.Next(ctx) {
+				var shopCategory models.ShopCategory
+				if err := cursor.Decode(&shopCategory); err != nil {
+					helper.HandleError(c, http.StatusInternalServerError, err, "error while decoding categories and count")
+					return
+				}
+
+				shopCategories = append(shopCategories, shopCategory)
+			}
+
+			shop.Categories = shopCategories
+		}
+
 		helper.HandleSuccess(c, http.StatusOK, "Shop retrieved successfully", shop)
 	}
 }
