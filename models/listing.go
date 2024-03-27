@@ -106,7 +106,7 @@ type Listing struct {
 	ShouldAutoRenew      bool                        `bson:"should_auto_renew" json:"should_auto_renew"`
 	Inventory            Inventory                   `bson:"inventory" json:"inventory"`
 	RecentReviews        []ListingReview             `bson:"recent_reviews" json:"recent_reviews"`
-	Rating               ListingRating               `bson:"reviews_count" json:"reviews_count"`
+	Rating               ListingRating               `bson:"rating" json:"rating"`
 	Measurements         ListingMeasurement          `bson:"measurements" json:"measurements"`
 	FinancialInformation ListingFinancialInformation `bson:"financial_information" json:"financial_information"`
 }
@@ -161,7 +161,7 @@ type ListingExtra struct {
 	ShouldAutoRenew      bool                        `bson:"should_auto_renew" json:"should_auto_renew"`
 	Inventory            Inventory                   `bson:"inventory" json:"inventory"`
 	RecentReviews        []ListingReview             `bson:"recent_reviews" json:"recent_reviews"`
-	Rating               ListingRating               `bson:"reviews_count" json:"reviews_count"`
+	Rating               ListingRating               `bson:"rating" json:"rating"`
 	TotalOrders          int                         `bson:"total_orders" json:"total_orders"`
 	Sales                float64                     `bson:"sales" json:"sales"`
 	User                 ListingUserExcept           `bson:"user" json:"user"`

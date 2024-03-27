@@ -70,6 +70,12 @@ func getListingSortingBson(sort string) bson.D {
 		key = "financial_information.sales"
 	case "sales_desc":
 		key = "financial_information.sales"
+	case "price_asc":
+		key = "inventory.price"
+	case "price_desc":
+		key = "inventory.price"
+	case "rating_desc":
+		key = "rating.rating.positive_reviews"
 	default:
 		key = "date.created_at"
 	}
@@ -440,8 +446,14 @@ func GetListings() gin.HandlerFunc {
 		paginationArgs := services.GetPaginationArgs(c)
 		sort := getListingSortingBson(paginationArgs.Sort)
 
+		match := bson.M{}
+		category := c.Query("category")
+		if len(category) > 0 && category != "All" {
+			match = bson.M{"details.category.category_name": category}
+		}
+
 		pipeline := []bson.M{
-			{"$match": bson.M{}},
+			{"$match": match},
 			{
 				"$lookup": bson.M{
 					"from":         "Shop",
