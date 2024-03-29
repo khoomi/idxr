@@ -266,6 +266,27 @@ func HandleUserAuthentication() gin.HandlerFunc {
 			email.SendNewIpLoginNotification(validUser.PrimaryEmail, validUser.LoginName, validUser.LastLoginIp, validUser.LastLogin)
 		}
 
+		// Send verify email
+		// Generate secure and unique token
+		token := middleware.GenerateSecureToken(8)
+
+		expirationTime := now.Add(1 * time.Hour)
+		verifyEmail := models.UserVerifyEmailToken{
+			UserId:      validUser.Id,
+			TokenDigest: token,
+			CreatedAt:   primitive.NewDateTimeFromTime(now),
+			ExpiresAt:   primitive.NewDateTimeFromTime(expirationTime),
+		}
+		opts := options.Replace().SetUpsert(true)
+		filter := bson.M{"user_uid": validUser.Id}
+		_, err = EmailVerificationTokenCollection.ReplaceOne(ctx, filter, verifyEmail, opts)
+		if err != nil {
+			log.Printf("error sending verification email for user: %v, error: %v", validUser.PrimaryEmail, err)
+		}
+
+		link := fmt.Sprintf("https://khoomi.com/verify-email?token=%v&id=%v", token, validUser.Id)
+		email.SendVerifyEmailNotification(validUser.PrimaryEmail, validUser.FirstName, link)
+
 		helper.HandleSuccess(c, http.StatusOK, "Authentication successful", gin.H{
 			"_id":              validUser.Id.Hex(),
 			"access_token":     accessTokenString,
@@ -609,7 +630,6 @@ func SendVerifyEmail() gin.HandlerFunc {
 		}
 
 		link := fmt.Sprintf("https://khoomi.com/verify-email?token=%v&id=%v", token, userId)
-		// Send welcome email
 		email.SendVerifyEmailNotification(emailCurrent, firstName, link)
 
 		helper.HandleSuccess(c, http.StatusOK, "Verification email successfully sent", gin.H{"_id": userId.Hex()})

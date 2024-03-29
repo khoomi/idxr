@@ -72,7 +72,5 @@ func SendMail(mail KhoomiEmailComposer) error {
 		return err
 	}
 
-	fmt.Println(responseBody.String())
-
 	return nil
 }
