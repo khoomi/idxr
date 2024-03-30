@@ -396,15 +396,16 @@ func GetShop() gin.HandlerFunc {
 			{
 				"$lookup": bson.M{
 					"from":         "UserAddress",
-					"localField":   "user_address_id",
-					"foreignField": "_id",
+					"localField":   "user_id",
+					"foreignField": "user_id",
 					"as":           "address",
 				},
 			},
-			{"$unwind": bson.M{
-				"path":                       "$address",
-				"preserveNullAndEmptyArrays": true,
-			},
+			{
+				"$unwind": bson.M{
+					"path":                       "$address",
+					"preserveNullAndEmptyArrays": true,
+				},
 			},
 			{
 				"$lookup": bson.M{
@@ -414,10 +415,25 @@ func GetShop() gin.HandlerFunc {
 					"as":           "user",
 				},
 			},
-			{"$unwind": bson.M{
-				"path":                       "$user",
-				"preserveNullAndEmptyArrays": true,
+			{
+				"$unwind": bson.M{
+					"path":                       "$user",
+					"preserveNullAndEmptyArrays": true,
+				},
 			},
+			{
+				"$lookup": bson.M{
+					"from":         "ShopAbout",
+					"localField":   "_id",
+					"foreignField": "shop_id",
+					"as":           "about",
+				},
+			},
+			{
+				"$unwind": bson.M{
+					"path":                       "$about",
+					"preserveNullAndEmptyArrays": true,
+				},
 			},
 			{
 				"$project": bson.M{
@@ -455,11 +471,22 @@ func GetShop() gin.HandlerFunc {
 						"transaction_sold_count": "$user.transaction_sold_count",
 					},
 					"address": bson.M{
-						"city":        "$address.city",
-						"state":       "$address.state",
-						"street":      "$address.street",
-						"postal_code": "$address.postal_code",
-						"country":     "$address.country",
+						"city":                        "$address.city",
+						"state":                       "$address.state",
+						"street":                      "$address.street",
+						"postal_code":                 "$address.postal_code",
+						"country":                     "$address.country",
+						"is_default_shipping_address": "is_default_shipping_address",
+					},
+					"about": bson.M{
+						"_d":        "$about._d",
+						"shop_id":   "$about.shop_id",
+						"facebook":  "$about.facebook",
+						"headline":  "$about.headline",
+						"instagram": "$about.instagram",
+						"status":    "$about.status",
+						"story":     "$about.story",
+						"x":         "$about.x",
 					},
 				},
 			},

@@ -34,6 +34,7 @@ type Shop struct {
 	ReviewsCount           int                `bson:"reviews_count" json:"reviews_count"`
 	SalesMessage           string             `bson:"sales_message" json:"sales_message"`
 	User                   ListingUserExcept  `bson:"user" json:"user"`
+	About                  ShopAbout          `bson:"about" json:"about"`
 	Address                UserAddress        `bson:"address" json:"address"`
 	Links                  []Link             `bson:"-" json:"links"`
 	Categories             []ShopCategory     `bson:"-" json:"categories"`
