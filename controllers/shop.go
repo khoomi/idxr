@@ -476,7 +476,7 @@ func GetShop() gin.HandlerFunc {
 						"street":                      "$address.street",
 						"postal_code":                 "$address.postal_code",
 						"country":                     "$address.country",
-						"is_default_shipping_address": "is_default_shipping_address",
+						"is_default_shipping_address": "$address.is_default_shipping_address",
 					},
 					"about": bson.M{
 						"_d":        "$about._d",
