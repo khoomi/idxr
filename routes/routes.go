@@ -207,8 +207,8 @@ func listingRoutes(api *gin.RouterGroup) {
 	// Secured endpoints that require authentication
 	secured := listing.Group("").Use(middleware.Auth())
 	{
-		secured.DELETE("/listings", controllers.DeleteListings())
-		secured.PUT("/listings/deactivate", controllers.DeactivateListings())
+		secured.DELETE("/", controllers.DeleteListings())
+		secured.PUT("/deactivate", controllers.DeactivateListings())
 	}
 }
 

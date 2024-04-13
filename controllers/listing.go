@@ -742,13 +742,19 @@ func DeactivateListings() gin.HandlerFunc {
 		ctx, cancel := context.WithTimeout(context.Background(), REQ_TIMEOUT_SECS)
 		defer cancel()
 
-		myId, err := config.ValidateUserID(c)
+		jwt, err := config.InitJwtClaim(c)
+		if err != nil {
+			helper.HandleError(c, http.StatusUnauthorized, err, err.Error())
+			return
+		}
+		myId, err := jwt.GetUserObjectId()
 		if err != nil {
 			helper.HandleError(c, http.StatusUnauthorized, err, err.Error())
 			return
 		}
 
-		listingIDs := c.PostFormArray("ids")
+		listingIDs := c.PostFormArray("id")
+		fmt.Println(listingIDs)
 		if len(listingIDs) < 1 {
 			helper.HandleError(c, http.StatusBadRequest, errors.New("no listing IDs provided"), "No listing IDs provided")
 			return
