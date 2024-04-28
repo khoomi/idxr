@@ -16,6 +16,7 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
+// Initialize env vars
 func LoadEnvFor(v string) (x string) {
 	err := godotenv.Load()
 
@@ -27,7 +28,9 @@ func LoadEnvFor(v string) (x string) {
 	return
 }
 
+// Initialize db connection
 func ConnectDB() (client *mongo.Client) {
+	log.Println("starting MongoDB connection..")
 	client, err := mongo.NewClient(options.Client().ApplyURI(LoadEnvFor("DATABASE_URL")))
 	if err != nil {
 		log.Fatal(err)
@@ -46,7 +49,7 @@ func ConnectDB() (client *mongo.Client) {
 		log.Fatal(err)
 	}
 
-	log.Println("Connected to MongoDB")
+	log.Println("MongoDB connection successful")
 	return
 }
 
@@ -59,8 +62,10 @@ func GetCollection(client *mongo.Client, name string) (collection *mongo.Collect
 	return
 }
 
+// Initialize redis connection
 func ConnectRedis() *redis.Client {
 	// Connect to Redis
+	log.Println("starting redis connection..")
 	addr, err := redis.ParseURL(LoadEnvFor("REDIS_URL"))
 	if err != nil {
 		log.Fatal(err)
@@ -68,12 +73,13 @@ func ConnectRedis() *redis.Client {
 
 	client := redis.NewClient(addr)
 
-	log.Println("Connected to Redis")
+	log.Println("redis connection successful..")
 	return client
 }
 
 var REDIS = ConnectRedis()
 
+// Validate param userid again session userid.
 func ValidateUserID(c *gin.Context) (primitive.ObjectID, error) {
 	auth, err := InitJwtClaim(c)
 	if err != nil {
@@ -105,15 +111,13 @@ func InvalidateToken(db *redis.Client, tokenString string) error {
 	return nil
 }
 
+// Check if token is in the blacklist
 func IsTokenValid(db *redis.Client, tokenString string) bool {
-	// Check if the token is in the blacklist
 	_, err := db.Get(context.Background(), tokenString).Result()
 	if err == redis.Nil {
-		// Token is not in the blacklist, so it's valid
 		return true
 	}
 	if err != nil {
-		// Error while checking the blacklist
 		log.Printf("Error while checking blacklist: %s", err)
 		return false
 	}

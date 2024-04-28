@@ -3,9 +3,10 @@ package middleware
 import (
 	"crypto/rand"
 	"encoding/hex"
-	"log"
+	"errors"
 
 	"khoomi-api-io/khoomi_api/config"
+	"khoomi-api-io/khoomi_api/helper"
 
 	"github.com/gin-gonic/gin"
 )
@@ -14,23 +15,20 @@ func Auth() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		tokenString := config.ExtractToken(c)
 		if tokenString == "" {
-			log.Println("request does not contain an access token")
-			c.JSON(401, gin.H{"error": "request does not contain an access token"})
+			helper.HandleError(c, 401, errors.New("request does not contain an access token"), "request does not contain an access token")
 			c.Abort()
 			return
 		}
 		_, err := config.ValidateToken(tokenString)
 		if err != nil {
-			log.Println(err.Error())
-			c.JSON(401, gin.H{"error": err.Error()})
+			helper.HandleError(c, 401, err, err.Error())
 			c.Abort()
 			return
 		}
 
 		res := config.IsTokenValid(config.REDIS, tokenString)
 		if !res {
-			log.Println("why are you trying to act with a blacklisted token? huh? please login again")
-			c.JSON(401, gin.H{"error": "why are you trying to act with a blacklisted token? huh? please login again"})
+			helper.HandleError(c, 401, errors.New("why are you trying to act with a blacklisted token? huh? please login again"), "why are you trying to act with a blacklisted token? huh? please login again")
 			c.Abort()
 		}
 

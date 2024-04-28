@@ -284,8 +284,11 @@ func HandleUserAuthentication() gin.HandlerFunc {
 			log.Printf("error sending verification email for user: %v, error: %v", validUser.PrimaryEmail, err)
 		}
 
-		link := fmt.Sprintf("https://khoomi.com/verify-email?token=%v&id=%v", token, validUser.Id.Hex())
-		email.SendVerifyEmailNotification(validUser.PrimaryEmail, validUser.FirstName, link)
+		// Send verification email if user's email is not verified.
+		if !validUser.Auth.EmailVerified {
+			link := fmt.Sprintf("https://khoomi.com/verify-email?token=%v&id=%v", token, validUser.Id.Hex())
+			email.SendVerifyEmailNotification(validUser.PrimaryEmail, validUser.FirstName, link)
+		}
 
 		helper.HandleSuccess(c, http.StatusOK, "Authentication successful", gin.H{
 			"_id":              validUser.Id.Hex(),

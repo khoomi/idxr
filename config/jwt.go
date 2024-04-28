@@ -47,6 +47,7 @@ func (c JWTClaim) GetSubject() (string, error) {
 	return c.RegisteredClaims.GetSubject()
 }
 
+// Generate auth token for new user session
 func GenerateJWT(id, email, loginName string, seller bool) (string, int64, error) {
 	expirationTime := time.Now().Local().Add(15 * time.Minute)
 	expirationTimeNumericDate := jwt.NewNumericDate(expirationTime)
@@ -71,6 +72,7 @@ func GenerateJWT(id, email, loginName string, seller bool) (string, int64, error
 	return tokenString, expirationTime.Unix(), nil
 }
 
+// Generate refresh auth token for new user session.
 func GenerateRefreshJWT(id, email, loginName string, seller bool) (string, error) {
 	expirationTime := time.Now().Local().Add(24 * time.Hour * 7)
 	expirationTimeNumericDate := jwt.NewNumericDate(expirationTime)
@@ -95,33 +97,7 @@ func GenerateRefreshJWT(id, email, loginName string, seller bool) (string, error
 	return tokenString, nil
 }
 
-func ValidateToken(signedToken string) (JWTClaim, error) {
-	jwtKey := LoadEnvFor("SECRET")
-	token, err := jwt.ParseWithClaims(
-		signedToken,
-		&JWTClaim{},
-		func(token *jwt.Token) (interface{}, error) {
-			return []byte(jwtKey), nil
-		},
-	)
-	if err != nil {
-		return JWTClaim{}, err
-	}
-
-	claim, ok := token.Claims.(*JWTClaim)
-	if !ok {
-		err = errors.New("couldn't parse claims")
-		return JWTClaim{}, err
-	}
-	exp, _ := claim.GetExpirationTime()
-	if exp.Local().Unix() < time.Now().Local().Unix() {
-		err = errors.New("token expired")
-		return JWTClaim{}, err
-	}
-
-	return *claim, nil
-}
-
+// Validate a signed jwt refresh token and it's expiration time.
 func ValidateRefreshToken(signedToken string) (claim JWTClaim, err error) {
 	jwtKey := LoadEnvFor("REFRESH_SECRET")
 	token, err := jwt.ParseWithClaims(
@@ -150,11 +126,41 @@ func ValidateRefreshToken(signedToken string) (claim JWTClaim, err error) {
 	return *claims, nil
 }
 
+// Validate a signed jwt auth token and it's expiration time.
+func ValidateToken(signedToken string) (JWTClaim, error) {
+	jwtKey := LoadEnvFor("SECRET")
+	token, err := jwt.ParseWithClaims(
+		signedToken,
+		&JWTClaim{},
+		func(token *jwt.Token) (interface{}, error) {
+			return []byte(jwtKey), nil
+		},
+	)
+	if err != nil {
+		return JWTClaim{}, err
+	}
+
+	claim, ok := token.Claims.(*JWTClaim)
+	if !ok {
+		err = errors.New("couldn't parse claims")
+		return JWTClaim{}, err
+	}
+	exp, _ := claim.GetExpirationTime()
+	if exp.Local().Unix() < time.Now().Local().Unix() {
+		err = errors.New("token expired")
+		return JWTClaim{}, err
+	}
+
+	return *claim, nil
+}
+
+// Extract authorization token from request header.
 func ExtractToken(context *gin.Context) string {
 	tokenString := context.GetHeader("Authorization")
 	return tokenString
 }
 
+// Extract and Validate jwt auth token.
 func InitJwtClaim(c *gin.Context) (JWTClaim, error) {
 	tknStr := ExtractToken(c)
 	token, err := ValidateToken(tknStr)
@@ -165,6 +171,7 @@ func InitJwtClaim(c *gin.Context) (JWTClaim, error) {
 	return token, nil
 }
 
+// Get user object ID from JWTClaim.
 func (j JWTClaim) GetUserObjectId() (primitive.ObjectID, error) {
 	userId, err := primitive.ObjectIDFromHex(j.Id)
 	if err != nil {
@@ -172,12 +179,4 @@ func (j JWTClaim) GetUserObjectId() (primitive.ObjectID, error) {
 	}
 
 	return userId, nil
-}
-
-func (j JWTClaim) GetLoginName(c *gin.Context) (string, error) {
-	return j.LoginName, nil
-}
-
-func (j JWTClaim) GetEmail(c *gin.Context) (string, error) {
-	return j.Email, nil
 }
