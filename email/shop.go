@@ -6,6 +6,7 @@ import (
 	"log"
 )
 
+// SendNewShopEmail sends a notification email to a user when their shop is successfully created on Khoomi.
 func SendNewShopEmail(email, sellerName, shopName string) {
 	mail := services.KhoomiEmailComposer{
 		To:         email,

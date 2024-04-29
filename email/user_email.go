@@ -15,6 +15,7 @@ type KhoomiEmailData struct {
 	IP        string
 }
 
+// SendWelcomeEmail sends a welcome message to new users after they register an account with Khoomi.
 func SendWelcomeEmail(email, loginName string) {
 	mail := services.KhoomiEmailComposer{
 		To:         email,
@@ -34,6 +35,7 @@ func SendWelcomeEmail(email, loginName string) {
 
 }
 
+// SendVerifyEmailNotification constructs and sends an email to a user with a link to verify their email address.
 func SendVerifyEmailNotification(email, loginName, link string) {
 	mail := services.KhoomiEmailComposer{
 		To:         email,
@@ -52,6 +54,27 @@ func SendVerifyEmailNotification(email, loginName, link string) {
 	}
 }
 
+// SendEmailVerificationSuccessNotification sends a notification email to a user
+// confirming that their email address has been successfully verified.
+func SendEmailVerificationSuccessNotification(email, loginName string) {
+	mail := services.KhoomiEmailComposer{
+		To:         email,
+		ToName:     loginName,
+		Sender:     "no-reply@khoomi.com",
+		SenderName: "Khoomi Online",
+		Body:       fmt.Sprintf(`<body style="font-family: Arial, sans-serif; font-size: 14px;"><p>Dear %v,</p><p>Your email has been successfully verified!</p><p>Thank you for verifying your email address. You can now enjoy full access to our services.</p><p>Best regards,</p><p>Your Khoomi Team</p></body>`, loginName),
+		Subject:    "Email Verification Successful",
+	}
+
+	err := services.SendMail(mail)
+	if err != nil {
+		log.Println("Failed to send verification success email:", err)
+	} else {
+		log.Printf("Verification success email sent to %v", mail.To)
+	}
+}
+
+// SendPasswordResetEmail constructs and sends a password reset email to a user.
 func SendPasswordResetEmail(email, loginName, link string) {
 	mail := services.KhoomiEmailComposer{
 		To:         email,
@@ -79,6 +102,7 @@ func SendPasswordResetEmail(email, loginName, link string) {
 	}
 }
 
+// SendPasswordResetSuccessfulEmail sends a notification email to a user to confirm that their password has been successfully reset.
 func SendPasswordResetSuccessfulEmail(email, loginName string) {
 	mail := services.KhoomiEmailComposer{
 		To:         email,
@@ -98,6 +122,7 @@ func SendPasswordResetSuccessfulEmail(email, loginName string) {
 
 }
 
+// SendNewIpLoginNotification sends an alert email to a user when a login attempt is made from a new IP address.
 func SendNewIpLoginNotification(email, loginName, IP string, loginTime time.Time) {
 	mail := services.KhoomiEmailComposer{
 		To:         email,

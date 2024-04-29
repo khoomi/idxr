@@ -6,6 +6,7 @@ import (
 	"log"
 )
 
+// SendNewListingEmail sends a notification email to a user when a new listing is successfully posted in their shop on Khoomi.
 func SendNewListingEmail(email, sellerName, listingTitle string) {
 	mail := services.KhoomiEmailComposer{
 		To:         email,

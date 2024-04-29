@@ -29,32 +29,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
-func IsSeller(c *gin.Context, userId primitive.ObjectID) (bool, error) {
-	err := UserCollection.FindOne(c, bson.M{"_id": userId, "is_seller": true}).Err()
-	if err == mongo.ErrNoDocuments {
-		// User not found or not a seller
-		return false, nil
-	} else if err != nil {
-		// Other error occurred
-		return false, err
-	}
-
-	// User is a seller
-	return true, nil
-}
-
-func VerifyShopOwnership(ctx context.Context, userId, shopId primitive.ObjectID) error {
-	shop := models.Shop{}
-	err := ShopCollection.FindOne(ctx, bson.M{"_id": shopId, "user_id": userId}).Decode(&shop)
-	if err != nil {
-		if err == mongo.ErrNoDocuments {
-			return errors.New("user does not own the shop")
-		}
-		return err
-	}
-	return nil
-}
-
+// CreateUser creates new user account, and send welcome and verify email notifications.
 func CreateUser() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ctx, cancel := context.WithTimeout(context.Background(), REQ_TIMEOUT_SECS)
@@ -165,7 +140,7 @@ func CreateUser() gin.HandlerFunc {
 	}
 }
 
-// HandleUserAuthentication - Authenticate user into the server
+// HandleUserAuthentication authenticates new user session while sending necessary notifications depending on the cases. e.g new IP
 func HandleUserAuthentication() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ctx, cancel := context.WithTimeout(context.Background(), REQ_TIMEOUT_SECS)
@@ -270,7 +245,7 @@ func HandleUserAuthentication() gin.HandlerFunc {
 		// Generate secure and unique token
 		token := middleware.GenerateSecureToken(8)
 
-		expirationTime := now.Add(1 * time.Hour)
+		expirationTime := now.Add(VERIFICATION_EMAIL_EXPIRATION_TIME)
 		verifyEmail := models.UserVerifyEmailToken{
 			UserId:      validUser.Id,
 			TokenDigest: token,
@@ -307,6 +282,7 @@ func HandleUserAuthentication() gin.HandlerFunc {
 	}
 }
 
+// RefreshToken handles auth token refreshments
 func RefreshToken() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ctx, cancel := context.WithTimeout(context.Background(), REQ_TIMEOUT_SECS)
@@ -375,35 +351,6 @@ func Logout() gin.HandlerFunc {
 	}
 }
 
-func CurrentUser(c *gin.Context) {
-	ctx, cancel := context.WithTimeout(context.Background(), REQ_TIMEOUT_SECS)
-	defer cancel()
-
-	// Extract user id from request header
-	auth, err := config.InitJwtClaim(c)
-	if err != nil {
-		helper.HandleError(c, http.StatusNotFound, err, err.Error())
-		return
-	}
-	userId, err := auth.GetUserObjectId()
-	if err != nil {
-		log.Printf("User with IP %v tried to gain access with an invalid user ID or token\n", c.ClientIP())
-		helper.HandleError(c, http.StatusBadRequest, err, "Invalid user ID or token")
-		return
-	}
-
-	var user models.User
-	err = UserCollection.FindOne(ctx, bson.M{"_id": userId}).Decode(&user)
-	if err != nil {
-		helper.HandleError(c, http.StatusNotFound, err, "User not found")
-		return
-	}
-	user.Auth.PasswordDigest = ""
-
-	user.ConstructUserLinks()
-	helper.HandleSuccess(c, http.StatusOK, "success", user)
-}
-
 // SendDeleteUserAccount -> Delete current user account
 func SendDeleteUserAccount() gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -431,7 +378,7 @@ func SendDeleteUserAccount() gin.HandlerFunc {
 	}
 }
 
-// IsAccountPendingDeletion -> Check if current user account is pending deletion
+// IsAccountPendingDeletion checks if current user account is pending deletion
 func IsAccountPendingDeletion() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ctx, cancel := context.WithTimeout(context.Background(), REQ_TIMEOUT_SECS)
@@ -458,7 +405,7 @@ func IsAccountPendingDeletion() gin.HandlerFunc {
 	}
 }
 
-// DeleteUserAccount -> Delete current user account
+// CancelDeleteUserAccount cancels delete user account request.
 func CancelDeleteUserAccount() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ctx, cancel := context.WithTimeout(context.Background(), REQ_TIMEOUT_SECS)
@@ -480,6 +427,7 @@ func CancelDeleteUserAccount() gin.HandlerFunc {
 	}
 }
 
+// ChangePassword changes active user's password.
 func ChangePassword() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ctx, cancel := context.WithTimeout(context.Background(), REQ_TIMEOUT_SECS)
@@ -585,15 +533,15 @@ func GetUser() gin.HandlerFunc {
 	}
 }
 
-// SendVerifyEmail - api/send-verify-email?email=...&name=user_login_name
+// SendVerifyEmail sends a verification email notication to a given user's email.
 func SendVerifyEmail() gin.HandlerFunc {
 	return func(c *gin.Context) {
+		now := time.Now()
 		ctx, cancel := context.WithTimeout(context.Background(), REQ_TIMEOUT_SECS)
 		defer cancel()
 
 		emailCurrent := c.Query("email")
 		firstName := c.Query("name")
-		now := time.Now()
 
 		// Verify current user
 		auth, err := config.InitJwtClaim(c)
@@ -617,7 +565,7 @@ func SendVerifyEmail() gin.HandlerFunc {
 		// Generate secure and unique token
 		token := middleware.GenerateSecureToken(8)
 
-		expirationTime := now.Add(1 * time.Hour)
+		expirationTime := now.Add(VERIFICATION_EMAIL_EXPIRATION_TIME)
 		verifyEmail := models.UserVerifyEmailToken{
 			UserId:      userId,
 			TokenDigest: token,
@@ -685,6 +633,7 @@ func VerifyEmail() gin.HandlerFunc {
 			return
 		}
 
+		email.SendEmailVerificationSuccessNotification(user.PrimaryEmail, user.FirstName)
 		helper.HandleSuccess(c, http.StatusOK, "Your email has been verified successfully.", gin.H{"_id": user.Id})
 	}
 }
@@ -899,7 +848,7 @@ func PasswordResetEmail() gin.HandlerFunc {
 
 		token := middleware.GenerateSecureToken(8)
 		now := time.Now()
-		expirationTime := now.Add(1 * time.Hour)
+		expirationTime := now.Add(VERIFICATION_EMAIL_EXPIRATION_TIME)
 		passwordReset := models.UserPasswordResetToken{
 			UserId:      user.Id,
 			TokenDigest: token,
