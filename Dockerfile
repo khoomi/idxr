@@ -6,9 +6,8 @@ COPY . /app
 COPY .env /app
 
 ENV GIN_MODE=release
-ENV CGO_ENABLED=0
 ENV GOOS=linux
-RUN go build -buildvcs=false -o /khoomi
+RUN go build -buildvcs=false -o -ldflags="-s -w" /cmd/khoomi
 
 EXPOSE 8080
 ENTRYPOINT ["/khoomi"]
