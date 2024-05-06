@@ -7,7 +7,7 @@ COPY .env /app
 
 ENV GIN_MODE=release
 ENV GOOS=linux
-RUN go build -ldflags="-s -w" -buildvcs=false -o ./khoomi ./cmd/khoomi
+RUN go build -ldflags="-s -w" -buildvcs=false -o /khoomi ./cmd/khoomi
 
 FROM build-stage AS test-build-stage
 RUN go test -v ./...
@@ -19,4 +19,4 @@ COPY .env .env
 
 EXPOSE 8080
 USER nonroot:nonroot
-ENTRYPOINT ["/khoomi"]
+ENTRYPOINT ["./khoomi"]

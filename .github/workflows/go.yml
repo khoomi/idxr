@@ -21,7 +21,7 @@ jobs:
           go-version: 1.22
 
       - name: Build
-        run: go build -ldflags="-s -w" -buildvcs=false -o ./khoomi ./cmd/khoomi
+        run: go build -ldflags="-s -w" -buildvcs=false -o /khoomi ./cmd/khoomi
 
       - name: Test
         run: go test -v ./...
