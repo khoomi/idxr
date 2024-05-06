@@ -2,16 +2,16 @@ package controllers
 
 import (
 	"context"
-	"khoomi-api-io/api/pkg/util"
-	"khoomi-api-io/api/pkg/models"
-	auth2 "khoomi-api-io/api/internal/auth"
-	"log"
-	"net/http"
-	"time"
 	"fmt"
+	auth2 "khoomi-api-io/api/internal/auth"
+	"khoomi-api-io/api/pkg/models"
+	"khoomi-api-io/api/pkg/util"
+	"log"
 	"math/rand"
+	"net/http"
 	"regexp"
 	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
@@ -130,13 +130,8 @@ func MyShopIdAndMyId(c *gin.Context) (primitive.ObjectID, primitive.ObjectID, er
 		return nilObjectId, nilObjectId, err
 	}
 
-	if err != nil {
-		return nilObjectId, nilObjectId, err
-	}
-
 	return shopOBjectID, userId, nil
 }
-
 
 func GetUserById(ctx context.Context, id primitive.ObjectID) (models.User, error) {
 	var user models.User

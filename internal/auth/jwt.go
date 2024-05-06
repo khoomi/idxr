@@ -1,15 +1,17 @@
 package internal
 
 import (
-	"khoomi-api-io/api/pkg/util"
 	"errors"
+	"khoomi-api-io/api/pkg/util"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 	"go.mongodb.org/mongo-driver/bson/primitive"
-
 )
+
+const AccessTokenExpirationTime = time.Minute * 15
+const RefreshTokenExpirationTime = 7 * 4 * time.Hour
 
 type JWTClaim struct {
 	Id        string `json:"id"`
@@ -51,7 +53,7 @@ func (c JWTClaim) GetSubject() (string, error) {
 
 // Generate auth token for new user session
 func GenerateJWT(id, email, loginName string, seller bool) (string, int64, error) {
-	expirationTime := time.Now().Local().Add(15 * time.Minute)
+	expirationTime := time.Now().Local().Add(AccessTokenExpirationTime)
 	expirationTimeNumericDate := jwt.NewNumericDate(expirationTime)
 	jwtKey := util.LoadEnvFor("SECRET")
 
@@ -76,7 +78,7 @@ func GenerateJWT(id, email, loginName string, seller bool) (string, int64, error
 
 // Generate refresh auth token for new user session.
 func GenerateRefreshJWT(id, email, loginName string, seller bool) (string, error) {
-	expirationTime := time.Now().Local().Add(24 * time.Hour * 7)
+	expirationTime := time.Now().Local().Add(RefreshTokenExpirationTime)
 	expirationTimeNumericDate := jwt.NewNumericDate(expirationTime)
 	jwtKey := util.LoadEnvFor("REFRESH_SECRET")
 
@@ -156,12 +158,6 @@ func ValidateToken(signedToken string) (JWTClaim, error) {
 	return *claim, nil
 }
 
-// Extract authorization token from request header.
-func ExtractToken(context *gin.Context) string {
-	tokenString := context.GetHeader("Authorization")
-	return tokenString
-}
-
 // Extract and Validate jwt auth token.
 func InitJwtClaim(c *gin.Context) (JWTClaim, error) {
 	tknStr := ExtractToken(c)
@@ -181,4 +177,10 @@ func (j JWTClaim) GetUserObjectId() (primitive.ObjectID, error) {
 	}
 
 	return userId, nil
+}
+
+// Extract authorization token from request header.
+func ExtractToken(context *gin.Context) string {
+	tokenString := context.GetHeader("Authorization")
+	return tokenString
 }

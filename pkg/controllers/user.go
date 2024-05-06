@@ -221,14 +221,12 @@ func HandleUserAuthentication() gin.HandlerFunc {
 
 		accessTokenString, accessTokenExp, err := auth.GenerateJWT(validUser.Id.Hex(), validUser.PrimaryEmail, validUser.LoginName, validUser.IsSeller)
 		if err != nil {
-			log.Println(err)
 			util.HandleError(c, http.StatusInternalServerError, err, "Failed to generate JWT")
 			return
 		}
 
 		refreshTokenString, err := auth.GenerateRefreshJWT(validUser.Id.Hex(), validUser.PrimaryEmail, validUser.LoginName, validUser.IsSeller)
 		if err != nil {
-			log.Println(err)
 			util.HandleError(c, http.StatusInternalServerError, err, "Failed to generate refresh JWT")
 			return
 		}

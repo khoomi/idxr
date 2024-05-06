@@ -24,6 +24,7 @@ func Auth() gin.HandlerFunc {
 			c.Abort()
 			return
 		}
+
 		_, err := ValidateToken(tokenString)
 		if err != nil {
 			util.HandleError(c, 401, err, err.Error())
@@ -31,11 +32,11 @@ func Auth() gin.HandlerFunc {
 			return
 		}
 
-		res := IsTokenValid(util.REDIS, tokenString)
-		if !res {
-			util.HandleError(c, 401, errors.New("why are you trying to act with a blacklisted token? huh? please login again"), "why are you trying to act with a blacklisted token? huh? please login again")
-			c.Abort()
-		}
+		// res := IsTokenValid(util.REDIS, tokenString)
+		// if !res {
+		// 	util.HandleError(c, 401, errors.New("access token expire or bad. login again"), "access token expire or bad. login again")
+		// 	c.Abort()
+		// }
 
 		c.Next()
 	}
@@ -88,6 +89,7 @@ func IsTokenValid(db *redis.Client, tokenString string) bool {
 	if err == redis.Nil {
 		return true
 	}
+
 	if err != nil {
 		log.Printf("Error while checking blacklist: %s", err)
 		return false
