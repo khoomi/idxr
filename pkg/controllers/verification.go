@@ -2,7 +2,7 @@ package controllers
 
 import (
 	"context"
-	auth "khoomi-api-io/api/internal/auth"
+	"khoomi-api-io/api/internal/auth"
 	"khoomi-api-io/api/internal/common"
 	"khoomi-api-io/api/pkg/models"
 	"khoomi-api-io/api/pkg/util"
@@ -18,6 +18,7 @@ import (
 
 func CreateSellerVerificationProfile() gin.HandlerFunc {
 	return func(c *gin.Context) {
+		now := time.Now()
 		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
 		defer cancel()
 
@@ -29,12 +30,12 @@ func CreateSellerVerificationProfile() gin.HandlerFunc {
 		}
 
 		// Check if the user owns the shop
-		auth, err := auth.InitJwtClaim(c)
+		jwt, err := auth.InitJwtClaim(c)
 		if err != nil {
 			util.HandleError(c, http.StatusUnauthorized, err, "Invalid user token, id or access")
 			return
 		}
-		userId, err := auth.GetUserObjectId()
+		userId, err := jwt.GetUserObjectId()
 		if err != nil {
 			util.HandleError(c, http.StatusUnauthorized, err, "Invalid user token, id or access")
 			return
@@ -50,20 +51,17 @@ func CreateSellerVerificationProfile() gin.HandlerFunc {
 		var verificationJson models.CreateSellerVerificationRequest
 		err = c.BindJSON(&verificationJson)
 		if err != nil {
-			log.Println(err)
 			util.HandleError(c, http.StatusUnprocessableEntity, err, "invalid request body")
 			return
 		}
 
 		// Validate request body
 		if validationErr := common.Validate.Struct(&verificationJson); validationErr != nil {
-			log.Println(validationErr)
 			util.HandleError(c, http.StatusUnprocessableEntity, err, "invalid request body")
 			return
 		}
 
 		verificationId := primitive.NewObjectID()
-		now := time.Now()
 		ShippingProfile := models.SellerVerification{
 			ID:                 verificationId,
 			ShopId:             shopIdObj,
@@ -81,7 +79,6 @@ func CreateSellerVerificationProfile() gin.HandlerFunc {
 		}
 		res, err := common.SellerVerificationCollection.InsertOne(ctx, ShippingProfile)
 		if err != nil {
-			log.Println(err)
 			util.HandleError(c, http.StatusUnauthorized, err, "Internal server error while creating verification")
 			return
 		}
@@ -103,12 +100,12 @@ func GetSellerVerificationProfile() gin.HandlerFunc {
 		}
 
 		// Check if the user owns the shop
-		auth, err := auth.InitJwtClaim(c)
+		jwt, err := auth.InitJwtClaim(c)
 		if err != nil {
 			util.HandleError(c, http.StatusUnauthorized, err, "Invalid user token, id or access")
 			return
 		}
-		userId, err := auth.GetUserObjectId()
+		userId, err := jwt.GetUserObjectId()
 		if err != nil {
 			util.HandleError(c, http.StatusUnauthorized, err, "Invalid user token, id or access")
 			return

@@ -1,10 +1,10 @@
-package internal
+package auth
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"errors"
-	"context"
 	"fmt"
 	"log"
 	"time"

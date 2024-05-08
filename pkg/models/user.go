@@ -8,31 +8,56 @@ import (
 
 // User Khoomi user_models basic data
 type User struct {
-	Id                       primitive.ObjectID `bson:"_id" json:"_id" validate:"required"`
-	LoginName                string             `bson:"login_name" json:"login_name" validate:"required"`
-	PrimaryEmail             string             `bson:"primary_email" json:"primary_email" validate:"required"`
-	FirstName                string             `bson:"first_name" json:"first_name"`
-	LastName                 string             `bson:"last_name" json:"last_name"`
-	Auth                     UserAuthData       `bson:"auth,omitempty" json:"auth,omitempty" validate:"required"`
-	Thumbnail                string             `bson:"thumbnail" json:"thumbnail"`
-	Bio                      string             `bson:"bio" json:"bio"`
-	Phone                    string             `bson:"phone" json:"phone"`
-	Birthdate                UserBirthdate      `bson:"birthdate" json:"birthdate"`
-	IsSeller                 bool               `bson:"is_seller" json:"is_seller"`
-	TransactionBuyCount      int                `bson:"transaction_buy_count" json:"transaction_buy_count"`
-	TransactionSoldCount     int                `bson:"transaction_sold_count" json:"transaction_sold_count"`
-	ReferredByUser           string             `bson:"referred_by_user" json:"referred_by_user"`
-	Role                     UserRole           `bson:"role" json:"role"`
-	Status                   UserStatus         `bson:"status" json:"status"`
-	ShopID                   primitive.ObjectID `bson:"shop_id" json:"shop_id"`
-	FavoriteShops            []string           `bson:"favorite_shops" json:"favorite_shops"`
-	CreatedAt                time.Time          `bson:"created_at" json:"created_at"`
-	ModifiedAt               time.Time          `bson:"modified_at" json:"modified_at"`
-	LastLogin                time.Time          `bson:"last_login" json:"last_login"`
-	LoginCounts              int                `bson:"login_counts" json:"-"`
-	LastLoginIp              string             `bson:"last_login_ip" json:"-"`
-	AllowLoginIpNotification bool               `bson:"allow_login_ip_notification" json:"allow_login_ip_notification"`
-	Links                    []Link             `bson:"-" json:"links"`
+	// Id uniquely identifies the user in the database.
+	Id primitive.ObjectID `bson:"_id" json:"_id" validate:"required"`
+	// LoginName represents the username used for signing in.
+	LoginName string `bson:"login_name" json:"login_name" validate:"required"`
+	// PrimaryEmail is the main email address associated with the user account.
+	PrimaryEmail string `bson:"primary_email" json:"primary_email" validate:"required"`
+	// FirstName of the user.
+	FirstName string `bson:"first_name" json:"first_name"`
+	// LastName of the user.
+	LastName string `bson:"last_name" json:"last_name"`
+	// Auth contains authentication data such as password hashes.
+	Auth UserAuthData `bson:"auth,omitempty" json:"auth,omitempty" validate:"required"`
+	// Thumbnail is the URL to the user's profile picture.
+	Thumbnail string `bson:"thumbnail" json:"thumbnail"`
+	// Bio is a short biography or description of the user.
+	Bio string `bson:"bio" json:"bio"`
+	// Phone number of the user.
+	Phone string `bson:"phone" json:"phone"`
+	// Birthdate represents the user's date of birth.
+	Birthdate UserBirthdate `bson:"birthdate" json:"birthdate"`
+	// IsSeller indicates whether the user has seller privileges.
+	IsSeller bool `bson:"is_seller" json:"is_seller"`
+	// TransactionBuyCount is the total number of purchases made by the user.
+	TransactionBuyCount int `bson:"transaction_buy_count" json:"transaction_buy_count"`
+	// TransactionSoldCount is the total number of sales made by the user.
+	TransactionSoldCount int `bson:"transaction_sold_count" json:"transaction_sold_count"`
+	// ReferredByUser indicates the user ID of the person who referred this user.
+	ReferredByUser string `bson:"referred_by_user" json:"referred_by_user"`
+	// Role defines the user's role within the platform (e.g., admin, regular user).
+	Role UserRole `bson:"role" json:"role"`
+	// Status indicates the current state of the user's account (e.g., active, suspended).
+	Status UserStatus `bson:"status" json:"status"`
+	// ShopID links the user to a specific shop if they are a seller.
+	ShopID primitive.ObjectID `bson:"shop_id" json:"shop_id"`
+	// FavoriteShops contains a list of shop IDs that the user has marked as favorite.
+	FavoriteShops []string `bson:"favorite_shops" json:"favorite_shops"`
+	// CreatedAt is the timestamp when the user account was created.
+	CreatedAt time.Time `bson:"created_at" json:"created_at"`
+	// ModifiedAt is the timestamp of the last modification to the user's account.
+	ModifiedAt time.Time `bson:"modified_at" json:"modified_at"`
+	// LastLogin is the timestamp of the user's last login.
+	LastLogin time.Time `bson:"last_login" json:"last_login"`
+	// LoginCounts tracks the number of times the user has logged into the account.
+	LoginCounts int `bson:"login_counts" json:"-"`
+	// LastLoginIp stores the IP address from which the user last accessed the account.
+	LastLoginIp string `bson:"last_login_ip" json:"-"`
+	// AllowLoginIpNotification indicates if the user opts in to receive notifications for new IP logins.
+	AllowLoginIpNotification bool `bson:"allow_login_ip_notification" json:"allow_login_ip_notification"`
+	// Links is a collection of hyperlinks related to the user, not stored in the database.
+	Links []Link `bson:"-" json:"links"`
 }
 
 // UserRegistrationBody -> expected data for signup process

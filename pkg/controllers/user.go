@@ -28,7 +28,7 @@ import (
 )
 
 // CurrentUser get current user using userId from request headers.
-func ActiveSessiontUser(c *gin.Context) {
+func ActiveSessionUser(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
 	defer cancel()
 
@@ -61,6 +61,7 @@ func ActiveSessiontUser(c *gin.Context) {
 // CreateUser creates new user account, and send welcome and verify email notifications.
 func CreateUser() gin.HandlerFunc {
 	return func(c *gin.Context) {
+		now := time.Now()
 		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
 		defer cancel()
 
@@ -105,7 +106,7 @@ func CreateUser() gin.HandlerFunc {
 		newUser := bson.M{
 			"_id":                         userId,
 			"login_name":                  common.GenerateRandomUsername(),
-			"primary_email":               strings.ToLower(jsonUser.Email),
+			"primary_email":               jsonUser.Email,
 			"first_name":                  jsonUser.FirstName,
 			"last_name":                   jsonUser.LastName,
 			"auth":                        userAuth,
@@ -121,9 +122,9 @@ func CreateUser() gin.HandlerFunc {
 			"status":                      models.Inactive,
 			"shop_id":                     bsonx.Null(),
 			"favorite_shops":              []string{},
-			"created_at":                  time.Now(),
-			"modified_at":                 time.Now(),
-			"last_login":                  time.Now(),
+			"created_at":                  now,
+			"modified_at":                 now,
+			"last_login":                  now,
 			"login_counts":                0,
 			"last_login_ip":               c.ClientIP(),
 			"allow_login_ip_notification": true,
