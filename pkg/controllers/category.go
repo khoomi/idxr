@@ -2,8 +2,9 @@ package controllers
 
 import (
 	"context"
-	"khoomi-api-io/api/pkg/util"
+	"khoomi-api-io/api/internal/common"
 	"khoomi-api-io/api/pkg/models"
+	"khoomi-api-io/api/pkg/util"
 	"log"
 	"net/http"
 	"strings"
@@ -21,7 +22,7 @@ var ListingCategoryCollection = util.GetCollection(util.DB, "ListingCategory")
 
 func CreateCategorySingle() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), REQ_TIMEOUT_SECS)
+		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
 		defer cancel()
 
 		var categoryJson models.Category
@@ -33,7 +34,7 @@ func CreateCategorySingle() gin.HandlerFunc {
 		}
 
 		// Validate the request body
-		if validationErr := Validate.Struct(&categoryJson); validationErr != nil {
+		if validationErr := common.Validate.Struct(&categoryJson); validationErr != nil {
 			util.HandleError(c, http.StatusUnprocessableEntity, validationErr, "Invalid request body")
 			return
 		}
@@ -50,7 +51,7 @@ func CreateCategorySingle() gin.HandlerFunc {
 
 func CreateCategoryMulti() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), REQ_TIMEOUT_SECS)
+		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
 		defer cancel()
 
 		var categoryJson models.CategoryRequestMulti
@@ -62,7 +63,7 @@ func CreateCategoryMulti() gin.HandlerFunc {
 		}
 
 		// Validate the request body
-		if validationErr := Validate.Struct(&categoryJson); validationErr != nil {
+		if validationErr := common.Validate.Struct(&categoryJson); validationErr != nil {
 			util.HandleError(c, http.StatusUnprocessableEntity, validationErr, "Invalid request body")
 			return
 		}
@@ -115,7 +116,7 @@ func CreateCategoryMulti() gin.HandlerFunc {
 // GetAllCategories - /api/categories?path=jewelry
 func GetAllCategories() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), REQ_TIMEOUT_SECS)
+		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
 		defer cancel()
 
 		var categories []*models.Category
@@ -143,7 +144,7 @@ func GetAllCategories() gin.HandlerFunc {
 // GetCategoryChildren - /api/categories?path=jewelry
 func GetCategoryChildren() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), REQ_TIMEOUT_SECS)
+		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
 		defer cancel()
 
 		categoryID := c.Param("id")
@@ -170,7 +171,7 @@ func GetCategoryChildren() gin.HandlerFunc {
 // GetCategoryAncestor - /api/categories?path=jewelry
 func GetCategoryAncestor() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), REQ_TIMEOUT_SECS)
+		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
 		defer cancel()
 
 		categoryID := c.Param("id")
@@ -222,7 +223,7 @@ func GetCategoryAncestor() gin.HandlerFunc {
 // SearchCategories - /api/categories?s=jewelry
 func SearchCategories() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), REQ_TIMEOUT_SECS)
+		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
 		defer cancel()
 
 		search := c.Query("s")
@@ -258,7 +259,7 @@ func SearchCategories() gin.HandlerFunc {
 
 func DeleteAllCategories() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), REQ_TIMEOUT_SECS)
+		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
 		defer cancel()
 
 		res, err := ListingCategoryCollection.DeleteMany(ctx, bson.M{})

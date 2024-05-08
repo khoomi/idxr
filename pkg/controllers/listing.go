@@ -4,10 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	auth "khoomi-api-io/api/internal/auth"
+	"khoomi-api-io/api/internal/common"
+	"khoomi-api-io/api/pkg/models"
+	"khoomi-api-io/api/pkg/util"
 	email "khoomi-api-io/api/web/email"
-auth "khoomi-api-io/api/internal/auth"
-"khoomi-api-io/api/pkg/util"
-"khoomi-api-io/api/pkg/models"
 	"log"
 	"math/rand"
 	"net/http"
@@ -87,10 +88,10 @@ func getListingSortingBson(sort string) bson.D {
 
 func CreateListing() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), REQ_TIMEOUT_SECS)
+		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
 		defer cancel()
 
-		shopId, myId, err := MyShopIdAndMyId(c)
+		shopId, myId, err := common.MyShopIdAndMyId(c)
 		if err != nil {
 			util.HandleError(c, http.StatusBadRequest, err, "Error getting shop ID and user ID")
 			return
@@ -112,7 +113,7 @@ func CreateListing() gin.HandlerFunc {
 			return
 		}
 
-		if validationErr := Validate.Struct(&newListing); validationErr != nil {
+		if validationErr := common.Validate.Struct(&newListing); validationErr != nil {
 			util.HandleError(c, http.StatusBadRequest, validationErr, "invalid or missing data in request body")
 			return
 		}
@@ -129,7 +130,7 @@ func CreateListing() gin.HandlerFunc {
 			}
 		} else {
 			mainImageUploadUrl = uploader.UploadResult{}
-			mainImageUploadUrl.SecureURL = DefaultThumbnail
+			mainImageUploadUrl.SecureURL = common.DefaultThumbnail
 		}
 
 		_, _, err = c.Request.FormFile("images")
@@ -170,7 +171,7 @@ func CreateListing() gin.HandlerFunc {
 			}
 		} else {
 			tempImage := uploader.UploadResult{}
-			tempImage.SecureURL = DefaultThumbnail
+			tempImage.SecureURL = common.DefaultThumbnail
 			uploadedImagesResult = append(uploadedImagesResult, tempImage)
 		}
 
@@ -179,7 +180,7 @@ func CreateListing() gin.HandlerFunc {
 		shippingObj, err := primitive.ObjectIDFromHex(newListing.ListingDetails.ShippingProfileId)
 		if err != nil {
 			var shipping models.ShopShippingProfile
-			err := ShippingProfileCollection.FindOne(ctx, bson.M{"shop_id": shopId, "is_default_profile": true}).Decode(shipping)
+			err := common.ShippingProfileCollection.FindOne(ctx, bson.M{"shop_id": shopId, "is_default_profile": true}).Decode(shipping)
 			if err != nil {
 				shippingId = primitive.NilObjectID
 			} else {
@@ -278,7 +279,7 @@ func CreateListing() gin.HandlerFunc {
 			FinancialInformation: listingFinancialInformation,
 		}
 
-		res, err := ListingCollection.InsertOne(ctx, listing)
+		res, err := common.ListingCollection.InsertOne(ctx, listing)
 		if err != nil {
 			// delete images
 			_, err := util.DestroyMedia(mainImageUploadUrl.PublicID)
@@ -302,7 +303,7 @@ func CreateListing() gin.HandlerFunc {
 
 func GetListing() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), REQ_TIMEOUT_SECS)
+		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
 		defer cancel()
 
 		var listingIdentifier bson.M
@@ -413,7 +414,7 @@ func GetListing() gin.HandlerFunc {
 			},
 		}
 
-		cursor, err := ListingCollection.Aggregate(ctx, pipeline)
+		cursor, err := common.ListingCollection.Aggregate(ctx, pipeline)
 		if err != nil {
 			println(err)
 			util.HandleError(c, http.StatusInternalServerError, err, "error while retrieving listing")
@@ -439,10 +440,10 @@ func GetListing() gin.HandlerFunc {
 
 func GetListings() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), REQ_TIMEOUT_SECS)
+		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
 		defer cancel()
 
-		paginationArgs := GetPaginationArgs(c)
+		paginationArgs := common.GetPaginationArgs(c)
 		sort := getListingSortingBson(paginationArgs.Sort)
 
 		match := bson.M{}
@@ -516,7 +517,7 @@ func GetListings() gin.HandlerFunc {
 			{"$sort": sort},
 		}
 
-		cursor, err := ListingCollection.Aggregate(ctx, pipeline)
+		cursor, err := common.ListingCollection.Aggregate(ctx, pipeline)
 		if err != nil {
 			util.HandleError(c, http.StatusInternalServerError, err, "error while retrieving listing")
 			return
@@ -532,7 +533,7 @@ func GetListings() gin.HandlerFunc {
 			{"$match": bson.M{}},
 			{"$count": "total"},
 		}
-		countCursor, err := ListingCollection.Aggregate(ctx, countPipeline)
+		countCursor, err := common.ListingCollection.Aggregate(ctx, countPipeline)
 		if err != nil {
 			util.HandleError(c, http.StatusInternalServerError, err, "error while counting listings")
 			return
@@ -559,22 +560,22 @@ func GetListings() gin.HandlerFunc {
 
 func GetMyListingsSummary() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), REQ_TIMEOUT_SECS)
+		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
 		defer cancel()
 
-		shopId, myId, err := MyShopIdAndMyId(c)
+		shopId, myId, err := common.MyShopIdAndMyId(c)
 		if err != nil {
 			util.HandleError(c, http.StatusBadRequest, err, "Error getting shop ID and user ID")
 			return
 		}
 
-		paginationArgs := GetPaginationArgs(c)
+		paginationArgs := common.GetPaginationArgs(c)
 		findOptions := options.Find().
 			SetLimit(int64(paginationArgs.Limit)).
 			SetSkip(int64(paginationArgs.Skip)).
 			SetSort(getListingSortingBson(paginationArgs.Sort))
 		filter := bson.M{"shop_id": shopId, "user_id": myId}
-		cursor, err := ListingCollection.Find(ctx, filter, findOptions)
+		cursor, err := common.ListingCollection.Find(ctx, filter, findOptions)
 		if err != nil {
 			util.HandleError(c, http.StatusNotFound, err, "no listing found")
 			return
@@ -590,7 +591,7 @@ func GetMyListingsSummary() gin.HandlerFunc {
 			util.HandleError(c, http.StatusNotFound, err, "Failed to retrieve listings")
 			return
 		}
-		count, err := ListingCollection.CountDocuments(ctx, filter)
+		count, err := common.ListingCollection.CountDocuments(ctx, filter)
 		if err != nil {
 			util.HandleError(c, http.StatusInternalServerError, err, "Error counting listings")
 			return
@@ -609,7 +610,7 @@ func GetMyListingsSummary() gin.HandlerFunc {
 // GetShopListings - Get single shop listings.
 func GetShopListings() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), REQ_TIMEOUT_SECS)
+		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
 		defer cancel()
 
 		shopId := c.Param("shopid")
@@ -619,19 +620,19 @@ func GetShopListings() gin.HandlerFunc {
 			return
 		}
 
-		paginationArgs := GetPaginationArgs(c)
+		paginationArgs := common.GetPaginationArgs(c)
 		findOptions := options.Find().
 			SetLimit(int64(paginationArgs.Limit)).
 			SetSkip(int64(paginationArgs.Skip)).
 			SetSort(getListingSortingBson(paginationArgs.Sort))
 
-		result, err := ListingCollection.Find(ctx, bson.M{"shop_id": shopObjectId}, findOptions)
+		result, err := common.ListingCollection.Find(ctx, bson.M{"shop_id": shopObjectId}, findOptions)
 		if err != nil {
 			util.HandleError(c, http.StatusNotFound, err, "error retrieving listings")
 			return
 		}
 
-		count, err := ListingCollection.CountDocuments(ctx, bson.M{"shop_id": shopObjectId})
+		count, err := common.ListingCollection.CountDocuments(ctx, bson.M{"shop_id": shopObjectId})
 		if err != nil {
 			util.HandleError(c, http.StatusInternalServerError, err, "Failed to count shipping profiles")
 			return
@@ -655,16 +656,16 @@ func GetShopListings() gin.HandlerFunc {
 
 func HasUserCreatedListingOnboarding() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), REQ_TIMEOUT_SECS)
+		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
 		defer cancel()
 
-		shopId, userId, err := MyShopIdAndMyId(c)
+		shopId, userId, err := common.MyShopIdAndMyId(c)
 		if err != nil {
 			util.HandleError(c, http.StatusBadRequest, err, "Error getting shop ID and user ID")
 			return
 		}
 
-		err = VerifyShopOwnership(c, userId, shopId)
+		err = common.VerifyShopOwnership(c, userId, shopId)
 		if err != nil {
 			util.HandleError(c, http.StatusUnauthorized, errors.New("Only sellers can perform this action"), "unauthorized")
 			return
@@ -672,7 +673,7 @@ func HasUserCreatedListingOnboarding() gin.HandlerFunc {
 
 		filter := bson.M{"user_id": userId}
 		findOptions := options.Find().SetLimit(1)
-		cursor, err := ListingCollection.Find(ctx, filter, findOptions)
+		cursor, err := common.ListingCollection.Find(ctx, filter, findOptions)
 		if err != nil {
 			log.Printf("error retrieving user listing: %v", err)
 			util.HandleError(c, http.StatusNotFound, err, "error retrieving user listing")
@@ -697,7 +698,7 @@ func HasUserCreatedListingOnboarding() gin.HandlerFunc {
 
 func DeleteListings() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), REQ_TIMEOUT_SECS)
+		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
 		defer cancel()
 
 		myId, err := auth.ValidateUserID(c)
@@ -722,7 +723,7 @@ func DeleteListings() gin.HandlerFunc {
 				continue
 			}
 
-			_, err = ListingCollection.DeleteOne(ctx, bson.M{"_id": idObjectID, "user_id": myId})
+			_, err = common.ListingCollection.DeleteOne(ctx, bson.M{"_id": idObjectID, "user_id": myId})
 			if err != nil {
 				notDeletedObjectIDs = append(notDeletedObjectIDs, idObjectID)
 				continue
@@ -738,7 +739,7 @@ func DeleteListings() gin.HandlerFunc {
 func DeactivateListings() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		now := time.Now()
-		ctx, cancel := context.WithTimeout(context.Background(), REQ_TIMEOUT_SECS)
+		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
 		defer cancel()
 
 		jwt, err := auth.InitJwtClaim(c)
@@ -769,7 +770,7 @@ func DeactivateListings() gin.HandlerFunc {
 				continue
 			}
 
-			_, err = ListingCollection.UpdateOne(ctx, bson.M{"_id": idObjectID, "user_id": myId}, bson.M{"state.state": models.ListingStateDeactivated, "state.state_updated_at": now, "date.modified_at": now})
+			_, err = common.ListingCollection.UpdateOne(ctx, bson.M{"_id": idObjectID, "user_id": myId}, bson.M{"state.state": models.ListingStateDeactivated, "state.state_updated_at": now, "date.modified_at": now})
 			if err != nil {
 				notDeletedObjectIDs = append(notDeletedObjectIDs, idObjectID)
 				continue

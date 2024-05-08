@@ -4,8 +4,9 @@ import (
 	"context"
 	"fmt"
 	auth "khoomi-api-io/api/internal/auth"
-	"khoomi-api-io/api/pkg/util"
+	"khoomi-api-io/api/internal/common"
 	"khoomi-api-io/api/pkg/models"
+	"khoomi-api-io/api/pkg/util"
 	"log"
 	"net/http"
 
@@ -18,7 +19,7 @@ import (
 // USER NOTIFICATIONS
 func CreateUserNotificationSettings() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), REQ_TIMEOUT_SECS)
+		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
 		defer cancel()
 
 		userId, err := auth.ValidateUserID(c)
@@ -43,7 +44,7 @@ func CreateUserNotificationSettings() gin.HandlerFunc {
 			NewsAndFeatures:  notificationRequest.NewsAndFeatures,
 		}
 
-		res, err := NotificationCollection.InsertOne(ctx, notification)
+		res, err := common.NotificationCollection.InsertOne(ctx, notification)
 		if err != nil {
 			util.HandleError(c, http.StatusInternalServerError, err, "Error creating notification")
 			return
@@ -56,7 +57,7 @@ func CreateUserNotificationSettings() gin.HandlerFunc {
 
 func GetUserNotificationSettings() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), REQ_TIMEOUT_SECS)
+		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
 		defer cancel()
 
 		userId, err := auth.ValidateUserID(c)
@@ -66,7 +67,7 @@ func GetUserNotificationSettings() gin.HandlerFunc {
 		}
 
 		var notification models.Notification
-		err = NotificationCollection.FindOne(ctx, bson.M{"user_id": userId}).Decode(&notification)
+		err = common.NotificationCollection.FindOne(ctx, bson.M{"user_id": userId}).Decode(&notification)
 		if err != nil {
 			log.Printf("No notification settings configured for user %v, creating new notification profile", userId)
 			if err == mongo.ErrNoDocuments {
@@ -80,7 +81,7 @@ func GetUserNotificationSettings() gin.HandlerFunc {
 					NewsAndFeatures:  false,
 				}
 
-				_, err = NotificationCollection.InsertOne(ctx, notification)
+				_, err = common.NotificationCollection.InsertOne(ctx, notification)
 				if err != nil {
 					util.HandleError(c, http.StatusInternalServerError, err, "Error creating notification")
 					return
@@ -99,7 +100,7 @@ func GetUserNotificationSettings() gin.HandlerFunc {
 // /api/user/:userid/?name=new_message&value=true
 func UpdateUserNotificationSettings() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), REQ_TIMEOUT_SECS)
+		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
 		defer cancel()
 
 		userId, err := auth.ValidateUserID(c)
@@ -152,7 +153,7 @@ func UpdateUserNotificationSettings() gin.HandlerFunc {
 		}
 		filter := bson.M{"user_id": userId}
 
-		res, err := NotificationCollection.UpdateOne(ctx, filter, update)
+		res, err := common.NotificationCollection.UpdateOne(ctx, filter, update)
 		if err != nil {
 			util.HandleError(c, http.StatusInternalServerError, err, "Error updating notification settings")
 			return

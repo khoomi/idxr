@@ -5,9 +5,10 @@ import (
 	"errors"
 	"fmt"
 	auth "khoomi-api-io/api/internal/auth"
+	"khoomi-api-io/api/internal/common"
+	"khoomi-api-io/api/pkg/models"
 	"khoomi-api-io/api/pkg/util"
 	email "khoomi-api-io/api/web/email"
-	"khoomi-api-io/api/pkg/models"
 	"log"
 	"net/http"
 	"net/url"
@@ -29,7 +30,7 @@ import (
 // CreateUser creates new user account, and send welcome and verify email notifications.
 func CreateUser() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), REQ_TIMEOUT_SECS)
+		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
 		defer cancel()
 
 		var jsonUser models.UserRegistrationBody
@@ -38,7 +39,7 @@ func CreateUser() gin.HandlerFunc {
 			return
 		}
 
-		if err := Validate.Struct(&jsonUser); err != nil {
+		if err := common.Validate.Struct(&jsonUser); err != nil {
 			util.HandleError(c, http.StatusBadRequest, err, "Invalid or missing data in request body")
 			return
 		}
@@ -72,12 +73,12 @@ func CreateUser() gin.HandlerFunc {
 		userId := primitive.NewObjectID()
 		newUser := bson.M{
 			"_id":                         userId,
-			"login_name":                  GenerateRandomUsername(),
+			"login_name":                  common.GenerateRandomUsername(),
 			"primary_email":               strings.ToLower(jsonUser.Email),
 			"first_name":                  jsonUser.FirstName,
 			"last_name":                   jsonUser.LastName,
 			"auth":                        userAuth,
-			"thumbnail":                   DefaultUserThumbnail,
+			"thumbnail":                   common.DefaultUserThumbnail,
 			"bio":                         bsonx.Null(),
 			"phone":                       bsonx.Null(),
 			"birthdate":                   models.UserBirthdate{},
@@ -97,12 +98,12 @@ func CreateUser() gin.HandlerFunc {
 			"allow_login_ip_notification": true,
 		}
 
-		result, err := UserCollection.InsertOne(ctx, newUser)
+		result, err := common.UserCollection.InsertOne(ctx, newUser)
 		if err != nil {
 			writeException, ok := err.(mongo.WriteException)
 			if ok {
 				for _, writeError := range writeException.WriteErrors {
-					if writeError.Code == MongoDuplicateKeyCode {
+					if writeError.Code == common.MongoDuplicateKeyCode {
 						log.Printf("User with email already exists: %s\n", writeError.Message)
 						util.HandleError(c, http.StatusBadRequest, writeError, "User with email already exists")
 						return
@@ -124,7 +125,7 @@ func CreateUser() gin.HandlerFunc {
 			NewsAndFeatures:  true,
 		}
 
-		_, err = NotificationCollection.InsertOne(ctx, notification)
+		_, err = common.NotificationCollection.InsertOne(ctx, notification)
 		if err != nil {
 			util.HandleError(c, http.StatusInternalServerError, err, "Error creating notification")
 			return
@@ -140,7 +141,7 @@ func CreateUser() gin.HandlerFunc {
 // HandleUserAuthentication authenticates new user session while sending necessary notifications depending on the cases. e.g new IP
 func HandleUserAuthentication() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), REQ_TIMEOUT_SECS)
+		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
 		defer cancel()
 
 		var jsonUser models.UserLoginBody
@@ -152,14 +153,14 @@ func HandleUserAuthentication() gin.HandlerFunc {
 			return
 		}
 
-		if err := Validate.Struct(&jsonUser); err != nil {
+		if err := common.Validate.Struct(&jsonUser); err != nil {
 			log.Println(err)
 			util.HandleError(c, http.StatusBadRequest, err, "Invalid or missing data in request body")
 			return
 		}
 
 		var validUser models.User
-		if err := UserCollection.FindOne(ctx, bson.M{"primary_email": jsonUser.Email}).Decode(&validUser); err != nil {
+		if err := common.UserCollection.FindOne(ctx, bson.M{"primary_email": jsonUser.Email}).Decode(&validUser); err != nil {
 			util.HandleError(c, http.StatusNotFound, err, "User not found")
 			return
 		}
@@ -187,7 +188,7 @@ func HandleUserAuthentication() gin.HandlerFunc {
 					"last_login_ip": clientIP,
 				},
 			}
-			errUpdateLoginCounts := UserCollection.FindOneAndUpdate(ctx, filter, update).Decode(&validUser)
+			errUpdateLoginCounts := common.UserCollection.FindOneAndUpdate(ctx, filter, update).Decode(&validUser)
 			if errUpdateLoginCounts != nil {
 				return nil, errUpdateLoginCounts
 			}
@@ -199,7 +200,7 @@ func HandleUserAuthentication() gin.HandlerFunc {
 				UserAgent: c.Request.UserAgent(),
 				IpAddr:    clientIP,
 			}
-			result, errLoginHistory := LoginHistoryCollection.InsertOne(ctx, doc)
+			result, errLoginHistory := common.LoginHistoryCollection.InsertOne(ctx, doc)
 			if errLoginHistory != nil {
 				return result, errLoginHistory
 			}
@@ -240,7 +241,7 @@ func HandleUserAuthentication() gin.HandlerFunc {
 		// Generate secure and unique token
 		token := auth.GenerateSecureToken(8)
 
-		expirationTime := now.Add(VERIFICATION_EMAIL_EXPIRATION_TIME)
+		expirationTime := now.Add(common.VERIFICATION_EMAIL_EXPIRATION_TIME)
 		verifyEmail := models.UserVerifyEmailToken{
 			UserId:      validUser.Id,
 			TokenDigest: token,
@@ -249,7 +250,7 @@ func HandleUserAuthentication() gin.HandlerFunc {
 		}
 		opts := options.Replace().SetUpsert(true)
 		filter := bson.M{"user_uid": validUser.Id}
-		_, err = EmailVerificationTokenCollection.ReplaceOne(ctx, filter, verifyEmail, opts)
+		_, err = common.EmailVerificationTokenCollection.ReplaceOne(ctx, filter, verifyEmail, opts)
 		if err != nil {
 			log.Printf("error sending verification email for user: %v, error: %v", validUser.PrimaryEmail, err)
 		}
@@ -280,7 +281,7 @@ func HandleUserAuthentication() gin.HandlerFunc {
 // RefreshToken handles auth token refreshments
 func RefreshToken() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), REQ_TIMEOUT_SECS)
+		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
 		defer cancel()
 
 		var payload models.RefreshTokenPayload
@@ -303,7 +304,7 @@ func RefreshToken() gin.HandlerFunc {
 			return
 		}
 
-		res := UserCollection.FindOne(ctx, bson.M{"_id": userObjectId})
+		res := common.UserCollection.FindOne(ctx, bson.M{"_id": userObjectId})
 		if res.Err() != nil {
 			if res.Err() == mongo.ErrNoDocuments {
 				util.HandleError(c, http.StatusNotFound, res.Err(), "User not found")
@@ -349,7 +350,7 @@ func Logout() gin.HandlerFunc {
 // SendDeleteUserAccount -> Delete current user account
 func SendDeleteUserAccount() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), REQ_TIMEOUT_SECS)
+		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
 		defer cancel()
 
 		auth, err := auth.InitJwtClaim(c)
@@ -363,7 +364,7 @@ func SendDeleteUserAccount() gin.HandlerFunc {
 			return
 		}
 
-		_, err = UserDeletionCollection.InsertOne(ctx, bson.M{"user_id": userId, "created_at": time.Now()})
+		_, err = common.UserDeletionCollection.InsertOne(ctx, bson.M{"user_id": userId, "created_at": time.Now()})
 		if err != nil {
 			util.HandleError(c, http.StatusUnauthorized, err, "error while requesting for account deletion")
 			return
@@ -376,7 +377,7 @@ func SendDeleteUserAccount() gin.HandlerFunc {
 // IsAccountPendingDeletion checks if current user account is pending deletion
 func IsAccountPendingDeletion() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), REQ_TIMEOUT_SECS)
+		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
 		defer cancel()
 
 		userId, err := auth.ValidateUserID(c)
@@ -386,7 +387,7 @@ func IsAccountPendingDeletion() gin.HandlerFunc {
 		}
 
 		var account models.AccountDeletionRequested
-		err = UserDeletionCollection.FindOne(ctx, bson.M{"user_id": userId}).Decode(&account)
+		err = common.UserDeletionCollection.FindOne(ctx, bson.M{"user_id": userId}).Decode(&account)
 		if err != nil {
 			if err == mongo.ErrNoDocuments {
 				c.JSON(http.StatusOK, gin.H{"pending_deletion": false})
@@ -403,7 +404,7 @@ func IsAccountPendingDeletion() gin.HandlerFunc {
 // CancelDeleteUserAccount cancels delete user account request.
 func CancelDeleteUserAccount() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), REQ_TIMEOUT_SECS)
+		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
 		defer cancel()
 
 		userId, err := auth.ValidateUserID(c)
@@ -412,7 +413,7 @@ func CancelDeleteUserAccount() gin.HandlerFunc {
 			return
 		}
 
-		_, err = UserDeletionCollection.DeleteOne(ctx, bson.M{"user_id": userId})
+		_, err = common.UserDeletionCollection.DeleteOne(ctx, bson.M{"user_id": userId})
 		if err != nil {
 			util.HandleError(c, http.StatusUnauthorized, err, "error while cancelling account deletion request")
 			return
@@ -425,7 +426,7 @@ func CancelDeleteUserAccount() gin.HandlerFunc {
 // ChangePassword changes active user's password.
 func ChangePassword() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), REQ_TIMEOUT_SECS)
+		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
 		defer cancel()
 
 		// Verify current user session
@@ -443,7 +444,7 @@ func ChangePassword() gin.HandlerFunc {
 		}
 
 		var validUser models.User
-		if err := UserCollection.FindOne(ctx, bson.M{"_id": userId}).Decode(&validUser); err != nil {
+		if err := common.UserCollection.FindOne(ctx, bson.M{"_id": userId}).Decode(&validUser); err != nil {
 			util.HandleError(c, http.StatusUnauthorized, err, "User not found")
 			return
 		}
@@ -453,7 +454,7 @@ func ChangePassword() gin.HandlerFunc {
 			return
 		}
 
-		if validationErr := Validate.Struct(&newPasswordFromRequest); validationErr != nil {
+		if validationErr := common.Validate.Struct(&newPasswordFromRequest); validationErr != nil {
 			util.HandleError(c, http.StatusUnprocessableEntity, validationErr, "invalid or missing data in request body")
 			return
 		}
@@ -478,7 +479,7 @@ func ChangePassword() gin.HandlerFunc {
 		// change user pasword for userid
 		filter := bson.M{"_id": userId}
 		update := bson.M{"$set": bson.M{"auth.password_digest": hashedPassword, "modified_at": time.Now()}}
-		err = UserCollection.FindOneAndUpdate(ctx, filter, update).Decode(&user)
+		err = common.UserCollection.FindOneAndUpdate(ctx, filter, update).Decode(&user)
 
 		if err != nil {
 			errStr := err.Error()
@@ -496,7 +497,7 @@ func ChangePassword() gin.HandlerFunc {
 // ObjectID. If the user ID is not a valid ObjectID, it attempts to find the user by username.
 func GetUser() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), REQ_TIMEOUT_SECS)
+		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
 		defer cancel()
 
 		var filter bson.M
@@ -516,7 +517,7 @@ func GetUser() gin.HandlerFunc {
 
 		// Query the database to find the user based on the specified field and value
 		var user models.User
-		err := UserCollection.FindOne(ctx, filter).Decode(&user)
+		err := common.UserCollection.FindOne(ctx, filter).Decode(&user)
 		if err != nil {
 			util.HandleError(c, http.StatusNotFound, err, "User not found")
 			return
@@ -532,7 +533,7 @@ func GetUser() gin.HandlerFunc {
 func SendVerifyEmail() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		now := time.Now()
-		ctx, cancel := context.WithTimeout(context.Background(), REQ_TIMEOUT_SECS)
+		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
 		defer cancel()
 
 		emailCurrent := c.Query("email")
@@ -560,7 +561,7 @@ func SendVerifyEmail() gin.HandlerFunc {
 		// Generate secure and unique token
 		token := auth.GenerateSecureToken(8)
 
-		expirationTime := now.Add(VERIFICATION_EMAIL_EXPIRATION_TIME)
+		expirationTime := now.Add(common.VERIFICATION_EMAIL_EXPIRATION_TIME)
 		verifyEmail := models.UserVerifyEmailToken{
 			UserId:      userId,
 			TokenDigest: token,
@@ -569,7 +570,7 @@ func SendVerifyEmail() gin.HandlerFunc {
 		}
 		opts := options.Replace().SetUpsert(true)
 		filter := bson.M{"user_uid": userId}
-		_, err = EmailVerificationTokenCollection.ReplaceOne(ctx, filter, verifyEmail, opts)
+		_, err = common.EmailVerificationTokenCollection.ReplaceOne(ctx, filter, verifyEmail, opts)
 		if err != nil {
 			util.HandleError(c, http.StatusBadRequest, err, err.Error())
 			return
@@ -585,7 +586,7 @@ func SendVerifyEmail() gin.HandlerFunc {
 // VerifyEmail - api/send-verify-email?email=...&name=user_login_name
 func VerifyEmail() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), REQ_TIMEOUT_SECS)
+		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
 		defer cancel()
 
 		currentId := c.Query("id")
@@ -600,7 +601,7 @@ func VerifyEmail() gin.HandlerFunc {
 		}
 
 		// Get and delete email verification
-		err = EmailVerificationTokenCollection.FindOneAndDelete(ctx, bson.M{"user_uid": userId}).Decode(&emailVerificationData)
+		err = common.EmailVerificationTokenCollection.FindOneAndDelete(ctx, bson.M{"user_uid": userId}).Decode(&emailVerificationData)
 		if err != nil {
 			util.HandleError(c, http.StatusNotFound, err, "Email verification token not found")
 			return
@@ -622,7 +623,7 @@ func VerifyEmail() gin.HandlerFunc {
 		// Change user email verification status
 		filter := bson.M{"_id": emailVerificationData.UserId}
 		update := bson.M{"$set": bson.M{"status": "Active", "modified_at": now, "auth.modified_at": now, "auth.email_verified": true}}
-		err = UserCollection.FindOneAndUpdate(ctx, filter, update).Decode(&user)
+		err = common.UserCollection.FindOneAndUpdate(ctx, filter, update).Decode(&user)
 		if err != nil {
 			util.HandleError(c, http.StatusNotModified, err, "Failed to update user")
 			return
@@ -636,7 +637,7 @@ func VerifyEmail() gin.HandlerFunc {
 // UpdateMyProfile updates the email, thumbnail, first and last name for the current user.
 func UpdateMyProfile() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), REQ_TIMEOUT_SECS)
+		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
 		defer cancel()
 
 		auth, err := auth.InitJwtClaim(c)
@@ -653,7 +654,7 @@ func UpdateMyProfile() gin.HandlerFunc {
 		updateData := bson.M{}
 
 		if firstName := c.Request.FormValue("first_name"); firstName != "" {
-			if err := ValidateNameFormat(firstName); err != nil {
+			if err := common.ValidateNameFormat(firstName); err != nil {
 				util.HandleError(c, http.StatusBadRequest, err, "Invalid first name format")
 				return
 			}
@@ -661,7 +662,7 @@ func UpdateMyProfile() gin.HandlerFunc {
 		}
 
 		if lastName := c.Request.FormValue("last_name"); lastName != "" {
-			if err := ValidateNameFormat(lastName); err != nil {
+			if err := common.ValidateNameFormat(lastName); err != nil {
 				util.HandleError(c, http.StatusBadRequest, err, "Invalid last name format")
 				return
 			}
@@ -707,7 +708,7 @@ func UpdateMyProfile() gin.HandlerFunc {
 		filter := bson.M{"_id": userId}
 		update := bson.M{"$set": updateData}
 
-		_, err = UserCollection.UpdateOne(ctx, filter, update)
+		_, err = common.UserCollection.UpdateOne(ctx, filter, update)
 		if err != nil {
 			util.HandleError(c, http.StatusExpectationFailed, err, "Failed to update user's profile")
 			return
@@ -722,7 +723,7 @@ func UpdateMyProfile() gin.HandlerFunc {
 // GetLoginHistories - Get user login histories (/api/users/:userId/login-history?limit=50&skip=0)
 func GetLoginHistories() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), REQ_TIMEOUT_SECS)
+		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
 		defer cancel()
 
 		userId, err := auth.ValidateUserID(c)
@@ -731,20 +732,20 @@ func GetLoginHistories() gin.HandlerFunc {
 			return
 		}
 
-		paginationArgs := GetPaginationArgs(c)
+		paginationArgs := common.GetPaginationArgs(c)
 		filter := bson.M{"user_uid": userId}
 		findOptions := options.Find().
 			SetLimit(int64(paginationArgs.Limit)).
 			SetSkip(int64(paginationArgs.Skip)).
 			SetSort(util.GetLoginHistorySortBson(paginationArgs.Sort))
 
-		result, err := LoginHistoryCollection.Find(ctx, filter, findOptions)
+		result, err := common.LoginHistoryCollection.Find(ctx, filter, findOptions)
 		if err != nil {
 			util.HandleError(c, http.StatusNotFound, err, "Failed to find login histories")
 			return
 		}
 
-		count, err := LoginHistoryCollection.CountDocuments(ctx, filter)
+		count, err := common.LoginHistoryCollection.CountDocuments(ctx, filter)
 		if err != nil {
 			util.HandleError(c, http.StatusInternalServerError, err, "Failed to count login histories")
 			return
@@ -769,7 +770,7 @@ func GetLoginHistories() gin.HandlerFunc {
 // DeleteLoginHistories - Get user login histories (/api/users/:userId/login-history?limit=50&skip=0)
 func DeleteLoginHistories() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), REQ_TIMEOUT_SECS)
+		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
 		defer cancel()
 
 		userId, err := auth.ValidateUserID(c)
@@ -801,7 +802,7 @@ func DeleteLoginHistories() gin.HandlerFunc {
 
 		callback := func(ctx mongo.SessionContext) (interface{}, error) {
 			filter := bson.M{"_id": bson.M{"$in": IdsToDelete}, "user_uid": userId}
-			result, err := LoginHistoryCollection.DeleteMany(ctx, filter)
+			result, err := common.LoginHistoryCollection.DeleteMany(ctx, filter)
 			if err != nil {
 				return nil, err
 			}
@@ -829,13 +830,13 @@ func DeleteLoginHistories() gin.HandlerFunc {
 // PasswordResetEmail - api/send-password-reset?email=borngracedd@gmail.com
 func PasswordResetEmail() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), REQ_TIMEOUT_SECS)
+		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
 		defer cancel()
 
 		currentEmail := strings.ToLower(c.Query("email"))
 		var user models.User
 
-		err := UserCollection.FindOne(ctx, bson.M{"primary_email": currentEmail}).Decode(&user)
+		err := common.UserCollection.FindOne(ctx, bson.M{"primary_email": currentEmail}).Decode(&user)
 		if err != nil {
 			util.HandleError(c, http.StatusBadRequest, err, "User with email not found")
 			return
@@ -843,7 +844,7 @@ func PasswordResetEmail() gin.HandlerFunc {
 
 		token := auth.GenerateSecureToken(8)
 		now := time.Now()
-		expirationTime := now.Add(VERIFICATION_EMAIL_EXPIRATION_TIME)
+		expirationTime := now.Add(common.VERIFICATION_EMAIL_EXPIRATION_TIME)
 		passwordReset := models.UserPasswordResetToken{
 			UserId:      user.Id,
 			TokenDigest: token,
@@ -853,7 +854,7 @@ func PasswordResetEmail() gin.HandlerFunc {
 
 		opts := options.Replace().SetUpsert(true)
 		filter := bson.M{"user_uid": user.Id}
-		_, err = PasswordResetTokenCollection.ReplaceOne(ctx, filter, passwordReset, opts)
+		_, err = common.PasswordResetTokenCollection.ReplaceOne(ctx, filter, passwordReset, opts)
 		if err != nil {
 			util.HandleError(c, http.StatusBadRequest, err, "Failed to replace password reset token")
 			return
@@ -869,7 +870,7 @@ func PasswordResetEmail() gin.HandlerFunc {
 // PasswordReset - api/password-reset/userid?token=..&newpassword=..&id=user_uid
 func PasswordReset() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), REQ_TIMEOUT_SECS)
+		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
 		defer cancel()
 
 		currentId := c.Query("id")
@@ -884,7 +885,7 @@ func PasswordReset() gin.HandlerFunc {
 			return
 		}
 
-		err = PasswordResetTokenCollection.FindOneAndDelete(ctx, bson.M{"user_uid": userId}).Decode(&passwordResetData)
+		err = common.PasswordResetTokenCollection.FindOneAndDelete(ctx, bson.M{"user_uid": userId}).Decode(&passwordResetData)
 		if err != nil {
 			util.HandleError(c, http.StatusNotFound, err, "Failed to find or delete password reset token")
 			return
@@ -915,7 +916,7 @@ func PasswordReset() gin.HandlerFunc {
 
 		filter := bson.M{"_id": passwordResetData.UserId}
 		update := bson.M{"$set": bson.M{"auth.password_digest": hashedPassword, "auth.modified_at": now, "auth.email_verified": true}}
-		err = UserCollection.FindOneAndUpdate(ctx, filter, update).Decode(&user)
+		err = common.UserCollection.FindOneAndUpdate(ctx, filter, update).Decode(&user)
 		if err != nil {
 			util.HandleError(c, http.StatusNotModified, err, "Failed to update user password")
 			return
@@ -933,7 +934,7 @@ func PasswordReset() gin.HandlerFunc {
 // api/user/thumbnail?remote_addr=..
 func UploadThumbnail() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), REQ_TIMEOUT_SECS)
+		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
 		defer cancel()
 
 		remoteAddr := c.Query("remote_addr")
@@ -971,7 +972,7 @@ func UploadThumbnail() gin.HandlerFunc {
 			update = bson.M{"$set": bson.M{"thumbnail": uploadResult.SecureURL, "modified_at": now}}
 		}
 
-		_, err = UserCollection.UpdateOne(ctx, filter, update)
+		_, err = common.UserCollection.UpdateOne(ctx, filter, update)
 		if err != nil {
 			// delete media
 			_, err = util.DestroyMedia(uploadResult.PublicID)
@@ -989,7 +990,7 @@ func UploadThumbnail() gin.HandlerFunc {
 // api/user/thumbnail
 func DeleteThumbnail() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), REQ_TIMEOUT_SECS)
+		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
 		defer cancel()
 
 		myId, err := auth.ValidateUserID(c)
@@ -1002,7 +1003,7 @@ func DeleteThumbnail() gin.HandlerFunc {
 		now := time.Now()
 		filter := bson.M{"_id": myId}
 		update := bson.M{"$set": bson.M{"thumbnail": nil, "modified_at": now}}
-		err = UserCollection.FindOneAndUpdate(ctx, filter, update).Decode(&user)
+		err = common.UserCollection.FindOneAndUpdate(ctx, filter, update).Decode(&user)
 		if err != nil {
 			log.Printf("Thumbnail deletion failed: %v", err)
 			util.HandleError(c, http.StatusExpectationFailed, err, "Failed to update user's thumbnail")
@@ -1052,7 +1053,7 @@ func extractFilenameAndExtension(urlString string) (filename, extension string, 
 // CreateUserAddress - create new user address
 func CreateUserAddress() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), REQ_TIMEOUT_SECS)
+		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
 		defer cancel()
 
 		var userAddress models.UserAddressExcerpt
@@ -1065,7 +1066,7 @@ func CreateUserAddress() gin.HandlerFunc {
 
 		log.Println(userAddress)
 		// Validate request body
-		if validationErr := Validate.Struct(&userAddress); validationErr != nil {
+		if validationErr := common.Validate.Struct(&userAddress); validationErr != nil {
 			util.HandleError(c, http.StatusUnprocessableEntity, validationErr, "Validation failed")
 			return
 		}
@@ -1090,7 +1091,7 @@ func CreateUserAddress() gin.HandlerFunc {
 			IsDefaultShippingAddress: userAddress.IsDefaultShippingAddress,
 		}
 
-		count, err := UserAddressCollection.CountDocuments(ctx, bson.M{"user_id": myId})
+		count, err := common.UserAddressCollection.CountDocuments(ctx, bson.M{"user_id": myId})
 		if err != nil {
 			util.HandleError(c, http.StatusInternalServerError, err, "Error counting current payment information")
 			return
@@ -1111,7 +1112,7 @@ func CreateUserAddress() gin.HandlerFunc {
 
 		}
 
-		_, err = UserAddressCollection.InsertOne(ctx, userAddressTemp)
+		_, err = common.UserAddressCollection.InsertOne(ctx, userAddressTemp)
 		if err != nil {
 			util.HandleError(c, http.StatusInternalServerError, err, "Failed to create user address")
 			return
@@ -1125,7 +1126,7 @@ func CreateUserAddress() gin.HandlerFunc {
 // GetUserAddresses - get user address
 func GetUserAddresses() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), REQ_TIMEOUT_SECS)
+		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
 		defer cancel()
 
 		// Validate user id
@@ -1137,7 +1138,7 @@ func GetUserAddresses() gin.HandlerFunc {
 		}
 
 		filter := bson.M{"user_id": userId}
-		cursor, err := UserAddressCollection.Find(ctx, filter)
+		cursor, err := common.UserAddressCollection.Find(ctx, filter)
 		if err != nil {
 			util.HandleError(c, http.StatusNotFound, err, "User addresses not found")
 			return
@@ -1161,7 +1162,7 @@ func GetUserAddresses() gin.HandlerFunc {
 // UpdateUserAddress - update user address
 func UpdateUserAddress() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), REQ_TIMEOUT_SECS)
+		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
 		defer cancel()
 
 		var userAddress models.UserAddressExcerpt
@@ -1173,7 +1174,7 @@ func UpdateUserAddress() gin.HandlerFunc {
 		}
 
 		// Validate request body
-		if validationErr := Validate.Struct(&userAddress); validationErr != nil {
+		if validationErr := common.Validate.Struct(&userAddress); validationErr != nil {
 			util.HandleError(c, http.StatusUnprocessableEntity, validationErr, "Validation error")
 			return
 		}
@@ -1214,7 +1215,7 @@ func UpdateUserAddress() gin.HandlerFunc {
 			},
 		}
 
-		res, err := UserAddressCollection.UpdateOne(ctx, filter, update)
+		res, err := common.UserAddressCollection.UpdateOne(ctx, filter, update)
 		if err != nil {
 			util.HandleError(c, http.StatusBadRequest, err, "Failed to update user address")
 			return
@@ -1232,7 +1233,7 @@ func UpdateUserAddress() gin.HandlerFunc {
 // UpdateUserAddress - update user address
 func DeleteUserAddress() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), REQ_TIMEOUT_SECS)
+		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
 		defer cancel()
 
 		// Extract current address Id
@@ -1258,7 +1259,7 @@ func DeleteUserAddress() gin.HandlerFunc {
 		}
 
 		filter := bson.M{"user_id": myId, "_id": addressObjectId}
-		res, err := UserAddressCollection.DeleteOne(ctx, filter)
+		res, err := common.UserAddressCollection.DeleteOne(ctx, filter)
 		if err != nil {
 			util.HandleError(c, http.StatusBadRequest, err, "Failed to delete user address")
 			return
@@ -1285,7 +1286,7 @@ func setOtherAddressesToFalse(ctx context.Context, userId primitive.ObjectID, ad
 		"$set": bson.M{"is_default_shipping_address": false},
 	}
 
-	_, err := UserAddressCollection.UpdateMany(ctx, filter, update)
+	_, err := common.UserAddressCollection.UpdateMany(ctx, filter, update)
 	return err
 }
 
@@ -1294,7 +1295,7 @@ func setOtherAddressesToFalse(ctx context.Context, userId primitive.ObjectID, ad
 // UpdateUserBirthdate - update user birthdate
 func UpdateUserBirthdate() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), REQ_TIMEOUT_SECS)
+		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
 		var birthDate models.UserBirthdate
 		defer cancel()
 
@@ -1305,7 +1306,7 @@ func UpdateUserBirthdate() gin.HandlerFunc {
 		}
 
 		// Validate request body
-		if validationErr := Validate.Struct(&birthDate); validationErr != nil {
+		if validationErr := common.Validate.Struct(&birthDate); validationErr != nil {
 			util.HandleError(c, http.StatusUnprocessableEntity, validationErr, "Validation error")
 			return
 		}
@@ -1317,7 +1318,7 @@ func UpdateUserBirthdate() gin.HandlerFunc {
 		}
 		filter := bson.M{"_id": myId}
 		update := bson.M{"$set": bson.M{"birthdate.day": birthDate.Day, "birthdate.month": birthDate.Month, "birthdate.year": birthDate.Year}}
-		_, errUpdateName := UserCollection.UpdateOne(ctx, filter, update)
+		_, errUpdateName := common.UserCollection.UpdateOne(ctx, filter, update)
 		if errUpdateName != nil {
 			util.HandleError(c, http.StatusBadRequest, errUpdateName, "Failed to update user birthdate")
 			return
@@ -1331,7 +1332,7 @@ func UpdateUserBirthdate() gin.HandlerFunc {
 // api/user/update?field=phone&value=8084051523
 func UpdateUserSingleField() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), REQ_TIMEOUT_SECS)
+		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
 		field := c.Query("field")
 		value := c.Query("value")
 		defer cancel()
@@ -1359,7 +1360,7 @@ func UpdateUserSingleField() gin.HandlerFunc {
 
 		filter := bson.M{"_id": myId}
 		update := bson.M{"$set": bson.M{field: value}}
-		result, errUpdateField := UserCollection.UpdateOne(ctx, filter, update)
+		result, errUpdateField := common.UserCollection.UpdateOne(ctx, filter, update)
 		if errUpdateField != nil {
 			util.HandleError(c, http.StatusBadRequest, errUpdateField, "Failed to update field")
 			return
@@ -1373,7 +1374,7 @@ func UpdateUserSingleField() gin.HandlerFunc {
 // api/user/update?shopid=phone&value=8084051523
 func AddRemoveFavoriteShop() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), REQ_TIMEOUT_SECS)
+		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
 		shop := c.Query("shopid")
 		action := c.Query("action")
 		defer cancel()
@@ -1387,7 +1388,7 @@ func AddRemoveFavoriteShop() gin.HandlerFunc {
 		filter := bson.M{"_id": myObjectId}
 		if action == "add" {
 			update := bson.M{"$push": bson.M{"favorite_shops": shop}}
-			res, err := UserCollection.UpdateOne(ctx, filter, update)
+			res, err := common.UserCollection.UpdateOne(ctx, filter, update)
 			if err != nil {
 				util.HandleError(c, http.StatusBadRequest, err, "Failed to add favorite shop")
 				return
@@ -1399,7 +1400,7 @@ func AddRemoveFavoriteShop() gin.HandlerFunc {
 
 		if action == "remove" {
 			update := bson.M{"$pull": bson.M{"favorite_shops": shop}}
-			res, err := UserCollection.UpdateOne(ctx, filter, update)
+			res, err := common.UserCollection.UpdateOne(ctx, filter, update)
 			if err != nil {
 				util.HandleError(c, http.StatusBadRequest, err, "Failed to remove favorite shop")
 				return
@@ -1417,7 +1418,7 @@ func AddRemoveFavoriteShop() gin.HandlerFunc {
 // api/user/:userId/wishlist?listing_id=8084051523
 func AddWishListItem() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), REQ_TIMEOUT_SECS)
+		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
 		defer cancel()
 
 		listingId := c.Query("listing_id")
@@ -1440,7 +1441,7 @@ func AddWishListItem() gin.HandlerFunc {
 			ListingId: listingObjectId,
 			CreatedAt: now,
 		}
-		_, err = WishListCollection.InsertOne(ctx, data)
+		_, err = common.WishListCollection.InsertOne(ctx, data)
 		if err != nil {
 			util.HandleError(c, http.StatusNotModified, err, "Failed to add wishlist item")
 			return
@@ -1454,7 +1455,7 @@ func AddWishListItem() gin.HandlerFunc {
 // api/user/:userId/wishlist?listing_id=8084051523
 func RemoveWishListItem() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), REQ_TIMEOUT_SECS)
+		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
 		defer cancel()
 
 		listingId := c.Query("listing_id")
@@ -1471,7 +1472,7 @@ func RemoveWishListItem() gin.HandlerFunc {
 		}
 
 		filter := bson.M{"user_id": MyId, "listing_id": listingObjectId}
-		res, err := WishListCollection.DeleteOne(ctx, filter)
+		res, err := common.WishListCollection.DeleteOne(ctx, filter)
 		if err != nil {
 			util.HandleError(c, http.StatusNotModified, err, "Failed to remove wishlist item")
 			return
@@ -1484,7 +1485,7 @@ func RemoveWishListItem() gin.HandlerFunc {
 // GetUserWishlist - Get all wishlist items  api/user/:userId/wishlist?limit=10&skip=0
 func GetUserWishlist() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), REQ_TIMEOUT_SECS)
+		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
 		defer cancel()
 
 		MyId, err := auth.ValidateUserID(c)
@@ -1493,10 +1494,10 @@ func GetUserWishlist() gin.HandlerFunc {
 			return
 		}
 
-		paginationArgs := GetPaginationArgs(c)
+		paginationArgs := common.GetPaginationArgs(c)
 		filter := bson.M{"user_id": MyId}
 		find := options.Find().SetLimit(int64(paginationArgs.Limit)).SetSkip(int64(paginationArgs.Skip))
-		result, err := WishListCollection.Find(ctx, filter, find)
+		result, err := common.WishListCollection.Find(ctx, filter, find)
 		if err != nil {
 			util.HandleError(c, http.StatusNotFound, err, "Wishlist not found")
 			return
@@ -1508,7 +1509,7 @@ func GetUserWishlist() gin.HandlerFunc {
 			return
 		}
 
-		count, err := WishListCollection.CountDocuments(ctx, bson.M{"user_id": MyId})
+		count, err := common.WishListCollection.CountDocuments(ctx, bson.M{"user_id": MyId})
 		if err != nil {
 			util.HandleError(c, http.StatusInternalServerError, err, "Error counting wishlist")
 			return
@@ -1527,7 +1528,7 @@ func GetUserWishlist() gin.HandlerFunc {
 // UpdateSecurityNotificationSetting - GET api/user/:userId/login-notification?set=true
 func UpdateSecurityNotificationSetting() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), REQ_TIMEOUT_SECS)
+		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
 		defer cancel()
 
 		myID, err := auth.ValidateUserID(c)
@@ -1552,7 +1553,7 @@ func UpdateSecurityNotificationSetting() gin.HandlerFunc {
 		filter := bson.M{"_id": myID}
 		update := bson.M{"$set": bson.M{"allow_login_ip_notification": setBool}}
 
-		res, err := UserCollection.UpdateOne(ctx, filter, update)
+		res, err := common.UserCollection.UpdateOne(ctx, filter, update)
 		if err != nil {
 			util.HandleError(c, http.StatusInternalServerError, err, "error updating user login notification setting")
 			return
@@ -1570,7 +1571,7 @@ func UpdateSecurityNotificationSetting() gin.HandlerFunc {
 // GetSecurityNotificationSetting - GET api/user/:userId/login-notification
 func GetSecurityNotificationSetting() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), REQ_TIMEOUT_SECS)
+		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
 		defer cancel()
 
 		MyId, err := auth.ValidateUserID(c)
@@ -1584,7 +1585,7 @@ func GetSecurityNotificationSetting() gin.HandlerFunc {
 
 		var result bson.M
 		filter := bson.M{"_id": MyId}
-		err = UserCollection.FindOne(ctx, filter, options).Decode(&result)
+		err = common.UserCollection.FindOne(ctx, filter, options).Decode(&result)
 		if err != nil {
 			util.HandleError(c, http.StatusNotFound, err, "error retrieving user login notification setting")
 			return

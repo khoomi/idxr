@@ -5,9 +5,10 @@ import (
 	"errors"
 	"fmt"
 	auth "khoomi-api-io/api/internal/auth"
-	email "khoomi-api-io/api/web/email"
-	"khoomi-api-io/api/pkg/util"
+	"khoomi-api-io/api/internal/common"
 	"khoomi-api-io/api/pkg/models"
+	"khoomi-api-io/api/pkg/util"
+	email "khoomi-api-io/api/web/email"
 	"log"
 	"net/http"
 	"strings"
@@ -34,7 +35,7 @@ func CheckShopNameAvailability() gin.HandlerFunc {
 		var shop models.Shop
 
 		filter := bson.M{"username": shop_name}
-		err := ShopCollection.FindOne(ctx, filter).Decode(&shop)
+		err := common.ShopCollection.FindOne(ctx, filter).Decode(&shop)
 		if err != nil {
 			if err == mongo.ErrNoDocuments {
 				util.HandleSuccess(c, http.StatusOK, "Congrats! shop username is available :xD", true)
@@ -102,7 +103,7 @@ func CreateShop() gin.HandlerFunc {
 			}
 			logoUploadUrl = logoUploadResult.SecureURL
 		} else {
-			logoUploadUrl = DefaultLogo
+			logoUploadUrl = common.DefaultLogo
 			logoUploadResult = uploader.UploadResult{}
 		}
 
@@ -121,7 +122,7 @@ func CreateShop() gin.HandlerFunc {
 			}
 			bannerUploadUrl = bannerUploadResult.SecureURL
 		} else {
-			bannerUploadUrl = DefaultThumbnail
+			bannerUploadUrl = common.DefaultThumbnail
 			bannerUploadResult = uploader.UploadResult{}
 		}
 
@@ -166,7 +167,7 @@ func CreateShop() gin.HandlerFunc {
 				RecentReviews:      []models.ShopReview{},
 				ReviewsCount:       0,
 			}
-			_, err := ShopCollection.InsertOne(ctx, shop)
+			_, err := common.ShopCollection.InsertOne(ctx, shop)
 			if err != nil {
 				return nil, err
 			}
@@ -174,7 +175,7 @@ func CreateShop() gin.HandlerFunc {
 			// Update user profile shop
 			filter := bson.M{"_id": userID}
 			update := bson.M{"$set": bson.M{"shop_id": shopID, "is_seller": true, "modified_at": now}}
-			result, err := UserCollection.UpdateOne(ctx, filter, update)
+			result, err := common.UserCollection.UpdateOne(ctx, filter, update)
 			if err != nil {
 				return nil, err
 			}
@@ -191,7 +192,7 @@ func CreateShop() gin.HandlerFunc {
 				X:         fmt.Sprintf("@%v", shop.Username),
 			}
 
-			_, err = ShopAboutCollection.InsertOne(ctx, shopAboutData)
+			_, err = common.ShopAboutCollection.InsertOne(ctx, shopAboutData)
 			if err != nil {
 				util.HandleError(c, http.StatusInternalServerError, err, "Error creating shop about")
 				return nil, err
@@ -229,7 +230,7 @@ func UpdateShopInformation() gin.HandlerFunc {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
 
-		shopId, myId, err := MyShopIdAndMyId(c)
+		shopId, myId, err := common.MyShopIdAndMyId(c)
 		if err != nil {
 			util.HandleError(c, http.StatusBadRequest, err, "Error getting shop ID and user ID")
 			return
@@ -315,7 +316,7 @@ func UpdateShopInformation() gin.HandlerFunc {
 		filter := bson.M{"_id": shopId, "user_id": myId}
 		update := bson.M{"$set": updateData}
 
-		_, err = ShopCollection.UpdateOne(ctx, filter, update)
+		_, err = common.ShopCollection.UpdateOne(ctx, filter, update)
 		if err != nil {
 			// delete media
 			_, err = util.DestroyMedia(logoUploadResult.PublicID)
@@ -344,7 +345,7 @@ func UpdateMyShopStatus() gin.HandlerFunc {
 			return
 		}
 
-		shopId, myId, err := MyShopIdAndMyId(c)
+		shopId, myId, err := common.MyShopIdAndMyId(c)
 		if err != nil {
 			util.HandleError(c, http.StatusBadRequest, err, "Error getting shop ID and user ID")
 			return
@@ -352,7 +353,7 @@ func UpdateMyShopStatus() gin.HandlerFunc {
 
 		filter := bson.M{"_id": shopId, "user_id": myId}
 		update := bson.M{"$set": bson.M{"is_live": payload.Status, "modified_at": time.Now()}}
-		res, err := ShopCollection.UpdateOne(ctx, filter, update)
+		res, err := common.ShopCollection.UpdateOne(ctx, filter, update)
 		if err != nil {
 			util.HandleError(c, http.StatusInternalServerError, err, "Error updating shop status")
 			return
@@ -489,7 +490,7 @@ func GetShop() gin.HandlerFunc {
 				},
 			},
 		}
-		cursor, err := ShopCollection.Aggregate(ctx, shopPipeline)
+		cursor, err := common.ShopCollection.Aggregate(ctx, shopPipeline)
 
 		var shop models.Shop
 		if err != nil {
@@ -521,7 +522,7 @@ func GetShop() gin.HandlerFunc {
 				{"$project": bson.M{"name": "$_id", "count": 1, "_id": 0, "path": "$details.category.category_path"}},
 			}
 
-			cursor, err = ListingCollection.Aggregate(ctx, listingPipeline)
+			cursor, err = common.ListingCollection.Aggregate(ctx, listingPipeline)
 			if err != nil {
 				if err != mongo.ErrNoDocuments {
 					util.HandleError(c, http.StatusInternalServerError, err, "error while retrieving categories and count")
@@ -561,7 +562,7 @@ func GetShopByOwnerUserId() gin.HandlerFunc {
 		}
 
 		var shop models.Shop
-		err = ShopCollection.FindOne(ctx, bson.M{"user_id": userID}).Decode(&shop)
+		err = common.ShopCollection.FindOne(ctx, bson.M{"user_id": userID}).Decode(&shop)
 		if err != nil {
 			util.HandleError(c, http.StatusNotFound, err, "Shop not found")
 			return
@@ -577,13 +578,13 @@ func GetShops() gin.HandlerFunc {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
 
-		paginationArgs := GetPaginationArgs(c)
+		paginationArgs := common.GetPaginationArgs(c)
 
 		// Update the query filter to include the status check
 		filter := bson.D{{Key: "status", Value: models.ShopStatusActive}}
 
 		find := options.Find().SetLimit(int64(paginationArgs.Limit)).SetSkip(int64(paginationArgs.Skip))
-		result, err := ShopCollection.Find(ctx, filter, find)
+		result, err := common.ShopCollection.Find(ctx, filter, find)
 		if err != nil {
 			log.Printf("error finding shop members: %v", err.Error())
 			util.HandleError(c, http.StatusNotFound, err, "error finding shop members")
@@ -611,10 +612,10 @@ func SearchShops() gin.HandlerFunc {
 		defer cancel()
 
 		query := c.Query("q")
-		paginationArgs := GetPaginationArgs(c)
+		paginationArgs := common.GetPaginationArgs(c)
 
 		// Query the database for shops that match the search query
-		shops, err := ShopCollection.Find(ctx, bson.M{
+		shops, err := common.ShopCollection.Find(ctx, bson.M{
 			"$or": []bson.M{
 				{"shop_name": bson.M{"$regex": primitive.Regex{Pattern: query, Options: "i"}}},
 				{"description": bson.M{"$regex": primitive.Regex{Pattern: query, Options: "i"}}},
@@ -626,7 +627,7 @@ func SearchShops() gin.HandlerFunc {
 		}
 
 		// Count the total number of shops that match the search query
-		count, err := ShopCollection.CountDocuments(ctx, bson.M{
+		count, err := common.ShopCollection.CountDocuments(ctx, bson.M{
 			"$or": []bson.M{
 				{"shop_name": bson.M{"$regex": primitive.Regex{Pattern: query, Options: "i"}}},
 				{"description": bson.M{"$regex": primitive.Regex{Pattern: query, Options: "i"}}},
@@ -680,7 +681,7 @@ func UpdateShopAnnouncement() gin.HandlerFunc {
 			return
 		}
 
-		shopId, myId, err := MyShopIdAndMyId(c)
+		shopId, myId, err := common.MyShopIdAndMyId(c)
 		if err != nil {
 			util.HandleError(c, http.StatusBadRequest, err, "Error getting shop ID and user ID")
 			return
@@ -688,7 +689,7 @@ func UpdateShopAnnouncement() gin.HandlerFunc {
 
 		filter := bson.M{"_id": shopId, "user_id": myId}
 		update := bson.M{"$set": bson.M{"announcement": announcement.Announcement, "announcement_modified_at": now, "modified_at": now}}
-		res, err := ShopCollection.UpdateOne(ctx, filter, update)
+		res, err := common.ShopCollection.UpdateOne(ctx, filter, update)
 		if err != nil {
 			util.HandleError(c, http.StatusInternalServerError, err, "Error updating shop announcement")
 			return
@@ -714,7 +715,7 @@ func UpdateShopVacation() gin.HandlerFunc {
 			return
 		}
 
-		shopId, myId, err := MyShopIdAndMyId(c)
+		shopId, myId, err := common.MyShopIdAndMyId(c)
 		if err != nil {
 			util.HandleError(c, http.StatusBadRequest, err, "Error getting shop ID and user ID")
 			return
@@ -722,7 +723,7 @@ func UpdateShopVacation() gin.HandlerFunc {
 
 		filter := bson.M{"_id": shopId, "user_id": myId}
 		update := bson.M{"$set": bson.M{"vacation_message": vacation.Message, "is_vacation": vacation.IsVacation, "modified_at": now}}
-		res, err := ShopCollection.UpdateOne(ctx, filter, update)
+		res, err := common.ShopCollection.UpdateOne(ctx, filter, update)
 		if err != nil {
 			util.HandleError(c, http.StatusInternalServerError, err, "Error updating shop vacation")
 			return
@@ -741,7 +742,7 @@ func UpdateShopLogo() gin.HandlerFunc {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
 
-		shopId, myId, err := MyShopIdAndMyId(c)
+		shopId, myId, err := common.MyShopIdAndMyId(c)
 		if err != nil {
 			util.HandleError(c, http.StatusBadRequest, err, "Error getting shop ID and user ID")
 			return
@@ -764,7 +765,7 @@ func UpdateShopLogo() gin.HandlerFunc {
 		now := time.Now()
 		filter := bson.M{"_id": shopId, "user_id": myId}
 		update := bson.M{"logo_url": logoUploadResult.SecureURL, "modified_at": now}
-		res, err := ShopCollection.UpdateOne(ctx, filter, update)
+		res, err := common.ShopCollection.UpdateOne(ctx, filter, update)
 		if err != nil || res.ModifiedCount == 0 {
 			// delete media
 			_, err = util.DestroyMedia(logoUploadResult.PublicID)
@@ -783,7 +784,7 @@ func UpdateShopBanner() gin.HandlerFunc {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
 
-		shopId, myId, err := MyShopIdAndMyId(c)
+		shopId, myId, err := common.MyShopIdAndMyId(c)
 		if err != nil {
 			util.HandleError(c, http.StatusBadRequest, err, "Error getting shop ID and user ID")
 			return
@@ -806,7 +807,7 @@ func UpdateShopBanner() gin.HandlerFunc {
 		now := time.Now()
 		filter := bson.M{"_id": shopId, "user_id": myId}
 		update := bson.M{"banner_url": bannerUploadResult.SecureURL, "modified_at": now}
-		res, err := ShopCollection.UpdateOne(ctx, filter, update)
+		res, err := common.ShopCollection.UpdateOne(ctx, filter, update)
 		if err != nil || res.ModifiedCount == 0 {
 			// delete media
 			_, err = util.DestroyMedia(bannerUploadResult.PublicID)
@@ -825,7 +826,7 @@ func UpdateShopGallery() gin.HandlerFunc {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
 
-		shopId, myId, err := MyShopIdAndMyId(c)
+		shopId, myId, err := common.MyShopIdAndMyId(c)
 		if err != nil {
 			util.HandleError(c, http.StatusBadRequest, err, "Error getting shop ID and user ID")
 			return
@@ -848,7 +849,7 @@ func UpdateShopGallery() gin.HandlerFunc {
 		now := time.Now()
 		filter := bson.M{"_id": shopId, "user_id": myId}
 		update := bson.M{"$push": bson.M{"gallery": imageUploadResult.SecureURL}, "modified_at": now}
-		res, err := ShopCollection.UpdateOne(ctx, filter, update)
+		res, err := common.ShopCollection.UpdateOne(ctx, filter, update)
 		if err != nil || res.ModifiedCount == 0 {
 			// delete media
 			_, err = util.DestroyMedia(imageUploadResult.PublicID)
@@ -871,7 +872,7 @@ func DeleteFromShopGallery() gin.HandlerFunc {
 		imageURL := c.Query("image")
 		now := time.Now()
 
-		shopID, myID, err := MyShopIdAndMyId(c)
+		shopID, myID, err := common.MyShopIdAndMyId(c)
 		if err != nil {
 			util.HandleError(c, http.StatusBadRequest, err, "Error getting shop ID and user ID")
 			return
@@ -879,7 +880,7 @@ func DeleteFromShopGallery() gin.HandlerFunc {
 
 		filter := bson.M{"_id": shopID, "user_id": myID}
 		update := bson.M{"$pull": bson.M{"gallery": imageURL}, "modified_at": now}
-		res, err := ShopCollection.UpdateOne(ctx, filter, update)
+		res, err := common.ShopCollection.UpdateOne(ctx, filter, update)
 		if err != nil {
 			util.HandleError(c, http.StatusNotModified, err, "Error removing image from shop gallery")
 			return
@@ -901,7 +902,7 @@ func FollowShop() gin.HandlerFunc {
 
 		now := time.Now()
 
-		shopId, myId, err := MyShopIdAndMyId(c)
+		shopId, myId, err := common.MyShopIdAndMyId(c)
 		if err != nil {
 			log.Println(err)
 			util.HandleError(c, http.StatusBadRequest, err, "Error getting shop ID and user ID")
@@ -921,14 +922,14 @@ func FollowShop() gin.HandlerFunc {
 		followerId := primitive.NewObjectID()
 		callback := func(ctx mongo.SessionContext) (interface{}, error) {
 			var user models.User
-			err := UserCollection.FindOne(ctx, bson.M{"_id": myId}).Decode(&user)
+			err := common.UserCollection.FindOne(ctx, bson.M{"_id": myId}).Decode(&user)
 			if err != nil {
 				log.Println(err)
 				return nil, err
 			}
 
 			var currentShop models.Shop
-			err = ShopCollection.FindOne(ctx, bson.M{"_id": shopId}).Decode(&currentShop)
+			err = common.ShopCollection.FindOne(ctx, bson.M{"_id": shopId}).Decode(&currentShop)
 			if err != nil {
 				log.Println(err)
 				return nil, err
@@ -946,7 +947,7 @@ func FollowShop() gin.HandlerFunc {
 				IsOwner:   currentShop.UserID == myId,
 				JoinedAt:  time.Now(),
 			}
-			_, err = ShopFollowerCollection.InsertOne(ctx, shopMemberData)
+			_, err = common.ShopFollowerCollection.InsertOne(ctx, shopMemberData)
 			if err != nil {
 				log.Println(err)
 				return nil, err
@@ -974,7 +975,7 @@ func FollowShop() gin.HandlerFunc {
 				"$set": bson.M{"modified_at": now},
 				"$inc": bson.M{"follower_count": 1},
 			}
-			result, err := ShopCollection.UpdateOne(ctx, filter, update)
+			result, err := common.ShopCollection.UpdateOne(ctx, filter, update)
 			if err != nil {
 				return nil, err
 			}
@@ -1015,17 +1016,17 @@ func GetShopFollowers() gin.HandlerFunc {
 			return
 		}
 
-		paginationArgs := GetPaginationArgs(c)
+		paginationArgs := common.GetPaginationArgs(c)
 		filter := bson.M{"shop_id": shopObjectID}
 		find := options.Find().SetLimit(int64(paginationArgs.Limit)).SetSkip(int64(paginationArgs.Skip))
-		result, err := ShopFollowerCollection.Find(ctx, filter, find)
+		result, err := common.ShopFollowerCollection.Find(ctx, filter, find)
 		if err != nil {
 			log.Printf("%v", err)
 			util.HandleError(c, http.StatusNotFound, err, "Error finding shop followers")
 			return
 		}
 
-		count, err := ShopFollowerCollection.CountDocuments(ctx, bson.M{"shop_id": shopObjectID})
+		count, err := common.ShopFollowerCollection.CountDocuments(ctx, bson.M{"shop_id": shopObjectID})
 		if err != nil {
 			util.HandleError(c, http.StatusInternalServerError, err, "Error counting shop followers")
 			return
@@ -1053,7 +1054,7 @@ func IsFollowingShop() gin.HandlerFunc {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
 
-		shopId, myId, err := MyShopIdAndMyId(c)
+		shopId, myId, err := common.MyShopIdAndMyId(c)
 		if err != nil {
 			util.HandleError(c, http.StatusBadRequest, err, "Invalid shop or user ID")
 			return
@@ -1061,7 +1062,7 @@ func IsFollowingShop() gin.HandlerFunc {
 
 		filter := bson.M{"user_id": myId, "shop_id": shopId}
 		var follower models.ShopFollower
-		err = ShopFollowerCollection.FindOne(ctx, filter).Decode(&follower)
+		err = common.ShopFollowerCollection.FindOne(ctx, filter).Decode(&follower)
 		if err != nil {
 			if err == mongo.ErrNoDocuments {
 				util.HandleSuccess(c, http.StatusOK, "Success", false)
@@ -1083,7 +1084,7 @@ func UnfollowShop() gin.HandlerFunc {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
 
-		shopId, myId, err := MyShopIdAndMyId(c)
+		shopId, myId, err := common.MyShopIdAndMyId(c)
 		if err != nil {
 			util.HandleError(c, http.StatusBadRequest, err, "Invalid shop or user ID")
 			return
@@ -1102,7 +1103,7 @@ func UnfollowShop() gin.HandlerFunc {
 		callback := func(ctx mongo.SessionContext) (interface{}, error) {
 			// attempt to remove member from member collection table
 			filter := bson.M{"shop_id": shopId, "user_id": myId}
-			_, err := ShopFollowerCollection.DeleteOne(ctx, filter)
+			_, err := common.ShopFollowerCollection.DeleteOne(ctx, filter)
 			if err != nil {
 				return nil, err
 			}
@@ -1110,7 +1111,7 @@ func UnfollowShop() gin.HandlerFunc {
 			// attempt to remove member from embedded field in shop
 			filter = bson.M{"_id": shopId}
 			update := bson.M{"$pull": bson.M{"followers": bson.M{"user_id": myId}}, "$inc": bson.M{"follower_count": -1}}
-			result2, err := ShopCollection.UpdateOne(ctx, filter, update)
+			result2, err := common.ShopCollection.UpdateOne(ctx, filter, update)
 			if err != nil {
 				return nil, err
 			}
@@ -1146,14 +1147,14 @@ func RemoveOtherFollower() gin.HandlerFunc {
 		userToBeRemoved := c.Query("userid")
 		defer cancel()
 
-		shopId, myId, err := MyShopIdAndMyId(c)
+		shopId, myId, err := common.MyShopIdAndMyId(c)
 		if err != nil {
 			util.HandleError(c, http.StatusBadRequest, err, "Invalid shop or follower ID")
 			return
 		}
 
 		// Let's verify shop ownership before attempting to remove follower
-		ownershipEerr := VerifyShopOwnership(ctx, myId, shopId)
+		ownershipEerr := common.VerifyShopOwnership(ctx, myId, shopId)
 		if ownershipEerr != nil {
 			util.HandleError(c, http.StatusBadRequest, err, "No Authorised PermissionD")
 			return
@@ -1183,7 +1184,7 @@ func RemoveOtherFollower() gin.HandlerFunc {
 		callback := func(ctx mongo.SessionContext) (interface{}, error) {
 			// attempt to remove follower from shop follower collection table
 			filter := bson.M{"shop_id": shopId, "user_id": userToBeRemovedId}
-			_, err := ShopFollowerCollection.DeleteOne(ctx, filter)
+			_, err := common.ShopFollowerCollection.DeleteOne(ctx, filter)
 			if err != nil {
 				return nil, err
 			}
@@ -1191,7 +1192,7 @@ func RemoveOtherFollower() gin.HandlerFunc {
 			// attempt to remove follower from embedded field in shop
 			filter = bson.M{"_id": shopId}
 			update := bson.M{"$pull": bson.M{"followers": bson.M{"user_id": userToBeRemovedId}}, "$inc": bson.M{"follower_count": -1}}
-			result2, err := ShopCollection.UpdateOne(ctx, filter, update)
+			result2, err := common.ShopCollection.UpdateOne(ctx, filter, update)
 			if err != nil {
 				return nil, err
 			}
@@ -1224,7 +1225,7 @@ func CreateShopReview() gin.HandlerFunc {
 		now := time.Now()
 		defer cancel()
 
-		shopId, myId, err := MyShopIdAndMyId(c)
+		shopId, myId, err := common.MyShopIdAndMyId(c)
 		if err != nil {
 			util.HandleError(c, http.StatusBadRequest, err, "Invalid shop or member ID")
 			return
@@ -1243,7 +1244,7 @@ func CreateShopReview() gin.HandlerFunc {
 		}
 
 		// validate request body
-		if validationErr := Validate.Struct(&shopReviewJson); validationErr != nil {
+		if validationErr := common.Validate.Struct(&shopReviewJson); validationErr != nil {
 			util.HandleError(c, http.StatusUnprocessableEntity, validationErr, "Validation error")
 			return
 		}
@@ -1262,7 +1263,7 @@ func CreateShopReview() gin.HandlerFunc {
 		reviewId := primitive.NewObjectID()
 		callback := func(ctx mongo.SessionContext) (interface{}, error) {
 			var userProfile models.User
-			err := UserCollection.FindOne(ctx, bson.M{"_id": myId}).Decode(&userProfile)
+			err := common.UserCollection.FindOne(ctx, bson.M{"_id": myId}).Decode(&userProfile)
 			if err != nil {
 				log.Println(err)
 				return nil, err
@@ -1279,7 +1280,7 @@ func CreateShopReview() gin.HandlerFunc {
 				CreatedAt:    now,
 				Status:       models.ShopReviewStatusApproved,
 			}
-			_, err = ShopReviewCollection.InsertOne(ctx, shopReviewData)
+			_, err = common.ShopReviewCollection.InsertOne(ctx, shopReviewData)
 			if err != nil {
 				log.Println(err)
 				return nil, err
@@ -1295,7 +1296,7 @@ func CreateShopReview() gin.HandlerFunc {
 			}
 			filter := bson.M{"_id": shopId, "recent_reviews": bson.M{"$not": bson.M{"$elemMatch": bson.M{"user_id": myId}}}}
 			update := bson.M{"$push": bson.M{"recent_reviews": bson.M{"$each": bson.A{embedded}, "$sort": -1, "$slice": -5}}, "$set": bson.M{"modified_at": now}, "$inc": bson.M{"review_counts": 1}}
-			result2, err := ShopCollection.UpdateOne(ctx, filter, update)
+			result2, err := common.ShopCollection.UpdateOne(ctx, filter, update)
 			if err != nil {
 				return nil, err
 			}
@@ -1331,10 +1332,10 @@ func GetShopReviews() gin.HandlerFunc {
 			return
 		}
 
-		paginationArgs := GetPaginationArgs(c)
+		paginationArgs := common.GetPaginationArgs(c)
 		filter := bson.M{"shop_id": shopObjectID}
 		find := options.Find().SetLimit(int64(paginationArgs.Limit)).SetSkip(int64(paginationArgs.Skip))
-		result, err := ShopReviewCollection.Find(ctx, filter, find)
+		result, err := common.ShopReviewCollection.Find(ctx, filter, find)
 		if err != nil {
 			util.HandleError(c, http.StatusNotFound, err, "Failed to retrieve shop reviews")
 			return
@@ -1346,7 +1347,7 @@ func GetShopReviews() gin.HandlerFunc {
 			return
 		}
 
-		count, err := ShopReviewCollection.CountDocuments(ctx, bson.M{"shop_id": shopObjectID})
+		count, err := common.ShopReviewCollection.CountDocuments(ctx, bson.M{"shop_id": shopObjectID})
 		if err != nil {
 			util.HandleError(c, http.StatusInternalServerError, err, "Failed to count shop reviews")
 			return
@@ -1368,7 +1369,7 @@ func DeleteMyReview() gin.HandlerFunc {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
 
-		shopId, myId, err := MyShopIdAndMyId(c)
+		shopId, myId, err := common.MyShopIdAndMyId(c)
 		if err != nil {
 			util.HandleError(c, http.StatusBadRequest, err, "Error retrieving shop ID and user ID")
 			return
@@ -1388,7 +1389,7 @@ func DeleteMyReview() gin.HandlerFunc {
 		callback := func(ctx mongo.SessionContext) (interface{}, error) {
 			// Attempt to remove review from review collection table
 			filter := bson.M{"shop_id": shopId, "user_id": myId}
-			_, err := ShopReviewCollection.DeleteOne(ctx, filter)
+			_, err := common.ShopReviewCollection.DeleteOne(ctx, filter)
 			if err != nil {
 				return nil, err
 			}
@@ -1396,7 +1397,7 @@ func DeleteMyReview() gin.HandlerFunc {
 			// Attempt to remove member from embedded field in shop
 			filter = bson.M{"_id": shopId}
 			update := bson.M{"$pull": bson.M{"recent_reviews": bson.M{"user_id": myId}}, "$inc": bson.M{"review_counts": -1}}
-			result2, err := ShopCollection.UpdateOne(ctx, filter, update)
+			result2, err := common.ShopCollection.UpdateOne(ctx, filter, update)
 			if err != nil {
 				return nil, err
 			}
@@ -1437,13 +1438,13 @@ func DeleteOtherReview() gin.HandlerFunc {
 			return
 		}
 
-		shopId, myId, err := MyShopIdAndMyId(c)
+		shopId, myId, err := common.MyShopIdAndMyId(c)
 		if err != nil {
 			util.HandleError(c, http.StatusBadRequest, err, "Error retrieving shop ID and user ID")
 			return
 		}
 
-		err = VerifyShopOwnership(c, myId, shopId)
+		err = common.VerifyShopOwnership(c, myId, shopId)
 		if err != nil {
 			log.Printf("You don't have write access to this shop: %v", err.Error())
 			util.HandleError(c, http.StatusUnauthorized, err, "You don't have write access to this shop")
@@ -1463,7 +1464,7 @@ func DeleteOtherReview() gin.HandlerFunc {
 		callback := func(ctx mongo.SessionContext) (interface{}, error) {
 			// Attempt to remove review from review collection table
 			filter := bson.M{"shop_id": shopId, "owner_id": myId, "user_id": userToBeRemovedId}
-			_, err = ShopFollowerCollection.DeleteOne(ctx, filter)
+			_, err = common.ShopFollowerCollection.DeleteOne(ctx, filter)
 			if err != nil {
 				return nil, err
 			}
@@ -1471,7 +1472,7 @@ func DeleteOtherReview() gin.HandlerFunc {
 			// Attempt to remove review from recent review field in shop
 			filter = bson.M{"_id": shopId}
 			update := bson.M{"$pull": bson.M{"recent_reviews": bson.M{"user_id": userToBeRemovedId}}}
-			result2, err := ShopCollection.UpdateOne(ctx, filter, update)
+			result2, err := common.ShopCollection.UpdateOne(ctx, filter, update)
 			if err != nil {
 				return nil, err
 			}
@@ -1505,13 +1506,13 @@ func CreateShopAbout() gin.HandlerFunc {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
 
-		shopId, myId, err := MyShopIdAndMyId(c)
+		shopId, myId, err := common.MyShopIdAndMyId(c)
 		if err != nil {
 			util.HandleError(c, http.StatusBadRequest, err, "Error retrieving shop ID and user ID")
 			return
 		}
 
-		err = VerifyShopOwnership(c, myId, shopId)
+		err = common.VerifyShopOwnership(c, myId, shopId)
 		if err != nil {
 			log.Printf("You don't have write access to this shop: %s\n", err.Error())
 			util.HandleError(c, http.StatusUnauthorized, err, "You don't have write access to this shop")
@@ -1531,7 +1532,7 @@ func CreateShopAbout() gin.HandlerFunc {
 		}
 
 		opts := options.Update().SetUpsert(true)
-		_, err = ShopAboutCollection.UpdateOne(ctx, bson.M{"shop_id": shopId}, bson.M{"$set": shopAboutData}, opts)
+		_, err = common.ShopAboutCollection.UpdateOne(ctx, bson.M{"shop_id": shopId}, bson.M{"$set": shopAboutData}, opts)
 		if err != nil {
 			util.HandleError(c, http.StatusInternalServerError, err, "Error creating shop about")
 			return
@@ -1556,7 +1557,7 @@ func GetShopAbout() gin.HandlerFunc {
 			return
 		}
 
-		err = ShopAboutCollection.FindOne(ctx, bson.M{"shop_id": shopObjectID}).Decode(&shopAbout)
+		err = common.ShopAboutCollection.FindOne(ctx, bson.M{"shop_id": shopObjectID}).Decode(&shopAbout)
 		if err != nil {
 			if err == mongo.ErrNoDocuments {
 				util.HandleError(c, http.StatusNotFound, err, "no document in result")
@@ -1579,13 +1580,13 @@ func UpdateShopAbout() gin.HandlerFunc {
 
 		var shopAboutJson models.ShopAboutRequest
 
-		shopId, myId, err := MyShopIdAndMyId(c)
+		shopId, myId, err := common.MyShopIdAndMyId(c)
 		if err != nil {
 			util.HandleError(c, http.StatusBadRequest, err, "Error getting shop ID")
 			return
 		}
 
-		err = VerifyShopOwnership(c, myId, shopId)
+		err = common.VerifyShopOwnership(c, myId, shopId)
 		if err != nil {
 			log.Printf("You don't have write access to this shop: %s\n", err.Error())
 			util.HandleError(c, http.StatusUnauthorized, err, "You don't have write access to this shop")
@@ -1599,7 +1600,7 @@ func UpdateShopAbout() gin.HandlerFunc {
 		}
 
 		// validate request body
-		if validationErr := Validate.Struct(&shopAboutJson); validationErr != nil {
+		if validationErr := common.Validate.Struct(&shopAboutJson); validationErr != nil {
 			util.HandleError(c, http.StatusUnprocessableEntity, validationErr, "Validation error")
 			return
 		}
@@ -1616,7 +1617,7 @@ func UpdateShopAbout() gin.HandlerFunc {
 			},
 		}
 
-		res, err := ShopAboutCollection.UpdateOne(ctx, filter, update)
+		res, err := common.ShopAboutCollection.UpdateOne(ctx, filter, update)
 		if err != nil {
 			util.HandleError(c, http.StatusInternalServerError, err, "Error updating shop about")
 			return
@@ -1637,13 +1638,13 @@ func UpdateShopAboutStatus() gin.HandlerFunc {
 		defer cancel()
 
 		status := c.Query("status")
-		shopId, myId, err := MyShopIdAndMyId(c)
+		shopId, myId, err := common.MyShopIdAndMyId(c)
 		if err != nil {
 			util.HandleError(c, http.StatusBadRequest, err, "Error getting shop ID")
 			return
 		}
 
-		err = VerifyShopOwnership(c, myId, shopId)
+		err = common.VerifyShopOwnership(c, myId, shopId)
 		if err != nil {
 			log.Printf("You don't have write access to this shop: %s\n", err.Error())
 			util.HandleError(c, http.StatusUnauthorized, err, "You don't have write access to this shop")
@@ -1657,7 +1658,7 @@ func UpdateShopAboutStatus() gin.HandlerFunc {
 
 		filter := bson.M{"shop_id": shopId}
 		update := bson.M{"$set": bson.M{"status": status}}
-		res, err := ShopAboutCollection.UpdateOne(ctx, filter, update)
+		res, err := common.ShopAboutCollection.UpdateOne(ctx, filter, update)
 		if err != nil {
 			util.HandleError(c, http.StatusInternalServerError, err, "Error updating shop about status")
 			return
@@ -1678,7 +1679,7 @@ func CreateShopReturnPolicy() gin.HandlerFunc {
 		var shopReturnPolicyJson models.ShopReturnPolicies
 		defer cancel()
 
-		shopId, myId, err := MyShopIdAndMyId(c)
+		shopId, myId, err := common.MyShopIdAndMyId(c)
 		if err != nil {
 			util.HandleError(c, http.StatusBadRequest, err, "Error getting shop ID and user ID")
 			return
@@ -1689,12 +1690,12 @@ func CreateShopReturnPolicy() gin.HandlerFunc {
 			return
 		}
 
-		if validationErr := Validate.Struct(&shopReturnPolicyJson); validationErr != nil {
+		if validationErr := common.Validate.Struct(&shopReturnPolicyJson); validationErr != nil {
 			util.HandleError(c, http.StatusBadRequest, validationErr, "Validation error")
 			return
 		}
 
-		err = VerifyShopOwnership(c, myId, shopId)
+		err = common.VerifyShopOwnership(c, myId, shopId)
 		if err != nil {
 			log.Printf("You don't have write access to this shop: %s\n", err.Error())
 			util.HandleError(c, http.StatusUnauthorized, err, "You don't have write access to this shop")
@@ -1704,7 +1705,7 @@ func CreateShopReturnPolicy() gin.HandlerFunc {
 		shopReturnPolicyJson.ID = primitive.NewObjectID()
 		shopReturnPolicyJson.ShopId = shopId
 
-		_, err = ShopReturnPolicyCollection.InsertOne(ctx, shopReturnPolicyJson)
+		_, err = common.ShopReturnPolicyCollection.InsertOne(ctx, shopReturnPolicyJson)
 		if err != nil {
 			util.HandleError(c, http.StatusInternalServerError, err, "Error creating shop policy")
 			return
@@ -1721,7 +1722,7 @@ func UpdateShopReturnPolicy() gin.HandlerFunc {
 		var shopReturnPolicyJson models.ShopReturnPolicies
 		defer cancel()
 
-		shopId, myId, err := MyShopIdAndMyId(c)
+		shopId, myId, err := common.MyShopIdAndMyId(c)
 		if err != nil {
 			util.HandleError(c, http.StatusBadRequest, err, "Error getting shop ID and user ID")
 			return
@@ -1732,12 +1733,12 @@ func UpdateShopReturnPolicy() gin.HandlerFunc {
 			return
 		}
 
-		if validationErr := Validate.Struct(&shopReturnPolicyJson); validationErr != nil {
+		if validationErr := common.Validate.Struct(&shopReturnPolicyJson); validationErr != nil {
 			util.HandleError(c, http.StatusBadRequest, validationErr, "Validation error")
 			return
 		}
 
-		err = VerifyShopOwnership(c, myId, shopId)
+		err = common.VerifyShopOwnership(c, myId, shopId)
 		if err != nil {
 			log.Printf("You don't have write access to this shop: %s\n", err.Error())
 			util.HandleError(c, http.StatusUnauthorized, err, "You don't have write access to this shop")
@@ -1746,7 +1747,7 @@ func UpdateShopReturnPolicy() gin.HandlerFunc {
 
 		filter := bson.M{"shop_id": shopId}
 		update := bson.M{"$set": bson.M{"accepts_return": shopReturnPolicyJson.AcceptsReturn, "accepts_echanges": shopReturnPolicyJson.AcceptsExchanges, "deadline": shopReturnPolicyJson.Deadline}}
-		res, err := ShopReturnPolicyCollection.UpdateOne(ctx, filter, update)
+		res, err := common.ShopReturnPolicyCollection.UpdateOne(ctx, filter, update)
 		if err != nil {
 			util.HandleError(c, http.StatusInternalServerError, err, "Error updating shop policy")
 			return
@@ -1774,13 +1775,13 @@ func DeleteShopReturnPolicy() gin.HandlerFunc {
 			return
 		}
 
-		shopId, myId, err := MyShopIdAndMyId(c)
+		shopId, myId, err := common.MyShopIdAndMyId(c)
 		if err != nil {
 			util.HandleError(c, http.StatusBadRequest, err, "Error getting shop ID and user ID")
 			return
 		}
 
-		err = VerifyShopOwnership(c, myId, shopId)
+		err = common.VerifyShopOwnership(c, myId, shopId)
 		if err != nil {
 			log.Printf("You don't have write access to this shop: %s\n", err.Error())
 			util.HandleError(c, http.StatusUnauthorized, err, "You don't have write access to this shop")
@@ -1788,7 +1789,7 @@ func DeleteShopReturnPolicy() gin.HandlerFunc {
 		}
 
 		filter := bson.M{"_id": policyId, "shop_id": shopId}
-		res, err := ShopReturnPolicyCollection.DeleteOne(ctx, filter)
+		res, err := common.ShopReturnPolicyCollection.DeleteOne(ctx, filter)
 		if err != nil {
 			util.HandleError(c, http.StatusInternalServerError, err, "Error deleting shop policy")
 			return
@@ -1811,7 +1812,7 @@ func GetShopReturnPolicy() gin.HandlerFunc {
 			return
 		}
 
-		shopId, _, err := MyShopIdAndMyId(c)
+		shopId, _, err := common.MyShopIdAndMyId(c)
 		if err != nil {
 			util.HandleError(c, http.StatusBadRequest, err, "Error getting shop ID and user ID")
 			return
@@ -1819,7 +1820,7 @@ func GetShopReturnPolicy() gin.HandlerFunc {
 
 		var currentPolicy models.ShopReturnPolicies
 		filter := bson.M{"_id": policyId, "shop_id": shopId}
-		err = ShopReturnPolicyCollection.FindOne(ctx, filter).Decode(&currentPolicy)
+		err = common.ShopReturnPolicyCollection.FindOne(ctx, filter).Decode(&currentPolicy)
 		if err != nil {
 			util.HandleError(c, http.StatusInternalServerError, err, "Error retrieving shop policy")
 			return
@@ -1835,14 +1836,14 @@ func GetShopReturnPolicies() gin.HandlerFunc {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
 
-		shopId, _, err := MyShopIdAndMyId(c)
+		shopId, _, err := common.MyShopIdAndMyId(c)
 		if err != nil {
 			util.HandleError(c, http.StatusBadRequest, err, "Error getting shop ID and user ID")
 			return
 		}
 
 		// Query the database for shops that match the search query
-		cursor, err := ShopReturnPolicyCollection.Find(ctx, bson.M{"shop_id": shopId})
+		cursor, err := common.ShopReturnPolicyCollection.Find(ctx, bson.M{"shop_id": shopId})
 		if err != nil {
 			util.HandleError(c, http.StatusInternalServerError, err, "Error searching for shops")
 			return
@@ -1875,7 +1876,7 @@ func CreateShopComplianceInformation() gin.HandlerFunc {
 		var complianceJson models.ComplianceInformationRequest
 		defer cancel()
 
-		shopId, myId, err := MyShopIdAndMyId(c)
+		shopId, myId, err := common.MyShopIdAndMyId(c)
 		if err != nil {
 			util.HandleError(c, http.StatusBadRequest, err, "Error getting shop ID and user ID")
 			return
@@ -1886,12 +1887,12 @@ func CreateShopComplianceInformation() gin.HandlerFunc {
 			return
 		}
 
-		if validationErr := Validate.Struct(&complianceJson); validationErr != nil {
+		if validationErr := common.Validate.Struct(&complianceJson); validationErr != nil {
 			util.HandleError(c, http.StatusBadRequest, validationErr, "Validation error")
 			return
 		}
 
-		err = VerifyShopOwnership(c, myId, shopId)
+		err = common.VerifyShopOwnership(c, myId, shopId)
 		if err != nil {
 			log.Printf("Error verifying if you the shop owner: %s\n", err.Error())
 			util.HandleError(c, http.StatusUnauthorized, err, "shop ownership validation error")
@@ -1906,7 +1907,7 @@ func CreateShopComplianceInformation() gin.HandlerFunc {
 			SellerPolicie:        complianceJson.SellerPolicie,
 		}
 
-		_, err = ShopCompliancePolicyCollection.InsertOne(ctx, complianceInformation)
+		_, err = common.ShopCompliancePolicyCollection.InsertOne(ctx, complianceInformation)
 		if err != nil {
 			util.HandleError(c, http.StatusInternalServerError, err, "Error creating shop compliance policy")
 			return
@@ -1922,7 +1923,7 @@ func GetShopComplianceInformation() gin.HandlerFunc {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
 
-		shopId, _, err := MyShopIdAndMyId(c)
+		shopId, _, err := common.MyShopIdAndMyId(c)
 		if err != nil {
 			util.HandleError(c, http.StatusBadRequest, err, "Error getting shop ID and user ID")
 			return
@@ -1930,7 +1931,7 @@ func GetShopComplianceInformation() gin.HandlerFunc {
 
 		var complianceInformation models.ComplianceInformation
 
-		err = ShopCompliancePolicyCollection.FindOne(ctx, bson.M{"shop_id": shopId}).Decode(&complianceInformation)
+		err = common.ShopCompliancePolicyCollection.FindOne(ctx, bson.M{"shop_id": shopId}).Decode(&complianceInformation)
 		if err != nil {
 			if err == mongo.ErrNoDocuments {
 				util.HandleError(c, http.StatusNotFound, err, "Shop compliance information not found")

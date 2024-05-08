@@ -1,7 +1,7 @@
 package main
 
 import (
-	routers "khoomi-api-io/api/internal/routers"
+	"khoomi-api-io/api/internal/routers"
 )
 
 func main() {

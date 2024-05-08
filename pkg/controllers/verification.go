@@ -3,8 +3,9 @@ package controllers
 import (
 	"context"
 	auth "khoomi-api-io/api/internal/auth"
-	"khoomi-api-io/api/pkg/util"
+	"khoomi-api-io/api/internal/common"
 	"khoomi-api-io/api/pkg/models"
+	"khoomi-api-io/api/pkg/util"
 	"log"
 	"net/http"
 	"time"
@@ -17,7 +18,7 @@ import (
 
 func CreateSellerVerificationProfile() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), REQ_TIMEOUT_SECS)
+		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
 		defer cancel()
 
 		shopId := c.Param("shopid")
@@ -39,7 +40,7 @@ func CreateSellerVerificationProfile() gin.HandlerFunc {
 			return
 		}
 
-		err = VerifyShopOwnership(c, userId, shopIdObj)
+		err = common.VerifyShopOwnership(c, userId, shopIdObj)
 		if err != nil {
 			log.Printf("Error you the shop owner: %s\n", err.Error())
 			util.HandleError(c, http.StatusForbidden, err, "shop ownership validation error")
@@ -55,7 +56,7 @@ func CreateSellerVerificationProfile() gin.HandlerFunc {
 		}
 
 		// Validate request body
-		if validationErr := Validate.Struct(&verificationJson); validationErr != nil {
+		if validationErr := common.Validate.Struct(&verificationJson); validationErr != nil {
 			log.Println(validationErr)
 			util.HandleError(c, http.StatusUnprocessableEntity, err, "invalid request body")
 			return
@@ -78,7 +79,7 @@ func CreateSellerVerificationProfile() gin.HandlerFunc {
 			CreatedAt:          now,
 			ModifiedAt:         now,
 		}
-		res, err := SellerVerificationCollection.InsertOne(ctx, ShippingProfile)
+		res, err := common.SellerVerificationCollection.InsertOne(ctx, ShippingProfile)
 		if err != nil {
 			log.Println(err)
 			util.HandleError(c, http.StatusUnauthorized, err, "Internal server error while creating verification")
@@ -91,7 +92,7 @@ func CreateSellerVerificationProfile() gin.HandlerFunc {
 
 func GetSellerVerificationProfile() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), REQ_TIMEOUT_SECS)
+		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
 		defer cancel()
 
 		shopId := c.Param("shopid")
@@ -112,7 +113,7 @@ func GetSellerVerificationProfile() gin.HandlerFunc {
 			util.HandleError(c, http.StatusUnauthorized, err, "Invalid user token, id or access")
 			return
 		}
-		err = VerifyShopOwnership(c, userId, shopIdObj)
+		err = common.VerifyShopOwnership(c, userId, shopIdObj)
 		if err != nil {
 			log.Printf("Error you the shop owner: %s\n", err.Error())
 			util.HandleError(c, http.StatusForbidden, err, "shop ownership validation error")
@@ -120,7 +121,7 @@ func GetSellerVerificationProfile() gin.HandlerFunc {
 		}
 
 		var verificationProfile models.SellerVerification
-		err = SellerVerificationCollection.FindOne(ctx, bson.M{"shop_id": shopIdObj}).Decode(&verificationProfile)
+		err = common.SellerVerificationCollection.FindOne(ctx, bson.M{"shop_id": shopIdObj}).Decode(&verificationProfile)
 		if err != nil {
 			if err == mongo.ErrNoDocuments {
 				util.HandleError(c, http.StatusNotFound, err, "verification profile not found")

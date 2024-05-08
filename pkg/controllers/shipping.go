@@ -3,8 +3,9 @@ package controllers
 import (
 	"context"
 	auth "khoomi-api-io/api/internal/auth"
-	"khoomi-api-io/api/pkg/util"
+	"khoomi-api-io/api/internal/common"
 	"khoomi-api-io/api/pkg/models"
+	"khoomi-api-io/api/pkg/util"
 	"log"
 	"net/http"
 	"time"
@@ -17,7 +18,7 @@ import (
 
 func CreateShopShippingProfile() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), REQ_TIMEOUT_SECS)
+		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
 		defer cancel()
 
 		shopId := c.Param("shopid")
@@ -40,7 +41,7 @@ func CreateShopShippingProfile() gin.HandlerFunc {
 			return
 		}
 
-		err = VerifyShopOwnership(c, userID, shopIdObj)
+		err = common.VerifyShopOwnership(c, userID, shopIdObj)
 		if err != nil {
 			log.Printf("Error you the shop owner: %s\n", err.Error())
 			util.HandleError(c, http.StatusForbidden, err, "shop ownership validation error")
@@ -56,7 +57,7 @@ func CreateShopShippingProfile() gin.HandlerFunc {
 		}
 
 		// Validate request body
-		if err := Validate.Struct(&shippingJson); err != nil {
+		if err := common.Validate.Struct(&shippingJson); err != nil {
 			util.HandleError(c, http.StatusUnprocessableEntity, err, "invalid request body")
 			return
 		}
@@ -94,7 +95,7 @@ func CreateShopShippingProfile() gin.HandlerFunc {
 			ModifiedAt:               primitive.NewDateTimeFromTime(now),
 			IsDefaultShippingProfile: shippingJson.IsDefaultShippingProfile,
 		}
-		res, err := ShippingProfileCollection.InsertOne(ctx, ShippingProfile)
+		res, err := common.ShippingProfileCollection.InsertOne(ctx, ShippingProfile)
 		if err != nil {
 			log.Println(err)
 			util.HandleError(c, http.StatusInternalServerError, err, "document insert error")
@@ -107,7 +108,7 @@ func CreateShopShippingProfile() gin.HandlerFunc {
 
 func GetShopShippingProfileInfo() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), REQ_TIMEOUT_SECS)
+		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
 		defer cancel()
 
 		profileIdString := c.Param("id")
@@ -118,7 +119,7 @@ func GetShopShippingProfileInfo() gin.HandlerFunc {
 		}
 
 		var shippingProfile models.ShopShippingProfile
-		err = ShippingProfileCollection.FindOne(ctx, bson.M{"_id": profileId}).Decode(&shippingProfile)
+		err = common.ShippingProfileCollection.FindOne(ctx, bson.M{"_id": profileId}).Decode(&shippingProfile)
 		if err != nil {
 			util.HandleError(c, http.StatusBadRequest, err, "invalid shipping profile id")
 			return
@@ -130,7 +131,7 @@ func GetShopShippingProfileInfo() gin.HandlerFunc {
 
 func GetShopShippingProfileInfos() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), REQ_TIMEOUT_SECS)
+		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
 		defer cancel()
 
 		shopIDStr := c.Param("shopid")
@@ -140,21 +141,21 @@ func GetShopShippingProfileInfos() gin.HandlerFunc {
 			return
 		}
 
-		paginationArgs := GetPaginationArgs(c)
+		paginationArgs := common.GetPaginationArgs(c)
 		filter := bson.M{"shop_id": shopIDObject}
 		findOptions := options.Find().
 			SetLimit(int64(paginationArgs.Limit)).
 			SetSkip(int64(paginationArgs.Skip)).
 			SetSort(bson.D{{Key: "date", Value: -1}}) // Sort by date field in descending order (-1)
 
-		result, err := ShippingProfileCollection.Find(ctx, filter, findOptions)
+		result, err := common.ShippingProfileCollection.Find(ctx, filter, findOptions)
 		if err != nil {
 			log.Println(err)
 			util.HandleError(c, http.StatusInternalServerError, err, "Failed to find shipping profiles")
 			return
 		}
 
-		count, err := ShippingProfileCollection.CountDocuments(ctx, filter)
+		count, err := common.ShippingProfileCollection.CountDocuments(ctx, filter)
 		if err != nil {
 			log.Println(err)
 			util.HandleError(c, http.StatusInternalServerError, err, "Failed to count shipping profiles")

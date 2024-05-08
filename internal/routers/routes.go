@@ -1,9 +1,9 @@
-package auth
+package routers
 
 import (
+	auth "khoomi-api-io/api/internal/auth"
+	"khoomi-api-io/api/internal/middleware"
 	"khoomi-api-io/api/pkg/controllers"
-    auth2 "khoomi-api-io/api/internal/auth"
-    "khoomi-api-io/api/internal/middleware"
 
 	"github.com/gin-gonic/gin"
 )
@@ -49,7 +49,7 @@ func userRoutes(api *gin.RouterGroup) {
 		user.GET("/:userid/shops", controllers.GetShopByOwnerUserId())
 
 		// Secured endpoints that require authentication
-		secured := user.Group("").Use(auth2.Auth())
+		secured := user.Group("").Use(auth.Auth())
 		{ // Change password endpoint
 			secured.PUT("/:userid/change-password", controllers.ChangePassword())
 
@@ -132,7 +132,7 @@ func shopRoutes(api *gin.RouterGroup) {
 		shop.GET("/:shopid/shipping/:id", controllers.GetShopShippingProfileInfo())
 
 		// Secured endpoints that require authentication
-		secured := shop.Group("").Use(auth2.Auth())
+		secured := shop.Group("").Use(auth.Auth())
 		{
 			// Endpoint to create a new shop
 			secured.POST("", controllers.CreateShop())
@@ -186,7 +186,7 @@ func shopRoutes(api *gin.RouterGroup) {
 		{
 			// Get shop listings -> /api/shops/{shopid}/listings/?limit=50&skip=0&sort=date.created_at
 			shop.GET("/:shopid/listings", controllers.GetShopListings())
-			secured := listing.Group("").Use(auth2.Auth())
+			secured := listing.Group("").Use(auth.Auth())
 			{
 				// Endpoint to create a single listing
 				secured.POST("/:shopid", controllers.CreateListing())
@@ -206,7 +206,7 @@ func listingRoutes(api *gin.RouterGroup) {
 	// Get single listing by listingid -> /api/listings/{listingId}
 	listing.GET("/:listingid", controllers.GetListing())
 	// Secured endpoints that require authentication
-	secured := listing.Group("").Use(auth2.Auth())
+	secured := listing.Group("").Use(auth.Auth())
 	{
 		secured.DELETE("/", controllers.DeleteListings())
 		secured.PUT("/deactivate", controllers.DeactivateListings())
@@ -227,7 +227,7 @@ func categoryRoutes(api *gin.RouterGroup) {
 		category.GET("/:id/ancestor", controllers.GetCategoryAncestor())
 
 		// Secured endpoints that require authentication
-		secured := category.Group("").Use(auth2.Auth())
+		secured := category.Group("").Use(auth.Auth())
 		{
 			// Endpoint to create a single category
 			secured.POST("/", controllers.CreateCategorySingle())

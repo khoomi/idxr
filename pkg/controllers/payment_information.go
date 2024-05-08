@@ -3,8 +3,9 @@ package controllers
 import (
 	"context"
 	auth "khoomi-api-io/api/internal/auth"
-	"khoomi-api-io/api/pkg/util"
+	"khoomi-api-io/api/internal/common"
 	"khoomi-api-io/api/pkg/models"
+	"khoomi-api-io/api/pkg/util"
 	"log"
 	"net/http"
 
@@ -29,14 +30,14 @@ func setOtherPaymentsToFalse(ctx context.Context, userId primitive.ObjectID, pay
 		"$set": bson.M{"is_default": false},
 	}
 
-	_, err := PaymentInformationCollection.UpdateMany(ctx, filter, update)
+	_, err := common.PaymentInformationCollection.UpdateMany(ctx, filter, update)
 	return err
 }
 
 // / CreatePaymentInformation -> POST /:userId/payment-information/
 func CreatePaymentInformation() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), REQ_TIMEOUT_SECS)
+		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
 		defer cancel()
 
 		userId, err := auth.ValidateUserID(c)
@@ -45,7 +46,7 @@ func CreatePaymentInformation() gin.HandlerFunc {
 			return
 		}
 
-		res, err := IsSeller(c, userId)
+		res, err := common.IsSeller(c, userId)
 		if err != nil {
 			log.Println(err)
 			util.HandleError(c, http.StatusInternalServerError, err, "Error finding user")
@@ -81,7 +82,7 @@ func CreatePaymentInformation() gin.HandlerFunc {
 			IsDefault:     paymentInfo.IsDefault,
 		}
 
-		count, err := PaymentInformationCollection.CountDocuments(ctx, bson.M{"user_id": userId})
+		count, err := common.PaymentInformationCollection.CountDocuments(ctx, bson.M{"user_id": userId})
 		if err != nil {
 			util.HandleError(c, http.StatusInternalServerError, err, "Error counting current payment information")
 			return
@@ -112,7 +113,7 @@ func CreatePaymentInformation() gin.HandlerFunc {
 
 			}
 
-			insertRes, insertErr := PaymentInformationCollection.InsertOne(ctx, paymentInfoToUpload)
+			insertRes, insertErr := common.PaymentInformationCollection.InsertOne(ctx, paymentInfoToUpload)
 			if insertErr != nil {
 				return nil, insertErr
 			}
@@ -139,7 +140,7 @@ func CreatePaymentInformation() gin.HandlerFunc {
 // / GetPaymentInformations -> GET /:userId/payment-information/
 func GetPaymentInformations() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), REQ_TIMEOUT_SECS)
+		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
 		defer cancel()
 
 		userId, err := auth.ValidateUserID(c)
@@ -147,7 +148,7 @@ func GetPaymentInformations() gin.HandlerFunc {
 			util.HandleError(c, http.StatusBadRequest, err, "Unauthorized")
 			return
 		}
-		res, err := IsSeller(c, userId)
+		res, err := common.IsSeller(c, userId)
 		if err != nil {
 			log.Println(err)
 			util.HandleError(c, http.StatusInternalServerError, err, "Error finding user")
@@ -160,7 +161,7 @@ func GetPaymentInformations() gin.HandlerFunc {
 
 		filter := bson.M{"user_id": userId}
 		findOptions := options.Find().SetLimit(3)
-		cursor, err := PaymentInformationCollection.Find(ctx, filter, findOptions)
+		cursor, err := common.PaymentInformationCollection.Find(ctx, filter, findOptions)
 		if err != nil {
 			log.Printf("Error fetching payment informations: %v", err)
 			util.HandleError(c, http.StatusNotFound, err, "Error fetching payment informations")
@@ -181,7 +182,7 @@ func GetPaymentInformations() gin.HandlerFunc {
 // / ChangeDefaultPaymentInformation -> PUT /:userId/payment-information/:paymentInfoId
 func ChangeDefaultPaymentInformation() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), REQ_TIMEOUT_SECS)
+		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
 		defer cancel()
 
 		userId, err := auth.ValidateUserID(c)
@@ -189,7 +190,7 @@ func ChangeDefaultPaymentInformation() gin.HandlerFunc {
 			util.HandleError(c, http.StatusUnauthorized, err, "Unauthorized")
 			return
 		}
-		res, err := IsSeller(c, userId)
+		res, err := common.IsSeller(c, userId)
 		if err != nil {
 			util.HandleError(c, http.StatusInternalServerError, err, "Error finding user")
 			return
@@ -212,14 +213,14 @@ func ChangeDefaultPaymentInformation() gin.HandlerFunc {
 		}
 
 		// Set all other payment information records to is_default=false
-		_, err = PaymentInformationCollection.UpdateMany(ctx, bson.M{"user_id": userId, "_id": bson.M{"$ne": paymentObjectID}}, bson.M{"$set": bson.M{"is_default": false}})
+		_, err = common.PaymentInformationCollection.UpdateMany(ctx, bson.M{"user_id": userId, "_id": bson.M{"$ne": paymentObjectID}}, bson.M{"$set": bson.M{"is_default": false}})
 		if err != nil {
 			util.HandleError(c, http.StatusInternalServerError, err, "error modifying payment information")
 			return
 		}
 
 		filter := bson.M{"user_id": userId, "_id": paymentObjectID}
-		insertRes, insertErr := PaymentInformationCollection.UpdateOne(ctx, filter, bson.M{"$set": bson.M{"is_default": true}})
+		insertRes, insertErr := common.PaymentInformationCollection.UpdateOne(ctx, filter, bson.M{"$set": bson.M{"is_default": true}})
 		if insertErr != nil {
 			util.HandleError(c, http.StatusNotFound, err, "error modifying payment information")
 			return
@@ -237,7 +238,7 @@ func ChangeDefaultPaymentInformation() gin.HandlerFunc {
 // / DeletePaymentInformation -> DELETE /:userId/payment-information/:paymentInfoId
 func DeletePaymentInformation() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), REQ_TIMEOUT_SECS)
+		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
 		defer cancel()
 
 		paymentInfoID := c.Param("paymentInfoId")
@@ -252,7 +253,7 @@ func DeletePaymentInformation() gin.HandlerFunc {
 			return
 		}
 
-		res, err := IsSeller(c, userId)
+		res, err := common.IsSeller(c, userId)
 		if err != nil {
 			util.HandleError(c, http.StatusInternalServerError, err, "Error finding user")
 			return
@@ -262,7 +263,7 @@ func DeletePaymentInformation() gin.HandlerFunc {
 			return
 		}
 		filter := bson.M{"_id": paymentObjectID, "user_id": userId}
-		result, err := PaymentInformationCollection.DeleteOne(ctx, filter)
+		result, err := common.PaymentInformationCollection.DeleteOne(ctx, filter)
 		if err != nil {
 			log.Printf("Error deleting payment information: %v", err)
 			util.HandleError(c, http.StatusNotFound, err, "Error deleting payment information")
@@ -280,7 +281,7 @@ func DeletePaymentInformation() gin.HandlerFunc {
 
 func CompletedPaymentOnboarding() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), REQ_TIMEOUT_SECS)
+		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
 		defer cancel()
 
 		userId, err := auth.ValidateUserID(c)
@@ -288,7 +289,7 @@ func CompletedPaymentOnboarding() gin.HandlerFunc {
 			util.HandleError(c, http.StatusBadRequest, err, "Unauthorized")
 			return
 		}
-		res, err := IsSeller(c, userId)
+		res, err := common.IsSeller(c, userId)
 		if err != nil {
 			log.Println(err)
 			util.HandleError(c, http.StatusInternalServerError, err, "Error finding user")
@@ -300,7 +301,7 @@ func CompletedPaymentOnboarding() gin.HandlerFunc {
 		}
 		filter := bson.M{"user_id": userId}
 		findOptions := options.Find().SetLimit(1)
-		cursor, err := PaymentInformationCollection.Find(ctx, filter, findOptions)
+		cursor, err := common.PaymentInformationCollection.Find(ctx, filter, findOptions)
 		if err != nil {
 			log.Printf("Error fetching payment information: %v", err)
 			util.HandleError(c, http.StatusNotFound, err, "Error fetching payment information")
