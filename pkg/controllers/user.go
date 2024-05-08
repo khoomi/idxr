@@ -27,6 +27,37 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
+// CurrentUser get current user using userId from request headers.
+func ActiveSessiontUser(c *gin.Context) {
+	ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
+	defer cancel()
+
+	var user models.User
+	// Extract user id from request header
+	jwt, err := auth.InitJwtClaim(c)
+	if err != nil {
+		util.HandleError(c, http.StatusNotFound, err, err.Error())
+		return
+	}
+
+	userId, err := jwt.GetUserObjectId()
+	if err != nil {
+		log.Printf("User with IP %v tried to gain access with an invalid user ID or token\n", c.ClientIP())
+		util.HandleError(c, http.StatusBadRequest, err, "Invalid user ID or token")
+		return
+	}
+
+	err = common.UserCollection.FindOne(ctx, bson.M{"_id": userId}).Decode(&user)
+	if err != nil {
+		util.HandleError(c, http.StatusNotFound, err, "User not found")
+		return
+	}
+	user.Auth.PasswordDigest = ""
+
+	user.ConstructUserLinks()
+	util.HandleSuccess(c, http.StatusOK, "success", user)
+}
+
 // CreateUser creates new user account, and send welcome and verify email notifications.
 func CreateUser() gin.HandlerFunc {
 	return func(c *gin.Context) {
