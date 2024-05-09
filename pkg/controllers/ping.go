@@ -1,10 +1,13 @@
 package controllers
 
 import (
-	"github.com/gin-gonic/gin"
 	"net/http"
+	"time"
+
+	"github.com/gin-gonic/gin"
 )
 
 func Ping(context *gin.Context) {
-	context.JSON(http.StatusOK, gin.H{"message": "pong"})
+	time := time.Now().Local()
+	context.JSON(http.StatusOK, gin.H{"message": "pong", "local_time": time})
 }
