@@ -36,12 +36,12 @@ func MyShopIdAndMyId(c *gin.Context) (primitive.ObjectID, primitive.ObjectID, er
 		return nilObjectId, nilObjectId, err
 	}
 
-	auth, err := auth.InitJwtClaim(c)
+	session, err := auth.GetSessionAuto(c)
 	if err != nil {
 		util.HandleError(c, http.StatusUnauthorized, err, "unauthorized")
 		return nilObjectId, nilObjectId, err
 	}
-	userId, err := auth.GetUserObjectId()
+	userId, err := session.GetUserObjectId()
 	if err != nil {
 		util.HandleError(c, http.StatusUnauthorized, err, "Failed to extract user ID from token")
 		return nilObjectId, nilObjectId, err

@@ -97,12 +97,12 @@ func CreateListing() gin.HandlerFunc {
 			return
 		}
 
-		auth_, err := auth.InitJwtClaim(c)
+		session, err := auth.GetSessionAuto(c)
 		if err != nil {
 			util.HandleError(c, http.StatusUnauthorized, err, "unathorized")
 			return
 		}
-		loginName, loginEmail := auth_.LoginName, auth_.Email
+		loginName, loginEmail := session.LoginName, session.Email
 
 		var newListing models.NewListing
 
@@ -742,12 +742,12 @@ func DeactivateListings() gin.HandlerFunc {
 		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
 		defer cancel()
 
-		jwt, err := auth.InitJwtClaim(c)
+		session, err := auth.GetSessionAuto(c)
 		if err != nil {
 			util.HandleError(c, http.StatusUnauthorized, err, err.Error())
 			return
 		}
-		myId, err := jwt.GetUserObjectId()
+		myId, err := session.GetUserObjectId()
 		if err != nil {
 			util.HandleError(c, http.StatusUnauthorized, err, err.Error())
 			return

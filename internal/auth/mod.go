@@ -1,42 +1,43 @@
 package auth
 
 import (
-	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"log"
-	"time"
+	"net/http"
 
 	"khoomi-api-io/api/pkg/util"
 
 	"github.com/gin-gonic/gin"
-	"github.com/redis/go-redis/v9"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 func Auth() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		tokenString := ExtractToken(c)
-		if tokenString == "" {
-			util.HandleError(c, 401, errors.New("request does not contain an access token"), "request does not contain an access token")
-			c.Abort()
-			return
-		}
-
-		_, err := ValidateToken(tokenString)
+		key, err := ExtractSessionKey(c)
 		if err != nil {
-			util.HandleError(c, 401, err, err.Error())
+			util.HandleError(c, http.StatusUnauthorized, err, "User not logged in")
 			c.Abort()
 			return
 		}
 
-		// res := IsTokenValid(util.REDIS, tokenString)
-		// if !res {
-		// 	util.HandleError(c, 401, errors.New("access token expire or bad. login again"), "access token expire or bad. login again")
-		// 	c.Abort()
-		// }
+		session, err := GetSession(c, key)
+		if err != nil {
+			util.HandleError(c, http.StatusUnauthorized, err, "User not logged in")
+			c.Abort()
+			return
+		}
+
+		if session.Expired() {
+			err = util.REDIS.Del(c, key).Err()
+			if err != nil {
+				fmt.Println(err)
+			}
+			util.HandleError(c, 401, errors.New("Session expired"), "Session expired")
+			c.Abort()
+			return
+		}
 
 		c.Next()
 	}
@@ -53,10 +54,13 @@ func GenerateSecureToken(length int) string {
 
 // Validate param userid again session userid.
 func ValidateUserID(c *gin.Context) (primitive.ObjectID, error) {
-	auth, err := InitJwtClaim(c)
+	key, err := ExtractSessionKey(c)
 	if err != nil {
-		errMsg := fmt.Sprintf("unauthorized: User ID not found in authentication token - %v", err.Error())
-		return primitive.NilObjectID, errors.New(errMsg)
+		return primitive.NilObjectID, err
+	}
+	session, err := GetSession(c, key)
+	if err != nil {
+		return primitive.NilObjectID, err
 	}
 
 	userId := c.Param("userid")
@@ -65,36 +69,10 @@ func ValidateUserID(c *gin.Context) (primitive.ObjectID, error) {
 		return primitive.NilObjectID, err
 	}
 
-	if userId != auth.Id {
-		errMsg := fmt.Sprintln("unauthorized: User ID in the URL path doesn't match with currently authenticated user")
+	if userId != session.UserId {
+		errMsg := fmt.Sprintln("unauthorized")
 		return primitive.NilObjectID, errors.New(errMsg)
 	}
 
 	return res, nil
-}
-
-func InvalidateToken(db *redis.Client, tokenString string) error {
-	// Add the token to the blacklist with an expiration time of 24 hours
-	_, err := db.Set(context.Background(), tokenString, true, 24*time.Hour).Result()
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// Check if token is in the blacklisst
-func IsTokenValid(db *redis.Client, tokenString string) bool {
-	_, err := db.Get(context.Background(), tokenString).Result()
-	if err == redis.Nil {
-		return true
-	}
-
-	if err != nil {
-		log.Printf("Error while checking blacklist: %s", err)
-		return false
-	}
-
-	// Token is in the blacklist, so it's invalid
-	return false
 }

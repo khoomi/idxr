@@ -30,12 +30,12 @@ func CreateShopShippingProfile() gin.HandlerFunc {
 		}
 
 		// Check if the user owns the shop
-		auth_, err := auth.InitJwtClaim(c)
+		session, err := auth.GetSessionAuto(c)
 		if err != nil {
 			util.HandleError(c, http.StatusUnauthorized, err, "Invalid user token, id or access")
 			return
 		}
-		userID, err := auth_.GetUserObjectId()
+		userID, err := session.GetUserObjectId()
 		if err != nil {
 			util.HandleError(c, http.StatusUnauthorized, err, "Invalid user token, id or access")
 			return

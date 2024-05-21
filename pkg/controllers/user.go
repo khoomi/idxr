@@ -34,13 +34,13 @@ func ActiveSessionUser(c *gin.Context) {
 
 	var user models.User
 	// Extract user id from request header
-	jwt, err := auth.InitJwtClaim(c)
+	session, err := auth.GetSessionAuto(c)
 	if err != nil {
 		util.HandleError(c, http.StatusNotFound, err, err.Error())
 		return
 	}
 
-	userId, err := jwt.GetUserObjectId()
+	userId, err := session.GetUserObjectId()
 	if err != nil {
 		log.Printf("User with IP %v tried to gain access with an invalid user ID or token\n", c.ClientIP())
 		util.HandleError(c, http.StatusBadRequest, err, "Invalid user ID or token")
@@ -252,18 +252,6 @@ func HandleUserAuthentication() gin.HandlerFunc {
 		}
 		session.EndSession(ctx)
 
-		accessTokenString, accessTokenExp, err := auth.GenerateJWT(validUser.Id.Hex(), validUser.PrimaryEmail, validUser.LoginName, validUser.IsSeller)
-		if err != nil {
-			util.HandleError(c, http.StatusInternalServerError, err, "Failed to generate JWT")
-			return
-		}
-
-		refreshTokenString, err := auth.GenerateRefreshJWT(validUser.Id.Hex(), validUser.PrimaryEmail, validUser.LoginName, validUser.IsSeller)
-		if err != nil {
-			util.HandleError(c, http.StatusInternalServerError, err, "Failed to generate refresh JWT")
-			return
-		}
-
 		// Send new login IP notification on condition
 		if validUser.AllowLoginIpNotification && validUser.LastLoginIp != clientIP {
 			email.SendNewIpLoginNotification(validUser.PrimaryEmail, validUser.LoginName, validUser.LastLoginIp, validUser.LastLogin)
@@ -288,24 +276,27 @@ func HandleUserAuthentication() gin.HandlerFunc {
 		}
 
 		// Send verification email if user's email is not verified.
-		if !validUser.Auth.EmailVerified {
-			link := fmt.Sprintf("https://khoomi.com/verify-email?token=%v&id=%v", token, validUser.Id.Hex())
-			email.SendVerifyEmailNotification(validUser.PrimaryEmail, validUser.FirstName, link)
+		// if !validUser.Auth.EmailVerified {
+		// 	link := fmt.Sprintf("https://khoomi.com/verify-email?token=%v&id=%v", token, validUser.Id.Hex())
+		// 	email.SendVerifyEmailNotification(validUser.PrimaryEmail, validUser.FirstName, link)
+		// }
+
+		err = auth.SetSession(c, validUser.Id.Hex(), validUser.PrimaryEmail, validUser.LoginName)
+		if err != nil {
+			util.HandleError(c, http.StatusInternalServerError, errors.New("Failed to set session"), "Failed to set session")
+			return
 		}
 
 		util.HandleSuccess(c, http.StatusOK, "Authentication successful", gin.H{
-			"_id":              validUser.Id.Hex(),
-			"access_token":     accessTokenString,
-			"refresh_token":    refreshTokenString,
-			"access_token_exp": accessTokenExp,
-			"role":             validUser.Role,
-			"email":            validUser.PrimaryEmail,
-			"first_name":       validUser.FirstName,
-			"last_name":        validUser.LastName,
-			"login_name":       validUser.LoginName,
-			"thumbnail":        validUser.Thumbnail,
-			"email_verified":   validUser.Auth.EmailVerified,
-			"is_seller":        validUser.IsSeller,
+			"_id":            validUser.Id.Hex(),
+			"role":           validUser.Role,
+			"email":          validUser.PrimaryEmail,
+			"first_name":     validUser.FirstName,
+			"last_name":      validUser.LastName,
+			"login_name":     validUser.LoginName,
+			"thumbnail":      validUser.Thumbnail,
+			"email_verified": validUser.Auth.EmailVerified,
+			"is_seller":      validUser.IsSeller,
 		})
 	}
 }
@@ -313,67 +304,48 @@ func HandleUserAuthentication() gin.HandlerFunc {
 // RefreshToken handles auth token refreshments
 func RefreshToken() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
+		_, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
 		defer cancel()
 
-		var payload models.RefreshTokenPayload
-
-		if err := c.BindJSON(&payload); err != nil {
-			util.HandleError(c, http.StatusBadRequest, err, "Invalid request body")
-			return
-		}
-
-		refreshClaims, err := auth.ValidateRefreshToken(payload.Token)
-		if err != nil {
-			util.HandleError(c, http.StatusUnauthorized, err, "Invalid refresh token")
-			return
-		}
-
-		userObjectId, err := primitive.ObjectIDFromHex(refreshClaims.Id)
+		key, err := auth.ExtractSessionKey(c)
 		if err != nil {
 			log.Println(err)
-			util.HandleError(c, http.StatusNotFound, err, "User not found")
+			util.HandleError(c, http.StatusUnauthorized, errors.New("Invalid request"), "Invalid request")
 			return
 		}
 
-		res := common.UserCollection.FindOne(ctx, bson.M{"_id": userObjectId})
-		if res.Err() != nil {
-			if res.Err() == mongo.ErrNoDocuments {
-				util.HandleError(c, http.StatusNotFound, res.Err(), "User not found")
-				return
-			}
-			util.HandleError(c, http.StatusInternalServerError, res.Err(), "Internal Server Error")
-			return
-		}
-
-		accessToken, accessTokenExp, err := auth.GenerateJWT(refreshClaims.Id, refreshClaims.Email, refreshClaims.LoginName, refreshClaims.IsSeller)
+		session, err := auth.GetSession(c, key)
 		if err != nil {
-			util.HandleError(c, http.StatusInternalServerError, err, "Failed to generate access token")
+			log.Println(err)
+			util.HandleError(c, http.StatusUnauthorized, errors.New("Unauthorized request"), "Unauthorized request")
 			return
 		}
 
-		newRefreshToken, err := auth.GenerateRefreshJWT(refreshClaims.Id, refreshClaims.Email, refreshClaims.LoginName, refreshClaims.IsSeller)
-		if err != nil {
-			util.HandleError(c, http.StatusInternalServerError, err, "Failed to generate refresh token")
+		if session.Expired() {
+			auth.DeleteSession(c)
+			util.HandleError(c, http.StatusUnauthorized, errors.New("Unauthorized request"), "Unauthorized request")
 			return
 		}
 
-		util.HandleSuccess(c, http.StatusOK, "token refreshed",
-			gin.H{"access_token": accessToken,
-				"access_token_exp": accessTokenExp,
-				"refresh_token":    newRefreshToken})
+		// Delete old session
+		auth.DeleteSession(c)
 
+		// Set new session
+		// TODO: request for user data e.g email and login_name to refresh session
+		// err = auth.SetSession(c, session.UserId)
+		// if err != nil {
+		// 	util.HandleError(c, http.StatusUnauthorized, err, "Internal server error occurred")
+		// 	return
+		// }
+
+		util.HandleSuccess(c, http.StatusOK, "success", gin.H{})
 	}
 }
 
 // Logout - Log user out and invalidate session key
 func Logout() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		token := auth.ExtractToken(c)
-
-		log.Printf("Logging user with ip %v out\n", c.ClientIP())
-		_ = auth.InvalidateToken(util.REDIS, token)
-
+		auth.DeleteSession(c)
 		util.HandleSuccess(c, http.StatusOK, "logout successful", nil)
 
 	}
@@ -385,12 +357,12 @@ func SendDeleteUserAccount() gin.HandlerFunc {
 		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
 		defer cancel()
 
-		auth, err := auth.InitJwtClaim(c)
+		session_, err := auth.GetSessionAuto(c)
 		if err != nil {
 			util.HandleError(c, http.StatusUnauthorized, err, "action is for authorized users")
 			return
 		}
-		userId, err := auth.GetUserObjectId()
+		userId, err := session_.GetUserObjectId()
 		if err != nil {
 			util.HandleError(c, http.StatusUnauthorized, err, "action is for authorized users")
 			return
@@ -402,7 +374,7 @@ func SendDeleteUserAccount() gin.HandlerFunc {
 			return
 		}
 
-		util.HandleSuccess(c, http.StatusOK, "account is now pending deletion", gin.H{"_id": auth.Id})
+		util.HandleSuccess(c, http.StatusOK, "account is now pending deletion", gin.H{"_id": session_.UserId})
 	}
 }
 
@@ -572,12 +544,12 @@ func SendVerifyEmail() gin.HandlerFunc {
 		firstName := c.Query("name")
 
 		// Verify current user
-		auth_, err := auth.InitJwtClaim(c)
+		session, err := auth.GetSessionAuto(c)
 		if err != nil {
 			util.HandleError(c, http.StatusUnauthorized, err, "action is for authorized users")
 			return
 		}
-		userId, err := auth_.GetUserObjectId()
+		userId, err := session.GetUserObjectId()
 		if err != nil {
 			util.HandleError(c, http.StatusUnauthorized, err, "action is for authorized users")
 			return
@@ -672,12 +644,12 @@ func UpdateMyProfile() gin.HandlerFunc {
 		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
 		defer cancel()
 
-		auth, err := auth.InitJwtClaim(c)
+		session_, err := auth.GetSessionAuto(c)
 		if err != nil {
 			util.HandleError(c, http.StatusUnauthorized, err, "action is for authorized users")
 			return
 		}
-		userId, err := auth.GetUserObjectId()
+		userId, err := session_.GetUserObjectId()
 		if err != nil {
 			util.HandleError(c, http.StatusUnauthorized, err, "action is for authorized users")
 			return
@@ -746,7 +718,7 @@ func UpdateMyProfile() gin.HandlerFunc {
 			return
 		}
 
-		util.HandleSuccess(c, http.StatusCreated, "Profile updated successfully", gin.H{"_id": auth.Id})
+		util.HandleSuccess(c, http.StatusCreated, "Profile updated successfully", gin.H{"_id": session_.UserId})
 	}
 }
 

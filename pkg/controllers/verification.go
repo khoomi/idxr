@@ -30,12 +30,12 @@ func CreateSellerVerificationProfile() gin.HandlerFunc {
 		}
 
 		// Check if the user owns the shop
-		jwt, err := auth.InitJwtClaim(c)
+		session_, err := auth.GetSessionAuto(c)
 		if err != nil {
 			util.HandleError(c, http.StatusUnauthorized, err, "Invalid user token, id or access")
 			return
 		}
-		userId, err := jwt.GetUserObjectId()
+		userId, err := session_.GetUserObjectId()
 		if err != nil {
 			util.HandleError(c, http.StatusUnauthorized, err, "Invalid user token, id or access")
 			return
@@ -100,12 +100,12 @@ func GetSellerVerificationProfile() gin.HandlerFunc {
 		}
 
 		// Check if the user owns the shop
-		jwt, err := auth.InitJwtClaim(c)
+		session_, err := auth.GetSessionAuto(c)
 		if err != nil {
 			util.HandleError(c, http.StatusUnauthorized, err, "Invalid user token, id or access")
 			return
 		}
-		userId, err := jwt.GetUserObjectId()
+		userId, err := session_.GetUserObjectId()
 		if err != nil {
 			util.HandleError(c, http.StatusUnauthorized, err, "Invalid user token, id or access")
 			return

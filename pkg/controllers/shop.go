@@ -56,17 +56,17 @@ func CreateShop() gin.HandlerFunc {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
 
-		auth_, err := auth.InitJwtClaim(c)
+		session_, err := auth.GetSessionAuto(c)
 		if err != nil {
 			util.HandleError(c, http.StatusUnauthorized, err, "unauthorized")
 			return
 		}
-		userID, err := auth_.GetUserObjectId()
+		userID, err := session_.GetUserObjectId()
 		if err != nil {
 			util.HandleError(c, http.StatusUnauthorized, err, "Failed to extract user ID from token")
 			return
 		}
-		loginName, userEmail := auth_.LoginName, auth_.Email
+		loginName, userEmail := session_.LoginName, session_.Email
 
 		shopName := c.Request.FormValue("name")
 		err = util.ValidateShopName(shopName)
@@ -1230,12 +1230,12 @@ func CreateShopReview() gin.HandlerFunc {
 			util.HandleError(c, http.StatusBadRequest, err, "Invalid shop or member ID")
 			return
 		}
-		auth_, err := auth.InitJwtClaim(c)
+		session_, err := auth.GetSessionAuto(c)
 		if err != nil {
 			util.HandleError(c, http.StatusBadRequest, err, "Failed to extract token login name")
 			return
 		}
-		loginName := auth_.LoginName
+		loginName := session_.LoginName
 
 		err = c.BindJSON(&shopReviewJson)
 		if err != nil {
