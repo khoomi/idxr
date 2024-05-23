@@ -50,7 +50,11 @@ func userRoutes(api *gin.RouterGroup) {
 
 		// Secured endpoints that require authentication
 		secured := user.Group("").Use(auth.Auth())
-		{ // Change password endpoint
+		{
+			// Get my session
+			secured.GET("/:userid/session", controllers.GetMyActiveSession())
+
+			// Change password endpoint
 			secured.PUT("/:userid/change-password", controllers.ChangePassword())
 
 			// Get delete user request

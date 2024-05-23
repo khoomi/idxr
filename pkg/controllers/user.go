@@ -301,22 +301,34 @@ func HandleUserAuthentication() gin.HandlerFunc {
 	}
 }
 
+// GetMyActiveSession returns current active sesison given a session id
+func GetMyActiveSession() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		_, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
+		defer cancel()
+
+		session, err := auth.GetSessionAuto(c)
+		if err != nil {
+			// Delete old session
+			auth.DeleteSession(c)
+			util.HandleError(c, http.StatusUnauthorized, errors.New("Unauthorized request"), "Unauthorized request")
+			return
+		}
+
+		util.HandleSuccess(c, http.StatusOK, "success", gin.H{"session": session})
+	}
+}
+
 // RefreshToken handles auth token refreshments
 func RefreshToken() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		_, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
 		defer cancel()
 
-		key, err := auth.ExtractSessionKey(c)
+		session, err := auth.GetSessionAuto(c)
 		if err != nil {
-			log.Println(err)
-			util.HandleError(c, http.StatusUnauthorized, errors.New("Invalid request"), "Invalid request")
-			return
-		}
-
-		session, err := auth.GetSession(c, key)
-		if err != nil {
-			log.Println(err)
+			// Delete old session
+			auth.DeleteSession(c)
 			util.HandleError(c, http.StatusUnauthorized, errors.New("Unauthorized request"), "Unauthorized request")
 			return
 		}
