@@ -281,22 +281,28 @@ func HandleUserAuthentication() gin.HandlerFunc {
 		// 	email.SendVerifyEmailNotification(validUser.PrimaryEmail, validUser.FirstName, link)
 		// }
 
-		err = auth.SetSession(c, validUser.Id.Hex(), validUser.PrimaryEmail, validUser.LoginName)
+    sessionId, err := auth.SetSession(c, validUser.Id.Hex(), validUser.PrimaryEmail, validUser.LoginName)
 		if err != nil {
+      log.Println(err)
 			util.HandleError(c, http.StatusInternalServerError, errors.New("Failed to set session"), "Failed to set session")
 			return
 		}
 
-		util.HandleSuccess(c, http.StatusOK, "Authentication successful", gin.H{
-			"_id":            validUser.Id.Hex(),
+    userData :=  map[string]interface{}{
+      "userId":            validUser.Id.Hex(),
 			"role":           validUser.Role,
 			"email":          validUser.PrimaryEmail,
-			"first_name":     validUser.FirstName,
-			"last_name":      validUser.LastName,
-			"login_name":     validUser.LoginName,
+			"FirstName":     validUser.FirstName,
+			"lastName":      validUser.LastName,
+			"loginName":     validUser.LoginName,
 			"thumbnail":      validUser.Thumbnail,
-			"email_verified": validUser.Auth.EmailVerified,
-			"is_seller":      validUser.IsSeller,
+			"emailverified": validUser.Auth.EmailVerified,
+			"isSeller":      validUser.IsSeller,
+    }
+		util.HandleSuccess(c, http.StatusOK, "Authentication successful",
+    gin.H{
+      "user": userData,
+      "sessionId": sessionId, 
 		})
 	}
 }

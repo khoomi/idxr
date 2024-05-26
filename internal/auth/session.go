@@ -2,8 +2,10 @@ package auth
 
 import (
 	"encoding/json"
+	"fmt"
 	"khoomi-api-io/api/pkg/util"
 	"log"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -40,9 +42,9 @@ func (s UserSession) Expired() bool {
 }
 
 // Set new user login session
-func SetSession(ctx *gin.Context, userId, email, loginName string) error {
+func SetSession(ctx *gin.Context, userId, email, loginName string) (string, error) {
 	key := GenerateSecureToken(20)
-	ttl := time.Minute * 15
+	ttl := time.Hour * 24
 	sessExpTime := time.Now().Add(ttl)
 	value := UserSession{
 		UserId:    userId,
@@ -52,7 +54,7 @@ func SetSession(ctx *gin.Context, userId, email, loginName string) error {
 	}
 	ctx.SetCookie(SESSION_NAME, key, int(ttl.Seconds()), "/", "localhost", false, true)
 
-	return util.REDIS.Set(ctx, key, value, ttl).Err()
+	return key, util.REDIS.Set(ctx, key, value, ttl).Err()
 }
 
 // Get new user login session
@@ -97,10 +99,30 @@ func DeleteSession(ctx *gin.Context) {
 
 // Extract session token from request header.
 func ExtractSessionKey(ctx *gin.Context) (string, error) {
-	value, err := ctx.Cookie(SESSION_NAME)
+  key := ctx.Request.Header.Get("Authorization");
+  value, err := ExtractBearerToken(key)
 	if err != nil {
 		return "", err
 	}
 
 	return value, nil
+}
+
+
+// ExtractBearerToken extracts the Bearer token from the Authorization header
+func ExtractBearerToken(authHeader string) (string, error) {
+	if authHeader == "" {
+		return "", fmt.Errorf("authorization header is empty")
+	}
+
+	if !strings.HasPrefix(authHeader, "Bearer ") {
+		return "", fmt.Errorf("authorization header does not start with 'Bearer '")
+	}
+
+	token := strings.TrimPrefix(authHeader, "Bearer ")
+	if token == "" {
+		return "", fmt.Errorf("token is empty")
+	}
+
+	return token, nil
 }
