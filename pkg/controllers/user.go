@@ -858,6 +858,8 @@ func PasswordResetEmail() gin.HandlerFunc {
 		currentEmail := strings.ToLower(c.Query("email"))
 		var user models.User
 
+    log.Println(currentEmail)
+
 		err := common.UserCollection.FindOne(ctx, bson.M{"primary_email": currentEmail}).Decode(&user)
 		if err != nil {
 			util.HandleError(c, http.StatusBadRequest, err, "User with email not found")
@@ -882,7 +884,7 @@ func PasswordResetEmail() gin.HandlerFunc {
 			return
 		}
 
-		link := fmt.Sprintf("https://khoomi.com/password-reset/?id=%v&token=%v", user.Id.Hex(), token)
+		link := fmt.Sprintf("https://khoomi.com/reset/?id=%v&token=%v&email=%v", user.Id.Hex(), token, user.PrimaryEmail)
 		email.SendPasswordResetEmail(user.PrimaryEmail, user.FirstName, link)
 
 		util.HandleSuccess(c, http.StatusOK, "Password reset email sent successfully", user.Id.Hex())
@@ -909,7 +911,7 @@ func PasswordReset() gin.HandlerFunc {
 
 		err = common.PasswordResetTokenCollection.FindOneAndDelete(ctx, bson.M{"user_uid": userId}).Decode(&passwordResetData)
 		if err != nil {
-			util.HandleError(c, http.StatusNotFound, err, "Failed to find or delete password reset token")
+			util.HandleError(c, http.StatusNotFound, err, " Reset token expired or deleted. Please try forgot password again.")
 			return
 		}
 
@@ -932,7 +934,7 @@ func PasswordReset() gin.HandlerFunc {
 
 		hashedPassword, err := util.HashPassword(newPassword)
 		if err != nil {
-			util.HandleError(c, http.StatusNotFound, err, "Failed to hash new password")
+			util.HandleError(c, http.StatusNotFound, err, "Failed to process new password")
 			return
 		}
 

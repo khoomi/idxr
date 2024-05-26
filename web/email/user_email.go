@@ -109,7 +109,7 @@ func SendPasswordResetSuccessfulEmail(email, loginName string) {
 		ToName:     loginName,
 		Sender:     "no-reply@khoomi.com",
 		SenderName: "Khoomi Online",
-		Body:       fmt.Sprintf("<body style=\"font-family: Arial, sans-serif; font-size: 14px;><p>Dear %v,</p><p>Your password has been successfully reset.</p><p>If you did not request this password reset, please contact us immediately.</p><p>Best regards,</p><p>Your Application Team</p></body>", loginName),
+		Body:       fmt.Sprintf(`<body style="font-family: Arial, sans-serif; font-size: 14px;"><p>Dear %v,</p><p>Your password has been successfully reset.</p><p>If you did not request this password reset, please contact us immediately.</p><p>Best regards,</p><p>Your Application Team</p></body>`, loginName),
 		Subject:    "Password Reset Successful",
 	}
 
@@ -117,7 +117,7 @@ func SendPasswordResetSuccessfulEmail(email, loginName string) {
 	if err != nil {
 		log.Println(err)
 	} else {
-		log.Printf("password reset successfully email sent to %v", email)
+		log.Printf("password reset successful email sent to %v", email)
 	}
 
 }
