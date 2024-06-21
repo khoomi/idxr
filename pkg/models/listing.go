@@ -94,6 +94,7 @@ type Listing struct {
 	ShopId               primitive.ObjectID          `bson:"shop_id" json:"shop_id"`
 	MainImage            string                      `bson:"main_image" json:"main_image"`
 	Images               []string                    `bson:"images" json:"images"`
+	Video                string                      `bson:"video" json:"video"`
 	ListingDetails       ListingDetails              `bson:"details" json:"details"`
 	Date                 ListingDateMeta             `bson:"date" json:"date"`
 	Slug                 string                      `bson:"slug" json:"slug"`

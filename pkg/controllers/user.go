@@ -281,29 +281,29 @@ func HandleUserAuthentication() gin.HandlerFunc {
 		// 	email.SendVerifyEmailNotification(validUser.PrimaryEmail, validUser.FirstName, link)
 		// }
 
-    sessionId, err := auth.SetSession(c, validUser.Id.Hex(), validUser.PrimaryEmail, validUser.LoginName)
+		sessionId, err := auth.SetSession(c, validUser.Id.Hex(), validUser.PrimaryEmail, validUser.LoginName)
 		if err != nil {
-      log.Println(err)
+			log.Println(err)
 			util.HandleError(c, http.StatusInternalServerError, errors.New("Failed to set session"), "Failed to set session")
 			return
 		}
 
-    userData :=  map[string]interface{}{
-      "userId":            validUser.Id.Hex(),
-			"role":           validUser.Role,
-			"email":          validUser.PrimaryEmail,
+		userData := map[string]interface{}{
+			"userId":        validUser.Id.Hex(),
+			"role":          validUser.Role,
+			"email":         validUser.PrimaryEmail,
 			"FirstName":     validUser.FirstName,
 			"lastName":      validUser.LastName,
 			"loginName":     validUser.LoginName,
-			"thumbnail":      validUser.Thumbnail,
+			"thumbnail":     validUser.Thumbnail,
 			"emailverified": validUser.Auth.EmailVerified,
 			"isSeller":      validUser.IsSeller,
-    }
+		}
 		util.HandleSuccess(c, http.StatusOK, "Authentication successful",
-    gin.H{
-      "user": userData,
-      "sessionId": sessionId, 
-		})
+			gin.H{
+				"user":      userData,
+				"sessionId": sessionId,
+			})
 	}
 }
 
@@ -412,14 +412,14 @@ func IsAccountPendingDeletion() gin.HandlerFunc {
 		err = common.UserDeletionCollection.FindOne(ctx, bson.M{"user_id": userId}).Decode(&account)
 		if err != nil {
 			if err == mongo.ErrNoDocuments {
-				c.JSON(http.StatusOK, gin.H{"pending_deletion": false})
+				c.JSON(http.StatusOK, gin.H{"pendingDeletion": false})
 				return
 			}
 			util.HandleError(c, http.StatusInternalServerError, err, "error while checking account deletion status")
 			return
 		}
 
-		util.HandleSuccess(c, http.StatusOK, "Success", gin.H{"_id": account.ID})
+		util.HandleSuccess(c, http.StatusOK, "Success", gin.H{"pendingDeletion": true})
 	}
 }
 
@@ -858,7 +858,7 @@ func PasswordResetEmail() gin.HandlerFunc {
 		currentEmail := strings.ToLower(c.Query("email"))
 		var user models.User
 
-    log.Println(currentEmail)
+		log.Println(currentEmail)
 
 		err := common.UserCollection.FindOne(ctx, bson.M{"primary_email": currentEmail}).Decode(&user)
 		if err != nil {

@@ -1,25 +1,42 @@
 package util
 
 import (
-	"khoomi-api-io/api/pkg/models"
 	"context"
-	"time"
+	"khoomi-api-io/api/pkg/models"
 	"log"
+	"time"
 
 	"github.com/cloudinary/cloudinary-go"
 	"github.com/cloudinary/cloudinary-go/api/uploader"
 	"github.com/go-playground/validator/v10"
 )
 
-func ImageUploadHelper(input interface{}) (uploader.UploadResult, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 40*time.Second)
-	defer cancel()
+type MediaUpload interface {
+	FileUpload(file models.File) (string, error)
+	RemoteUpload(url models.Url) (string, error)
+}
 
+var validate = validator.New()
+
+func init_cloudinary() (*cloudinary.Cloudinary, error) {
 	cloudName := LoadEnvFor("CLOUDINARY_CLOUDNAME")
 	apiKey := LoadEnvFor("CLOUDINARY_API_KEY")
 	apiSecret := LoadEnvFor("CLOUDINARY_API_SECRET")
 	//create cloudinary instance
 	cld, err := cloudinary.NewFromParams(cloudName, apiKey, apiSecret)
+	if err != nil {
+		return &cloudinary.Cloudinary{}, err
+	}
+
+	return cld, nil
+}
+
+func ImageUploadHelper(input interface{}) (uploader.UploadResult, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 40*time.Second)
+	defer cancel()
+
+	//create cloudinary instance
+	cld, err := init_cloudinary()
 	if err != nil {
 		return uploader.UploadResult{}, err
 	}
@@ -38,11 +55,8 @@ func ImageDeletionHelper(params uploader.DestroyParams) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 40*time.Second)
 	defer cancel()
 
-	cloudName := LoadEnvFor("CLOUDINARY_CLOUDNAME")
-	apiKey := LoadEnvFor("CLOUDINARY_API_KEY")
-	apiSecret := LoadEnvFor("CLOUDINARY_API_SECRET")
 	//create cloudinary instance
-	cld, err := cloudinary.NewFromParams(cloudName, apiKey, apiSecret)
+	cld, err := init_cloudinary()
 	if err != nil {
 		return "", err
 	}
@@ -55,23 +69,13 @@ func ImageDeletionHelper(params uploader.DestroyParams) (string, error) {
 	return deleteResult.Result, nil
 }
 
-
-var (
-	validate = validator.New()
-)
-
-type MediaUpload interface {
-	FileUpload(file models.File) (string, error)
-	RemoteUpload(url models.Url) (string, error)
-}
-
 func FileUpload(file models.File) (uploader.UploadResult, error) {
 	err := validate.Struct(file)
 	if err != nil {
 		return uploader.UploadResult{}, err
 	}
 
-	uploadRes, err :=ImageUploadHelper(file.File)
+	uploadRes, err := ImageUploadHelper(file.File)
 	if err != nil {
 		return uploader.UploadResult{}, err
 	}
@@ -85,7 +89,7 @@ func RemoteUpload(url models.Url) (uploader.UploadResult, error) {
 		return uploader.UploadResult{}, err
 	}
 
-	uploadRes, errUrl :=ImageUploadHelper(url.Url)
+	uploadRes, errUrl := ImageUploadHelper(url.Url)
 	if errUrl != nil {
 		return uploader.UploadResult{}, err
 	}
