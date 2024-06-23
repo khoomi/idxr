@@ -459,12 +459,11 @@ func ChangePassword() gin.HandlerFunc {
 		}
 
 		var newPasswordFromRequest models.NewPasswordRequest
-
-		if err := c.BindJSON(&newPasswordFromRequest); err != nil {
+		if err := c.Bind(&newPasswordFromRequest); err != nil {
 			util.HandleError(c, http.StatusInternalServerError, err, "failed to bind request body")
 			return
 		}
-
+		log.Printf("%v", newPasswordFromRequest)
 		var validUser models.User
 		if err := common.UserCollection.FindOne(ctx, bson.M{"_id": userId}).Decode(&validUser); err != nil {
 			util.HandleError(c, http.StatusUnauthorized, err, "User not found")
@@ -736,7 +735,7 @@ func UpdateMyProfile() gin.HandlerFunc {
 			return
 		}
 
-		util.HandleSuccess(c, http.StatusCreated, "Profile updated successfully", gin.H{"_id": session_.UserId})
+		util.HandleSuccess(c, http.StatusOK, "Profile updated successfully", gin.H{"_id": session_.UserId})
 	}
 }
 
@@ -961,7 +960,6 @@ func UploadThumbnail() gin.HandlerFunc {
 		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
 		defer cancel()
 
-		remoteAddr := c.Query("remote_addr")
 		currentId, err := auth.ValidateUserID(c)
 		if err != nil {
 			util.HandleError(c, http.StatusBadRequest, err, err.Error())
@@ -973,6 +971,7 @@ func UploadThumbnail() gin.HandlerFunc {
 
 		var uploadResult uploader.UploadResult
 		var update bson.M
+		remoteAddr := c.Query("remote_addr")
 		if remoteAddr != "" {
 			uploadResult, err = util.RemoteUpload(models.Url{Url: remoteAddr})
 			if err != nil {
@@ -982,12 +981,18 @@ func UploadThumbnail() gin.HandlerFunc {
 
 			update = bson.M{"$set": bson.M{"thumbnail": uploadResult.SecureURL, "modified_at": now}}
 		} else {
-			formFile, _, err := c.Request.FormFile("file")
+			err := c.Request.ParseMultipartForm(32 << 20)
 			if err != nil {
-				util.HandleError(c, http.StatusInternalServerError, err, "Failed to retrieve uploaded file")
+				util.HandleError(c, http.StatusInternalServerError, err, "Failed to open file")
 				return
 			}
-			uploadResult, err = util.FileUpload(models.File{File: formFile})
+			file, _, err := c.Request.FormFile("file")
+			if err != nil {
+				util.HandleError(c, http.StatusInternalServerError, err, "Failed to open file")
+				return
+			}
+			defer file.Close()
+			uploadResult, err = util.FileUpload(models.File{File: file})
 			if err != nil {
 				log.Printf("Thumbnail Image upload failed - %v", err.Error())
 				util.HandleError(c, http.StatusInternalServerError, err, "Failed to upload file thumbnail")

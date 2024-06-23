@@ -69,8 +69,8 @@ type UserRegistrationBody struct {
 }
 
 type NewPasswordRequest struct {
-	CurrentPassword string `json:"current_password" validate:"required"`
-	NewPassword     string `json:"new_password" validate:"required"`
+	CurrentPassword string `form:"current_password" validate:"required"`
+	NewPassword     string `form:"new_password" validate:"required"`
 }
 
 type FirstLastName struct {
