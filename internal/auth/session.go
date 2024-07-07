@@ -44,7 +44,7 @@ func (s UserSession) Expired() bool {
 // Set new user login session
 func SetSession(ctx *gin.Context, userId, email, loginName string) (string, error) {
 	key := GenerateSecureToken(20)
-	ttl := time.Hour * 24
+	ttl := time.Hour * (24 * 7)
 	sessExpTime := time.Now().Add(ttl)
 	value := UserSession{
 		UserId:    userId,
