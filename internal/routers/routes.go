@@ -82,6 +82,8 @@ func userRoutes(api *gin.RouterGroup) {
 			secured.PUT("/:userid/addresses/:id", controllers.UpdateUserAddress())
 			secured.GET("/:userid/addresses", controllers.GetUserAddresses())
 			secured.DELETE("/:userid/addresses/:id", controllers.DeleteUserAddress())
+			secured.PUT("/:userid/addresses/:id/default", controllers.ChangeDefaultAddress())
+
 
 			// Send verify email endpoint
 			secured.POST("/:userid/send-verify-email", controllers.SendVerifyEmail())
@@ -104,10 +106,10 @@ func userRoutes(api *gin.RouterGroup) {
 			secured.DELETE("/:userid/wishlist", controllers.RemoveWishListItem())
 
 			// Payment information endpoints
-			secured.POST("/:userid/payment-informatio/", controllers.CreatePaymentInformation())
+			secured.POST("/:userid/payment-information/", controllers.CreatePaymentInformation())
 			secured.GET("/:userid/payment-information/onboarded", controllers.CompletedPaymentOnboarding())
 			secured.GET("/:userid/payment-information", controllers.GetPaymentInformations())
-			secured.PUT("/:userid/payment-information/:paymentInfoId", controllers.ChangeDefaultPaymentInformation())
+			secured.PUT("/:userid/payment-information/:paymentInfoId/default", controllers.ChangeDefaultPaymentInformation())
 			secured.DELETE("/:userid/payment-information/:paymentInfoId", controllers.DeletePaymentInformation())
 
 		}

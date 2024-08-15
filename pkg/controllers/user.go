@@ -986,15 +986,17 @@ func UploadThumbnail() gin.HandlerFunc {
 				util.HandleError(c, http.StatusInternalServerError, err, "Failed to open file")
 				return
 			}
+
+			fmt.Println(c.Request.Header);
+
 			file, _, err := c.Request.FormFile("file")
 			if err != nil {
-				util.HandleError(c, http.StatusInternalServerError, err, "Failed to open file")
+				util.HandleError(c, http.StatusInternalServerError, err, "Failed to get file")
 				return
 			}
-			defer file.Close()
+
 			uploadResult, err = util.FileUpload(models.File{File: file})
 			if err != nil {
-				log.Printf("Thumbnail Image upload failed - %v", err.Error())
 				util.HandleError(c, http.StatusInternalServerError, err, "Failed to upload file thumbnail")
 				return
 			}
@@ -1028,6 +1030,12 @@ func DeleteThumbnail() gin.HandlerFunc {
 			return
 		}
 
+		file := c.Request.FormValue("url")
+		if file == "" {
+			util.HandleError(c, http.StatusInternalServerError, err, "thumbnail url not provided")
+			return
+		}
+
 		var user models.User
 		now := time.Now()
 		filter := bson.M{"_id": myId}
@@ -1039,7 +1047,7 @@ func DeleteThumbnail() gin.HandlerFunc {
 			return
 		}
 
-		filename, extension, err := extractFilenameAndExtension(user.Thumbnail)
+		filename, _, err := extractFilenameAndExtension(file)
 		if err != nil {
 			util.HandleError(c, http.StatusInternalServerError, err, "Internal server error. Please try again later")
 			return
@@ -1048,7 +1056,7 @@ func DeleteThumbnail() gin.HandlerFunc {
 		_, errOnDelete := util.ImageDeletionHelper(uploader.DestroyParams{
 			PublicID:     filename,
 			Type:         "upload",
-			ResourceType: extension,
+			ResourceType: "image",
 			Invalidate:   true,
 		})
 		if errOnDelete != nil {
@@ -1215,7 +1223,7 @@ func UpdateUserAddress() gin.HandlerFunc {
 			util.HandleError(c, http.StatusBadRequest, err, err.Error())
 			return
 		}
-
+		fmt.Println(addressObjectId)
 		// Extract current user token
 		myId, err := auth.ValidateUserID(c)
 		if err != nil {
@@ -1244,18 +1252,57 @@ func UpdateUserAddress() gin.HandlerFunc {
 			},
 		}
 
-		res, err := common.UserAddressCollection.UpdateOne(ctx, filter, update)
+		_, err = common.UserAddressCollection.UpdateOne(ctx, filter, update)
 		if err != nil {
 			util.HandleError(c, http.StatusBadRequest, err, "Failed to update user address")
 			return
 		}
 
-		if res.ModifiedCount == 0 {
-			util.HandleError(c, http.StatusNotFound, errors.New("user address not found"), "User address not found")
+		util.HandleSuccess(c, http.StatusOK, "Address updated", addressId)
+	}
+}
+
+
+// / ChangeDefaultAddress -> PUT /:userId/address/:addressId/default
+func ChangeDefaultAddress() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
+		defer cancel()
+
+		userId, err := auth.ValidateUserID(c)
+		if err != nil {
+			util.HandleError(c, http.StatusUnauthorized, err, "Unauthorized")
 			return
 		}
 
-		util.HandleSuccess(c, http.StatusOK, "Address updated", addressId)
+
+		addressID := c.Param("id")
+		if addressID == "" {
+			util.HandleError(c, http.StatusBadRequest, errors.New("No address id was provided!"), "bad request")
+			return
+		}
+
+		addressObjectID, err := primitive.ObjectIDFromHex(addressID)
+		if err != nil {
+			util.HandleError(c, http.StatusBadRequest, errors.New("bad address id"), "bad request")
+			return
+		}
+
+		// Set all other payment information records to is_default=false
+		_, err = common.UserAddressCollection.UpdateMany(ctx, bson.M{"user_id": userId, "_id": bson.M{"$ne": addressObjectID}}, bson.M{"$set": bson.M{"is_default_shipping_address": false}})
+		if err != nil {
+			util.HandleError(c, http.StatusInternalServerError, err, "error modifying address")
+			return
+		}
+
+		filter := bson.M{"user_id": userId, "_id": addressObjectID}
+		insertRes, insertErr := common.UserAddressCollection.UpdateOne(ctx, filter, bson.M{"$set": bson.M{"is_default_shipping_address": true}})
+		if insertErr != nil {
+			util.HandleError(c, http.StatusInternalServerError, err, "error modifying payment information")
+			return
+		}
+
+		util.HandleSuccess(c, http.StatusOK, "Default address has been succesfuly changed.", insertRes.ModifiedCount)
 	}
 }
 

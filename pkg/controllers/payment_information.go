@@ -48,7 +48,6 @@ func CreatePaymentInformation() gin.HandlerFunc {
 
 		res, err := common.IsSeller(c, userId)
 		if err != nil {
-			log.Println(err)
 			util.HandleError(c, http.StatusInternalServerError, err, "Error finding user")
 			return
 		}
@@ -222,12 +221,7 @@ func ChangeDefaultPaymentInformation() gin.HandlerFunc {
 		filter := bson.M{"user_id": userId, "_id": paymentObjectID}
 		insertRes, insertErr := common.PaymentInformationCollection.UpdateOne(ctx, filter, bson.M{"$set": bson.M{"is_default": true}})
 		if insertErr != nil {
-			util.HandleError(c, http.StatusNotFound, err, "error modifying payment information")
-			return
-		}
-
-		if insertRes.ModifiedCount < 1 {
-			util.HandleError(c, http.StatusNotFound, err, "payment information not modified")
+			util.HandleError(c, http.StatusNotModified, err, "error modifying payment information")
 			return
 		}
 
