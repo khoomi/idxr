@@ -46,7 +46,7 @@ func CheckShopNameAvailability() gin.HandlerFunc {
 			return
 		}
 
-		util.HandleError(c, http.StatusConflict, errors.New("shop username is already taken"), "Shop username is not available")
+		util.HandleSuccess(c, http.StatusOK, "shop username is already taken", false)
 	}
 }
 
@@ -203,7 +203,7 @@ func CreateShop() gin.HandlerFunc {
 
 		_, err = session.WithTransaction(context.Background(), callback, txnOptions)
 		if err != nil {
-			util.HandleError(c, http.StatusBadRequest, err, "Shop creation transaction failed")
+			util.HandleError(c, http.StatusBadRequest, err, "Shop creation failed. Please retry contact khoomi support")
 			return
 		}
 		err = session.CommitTransaction(context.Background())
@@ -212,7 +212,7 @@ func CreateShop() gin.HandlerFunc {
 			util.DestroyMedia(logoUploadResult.PublicID)
 			util.DestroyMedia(bannerUploadResult.PublicID)
 			// return error
-			util.HandleError(c, http.StatusBadRequest, err, "Shop creation transaction failed")
+			util.HandleError(c, http.StatusBadRequest, err, "Shop creation failed. Please retry or contact khoomi support")
 			return
 		}
 
