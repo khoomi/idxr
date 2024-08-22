@@ -121,14 +121,14 @@ type ListingsSummary struct {
 	ID          primitive.ObjectID    `bson:"_id" json:"_id"`
 	Code        string                `bson:"code" json:"code"`
 	State       ListingState          `bson:"state" json:"state"`
-	UserId      primitive.ObjectID    `bson:"user_id" json:"user_id"`
-	ShopId      primitive.ObjectID    `bson:"shop_id" json:"shop_id"`
-	MainImage   string                `bson:"main_image" json:"main_image"`
+	UserId      primitive.ObjectID    `bson:"user_id" json:"userId"`
+	ShopId      primitive.ObjectID    `bson:"shop_id" json:"shopId"`
+	MainImage   string                `bson:"main_image" json:"mainImage"`
 	Images      []string              `bson:"images" json:"images"`
 	Date        ListingDateMeta       `bson:"date" json:"date"`
 	Slug        string                `bson:"slug" json:"slug"`
 	Sales       float64               `bson:"sales" json:"sales"`
-	TotalOrders int                   `bson:"total_orders" json:"total_orders"`
+	TotalOrders int                   `bson:"total_orders" json:"totalOrders"`
 	Inventory   InventorySummary      `bson:"inventory" json:"inventory"`
 	Details     ListingDetailsSummary `bson:"details" json:"details"`
 }

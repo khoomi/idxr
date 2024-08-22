@@ -597,6 +597,7 @@ func GetMyListingsSummary() gin.HandlerFunc {
 			return
 		}
 
+		fmt.Println(listings)
 		util.HandleSuccessMeta(c, http.StatusOK, "success", listings, gin.H{
 			"pagination": util.Pagination{
 				Limit: paginationArgs.Limit,
