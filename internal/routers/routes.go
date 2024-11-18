@@ -84,7 +84,6 @@ func userRoutes(api *gin.RouterGroup) {
 			secured.DELETE("/:userid/addresses/:id", controllers.DeleteUserAddress())
 			secured.PUT("/:userid/addresses/:id/default", controllers.ChangeDefaultAddress())
 
-
 			// Send verify email endpoint
 			secured.POST("/:userid/send-verify-email", controllers.SendVerifyEmail())
 
@@ -195,7 +194,7 @@ func shopRoutes(api *gin.RouterGroup) {
 			secured := listing.Group("").Use(auth.Auth())
 			{
 				// Endpoint to create a single listing
-				secured.POST("/:shopid", controllers.CreateListing())
+				secured.POST("/:shopid/listings", controllers.CreateListing())
 				secured.GET("/:shopid/listing-summary", controllers.GetMyListingsSummary())
 				secured.GET("/:shopid/check-listing-onboarding", controllers.HasUserCreatedListingOnboarding())
 			}

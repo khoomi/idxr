@@ -65,15 +65,15 @@ const (
 
 type ListingMeasurement struct {
 	// How much the item weighs.
-	ItemWeight int `bson:"item_weight" json:"item_weight"`
+	ItemWeight float64 `bson:"item_weight" json:"item_weight"`
 	// The units used to represent the weight of this item.
 	ItemWeightUnit WeightUnit `bson:"item_weight_unit" json:"item_weight_unit" validate:"oneof=oz g lb kg"`
 	//  How long the item is.
-	ItemLength int `bson:"item_length" json:"item_length"`
+	ItemLength float64 `bson:"item_length" json:"item_length"`
 	//  How wide the item is.
-	ItemWidth int `bson:"item_width" json:"item_width"`
+	ItemWidth float64 `bson:"item_width" json:"item_width"`
 	//  How tall the item is.
-	ItemHeight int `bson:"item_height" json:"item_height"`
+	ItemHeight float64 `bson:"item_height" json:"item_height"`
 	// The units used to represent the dimensions of this item.
 	ItemDimensionUnit DimensionUnit `bson:"item_dimension_unit" json:"item_dimension_unit" validate:"oneof=inc ft mm cm m"`
 }
@@ -87,14 +87,14 @@ const (
 )
 
 type Listing struct {
-	ID                   primitive.ObjectID          `bson:"_id" json:"_id"`
-	Code                 string                      `bson:"code" json:"code"`
-	State                ListingState                `bson:"state" json:"state"`
-	UserId               primitive.ObjectID          `bson:"user_id" json:"user_id"`
-	ShopId               primitive.ObjectID          `bson:"shop_id" json:"shop_id"`
-	MainImage            string                      `bson:"main_image" json:"main_image"`
-	Images               []string                    `bson:"images" json:"images"`
-	Video                string                      `bson:"video" json:"video"`
+	ID        primitive.ObjectID `bson:"_id" json:"_id"`
+	Code      string             `bson:"code" json:"code"`
+	State     ListingState       `bson:"state" json:"state"`
+	UserId    primitive.ObjectID `bson:"user_id" json:"user_id"`
+	ShopId    primitive.ObjectID `bson:"shop_id" json:"shop_id"`
+	MainImage string             `bson:"main_image" json:"main_image"`
+	Images    []string           `bson:"images" json:"images"`
+	// Video                string                      `bson:"video" json:"video"`
 	ListingDetails       ListingDetails              `bson:"details" json:"details"`
 	Date                 ListingDateMeta             `bson:"date" json:"date"`
 	Slug                 string                      `bson:"slug" json:"slug"`
@@ -200,7 +200,7 @@ type ListingDetails struct {
 	Tags                        []string               `bson:"tags" json:"tags"`
 	Color                       string                 `bson:"color" json:"color"`
 	Dynamic                     map[string]interface{} `bson:"dynamic" json:"dynamic"`
-	DynamicType                 string                 `bson:"dynamic_type" json:"dynamic_type" validate:"oneof=accessories-and-jewelry art clothing furniture gifts home"`
+	DynamicType                 string                 `bson:"dynamic_type" json:"dynamic_type" validate:"oneof=accessories-and-jewelry art clothing furniture gifts home general"`
 	HasVariations               bool                   `bson:"has_variations" json:"has_variations"`
 	Sustainability              string                 `bson:"sustainability" json:"sustainability"`
 	Personalization             bool                   `bson:"personalization" json:"personalization"`
@@ -237,12 +237,12 @@ type ListingDiscountsPromotions struct {
 }
 
 type Inventory struct {
-	DomesticPricing bool      `bson:"domestic_pricing" json:"domestic_pricing" validate:"required"`
-	DomesticPrice   string    `bson:"domestic_price" json:"domestic_price"`
-	Price           string    `bson:"price" json:"price" validate:"required"`
+	DomesticPricing bool      `bson:"domestic_pricing" json:"domestic_pricing"`
+	DomesticPrice   float64   `bson:"domestic_price" json:"domestic_price"`
+	Price           float64   `bson:"price" json:"price" validate:"required"`
 	InitialQuantity int       `bson:"initial_quantity" json:"initial_quantity"`
 	Quantity        int       `bson:"quantity" json:"quantity" validate:"required"`
-	SKU             string    `bson:"sku" json:"sku"`
+	SKU             string    `bson:"sku" json:"sku" validate:"required"`
 	CurrencyCode    string    `bson:"currency_code" json:"currency_code"`
 	ModifiedAt      time.Time `bson:"modified_at" json:"modified_at"`
 }
@@ -279,7 +279,7 @@ type NewListingDetails struct {
 	Description                 string                 `json:"description" validate:"required,min=50,max=500"`
 	WhoMade                     string                 `json:"who_made" validate:"oneof=i_did collective someone_else"`
 	WhenMade                    string                 `json:"when_made"  validate:"oneof=in2020_2023 in2010_2019 in2003_2009 before_2003 in2000_2002 in1990s in1980s in1970s in1960s in1950s in1940s in1930s in1920s in1910s in1900s in1800s in1700s before_1700"`
-	Type                        string                 `json:"type"`
+	Type                        string                 `json:"type"validate:"required"`
 	Keywords                    []string               `json:"keywords"`
 	Tags                        []string               `json:"tags"`
 	Personalization             bool                   `json:"personalization"`
@@ -291,6 +291,7 @@ type NewListingDetails struct {
 	HasVariations               bool                   `json:"has_variations"`
 	Condition                   string                 `json:"condition" validate:"oneof=new used refurbished"`
 	Color                       string                 `json:"color"`
+	OtherColor                  string                 `json:"otherColor"`
 	ShippingProfileId           string                 `json:"shipping_profile_id"`
 	Sustainability              string                 `json:"sustainability"`
 }

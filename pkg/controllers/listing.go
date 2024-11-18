@@ -2,7 +2,6 @@ package controllers
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	auth "khoomi-api-io/api/internal/auth"
 	"khoomi-api-io/api/internal/common"
@@ -10,9 +9,7 @@ import (
 	"khoomi-api-io/api/pkg/util"
 	email "khoomi-api-io/api/web/email"
 	"log"
-	"math/rand"
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/cloudinary/cloudinary-go/api/uploader"
@@ -24,68 +21,6 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-func generateListingCode() string {
-	rand.New(rand.NewSource(time.Now().UnixNano()))
-
-	// Define characters for letters and numbers
-	letterChars := "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-	numberChars := "0123456789"
-	// Generate 4 random letters
-	letters := make([]byte, 4)
-	for i := range letters {
-		letters[i] = letterChars[rand.Intn(len(letterChars))]
-	}
-	// Generate 4 random numbers
-	numbers := make([]byte, 4)
-	for i := range numbers {
-		numbers[i] = numberChars[rand.Intn(len(numberChars))]
-	}
-	// Combine letters and numbers with a hyphen
-	productCode := string(letters) + "-" + string(numbers)
-	return productCode
-}
-
-func getListingSortingBson(sort string) bson.D {
-	value := -1
-	var key string
-
-	switch sort {
-	case "created_at_asc":
-		key = "date.created_at"
-	case "created_at_desc":
-		key = "date.created_at"
-	case "modified_at_asc":
-		key = "date.modified_at"
-	case "modified_at_desc":
-		key = "date.modified_at"
-	case "state_updated_at_asc":
-		key = "state.updated_at"
-	case "state_updated_at_desc":
-		key = "state.updated_at"
-	case "views_asc":
-		key = "views"
-	case "views_desc":
-		key = "views"
-	case "sales_asc":
-		key = "financial_information.sales"
-	case "sales_desc":
-		key = "financial_information.sales"
-	case "price_asc":
-		key = "inventory.price"
-	case "price_desc":
-		key = "inventory.price"
-	case "rating_desc":
-		key = "rating.rating.positive_reviews"
-	default:
-		key = "date.created_at"
-	}
-
-	if strings.Contains(sort, "asc") {
-		value = 1
-	}
-	return bson.D{{Key: key, Value: value}}
-}
-
 func CreateListing() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
@@ -96,30 +31,27 @@ func CreateListing() gin.HandlerFunc {
 			util.HandleError(c, http.StatusBadRequest, err, "Error getting shop ID and user ID")
 			return
 		}
-
 		session, err := auth.GetSessionAuto(c)
 		if err != nil {
 			util.HandleError(c, http.StatusUnauthorized, err, "unathorized")
 			return
 		}
 		loginName, loginEmail := session.LoginName, session.Email
+		newListing, err := common.MapFormDataToNewListing(c.PostForm)
 
-		var newListing models.NewListing
-
-		jsonData := c.PostForm("data")
 		// Unmarshal the JSON data to the NewListing struct
-		if err := json.Unmarshal([]byte(jsonData), &newListing); err != nil {
-			util.HandleError(c, http.StatusBadRequest, err, "Invalid JSON data")
-			return
-		}
+		// if err := json.Unmarshal([]byte(jsonData), &newListing); err != nil {
+		// 	util.HandleError(c, http.StatusBadRequest, err, "Invalid JSON data")
+		// 	return
+		// }
 
-		if validationErr := common.Validate.Struct(&newListing); validationErr != nil {
+		if validationErr := common.Validate.Struct(newListing); validationErr != nil {
 			util.HandleError(c, http.StatusBadRequest, validationErr, "invalid or missing data in request body")
 			return
 		}
 
 		// main_image file handling
-		mainImage, _, err := c.Request.FormFile("main_image")
+		mainImage, _, err := c.Request.FormFile("mainImage")
 		var mainImageUploadUrl uploader.UploadResult
 		if err == nil {
 			mainImageUploadUrl, err = util.FileUpload(models.File{File: mainImage})
@@ -133,46 +65,15 @@ func CreateListing() gin.HandlerFunc {
 			mainImageUploadUrl.SecureURL = common.DefaultThumbnail
 		}
 
-		_, _, err = c.Request.FormFile("images")
-		var uploadedImagesUrl []string
-		var uploadedImagesResult []uploader.UploadResult
+		if err := c.Request.ParseMultipartForm(10 << 20); err != nil {
+			util.HandleError(c, http.StatusBadRequest, err, "Failed to parse form data")
+			return
+		}
 
-		if err == nil {
-			// FormFile returns a single file, so you need to use MultipartForm to get multiple files
-			err := c.Request.ParseMultipartForm(10 << 20)
-			if err != nil {
-				errMsg := fmt.Sprintf("Failed to parse multipart form - %v", err.Error())
-				util.HandleError(c, http.StatusInternalServerError, err, errMsg)
-				return
-			}
-
-			files := c.Request.MultipartForm.File["images"]
-			for _, fileHeader := range files {
-				file, err := fileHeader.Open()
-				if err != nil {
-					errMsg := fmt.Sprintf("Failed to open file - %v", err.Error())
-					println(errMsg)
-					util.HandleError(c, http.StatusInternalServerError, err, errMsg)
-					return
-				}
-				defer file.Close()
-
-				// Here, you can upload each file to the desired location and get the URLs
-				imageUpload, err := util.FileUpload(models.File{File: file})
-				if err != nil {
-					errMsg := fmt.Sprintf("File failed to upload - %v", err.Error())
-					util.HandleError(c, http.StatusInternalServerError, err, errMsg)
-					return
-				}
-
-				// Append the URL to the logoUploadUrls slice
-				uploadedImagesUrl = append(uploadedImagesUrl, imageUpload.SecureURL)
-				uploadedImagesResult = append(uploadedImagesResult, imageUpload)
-			}
-		} else {
-			tempImage := uploader.UploadResult{}
-			tempImage.SecureURL = common.DefaultThumbnail
-			uploadedImagesResult = append(uploadedImagesResult, tempImage)
+		uploadedImagesUrl, uploadedImagesResult, err := common.HandleSequentialImages(c)
+		if err != nil {
+			util.HandleError(c, http.StatusInternalServerError, err, "Image upload failed")
+			return
 		}
 
 		// Verify shipping id, if null, find default shipping profile from db and use for listing.
@@ -197,7 +98,7 @@ func CreateListing() gin.HandlerFunc {
 			Title:                       newListing.ListingDetails.Title,
 			Color:                       newListing.ListingDetails.Color,
 			Dynamic:                     newListing.ListingDetails.Dynamic,
-			DynamicType:                 newListing.ListingDetails.DynamicType,
+			DynamicType:                 "general",
 			WhoMade:                     newListing.ListingDetails.WhoMade,
 			Keywords:                    newListing.ListingDetails.Keywords,
 			WhenMade:                    newListing.ListingDetails.WhenMade,
@@ -255,9 +156,12 @@ func CreateListing() gin.HandlerFunc {
 		}
 
 		listing := models.Listing{
-			ID:                   primitive.NewObjectID(),
-			Code:                 generateListingCode(),
-			State:                models.ListingState{State: models.ListingStateActive, StateUpdatedAt: now},
+			ID:   primitive.NewObjectID(),
+			Code: common.GenerateListingCode(),
+			State: models.ListingState{
+				State:          models.ListingStateActive,
+				StateUpdatedAt: now,
+			},
 			UserId:               myId,
 			ShopId:               shopId,
 			MainImage:            mainImageUploadUrl.SecureURL,
@@ -279,6 +183,7 @@ func CreateListing() gin.HandlerFunc {
 			FinancialInformation: listingFinancialInformation,
 		}
 
+		fmt.Println(listing.ListingDetails.Type)
 		res, err := common.ListingCollection.InsertOne(ctx, listing)
 		if err != nil {
 			// delete images
@@ -444,7 +349,7 @@ func GetListings() gin.HandlerFunc {
 		defer cancel()
 
 		paginationArgs := common.GetPaginationArgs(c)
-		sort := getListingSortingBson(paginationArgs.Sort)
+		sort := common.GetListingSortingBson(paginationArgs.Sort)
 
 		match := bson.M{}
 		category := c.Query("category")
@@ -573,7 +478,7 @@ func GetMyListingsSummary() gin.HandlerFunc {
 		findOptions := options.Find().
 			SetLimit(int64(paginationArgs.Limit)).
 			SetSkip(int64(paginationArgs.Skip)).
-			SetSort(getListingSortingBson(paginationArgs.Sort))
+			SetSort(common.GetListingSortingBson(paginationArgs.Sort))
 		filter := bson.M{"shop_id": shopId, "user_id": myId}
 		cursor, err := common.ListingCollection.Find(ctx, filter, findOptions)
 		if err != nil {
@@ -625,7 +530,7 @@ func GetShopListings() gin.HandlerFunc {
 		findOptions := options.Find().
 			SetLimit(int64(paginationArgs.Limit)).
 			SetSkip(int64(paginationArgs.Skip)).
-			SetSort(getListingSortingBson(paginationArgs.Sort))
+			SetSort(common.GetListingSortingBson(paginationArgs.Sort))
 
 		result, err := common.ListingCollection.Find(ctx, bson.M{"shop_id": shopObjectId}, findOptions)
 		if err != nil {
