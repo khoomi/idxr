@@ -61,7 +61,6 @@ func ImageDeletionHelper(params uploader.DestroyParams) (string, error) {
 		return "", err
 	}
 
-
 	deleteResult, err := cld.Upload.Destroy(ctx, params)
 	if err != nil {
 		return "", err

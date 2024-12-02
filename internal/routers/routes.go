@@ -75,7 +75,7 @@ func userRoutes(api *gin.RouterGroup) {
 
 			// User thumbnail endpoints
 			secured.PUT("/:userid/thumbnail", controllers.UploadThumbnail())
-			secured.DELETE("/:userid/thumbnail", controllers.DeleteThumbnail())
+			secured.DELETE("/:userid/thumbnail/:url", controllers.DeleteThumbnail())
 
 			// User address endpoints
 			secured.POST("/:userid/addresses", controllers.CreateUserAddress())

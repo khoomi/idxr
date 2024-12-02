@@ -981,21 +981,30 @@ func UploadThumbnail() gin.HandlerFunc {
 
 			update = bson.M{"$set": bson.M{"thumbnail": uploadResult.SecureURL, "modified_at": now}}
 		} else {
-			err := c.Request.ParseMultipartForm(32 << 20)
+			form, err := c.MultipartForm()
+			if err != nil {
+				fmt.Printf("MultipartForm error: %v\n", err)
+			} else {
+				fmt.Printf("Form fields: %v\n", form.Value)
+				fmt.Printf("Form files: %v\n", form.File)
+			}
+
+			file, err := c.FormFile("thumbnail")
+			if err != nil {
+				fmt.Printf("Form error: %v\n", err)                                // Debug log
+				fmt.Printf("Available form fields: %v\n", c.Request.MultipartForm) // Debug log
+				util.HandleError(c, http.StatusBadRequest, err, "Failed to get file")
+				return
+			}
+
+			src, err := file.Open()
 			if err != nil {
 				util.HandleError(c, http.StatusInternalServerError, err, "Failed to open file")
 				return
 			}
+			defer src.Close()
 
-			fmt.Println(c.Request.Header);
-
-			file, _, err := c.Request.FormFile("file")
-			if err != nil {
-				util.HandleError(c, http.StatusInternalServerError, err, "Failed to get file")
-				return
-			}
-
-			uploadResult, err = util.FileUpload(models.File{File: file})
+			uploadResult, err = util.FileUpload(models.File{File: src})
 			if err != nil {
 				util.HandleError(c, http.StatusInternalServerError, err, "Failed to upload file thumbnail")
 				return
@@ -1030,8 +1039,8 @@ func DeleteThumbnail() gin.HandlerFunc {
 			return
 		}
 
-		file := c.Request.FormValue("url")
-		if file == "" {
+		url := c.Param("url")
+		if url == "" {
 			util.HandleError(c, http.StatusInternalServerError, err, "thumbnail url not provided")
 			return
 		}
@@ -1047,7 +1056,7 @@ func DeleteThumbnail() gin.HandlerFunc {
 			return
 		}
 
-		filename, _, err := extractFilenameAndExtension(file)
+		filename, _, err := extractFilenameAndExtension(url)
 		if err != nil {
 			util.HandleError(c, http.StatusInternalServerError, err, "Internal server error. Please try again later")
 			return
@@ -1262,7 +1271,6 @@ func UpdateUserAddress() gin.HandlerFunc {
 	}
 }
 
-
 // / ChangeDefaultAddress -> PUT /:userId/address/:addressId/default
 func ChangeDefaultAddress() gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -1274,7 +1282,6 @@ func ChangeDefaultAddress() gin.HandlerFunc {
 			util.HandleError(c, http.StatusUnauthorized, err, "Unauthorized")
 			return
 		}
-
 
 		addressID := c.Param("id")
 		if addressID == "" {

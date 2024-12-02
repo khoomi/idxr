@@ -27,7 +27,7 @@ func CreateListing() gin.HandlerFunc {
 		defer cancel()
 
 		shopId, myId, err := common.MyShopIdAndMyId(c)
-		if err != nil {
+		if err == nil {
 			util.HandleError(c, http.StatusBadRequest, err, "Error getting shop ID and user ID")
 			return
 		}
@@ -38,12 +38,6 @@ func CreateListing() gin.HandlerFunc {
 		}
 		loginName, loginEmail := session.LoginName, session.Email
 		newListing, err := common.MapFormDataToNewListing(c.PostForm)
-
-		// Unmarshal the JSON data to the NewListing struct
-		// if err := json.Unmarshal([]byte(jsonData), &newListing); err != nil {
-		// 	util.HandleError(c, http.StatusBadRequest, err, "Invalid JSON data")
-		// 	return
-		// }
 
 		if validationErr := common.Validate.Struct(newListing); validationErr != nil {
 			util.HandleError(c, http.StatusBadRequest, validationErr, "invalid or missing data in request body")

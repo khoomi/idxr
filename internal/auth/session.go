@@ -99,15 +99,14 @@ func DeleteSession(ctx *gin.Context) {
 
 // Extract session token from request header.
 func ExtractSessionKey(ctx *gin.Context) (string, error) {
-  key := ctx.Request.Header.Get("Authorization");
-  value, err := ExtractBearerToken(key)
+	key := ctx.Request.Header.Get("Authorization")
+	value, err := ExtractBearerToken(key)
 	if err != nil {
 		return "", err
 	}
 
 	return value, nil
 }
-
 
 // ExtractBearerToken extracts the Bearer token from the Authorization header
 func ExtractBearerToken(authHeader string) (string, error) {

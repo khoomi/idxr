@@ -32,13 +32,15 @@ func HandleSuccessMeta(c *gin.Context, statusCode int, message string, data, met
 }
 
 type ErrorResponse struct {
-	Error string `json:"error,omitempty"`
+	Error  string `json:"error,omitempty"`
+	Status int    `json:"status"`
 }
 
 func HandleError(c *gin.Context, statusCode int, err error, message string) {
 	log.Printf("error: %v \n message: %v", err, message)
 	c.JSON(statusCode, ErrorResponse{
-		Error: message,
+		Error:  message,
+		Status: statusCode,
 	})
 }
 
