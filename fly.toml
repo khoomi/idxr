@@ -4,6 +4,7 @@
 #
 
 app = "khoomi"
+org = "khoomi"
 primary_region = "jnb"
 
 [[mounts]]
