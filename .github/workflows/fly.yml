@@ -3,11 +3,6 @@ on:
   push:
     branches:
       - main
-env:
-  FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
-  FLY_REGION: iad
-  FLY_ORG: khoomi
-
 jobs:
   deploy:
     name: Deploy app
@@ -19,3 +14,5 @@ jobs:
       - run: flyctl deploy --remote-only
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+          FLY_REGION: iad
+          FLY_ORG: khoomi
