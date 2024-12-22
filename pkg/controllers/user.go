@@ -1127,14 +1127,14 @@ func CreateUserAddress() gin.HandlerFunc {
 		// create user address
 		addressId := primitive.NewObjectID()
 		userAddressTemp := models.UserAddress{
-			Id:                       addressId,
-			UserId:                   myId,
-			City:                     userAddress.City,
-			State:                    userAddress.State,
-			Street:                   userAddress.Street,
-			PostalCode:               userAddress.PostalCode,
-			Country:                  models.CountryNigeria,
-			IsDefaultShippingAddress: userAddress.IsDefaultShippingAddress,
+			Id:         addressId,
+			UserId:     myId,
+			City:       userAddress.City,
+			State:      userAddress.State,
+			Street:     userAddress.Street,
+			PostalCode: userAddress.PostalCode,
+			Country:    models.CountryNigeria,
+			IsDefault:  userAddress.IsDefault,
 		}
 
 		count, err := common.UserAddressCollection.CountDocuments(ctx, bson.M{"user_id": myId})
@@ -1148,7 +1148,7 @@ func CreateUserAddress() gin.HandlerFunc {
 			return
 		}
 
-		if userAddress.IsDefaultShippingAddress {
+		if userAddress.IsDefault {
 			// Set IsDefaultShippingAddress to false for other addresses belonging to the user
 			err = setOtherAddressesToFalse(ctx, myId, addressId)
 			if err != nil {
@@ -1241,7 +1241,7 @@ func UpdateUserAddress() gin.HandlerFunc {
 		}
 
 		// Set IsDefaultShippingAddress to false for other addresses belonging to the user
-		if userAddress.IsDefaultShippingAddress {
+		if userAddress.IsDefault {
 			err = setOtherAddressesToFalse(ctx, myId, addressObjectId)
 			if err != nil {
 				util.HandleError(c, http.StatusInternalServerError, err, "Failed to update user addresses")
@@ -1257,7 +1257,7 @@ func UpdateUserAddress() gin.HandlerFunc {
 				"street":                      userAddress.Street,
 				"postal_code":                 userAddress.PostalCode,
 				"country":                     models.CountryNigeria,
-				"is_default_shipping_address": userAddress.IsDefaultShippingAddress,
+				"is_default_shipping_address": userAddress.IsDefault,
 			},
 		}
 

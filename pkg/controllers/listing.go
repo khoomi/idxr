@@ -124,13 +124,6 @@ func CreateListing() gin.HandlerFunc {
 			ModifiedAt: now,
 		}
 
-		listingProcessing := models.ListingProcessing{
-			ProcessingMin:     newListing.Processing.ProcessingMin,
-			ProcessingMinUnit: newListing.Processing.ProcessingMinUnit,
-			ProcessingMax:     newListing.Processing.ProcessingMax,
-			ProcessingMaxUnit: newListing.Processing.ProcessingMaxUnit,
-		}
-
 		listingRating := models.ListingRating{
 			Rating:          0,
 			ReviewCount:     0,
@@ -166,7 +159,6 @@ func CreateListing() gin.HandlerFunc {
 			Views:                0,
 			FavorersCount:        0,
 			ShippingProfileId:    shippingId,
-			Processing:           listingProcessing,
 			NonTaxable:           true,
 			Variations:           newListing.Variations,
 			ShouldAutoRenew:      false,

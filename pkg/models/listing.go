@@ -37,13 +37,6 @@ type ListingCategory struct {
 	CategoryPath string `bson:"category_path" json:"category_path"`
 }
 
-type ListingProcessing struct {
-	ProcessingMin     int    `bson:"processing_min" json:"processing_min"`
-	ProcessingMinUnit string `bson:"processing_min_unit" json:"processing_min_unit"`
-	ProcessingMax     int    `bson:"processing_max" json:"processing_max"`
-	ProcessingMaxUnit string `bson:"processing_max_unit" json:"processing_max_unit"`
-}
-
 type WeightUnit string
 
 const (
@@ -101,7 +94,6 @@ type Listing struct {
 	Views                int                         `bson:"views" json:"views"`
 	FavorersCount        int                         `bson:"favorers_count" json:"favorers_count"`
 	ShippingProfileId    primitive.ObjectID          `bson:"shipping_profile_id" json:"shipping_profile_id"`
-	Processing           ListingProcessing           `bson:"processing" json:"processing"`
 	NonTaxable           bool                        `bson:"non_taxable" json:"non_taxable"`
 	Variations           []ListingVariation          `bson:"variations" json:"variations"`
 	ShouldAutoRenew      bool                        `bson:"should_auto_renew" json:"should_auto_renew"`
@@ -156,7 +148,6 @@ type ListingExtra struct {
 	Views                int                         `bson:"views" json:"views"`
 	FavorersCount        int                         `bson:"favorers_count" json:"favorers_count"`
 	ShippingProfileId    primitive.ObjectID          `bson:"shipping_profile_id" json:"shipping_profile_id"`
-	Processing           ListingProcessing           `bson:"processing" json:"processing"`
 	NonTaxable           bool                        `bson:"non_taxable" json:"non_taxable"`
 	Variations           []ListingVariation          `bson:"variations" json:"variations"`
 	ShouldAutoRenew      bool                        `bson:"should_auto_renew" json:"should_auto_renew"`
@@ -268,7 +259,6 @@ type ListingFinancialInformation struct {
 type NewListing struct {
 	Inventory      Inventory          `json:"inventory" validate:"required"`
 	Variations     []ListingVariation `json:"variations"`
-	Processing     ListingProcessing  `json:"processing" validate:"required"`
 	ListingDetails NewListingDetails  `json:"details"`
 	Measurements   ListingMeasurement `json:"measurements"`
 }

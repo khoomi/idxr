@@ -179,22 +179,6 @@ func MapFormDataToNewListing(formData func(key string) (value string)) (*models.
 		DomesticPrice:   0,
 	}
 
-	// Map Processing
-	processingMin, err := strconv.Atoi(formData("processing.processingMin"))
-	if err != nil {
-		processingMin = 7
-	}
-	processingMax, err := strconv.Atoi(formData("processing.processingMax"))
-	if err != nil {
-		processingMax = 14
-	}
-	listing.Processing = models.ListingProcessing{
-		ProcessingMin:     processingMin,
-		ProcessingMinUnit: getFormValue(formData, "processing.processingMinUnit", "days"),
-		ProcessingMax:     processingMax,
-		ProcessingMaxUnit: getFormValue(formData, "processing.processingMaxUnit", "days"),
-	}
-
 	// Map Measurements
 	itemWeight, err := strconv.ParseFloat(formData("measurements.itemWeight"), 64)
 	if err != nil {
