@@ -80,9 +80,9 @@ type ShopShippingProfileRequest struct {
 	Destinations       []string           `bson:"destination" json:"destinations"`
 	MinDeliveryDays    int                `bson:"min_delivery_days" json:"minDeliveryDays"`
 	MaxDeliveryDays    int                `bson:"max_delivery_days" json:"maxDeliveryDays"`
-	OriginState        string             `bson:"origin_state" json:"originState"`
+	OriginState        string             `bson:"origin_state" json:"originState" validate:"required"`
 	OriginPostalCode   int                `bson:"origin_postal_code" json:"originPostalCode"`
-	PrimaryPrice       string             `bson:"primary_price" json:"primaryPrice"`
+	PrimaryPrice       string             `bson:"primary_price" json:"primaryPrice" validate:"required"`
 	SecondaryPrice     string             `bson:"secondary_price" json:"secondaryPrice"`
 	HandlingFee        string             `bson:"handling_fee" json:"handlingFee"`
 	IsDefault          bool               `bson:"is_default" json:"isDefault"`
