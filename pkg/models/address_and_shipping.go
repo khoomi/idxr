@@ -41,9 +41,9 @@ type ShopShippingProfile struct {
 	MaxDeliveryDays    int                `bson:"max_delivery_days" json:"maxDeliveryDays"`
 	OriginState        string             `bson:"origin_state" json:"originState"`
 	OriginPostalCode   int                `bson:"origin_postal_code" json:"originPostalCode"`
-	PrimaryPrice       string             `bson:"primary_price" json:"primaryPrice"`
-	SecondaryPrice     string             `bson:"secondary_price" json:"secondaryPrice"`
-	HandlingFee        string             `bson:"handling_fee" json:"handlingFee"`
+	PrimaryPrice       float64            `bson:"primary_price" json:"primaryPrice"`
+	SecondaryPrice     float64            `bson:"secondary_price" json:"secondaryPrice"`
+	HandlingFee        float64            `bson:"handling_fee" json:"handlingFee"`
 	IsDefault          bool               `bson:"is_default_profile" json:"isDefault"`
 	OffersFreeShipping bool               `bson:"offers_free_shipping" json:"offersFreeShipping"`
 	ShippingMethods    []string           `bson:"shipping_methods" json:"methods" validate:"oneof=standard express next-day"`
@@ -62,9 +62,9 @@ type ShippingProfileForListing struct {
 	MaxDeliveryDays          int                `bson:"max_delivery_days" json:"maxDeliveryDays"`
 	OriginState              string             `bson:"origin_state" json:"originState"`
 	OriginPostalCode         int                `bson:"origin_postal_code" json:"originPostalCode"`
-	PrimaryPrice             string             `bson:"primary_price" json:"primaryPrice"`
-	SecondaryPrice           string             `bson:"secondary_price" json:"secondaryPrice"`
-	HandlingFee              string             `bson:"handling_fee" json:"handlingFee"`
+	PrimaryPrice             float64            `bson:"primary_price" json:"primaryPrice"`
+	SecondaryPrice           float64            `bson:"secondary_price" json:"secondaryPrice"`
+	HandlingFee              float64            `bson:"handling_fee" json:"handlingFee"`
 	ShippingService          []string           `bson:"service" json:"service"`
 	ShippingMethods          []string           `bson:"shipping_methods" json:"methods" validate:"oneof=standard express next-day"`
 	IsDefaultShippingProfile bool               `bson:"is_default_profile" json:"isDefault"`
@@ -82,9 +82,9 @@ type ShopShippingProfileRequest struct {
 	MaxDeliveryDays    int                `bson:"max_delivery_days" json:"maxDeliveryDays"`
 	OriginState        string             `bson:"origin_state" json:"originState" validate:"required"`
 	OriginPostalCode   int                `bson:"origin_postal_code" json:"originPostalCode"`
-	PrimaryPrice       string             `bson:"primary_price" json:"primaryPrice" validate:"required"`
-	SecondaryPrice     string             `bson:"secondary_price" json:"secondaryPrice"`
-	HandlingFee        string             `bson:"handling_fee" json:"handlingFee"`
+	PrimaryPrice       float64            `bson:"primary_price" json:"primaryPrice" validate:"required"`
+	SecondaryPrice     float64            `bson:"secondary_price" json:"secondaryPrice"`
+	HandlingFee        float64            `bson:"handling_fee" json:"handlingFee"`
 	IsDefault          bool               `bson:"is_default" json:"isDefault"`
 	OffersFreeShipping bool               `bson:"offers_free_shipping" json:"offersFreeShipping"`
 	ShippingMethod     []string           `bson:"methods" json:"methods"`
