@@ -7,37 +7,37 @@ import (
 )
 
 type Shop struct {
-	ID                     primitive.ObjectID `bson:"_id" json:"_id" validate:"required"`
-	Name                   string             `bson:"name" json:"name" validate:"required"`
-	Description            string             `bson:"description" json:"description" validate:"required"`
-	Username               string             `bson:"username" json:"username" validate:"required"`
-	UserID                 primitive.ObjectID `bson:"user_id" json:"userId"`
-	UserAddressId          primitive.ObjectID `bson:"user_address_id" json:"userAddressId"`
-	Location               primitive.ObjectID `bson:"location" json:"location"`
-	ListingActiveCount     int                `bson:"listing_active_count" json:"listing_active_count" validate:"required"`
-	Announcement           string             `bson:"announcement" json:"announcement" validate:"omitempty"`
 	AnnouncementModifiedAt time.Time          `bson:"announcement_modified_at" json:"announcementModifiedAt" validate:"omitempty"`
-	IsVacation             bool               `bson:"is_vacation" json:"is_vacation"`
+	ModifiedAt             time.Time          `bson:"modified_at" json:"modifiedAt" validate:"required"`
+	CreatedAt              time.Time          `bson:"created_at" json:"createdAt" validate:"required"`
+	User                   ListingUserExcept  `bson:"user" json:"user"`
+	Policy                 ShopPolicy         `bson:"policy" json:"policy" validate:"required"`
+	BannerURL              string             `bson:"banner_url" json:"bannerUrl"`
+	Status                 ShopStatus         `bson:"status" json:"status" validate:"required,oneof=inactive active banned suspended warning pendingreview"`
+	Name                   string             `bson:"name" json:"name" validate:"required"`
+	Announcement           string             `bson:"announcement" json:"announcement" validate:"omitempty"`
+	SalesMessage           string             `bson:"sales_message" json:"salesMessage"`
+	Description            string             `bson:"description" json:"description" validate:"required"`
 	VacationMessage        string             `bson:"vacation_message" json:"vacationMessage" validate:"omitempty"`
 	Slug                   string             `bson:"slug" json:"slug" validate:"required"`
 	LogoURL                string             `bson:"logo_url" json:"logoUrl"`
-	BannerURL              string             `bson:"banner_url" json:"bannerUrl"`
-	Gallery                []string           `bson:"gallery" json:"gallery"`
-	FollowerCount          int                `bson:"follower_count" json:"followerCount" validate:"required"`
-	Followers              []ShopFollower     `bson:"followers" json:"followers"`
-	Status                 ShopStatus         `bson:"status" json:"status" validate:"required,oneof=inactive active banned suspended warning pendingreview"`
-	IsLive                 bool               `bson:"is_live" json:"isLive"`
-	CreatedAt              time.Time          `bson:"created_at" json:"createdAt" validate:"required"`
-	ModifiedAt             time.Time          `bson:"modified_at" json:"modifiedAt" validate:"required"`
-	Policy                 ShopPolicy         `bson:"policy" json:"policy" validate:"required"`
+	Username               string             `bson:"username" json:"username" validate:"required"`
 	RecentReviews          []ShopReview       `bson:"recent_reviews" json:"recentReviews"`
-	ReviewsCount           int                `bson:"reviews_count" json:"reviewsCount"`
-	SalesMessage           string             `bson:"sales_message" json:"salesMessage"`
-	User                   ListingUserExcept  `bson:"user" json:"user"`
+	Categories             []ShopCategory     `bson:"-" json:"categories"`
+	Followers              []ShopFollower     `bson:"followers" json:"followers"`
+	Links                  []Link             `bson:"-" json:"links"`
+	Gallery                []string           `bson:"gallery" json:"gallery"`
 	About                  ShopAbout          `bson:"about" json:"about"`
 	Address                UserAddress        `bson:"address" json:"address"`
-	Links                  []Link             `bson:"-" json:"links"`
-	Categories             []ShopCategory     `bson:"-" json:"categories"`
+	ReviewsCount           int                `bson:"reviews_count" json:"reviewsCount"`
+	ListingActiveCount     int                `bson:"listing_active_count" json:"listing_active_count" validate:"required"`
+	FollowerCount          int                `bson:"follower_count" json:"followerCount" validate:"required"`
+	ID                     primitive.ObjectID `bson:"_id" json:"_id" validate:"required"`
+	UserID                 primitive.ObjectID `bson:"user_id" json:"userId"`
+	UserAddressId          primitive.ObjectID `bson:"user_address_id" json:"userAddressId"`
+	Location               primitive.ObjectID `bson:"location" json:"location"`
+	IsVacation             bool               `bson:"is_vacation" json:"is_vacation"`
+	IsLive                 bool               `bson:"is_live" json:"isLive"`
 }
 
 type ShopCategory struct {
@@ -47,24 +47,24 @@ type ShopCategory struct {
 }
 
 type ShopFollower struct {
-	Id        primitive.ObjectID `bson:"_id" json:"_id"`
-	UserId    primitive.ObjectID `bson:"user_id" json:"userId"`
-	ShopId    primitive.ObjectID `bson:"shop_id" json:"shopId"`
+	JoinedAt  time.Time          `bson:"joined_at" json:"joinedAt" validate:"required"`
 	FirstName string             `bson:"first_name" json:"firstName" validate:"required"`
 	LastName  string             `bson:"last_name" json:"lastName" validate:"required"`
 	LoginName string             `bson:"login_name" json:"loginName" validate:"required"`
 	Thumbnail string             `bson:"thumbnail" json:"thumbnail"`
+	Id        primitive.ObjectID `bson:"_id" json:"_id"`
+	UserId    primitive.ObjectID `bson:"user_id" json:"userId"`
+	ShopId    primitive.ObjectID `bson:"shop_id" json:"shopId"`
 	IsOwner   bool               `bson:"is_owner" json:"isOwner" validate:"required"`
-	JoinedAt  time.Time          `bson:"joined_at" json:"joinedAt" validate:"required"`
 }
 
 type ShopFollowerExcerpt struct {
-	Id        primitive.ObjectID `bson:"follower_id" json:"followerId"`
-	UserId    primitive.ObjectID `bson:"user_id" json:"userId"`
 	FirstName string             `bson:"first_name" json:"firstName" validate:"required"`
 	LastName  string             `bson:"last_name" json:"lastName" validate:"required"`
 	LoginName string             `bson:"login_name" json:"loginName"`
 	Thumbnail string             `bson:"thumbnail" json:"thumbnail"`
+	Id        primitive.ObjectID `bson:"follower_id" json:"followerId"`
+	UserId    primitive.ObjectID `bson:"user_id" json:"userId"`
 	IsOwner   bool               `bson:"is_owner" json:"isOwner" validate:"required"`
 }
 
@@ -104,22 +104,22 @@ const (
 )
 
 type EmbeddedShopReview struct {
-	UserId       primitive.ObjectID `bson:"user_id" json:"userId"`
-	ShopId       primitive.ObjectID `bson:"shop_id" json:"shopId"`
 	Review       string             `bson:"review" json:"review"`
 	ReviewAuthor string             `bson:"review_author" json:"reviewAuthor"`
 	Thumbnail    string             `bson:"thumbnail" json:"thumbnail"`
+	UserId       primitive.ObjectID `bson:"user_id" json:"userId"`
+	ShopId       primitive.ObjectID `bson:"shop_id" json:"shopId"`
 }
 
 type ShopReview struct {
-	Id           primitive.ObjectID `bson:"_id" json:"_id"`
-	UserId       primitive.ObjectID `bson:"user_id" json:"userId"`
-	ShopId       primitive.ObjectID `bson:"shop_id" json:"shopId"`
+	CreatedAt    time.Time          `bson:"created_at" json:"createdAt"`
 	Review       string             `bson:"review" json:"review"`
 	ReviewAuthor string             `bson:"review_author" json:"reviewAuthor"`
 	Thumbnail    string             `bson:"thumbnail" json:"thumbnail"`
-	CreatedAt    time.Time          `bson:"created_at" json:"createdAt"`
 	Status       ShopReviewStatus   `bson:"status" json:"status" validate:"required,oneof=approved pending spam"`
+	Id           primitive.ObjectID `bson:"_id" json:"_id"`
+	UserId       primitive.ObjectID `bson:"user_id" json:"userId"`
+	ShopId       primitive.ObjectID `bson:"shop_id" json:"shopId"`
 }
 
 type ShopReviewRequest struct {
@@ -127,14 +127,14 @@ type ShopReviewRequest struct {
 }
 
 type ShopAbout struct {
-	ID        primitive.ObjectID `bson:"_id" json:"_id" validate:"required"`
-	ShopID    primitive.ObjectID `bson:"shop_id" json:"shopId" validate:"required"`
 	Status    ShopAboutStatus    `bson:"status" json:"status" validate:"required"`
 	Headline  string             `bson:"headline" json:"headline"`
 	Story     string             `bson:"story" json:"story" validate:"required"`
 	X         string             `bson:"x" json:"x" validate:"required"`
 	Facebook  string             `bson:"facebook" json:"facebook" validate:"required"`
 	Instagram string             `bson:"instagram" json:"instagram" validate:"required"`
+	ID        primitive.ObjectID `bson:"_id" json:"_id" validate:"required"`
+	ShopID    primitive.ObjectID `bson:"shop_id" json:"shopId" validate:"required"`
 }
 
 type ShopAboutStatus string

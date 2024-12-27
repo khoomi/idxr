@@ -21,13 +21,13 @@ type Link struct {
 }
 
 type UserSession struct {
-	ID           primitive.ObjectID `bson:"_id" json:"_id"`
-	UserID       primitive.ObjectID `bson:"user_id" json:"userId"`
 	RefreshToken string             `bson:"refreshToken" json:"refreshToken"`
 	UserAgent    string             `bson:"useragent" json:"userAgent"`
 	UserIP       string             `bson:"userip" json:"userip"`
-	IsBlocked    bool               `bson:"is_blocked" json:"isBlocked"`
 	ExpiresAt    primitive.DateTime `bson:"expires_at" json:"expiresAt"`
+	ID           primitive.ObjectID `bson:"_id" json:"_id"`
+	UserID       primitive.ObjectID `bson:"user_id" json:"userId"`
+	IsBlocked    bool               `bson:"is_blocked" json:"isBlocked"`
 	CreatedAt    bool               `bson:"created_at" json:"createdAt"`
 }
 
@@ -36,7 +36,7 @@ func GenLink(rel, href string) Link {
 }
 
 func (user *User) ConstructUserLinks() {
-	tempUser := *&user
+	tempUser := user
 	_id := tempUser.Id.Hex()
 	// self
 	user.Links = append(tempUser.Links, GenLink("self", fmt.Sprintf("users/%v", _id)))
@@ -71,13 +71,13 @@ func (user *User) ConstructUserLinks() {
 }
 
 func (shop *Shop) ConstructShopLinks() {
-	tempShop := *&shop
+	tempShop := shop
 	shop_id := tempShop.ID.Hex()
 	// self
 	shop.Links = append(tempShop.Links, GenLink("self", fmt.Sprintf("shops/%v", shop_id)))
 	// about
 	shop.Links = append(tempShop.Links, GenLink("about", fmt.Sprintf("shops/%v/about", shop_id)))
-	//gallery
+	// gallery
 	shop.Links = append(tempShop.Links, GenLink("gallery", fmt.Sprintf("shops/%v/gallery", shop_id)))
 	// followers
 	shop.Links = append(tempShop.Links, GenLink("followers", fmt.Sprintf("shops/%v/followers", shop_id)))
@@ -101,5 +101,4 @@ func (shop *Shop) ConstructShopLinks() {
 	shop.Links = append(tempShop.Links, GenLink("information", fmt.Sprintf("shops/%v/information", shop_id)))
 	// vacation
 	shop.Links = append(tempShop.Links, GenLink("vacation", fmt.Sprintf("shops/%v/vacation", shop_id)))
-
 }

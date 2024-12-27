@@ -7,10 +7,10 @@ import (
 )
 
 type SuccessResponse struct {
-	Status  int         `json:"status"`
-	Message string      `json:"message"`
 	Data    interface{} `json:"data,omitempty"`
 	Meta    interface{} `json:"meta,omitempty"`
+	Message string      `json:"message"`
+	Status  int         `json:"status"`
 }
 
 func HandleSuccess(c *gin.Context, statusCode int, message string, data interface{}) {
@@ -45,22 +45,22 @@ func HandleError(c *gin.Context, statusCode int, err error, message string) {
 }
 
 type UserResponse struct {
-	Status  int                    `json:"status"`
-	Message string                 `json:"message"`
 	Data    map[string]interface{} `json:"data"`
+	Message string                 `json:"message"`
+	Status  int                    `json:"status"`
 }
 
 type UserResponsePagination struct {
-	Status     int                    `json:"status"`
-	Message    string                 `json:"message"`
 	Data       map[string]interface{} `json:"data"`
+	Message    string                 `json:"message"`
 	Pagination Pagination             `json:"pagination"`
+	Status     int                    `json:"status"`
 }
 
 type PaginationArgs struct {
+	Sort  string
 	Limit int
 	Skip  int
-	Sort  string
 }
 
 type Pagination struct {

@@ -2,12 +2,13 @@ package controllers
 
 import (
 	"context"
-	"khoomi-api-io/api/internal/common"
-	"khoomi-api-io/api/pkg/models"
-	"khoomi-api-io/api/pkg/util"
 	"log"
 	"net/http"
 	"strings"
+
+	"khoomi-api-io/api/internal/common"
+	"khoomi-api-io/api/pkg/models"
+	"khoomi-api-io/api/pkg/util"
 
 	"github.com/gin-gonic/gin"
 	slug2 "github.com/gosimple/slug"
@@ -110,7 +111,6 @@ func CreateCategoryMulti() gin.HandlerFunc {
 
 		util.HandleSuccess(c, http.StatusOK, "All categories created successfully.", res)
 	}
-
 }
 
 // GetAllCategories - /api/categories?path=jewelry

@@ -3,10 +3,11 @@ package auth
 import (
 	"encoding/json"
 	"fmt"
-	"khoomi-api-io/api/pkg/util"
 	"log"
 	"strings"
 	"time"
+
+	"khoomi-api-io/api/pkg/util"
 
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -15,10 +16,10 @@ import (
 var SESSION_NAME = "____kh"
 
 type UserSession struct {
+	ExpiresAt time.Time `json:"expiresAt"`
 	UserId    string    `json:"userId"`
 	Email     string    `json:"email"`
 	LoginName string    `json:"loginName"`
-	ExpiresAt time.Time `json:"expiresAt"`
 }
 
 func (s UserSession) MarshalBinary() ([]byte, error) {

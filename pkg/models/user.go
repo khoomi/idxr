@@ -8,31 +8,31 @@ import (
 
 // User Khoomi user_models basic data
 type User struct {
-	Id                       primitive.ObjectID `bson:"_id" json:"_id" validate:"required"`
-	LoginName                string             `bson:"login_name" json:"loginName" validate:"required"`
-	PrimaryEmail             string             `bson:"primary_email" json:"PrimaryEmail" validate:"required"`
-	FirstName                string             `bson:"first_name" json:"firstName"`
-	LastName                 string             `bson:"last_name" json:"lastName"`
+	LastLogin                time.Time          `bson:"last_login" json:"lastLogin"`
+	ModifiedAt               time.Time          `bson:"modified_at" json:"modifiedAt"`
+	CreatedAt                time.Time          `bson:"created_at" json:"created_at"`
 	Auth                     UserAuthData       `bson:"auth,omitempty" json:"auth,omitempty" validate:"required"`
 	Thumbnail                string             `bson:"thumbnail" json:"thumbnail"`
+	LoginName                string             `bson:"login_name" json:"loginName" validate:"required"`
+	LastLoginIp              string             `bson:"last_login_ip" json:"-"`
 	Bio                      string             `bson:"bio" json:"bio"`
 	Phone                    string             `bson:"phone" json:"phone"`
-	Birthdate                UserBirthdate      `bson:"birthdate" json:"birthdate"`
-	IsSeller                 bool               `bson:"is_seller" json:"isSeller"`
-	TransactionBuyCount      int                `bson:"transaction_buy_count" json:"transactionBuyCount"`
-	TransactionSoldCount     int                `bson:"transaction_sold_count" json:"transactionSoldCount"`
+	LastName                 string             `bson:"last_name" json:"lastName"`
+	PrimaryEmail             string             `bson:"primary_email" json:"PrimaryEmail" validate:"required"`
+	FirstName                string             `bson:"first_name" json:"firstName"`
+	Status                   UserStatus         `bson:"status" json:"status"`
 	ReferredByUser           string             `bson:"referred_by_user" json:"referredByUser"`
 	Role                     UserRole           `bson:"role" json:"role"`
-	Status                   UserStatus         `bson:"status" json:"status"`
-	ShopID                   primitive.ObjectID `bson:"shop_id" json:"shopId"`
 	FavoriteShops            []string           `bson:"favorite_shops" json:"favoriteShops"`
-	CreatedAt                time.Time          `bson:"created_at" json:"created_at"`
-	ModifiedAt               time.Time          `bson:"modified_at" json:"modifiedAt"`
-	LastLogin                time.Time          `bson:"last_login" json:"lastLogin"`
-	LoginCounts              int                `bson:"login_counts" json:"-"`
-	LastLoginIp              string             `bson:"last_login_ip" json:"-"`
-	AllowLoginIpNotification bool               `bson:"allow_login_ip_notification" json:"allowLoginIpNotification"`
 	Links                    []Link             `bson:"-" json:"links"`
+	Birthdate                UserBirthdate      `bson:"birthdate" json:"birthdate"`
+	TransactionSoldCount     int                `bson:"transaction_sold_count" json:"transactionSoldCount"`
+	TransactionBuyCount      int                `bson:"transaction_buy_count" json:"transactionBuyCount"`
+	LoginCounts              int                `bson:"login_counts" json:"-"`
+	ShopID                   primitive.ObjectID `bson:"shop_id" json:"shopId"`
+	Id                       primitive.ObjectID `bson:"_id" json:"_id" validate:"required"`
+	IsSeller                 bool               `bson:"is_seller" json:"isSeller"`
+	AllowLoginIpNotification bool               `bson:"allow_login_ip_notification" json:"allowLoginIpNotification"`
 }
 
 // UserRegistrationBody -> expected data for signup process
@@ -74,9 +74,9 @@ const (
 
 // UserAuthData -> authentication data
 type UserAuthData struct {
-	EmailVerified  bool      `bson:"emailVerified"`
 	ModifiedAt     time.Time `bson:"modifiedAt"`
 	PasswordDigest string    `bson:"passwordDigest,omitempty" json:"-"`
+	EmailVerified  bool      `bson:"emailVerified"`
 }
 
 // UserLoginBody -> expected data for login process
@@ -87,11 +87,11 @@ type UserLoginBody struct {
 
 // LoginHistory -> User login history
 type LoginHistory struct {
-	Id        primitive.ObjectID `bson:"_id" json:"_id"`
-	UserUid   primitive.ObjectID `bson:"user_uid" json:"userId"`
 	Date      time.Time          `bson:"date" json:"date"`
 	UserAgent string             `bson:"user_agent" json:"userAgent"`
 	IpAddr    string             `bson:"ip_addr" json:"ipAddr"`
+	Id        primitive.ObjectID `bson:"_id" json:"_id"`
+	UserUid   primitive.ObjectID `bson:"user_uid" json:"userId"`
 }
 
 type LoginHistoryIds struct {
@@ -99,17 +99,17 @@ type LoginHistoryIds struct {
 }
 
 type UserPasswordResetToken struct {
-	UserId      primitive.ObjectID `bson:"user_uid" json:"userId"`
 	TokenDigest string             `bson:"token_digest" json:"tokenDigest"`
 	CreatedAt   primitive.DateTime `bson:"created_at" json:"createdAt"`
 	ExpiresAt   primitive.DateTime `bson:"expired_at" json:"expiresAt"`
+	UserId      primitive.ObjectID `bson:"user_uid" json:"userId"`
 }
 
 type UserVerifyEmailToken struct {
-	UserId      primitive.ObjectID `bson:"user_uid" json:"userId"`
 	TokenDigest string             `bson:"token_digest" json:"tokenDigest"`
 	CreatedAt   primitive.DateTime `bson:"created_at" json:"createdAt"`
 	ExpiresAt   primitive.DateTime `bson:"expired_at" json:"expiresAt"`
+	UserId      primitive.ObjectID `bson:"user_uid" json:"userId"`
 }
 
 type Country string

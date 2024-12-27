@@ -2,12 +2,13 @@ package controllers
 
 import (
 	"context"
+	"log"
+	"net/http"
+
 	auth "khoomi-api-io/api/internal/auth"
 	"khoomi-api-io/api/internal/common"
 	"khoomi-api-io/api/pkg/models"
 	"khoomi-api-io/api/pkg/util"
-	"log"
-	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"github.com/pkg/errors"
@@ -252,7 +253,7 @@ func DeletePaymentInformation() gin.HandlerFunc {
 			util.HandleError(c, http.StatusInternalServerError, err, "Error finding user")
 			return
 		}
-		if res == false {
+		if !res {
 			util.HandleError(c, http.StatusUnauthorized, errors.New("Only sellers can perform this action"), "Unauthorized")
 			return
 		}
@@ -289,7 +290,7 @@ func CompletedPaymentOnboarding() gin.HandlerFunc {
 			util.HandleError(c, http.StatusInternalServerError, err, "Error finding user")
 			return
 		}
-		if res == false {
+		if !res {
 			util.HandleError(c, http.StatusUnauthorized, errors.New("Only sellers can perform this action"), "Unauthorized")
 			return
 		}
