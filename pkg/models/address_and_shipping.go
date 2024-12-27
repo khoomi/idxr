@@ -4,7 +4,7 @@ import "go.mongodb.org/mongo-driver/bson/primitive"
 
 type UserAddress struct {
 	Id         primitive.ObjectID `bson:"_id" json:"_id"`
-	UserId     primitive.ObjectID `bson:"user_id" json:"user_id"`
+	UserId     primitive.ObjectID `bson:"user_id" json:"userId"`
 	City       string             `bson:"city" json:"city" validate:"required"`
 	State      string             `bson:"state" json:"state" validate:"required"`
 	Street     string             `bson:"street" json:"street" validate:"required"`

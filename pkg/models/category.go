@@ -5,7 +5,7 @@ type Category struct {
 	Name        string      `bson:"name" json:"name"`
 	Description string      `bson:"description" json:"description"`
 	Path        string      `bson:"path" json:"path"`
-	ParentID    string      `bson:"parent_id" json:"parent_id"`
+	ParentID    string      `bson:"parent_id" json:"parentId"`
 	Children    []*Category `bson:"-" json:"children"`
 }
 
@@ -13,7 +13,7 @@ type CategoryRequest struct {
 	Name        string `bson:"name" json:"name"`
 	Description string `bson:"description" json:"description"`
 	Path        string `bson:"path" json:"path" validation:"omitempty"`
-	ParentID    string `bson:"parent_id" json:"parent_id"`
+	ParentID    string `bson:"parent_id" json:"parentId"`
 }
 
 type CategoryRequestMulti struct {
