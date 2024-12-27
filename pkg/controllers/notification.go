@@ -3,12 +3,13 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"log"
+	"net/http"
+
 	auth "khoomi-api-io/api/internal/auth"
 	"khoomi-api-io/api/internal/common"
 	"khoomi-api-io/api/pkg/models"
 	"khoomi-api-io/api/pkg/util"
-	"log"
-	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/bson"
