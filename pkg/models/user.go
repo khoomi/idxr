@@ -10,7 +10,7 @@ import (
 type User struct {
 	LastLogin                time.Time          `bson:"last_login" json:"lastLogin"`
 	ModifiedAt               time.Time          `bson:"modified_at" json:"modifiedAt"`
-	CreatedAt                time.Time          `bson:"created_at" json:"created_at"`
+	CreatedAt                time.Time          `bson:"created_at" json:"createdAt"`
 	Auth                     UserAuthData       `bson:"auth,omitempty" json:"auth,omitempty" validate:"required"`
 	Thumbnail                string             `bson:"thumbnail" json:"thumbnail"`
 	LoginName                string             `bson:"login_name" json:"loginName" validate:"required"`
@@ -18,7 +18,7 @@ type User struct {
 	Bio                      string             `bson:"bio" json:"bio"`
 	Phone                    string             `bson:"phone" json:"phone"`
 	LastName                 string             `bson:"last_name" json:"lastName"`
-	PrimaryEmail             string             `bson:"primary_email" json:"PrimaryEmail" validate:"required"`
+	PrimaryEmail             string             `bson:"primary_email" json:"primaryEmail" validate:"required"`
 	FirstName                string             `bson:"first_name" json:"firstName"`
 	Status                   UserStatus         `bson:"status" json:"status"`
 	ReferredByUser           string             `bson:"referred_by_user" json:"referredByUser"`
@@ -126,10 +126,10 @@ type UserBirthdate struct {
 }
 
 type UserWishlist struct {
+	CreatedAt time.Time          `bson:"created_at" json:"createdAt"`
 	ID        primitive.ObjectID `bson:"_id" json:"_id"`
 	UserID    primitive.ObjectID `bson:"user_id" json:"userId"`
 	ListingId primitive.ObjectID `bson:"listing_id" json:"listingId"`
-	CreatedAt time.Time          `bson:"created_at" json:"createdAt"`
 }
 
 type AccountDeletionRequested struct {

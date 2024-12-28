@@ -150,7 +150,6 @@ func GetPaymentInformations() gin.HandlerFunc {
 		}
 		res, err := common.IsSeller(c, userId)
 		if err != nil {
-			log.Println(err)
 			util.HandleError(c, http.StatusInternalServerError, err, "Error finding user")
 			return
 		}
@@ -160,10 +159,13 @@ func GetPaymentInformations() gin.HandlerFunc {
 		}
 
 		filter := bson.M{"user_id": userId}
-		findOptions := options.Find().SetLimit(3)
+		paginationArgs := common.GetPaginationArgs(c)
+		findOptions := options.Find().
+			SetLimit(int64(paginationArgs.Limit)).
+			SetSkip(int64(paginationArgs.Skip)).
+			SetSort(bson.D{{Key: "date", Value: -1}})
 		cursor, err := common.PaymentInformationCollection.Find(ctx, filter, findOptions)
 		if err != nil {
-			log.Printf("Error fetching payment informations: %v", err)
 			util.HandleError(c, http.StatusNotFound, err, "Error fetching payment informations")
 			return
 		}
@@ -175,7 +177,20 @@ func GetPaymentInformations() gin.HandlerFunc {
 			return
 		}
 
-		util.HandleSuccess(c, http.StatusOK, "Success", paymentInfos)
+		count, err := common.PaymentInformationCollection.CountDocuments(ctx, filter)
+		if err != nil {
+			log.Println(err)
+			util.HandleError(c, http.StatusInternalServerError, err, "Failed to count payment-information")
+			return
+		}
+
+		util.HandleSuccessMeta(c, http.StatusOK, "success", paymentInfos, gin.H{
+			"pagination": util.Pagination{
+				Limit: paginationArgs.Limit,
+				Skip:  paginationArgs.Skip,
+				Count: count,
+			},
+		})
 	}
 }
 

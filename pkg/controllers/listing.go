@@ -3,14 +3,15 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"log"
+	"net/http"
+	"time"
+
 	auth "khoomi-api-io/api/internal/auth"
 	"khoomi-api-io/api/internal/common"
 	"khoomi-api-io/api/pkg/models"
 	"khoomi-api-io/api/pkg/util"
 	email "khoomi-api-io/api/web/email"
-	"log"
-	"net/http"
-	"time"
 
 	"github.com/cloudinary/cloudinary-go/api/uploader"
 	"github.com/gin-gonic/gin"
@@ -188,7 +189,6 @@ func CreateListing() gin.HandlerFunc {
 		email.SendNewListingEmail(loginEmail, loginName, newListing.ListingDetails.Title)
 
 		util.HandleSuccess(c, http.StatusOK, "Listing was created successfully", res.InsertedID)
-
 	}
 }
 
@@ -471,12 +471,7 @@ func GetMyListingsSummary() gin.HandlerFunc {
 			util.HandleError(c, http.StatusNotFound, err, "no listing found")
 			return
 		}
-		defer func() {
-			if err := cursor.Close(ctx); err != nil {
-				println("Failed to close cursor:", err)
-			}
-		}()
-
+		defer cursor.Close(ctx)
 		var listings []models.ListingsSummary
 		if err := cursor.All(ctx, &listings); err != nil {
 			util.HandleError(c, http.StatusNotFound, err, "Failed to retrieve listings")
@@ -517,12 +512,12 @@ func GetShopListings() gin.HandlerFunc {
 			SetLimit(int64(paginationArgs.Limit)).
 			SetSkip(int64(paginationArgs.Skip)).
 			SetSort(common.GetListingSortingBson(paginationArgs.Sort))
-
-		result, err := common.ListingCollection.Find(ctx, bson.M{"shop_id": shopObjectId}, findOptions)
+		cursor, err := common.ListingCollection.Find(ctx, bson.M{"shop_id": shopObjectId}, findOptions)
 		if err != nil {
 			util.HandleError(c, http.StatusNotFound, err, "error retrieving listings")
 			return
 		}
+		defer cursor.Close(ctx)
 
 		count, err := common.ListingCollection.CountDocuments(ctx, bson.M{"shop_id": shopObjectId})
 		if err != nil {
@@ -531,7 +526,7 @@ func GetShopListings() gin.HandlerFunc {
 		}
 
 		var listings []models.Listing
-		if err = result.All(ctx, &listings); err != nil {
+		if err = cursor.All(ctx, &listings); err != nil {
 			util.HandleError(c, http.StatusInternalServerError, err, "Failed to decode listings")
 			return
 		}

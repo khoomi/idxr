@@ -143,26 +143,22 @@ func GetShopShippingProfileInfos() gin.HandlerFunc {
 		findOptions := options.Find().
 			SetLimit(int64(paginationArgs.Limit)).
 			SetSkip(int64(paginationArgs.Skip)).
-			SetSort(bson.D{{Key: "date", Value: -1}}) // Sort by date field in descending order (-1)
-
-		result, err := common.ShippingProfileCollection.Find(ctx, filter, findOptions)
+			SetSort(bson.D{{Key: "date", Value: -1}})
+		cursor, err := common.ShippingProfileCollection.Find(ctx, filter, findOptions)
 		if err != nil {
-			log.Println(err)
 			util.HandleError(c, http.StatusInternalServerError, err, "Failed to find shipping profiles")
+			return
+		}
+		defer cursor.Close(ctx)
+		var shippingProfiles []models.ShopShippingProfile
+		if err = cursor.All(ctx, &shippingProfiles); err != nil {
+			util.HandleError(c, http.StatusInternalServerError, err, "Failed to decode shipping profiles")
 			return
 		}
 
 		count, err := common.ShippingProfileCollection.CountDocuments(ctx, filter)
 		if err != nil {
-			log.Println(err)
 			util.HandleError(c, http.StatusInternalServerError, err, "Failed to count shipping profiles")
-			return
-		}
-
-		var shippingProfiles []models.ShopShippingProfile
-		if err = result.All(ctx, &shippingProfiles); err != nil {
-			log.Println(err)
-			util.HandleError(c, http.StatusInternalServerError, err, "Failed to decode shipping profiles")
 			return
 		}
 

@@ -4,17 +4,18 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	auth "khoomi-api-io/api/internal/auth"
-	"khoomi-api-io/api/internal/common"
-	"khoomi-api-io/api/pkg/models"
-	"khoomi-api-io/api/pkg/util"
-	email "khoomi-api-io/api/web/email"
 	"log"
 	"net/http"
 	"net/url"
 	"path/filepath"
 	"strings"
 	"time"
+
+	auth "khoomi-api-io/api/internal/auth"
+	"khoomi-api-io/api/internal/common"
+	"khoomi-api-io/api/pkg/models"
+	"khoomi-api-io/api/pkg/util"
+	email "khoomi-api-io/api/web/email"
 
 	"github.com/cloudinary/cloudinary-go/api/uploader"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -365,7 +366,6 @@ func Logout() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		auth.DeleteSession(c)
 		util.HandleSuccess(c, http.StatusOK, "logout successful", nil)
-
 	}
 }
 
@@ -501,7 +501,6 @@ func ChangePassword() gin.HandlerFunc {
 		filter := bson.M{"_id": userId}
 		update := bson.M{"$set": bson.M{"auth.password_digest": hashedPassword, "modified_at": time.Now()}}
 		err = common.UserCollection.FindOneAndUpdate(ctx, filter, update).Decode(&user)
-
 		if err != nil {
 			errStr := err.Error()
 			log.Printf("user id, %v doesn't belong to a user on Khoomi %v", userId.String(), errStr)
@@ -674,7 +673,7 @@ func UpdateMyProfile() gin.HandlerFunc {
 
 		updateData := bson.M{}
 
-		if firstName := c.Request.FormValue("first_name"); firstName != "" {
+		if firstName := c.Request.FormValue("firstName"); firstName != "" {
 			if err := common.ValidateNameFormat(firstName); err != nil {
 				util.HandleError(c, http.StatusBadRequest, err, "Invalid first name format")
 				return
@@ -682,7 +681,7 @@ func UpdateMyProfile() gin.HandlerFunc {
 			updateData["first_name"] = firstName
 		}
 
-		if lastName := c.Request.FormValue("last_name"); lastName != "" {
+		if lastName := c.Request.FormValue("lastName"); lastName != "" {
 			if err := common.ValidateNameFormat(lastName); err != nil {
 				util.HandleError(c, http.StatusBadRequest, err, "Invalid last name format")
 				return
@@ -759,22 +758,22 @@ func GetLoginHistories() gin.HandlerFunc {
 			SetLimit(int64(paginationArgs.Limit)).
 			SetSkip(int64(paginationArgs.Skip)).
 			SetSort(util.GetLoginHistorySortBson(paginationArgs.Sort))
-
-		result, err := common.LoginHistoryCollection.Find(ctx, filter, findOptions)
+		cursor, err := common.LoginHistoryCollection.Find(ctx, filter, findOptions)
 		if err != nil {
 			util.HandleError(c, http.StatusNotFound, err, "Failed to find login histories")
+			return
+		}
+		defer cursor.Close(ctx)
+
+		var loginHistory []models.LoginHistory
+		if err = cursor.All(ctx, &loginHistory); err != nil {
+			util.HandleError(c, http.StatusNotFound, err, "Failed to decode login histories")
 			return
 		}
 
 		count, err := common.LoginHistoryCollection.CountDocuments(ctx, filter)
 		if err != nil {
 			util.HandleError(c, http.StatusInternalServerError, err, "Failed to count login histories")
-			return
-		}
-
-		var loginHistory []models.LoginHistory
-		if err = result.All(ctx, &loginHistory); err != nil {
-			util.HandleError(c, http.StatusNotFound, err, "Failed to decode login histories")
 			return
 		}
 
@@ -1166,7 +1165,6 @@ func CreateUserAddress() gin.HandlerFunc {
 
 		util.HandleSuccess(c, http.StatusOK, "Address created!", userAddressTemp.Id.Hex())
 	}
-
 }
 
 // GetUserAddresses - get user address
@@ -1189,11 +1187,7 @@ func GetUserAddresses() gin.HandlerFunc {
 			util.HandleError(c, http.StatusNotFound, err, "User addresses not found")
 			return
 		}
-		defer func() {
-			if err := cursor.Close(ctx); err != nil {
-				log.Println("Failed to close cursor:", err)
-			}
-		}()
+		defer cursor.Close(ctx)
 
 		var userAddresses []models.UserAddress
 		if err := cursor.All(ctx, &userAddresses); err != nil {
@@ -1580,14 +1574,14 @@ func GetUserWishlist() gin.HandlerFunc {
 		paginationArgs := common.GetPaginationArgs(c)
 		filter := bson.M{"user_id": MyId}
 		find := options.Find().SetLimit(int64(paginationArgs.Limit)).SetSkip(int64(paginationArgs.Skip))
-		result, err := common.WishListCollection.Find(ctx, filter, find)
+		cursor, err := common.WishListCollection.Find(ctx, filter, find)
 		if err != nil {
 			util.HandleError(c, http.StatusNotFound, err, "Wishlist not found")
 			return
 		}
-
+		defer cursor.Close(ctx)
 		var myWishLists []models.UserWishlist
-		if err := result.All(ctx, &myWishLists); err != nil {
+		if err := cursor.All(ctx, &myWishLists); err != nil {
 			util.HandleError(c, http.StatusInternalServerError, err, "Internal server error")
 			return
 		}

@@ -4,15 +4,16 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
+	"net/http"
+	"strings"
+	"time"
+
 	auth "khoomi-api-io/api/internal/auth"
 	"khoomi-api-io/api/internal/common"
 	"khoomi-api-io/api/pkg/models"
 	"khoomi-api-io/api/pkg/util"
 	email "khoomi-api-io/api/web/email"
-	"log"
-	"net/http"
-	"strings"
-	"time"
 
 	"github.com/cloudinary/cloudinary-go/api/uploader"
 	"github.com/gin-gonic/gin"
@@ -1044,7 +1045,8 @@ func GetShopFollowers() gin.HandlerFunc {
 					Limit: paginationArgs.Limit,
 					Skip:  paginationArgs.Skip,
 					Count: count,
-				}})
+				},
+			})
 	}
 }
 
@@ -1074,7 +1076,6 @@ func IsFollowingShop() gin.HandlerFunc {
 		}
 
 		util.HandleSuccess(c, http.StatusOK, "Success", true)
-
 	}
 }
 
@@ -1848,11 +1849,7 @@ func GetShopReturnPolicies() gin.HandlerFunc {
 			util.HandleError(c, http.StatusInternalServerError, err, "Error searching for shops")
 			return
 		}
-		defer func() {
-			if err := cursor.Close(ctx); err != nil {
-				log.Println("Failed to close cursor:", err)
-			}
-		}()
+		defer cursor.Close(ctx)
 
 		// Serialize the shop policies and return them to the client
 		var policies []models.ShopReturnPolicies
