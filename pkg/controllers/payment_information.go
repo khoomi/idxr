@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"net/http"
 
@@ -179,11 +180,11 @@ func GetPaymentInformations() gin.HandlerFunc {
 
 		count, err := common.PaymentInformationCollection.CountDocuments(ctx, filter)
 		if err != nil {
-			log.Println(err)
 			util.HandleError(c, http.StatusInternalServerError, err, "Failed to count payment-information")
 			return
 		}
 
+		fmt.Println(paymentInfos)
 		util.HandleSuccessMeta(c, http.StatusOK, "success", paymentInfos, gin.H{
 			"pagination": util.Pagination{
 				Limit: paginationArgs.Limit,

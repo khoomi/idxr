@@ -177,10 +177,10 @@ func HandleUserAuthentication() gin.HandlerFunc {
 		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
 		defer cancel()
 
-		var jsonUser models.UserLoginBody
 		clientIP := c.ClientIP()
 		now := time.Now()
 
+		var jsonUser models.UserLoginBody
 		if err := c.BindJSON(&jsonUser); err != nil {
 			util.HandleError(c, http.StatusBadRequest, err, "Failed to bind request body")
 			return
