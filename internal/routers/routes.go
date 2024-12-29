@@ -105,11 +105,10 @@ func userRoutes(api *gin.RouterGroup) {
 			secured.DELETE("/:userid/wishlist", controllers.RemoveWishListItem())
 
 			// Payment information endpoints
-			secured.POST("/:userid/payment-information/", controllers.CreatePaymentInformation())
-			secured.GET("/:userid/payment-information/onboarded", controllers.CompletedPaymentOnboarding())
-			secured.GET("/:userid/payment-information", controllers.GetPaymentInformations())
-			secured.PUT("/:userid/payment-information/:paymentInfoId/default", controllers.ChangeDefaultPaymentInformation())
-			secured.DELETE("/:userid/payment-information/:paymentInfoId", controllers.DeletePaymentInformation())
+			secured.POST("/:userid/payment-information/", controllers.CreateBuyererPaymentInformation())
+			secured.GET("/:userid/payment-information", controllers.GetBuyerPaymentInformations())
+			secured.PUT("/:userid/payment-information/:paymentInfoId/default", controllers.ChangeDefaultBuyerPaymentInformation())
+			secured.DELETE("/:userid/payment-information/:paymentInfoId", controllers.DeleteBuyerPaymentInformation())
 
 		}
 	}
@@ -185,6 +184,13 @@ func shopRoutes(api *gin.RouterGroup) {
 			// Compliance information endpoints
 			secured.POST("/:shopid/compliance", controllers.CreateShopComplianceInformation())
 			secured.GET("/:shopid/compliance", controllers.GetShopComplianceInformation())
+			// Payment information endpoints
+			secured.POST("/:shopid/payment-information/", controllers.CreateSellerPaymentInformation())
+			secured.GET("/:shopid/payment-information/onboarded", controllers.CompletedPaymentOnboarding())
+			secured.GET("/:shopid/payment-information", controllers.GetSellerPaymentInformations())
+			secured.PUT("/:shopid/payment-information/:paymentInfoId/default", controllers.ChangeDefaultSellerPaymentInformation())
+			secured.DELETE("/:shopid/payment-information/:paymentInfoId", controllers.DeleteSellerPaymentInformation())
+
 		}
 
 		listing := shop.Group("")

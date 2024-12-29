@@ -38,7 +38,7 @@ type User struct {
 // UserRegistrationBody -> expected data for signup process
 type UserRegistrationBody struct {
 	FirstName string `json:"firstName,omitempty" validate:"required,min=3"`
-	LastName  string `json:"lastName,omitempty" validate:"required,min=3"`
+	LastName  string `json:"lastName,omitempty"`
 	Email     string `json:"email,omitempty" validate:"required,email"`
 	Password  string `json:"password,omitempty" validate:"required"`
 }
