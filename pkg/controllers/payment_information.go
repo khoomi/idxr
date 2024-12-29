@@ -2,7 +2,6 @@ package controllers
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"net/http"
 	"time"
@@ -329,7 +328,7 @@ func CompletedPaymentOnboarding() gin.HandlerFunc {
 }
 
 // / CreateBuyerPaymentInformation -> POST /:userId/payment-information/
-func CreateBuyererPaymentInformation() gin.HandlerFunc {
+func CreateBuyerPaymentInformation() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		now := time.Now()
 		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
