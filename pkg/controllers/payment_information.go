@@ -327,8 +327,8 @@ func CompletedPaymentOnboarding() gin.HandlerFunc {
 	}
 }
 
-// / CreateBuyerPaymentInformation -> POST /:userId/payment-information/
-func CreateBuyerPaymentInformation() gin.HandlerFunc {
+// / CreatePaymentInformation -> POST /:userId/payment-information/
+func CreatePaymentCard() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		now := time.Now()
 		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
@@ -340,7 +340,7 @@ func CreateBuyerPaymentInformation() gin.HandlerFunc {
 			return
 		}
 
-		var paymentInfo models.BuyerPaymentInformationRequest
+		var paymentInfo models.CardPaymentInformationRequest
 		if err := c.BindJSON(&paymentInfo); err != nil {
 			util.HandleError(c, http.StatusBadRequest, err, "Invalid data detected in JSON")
 			return
@@ -351,7 +351,7 @@ func CreateBuyerPaymentInformation() gin.HandlerFunc {
 			return
 		}
 
-		paymentInfoToUpload := models.BuyerPaymentInformation{
+		paymentInfoToUpload := models.CardPaymentInformation{
 			ID:             primitive.NewObjectID(),
 			UserID:         userId,
 			IsDefault:      paymentInfo.IsDefault,
@@ -364,7 +364,7 @@ func CreateBuyerPaymentInformation() gin.HandlerFunc {
 			UpdatedAt:      now,
 		}
 
-		count, err := common.BuyerPaymentInformationCollection.CountDocuments(ctx, bson.M{"user_id": userId})
+		count, err := common.PaymentInformationCollection.CountDocuments(ctx, bson.M{"user_id": userId})
 		if err != nil {
 			util.HandleError(c, http.StatusInternalServerError, err, "Error counting current payment information")
 			return
@@ -388,7 +388,7 @@ func CreateBuyerPaymentInformation() gin.HandlerFunc {
 			log.Println("Start mongo transaction for new payament information creation")
 			if paymentInfoToUpload.IsDefault {
 				// Set IsDefaultShippingAddress to false for other addresses belonging to the user
-				err = setOtherPaymentsToFalse(ctx, common.BuyerPaymentInformationCollection, userId, paymentInfoToUpload.ID)
+				err = setOtherPaymentsToFalse(ctx, common.PaymentInformationCollection, userId, paymentInfoToUpload.ID)
 				if err != nil {
 					return nil, err
 				}
@@ -419,8 +419,8 @@ func CreateBuyerPaymentInformation() gin.HandlerFunc {
 	}
 }
 
-// / GetSellerPaymentInformations -> GET /:userId/payment-information/
-func GetBuyerPaymentInformations() gin.HandlerFunc {
+// / GetPaymentCards-> GET /:userId/payment-card/
+func GetPaymentCards() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
 		defer cancel()
@@ -437,20 +437,20 @@ func GetBuyerPaymentInformations() gin.HandlerFunc {
 			SetLimit(int64(paginationArgs.Limit)).
 			SetSkip(int64(paginationArgs.Skip)).
 			SetSort(bson.D{{Key: "date", Value: -1}})
-		cursor, err := common.BuyerPaymentInformationCollection.Find(ctx, filter, findOptions)
+		cursor, err := common.PaymentInformationCollection.Find(ctx, filter, findOptions)
 		if err != nil {
 			util.HandleError(c, http.StatusNotFound, err, "Error fetching payment informations")
 			return
 		}
 		defer cursor.Close(ctx)
 
-		var paymentInfos []models.BuyerPaymentInformation
+		var paymentInfos []models.CardPaymentInformation
 		if err := cursor.All(ctx, &paymentInfos); err != nil {
 			util.HandleError(c, http.StatusNotFound, err, "Error retrieving payment informations")
 			return
 		}
 
-		count, err := common.BuyerPaymentInformationCollection.CountDocuments(ctx, filter)
+		count, err := common.PaymentInformationCollection.CountDocuments(ctx, filter)
 		if err != nil {
 			util.HandleError(c, http.StatusInternalServerError, err, "Failed to count payment-information")
 			return
@@ -466,8 +466,8 @@ func GetBuyerPaymentInformations() gin.HandlerFunc {
 	}
 }
 
-// / ChangeDefaulterPaymentInformation -> PUT /:userId/payment-information/:paymentInfoId
-func ChangeDefaultBuyerPaymentInformation() gin.HandlerFunc {
+// / ChangeDefaulterPaymentCard-> PUT /:userId/payment-card/:cardId
+func ChangeDefaultPaymentCard() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
 		defer cancel()
@@ -487,7 +487,7 @@ func ChangeDefaultBuyerPaymentInformation() gin.HandlerFunc {
 			return
 		}
 
-		paymentInfoID := c.Param("paymentInfoId")
+		paymentInfoID := c.Param("cardId")
 		if paymentInfoID == "" {
 			util.HandleError(c, http.StatusBadRequest, errors.New("No payment id was provided!"), "bad request")
 			return
@@ -495,7 +495,7 @@ func ChangeDefaultBuyerPaymentInformation() gin.HandlerFunc {
 
 		paymentObjectID, err := primitive.ObjectIDFromHex(paymentInfoID)
 		if err != nil {
-			util.HandleError(c, http.StatusBadRequest, errors.New("bad payment id"), "bad request")
+			util.HandleError(c, http.StatusBadRequest, errors.New("bad payment card id"), "bad request")
 			return
 		}
 
@@ -517,13 +517,13 @@ func ChangeDefaultBuyerPaymentInformation() gin.HandlerFunc {
 	}
 }
 
-// / DeleteBuyerPaymentInformation -> DELETE /user/:userId/payment-information/:paymentInfoId
-func DeleteBuyerPaymentInformation() gin.HandlerFunc {
+// / DeletePaymentCard-> DELETE /user/:userId/payment-card/:cardId
+func DeletePaymentCard() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
 		defer cancel()
 
-		paymentInfoID := c.Param("paymentInfoId")
+		paymentInfoID := c.Param("cardId")
 		paymentObjectID, err := primitive.ObjectIDFromHex(paymentInfoID)
 		if err != nil {
 			util.HandleError(c, http.StatusBadRequest, errors.New("bad payment id"), "bad request")
@@ -536,7 +536,7 @@ func DeleteBuyerPaymentInformation() gin.HandlerFunc {
 		}
 
 		filter := bson.M{"_id": paymentObjectID, "user_id": userId}
-		result, err := common.BuyerPaymentInformationCollection.DeleteOne(ctx, filter)
+		result, err := common.PaymentInformationCollection.DeleteOne(ctx, filter)
 		if err != nil {
 			util.HandleError(c, http.StatusNotFound, err, "Error deleting payment information")
 			return
