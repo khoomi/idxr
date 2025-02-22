@@ -105,10 +105,11 @@ func userRoutes(api *gin.RouterGroup) {
 			secured.DELETE("/:userid/wishlist", controllers.RemoveWishListItem())
 
 			// Payment information endpoints
-			secured.POST("/:userid/payment-card/", controllers.CreatePaymentCard())
-			secured.GET("/:userid/payment-card", controllers.GetPaymentCards())
-			secured.PUT("/:userid/payment-card/:cardId/default", controllers.ChangeDefaultPaymentCard())
-			secured.DELETE("/:userid/payment-card/:cardId", controllers.DeletePaymentCard())
+			payment := user.Group("/:userid/payment/cards").Use(auth.Auth())
+			payment.POST("/", controllers.CreatePaymentCard())
+			payment.GET("/", controllers.GetPaymentCards())
+			payment.PUT("/:id/default", controllers.ChangeDefaultPaymentCard())
+			payment.DELETE("/:id", controllers.DeletePaymentCard())
 
 		}
 	}

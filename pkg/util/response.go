@@ -36,10 +36,10 @@ type ErrorResponse struct {
 	Status int    `json:"status"`
 }
 
-func HandleError(c *gin.Context, statusCode int, err error, message string) {
-	log.Printf("error: %v \n message: %v", err, message)
+func HandleError(c *gin.Context, statusCode int, err error) {
+	log.Printf("error: %v", err)
 	c.JSON(statusCode, ErrorResponse{
-		Error:  message,
+		Error:  err.Error(),
 		Status: statusCode,
 	})
 }

@@ -25,39 +25,39 @@ func CreateSellerVerificationProfile() gin.HandlerFunc {
 		shopId := c.Param("shopid")
 		shopIdObj, err := primitive.ObjectIDFromHex(shopId)
 		if err != nil {
-			util.HandleError(c, http.StatusUnprocessableEntity, err, "Invalid shop id")
+			util.HandleError(c, http.StatusUnprocessableEntity, err)
 			return
 		}
 
 		// Check if the user owns the shop
 		session_, err := auth.GetSessionAuto(c)
 		if err != nil {
-			util.HandleError(c, http.StatusUnauthorized, err, "Invalid user token, id or access")
+			util.HandleError(c, http.StatusUnauthorized, err)
 			return
 		}
 		userId, err := session_.GetUserObjectId()
 		if err != nil {
-			util.HandleError(c, http.StatusUnauthorized, err, "Invalid user token, id or access")
+			util.HandleError(c, http.StatusUnauthorized, err)
 			return
 		}
 
 		err = common.VerifyShopOwnership(c, userId, shopIdObj)
 		if err != nil {
 			log.Printf("Error you the shop owner: %s\n", err.Error())
-			util.HandleError(c, http.StatusForbidden, err, "shop ownership validation error")
+			util.HandleError(c, http.StatusForbidden, err)
 			return
 		}
 
 		var verificationJson models.CreateSellerVerificationRequest
 		err = c.BindJSON(&verificationJson)
 		if err != nil {
-			util.HandleError(c, http.StatusUnprocessableEntity, err, "invalid request body")
+			util.HandleError(c, http.StatusUnprocessableEntity, err)
 			return
 		}
 
 		// Validate request body
 		if validationErr := common.Validate.Struct(&verificationJson); validationErr != nil {
-			util.HandleError(c, http.StatusUnprocessableEntity, err, "invalid request body")
+			util.HandleError(c, http.StatusUnprocessableEntity, err)
 			return
 		}
 
@@ -79,7 +79,7 @@ func CreateSellerVerificationProfile() gin.HandlerFunc {
 		}
 		res, err := common.SellerVerificationCollection.InsertOne(ctx, ShippingProfile)
 		if err != nil {
-			util.HandleError(c, http.StatusUnauthorized, err, "Internal server error while creating verification")
+			util.HandleError(c, http.StatusUnauthorized, err)
 			return
 		}
 
@@ -95,25 +95,25 @@ func GetSellerVerificationProfile() gin.HandlerFunc {
 		shopId := c.Param("shopid")
 		shopIdObj, err := primitive.ObjectIDFromHex(shopId)
 		if err != nil {
-			util.HandleError(c, http.StatusUnprocessableEntity, err, "invalid shopid")
+			util.HandleError(c, http.StatusUnprocessableEntity, err)
 			return
 		}
 
 		// Check if the user owns the shop
 		session_, err := auth.GetSessionAuto(c)
 		if err != nil {
-			util.HandleError(c, http.StatusUnauthorized, err, "Invalid user token, id or access")
+			util.HandleError(c, http.StatusUnauthorized, err)
 			return
 		}
 		userId, err := session_.GetUserObjectId()
 		if err != nil {
-			util.HandleError(c, http.StatusUnauthorized, err, "Invalid user token, id or access")
+			util.HandleError(c, http.StatusUnauthorized, err)
 			return
 		}
 		err = common.VerifyShopOwnership(c, userId, shopIdObj)
 		if err != nil {
 			log.Printf("Error you the shop owner: %s\n", err.Error())
-			util.HandleError(c, http.StatusForbidden, err, "shop ownership validation error")
+			util.HandleError(c, http.StatusForbidden, err)
 			return
 		}
 
@@ -121,10 +121,10 @@ func GetSellerVerificationProfile() gin.HandlerFunc {
 		err = common.SellerVerificationCollection.FindOne(ctx, bson.M{"shop_id": shopIdObj}).Decode(&verificationProfile)
 		if err != nil {
 			if err == mongo.ErrNoDocuments {
-				util.HandleError(c, http.StatusNotFound, err, "verification profile not found")
+				util.HandleError(c, http.StatusNotFound, err)
 				return
 			}
-			util.HandleError(c, http.StatusInternalServerError, err, "Internal server error while fetching verification profile")
+			util.HandleError(c, http.StatusInternalServerError, err)
 			return
 		}
 

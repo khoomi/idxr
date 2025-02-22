@@ -17,14 +17,14 @@ func Auth() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		key, err := ExtractSessionKey(c)
 		if err != nil {
-			util.HandleError(c, http.StatusUnauthorized, err, "User not logged in")
+			util.HandleError(c, http.StatusUnauthorized, err)
 			c.Abort()
 			return
 		}
 
 		session, err := GetSession(c, key)
 		if err != nil {
-			util.HandleError(c, http.StatusUnauthorized, err, "User not logged in")
+			util.HandleError(c, http.StatusUnauthorized, err)
 			c.Abort()
 			return
 		}
@@ -34,7 +34,7 @@ func Auth() gin.HandlerFunc {
 			if err != nil {
 				fmt.Println(err)
 			}
-			util.HandleError(c, 401, errors.New("Session expired"), "Session expired")
+			util.HandleError(c, 401, errors.New("Session expired"))
 			c.Abort()
 			return
 		}

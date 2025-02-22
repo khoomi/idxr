@@ -26,26 +26,26 @@ func CreateShopShippingProfile() gin.HandlerFunc {
 		shopIdObj, err := primitive.ObjectIDFromHex(shopId)
 		if err != nil {
 			log.Println(err)
-			util.HandleError(c, http.StatusUnprocessableEntity, err, "invalid shopid")
+			util.HandleError(c, http.StatusUnprocessableEntity, err)
 			return
 		}
 
 		// Check if the user owns the shop
 		session, err := auth.GetSessionAuto(c)
 		if err != nil {
-			util.HandleError(c, http.StatusUnauthorized, err, "Invalid user token, id or access")
+			util.HandleError(c, http.StatusUnauthorized, err)
 			return
 		}
 		userID, err := session.GetUserObjectId()
 		if err != nil {
-			util.HandleError(c, http.StatusUnauthorized, err, "Invalid user token, id or access")
+			util.HandleError(c, http.StatusUnauthorized, err)
 			return
 		}
 
 		err = common.VerifyShopOwnership(c, userID, shopIdObj)
 		if err != nil {
 			log.Printf("Error you the shop owner: %s\n", err.Error())
-			util.HandleError(c, http.StatusForbidden, err, "shop ownership validation error")
+			util.HandleError(c, http.StatusForbidden, err)
 			return
 		}
 
@@ -53,13 +53,13 @@ func CreateShopShippingProfile() gin.HandlerFunc {
 		err = c.BindJSON(&shippingJson)
 		if err != nil {
 			log.Println(err)
-			util.HandleError(c, http.StatusUnprocessableEntity, err, "invalid request body")
+			util.HandleError(c, http.StatusUnprocessableEntity, err)
 			return
 		}
 
 		// Validate request body
 		if err := common.Validate.Struct(&shippingJson); err != nil {
-			util.HandleError(c, http.StatusUnprocessableEntity, err, "invalid request body")
+			util.HandleError(c, http.StatusUnprocessableEntity, err)
 			return
 		}
 		shippingPolicy := models.ShippingPolicy{
@@ -95,7 +95,7 @@ func CreateShopShippingProfile() gin.HandlerFunc {
 		res, err := common.ShippingProfileCollection.InsertOne(ctx, ShippingProfile)
 		if err != nil {
 			log.Println(err)
-			util.HandleError(c, http.StatusInternalServerError, err, "document insert error")
+			util.HandleError(c, http.StatusInternalServerError, err)
 			return
 		}
 
@@ -111,14 +111,14 @@ func GetShopShippingProfileInfo() gin.HandlerFunc {
 		profileIdString := c.Param("id")
 		profileId, err := primitive.ObjectIDFromHex(profileIdString)
 		if err != nil {
-			util.HandleError(c, http.StatusBadRequest, err, "invalid shipping profile id")
+			util.HandleError(c, http.StatusBadRequest, err)
 			return
 		}
 
 		var shippingProfile models.ShopShippingProfile
 		err = common.ShippingProfileCollection.FindOne(ctx, bson.M{"_id": profileId}).Decode(&shippingProfile)
 		if err != nil {
-			util.HandleError(c, http.StatusBadRequest, err, "invalid shipping profile id")
+			util.HandleError(c, http.StatusBadRequest, err)
 			return
 		}
 
@@ -134,7 +134,7 @@ func GetShopShippingProfileInfos() gin.HandlerFunc {
 		shopIDStr := c.Param("shopid")
 		shopIDObject, err := primitive.ObjectIDFromHex(shopIDStr)
 		if err != nil {
-			util.HandleError(c, http.StatusUnauthorized, err, "Invalid user token, id or access")
+			util.HandleError(c, http.StatusUnauthorized, err)
 			return
 		}
 
@@ -146,19 +146,19 @@ func GetShopShippingProfileInfos() gin.HandlerFunc {
 			SetSort(bson.D{{Key: "date", Value: -1}})
 		cursor, err := common.ShippingProfileCollection.Find(ctx, filter, findOptions)
 		if err != nil {
-			util.HandleError(c, http.StatusInternalServerError, err, "Failed to find shipping profiles")
+			util.HandleError(c, http.StatusInternalServerError, err)
 			return
 		}
 		defer cursor.Close(ctx)
 		var shippingProfiles []models.ShopShippingProfile
 		if err = cursor.All(ctx, &shippingProfiles); err != nil {
-			util.HandleError(c, http.StatusInternalServerError, err, "Failed to decode shipping profiles")
+			util.HandleError(c, http.StatusInternalServerError, err)
 			return
 		}
 
 		count, err := common.ShippingProfileCollection.CountDocuments(ctx, filter)
 		if err != nil {
-			util.HandleError(c, http.StatusInternalServerError, err, "Failed to count shipping profiles")
+			util.HandleError(c, http.StatusInternalServerError, err)
 			return
 		}
 

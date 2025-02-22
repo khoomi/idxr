@@ -37,20 +37,20 @@ func ActiveSessionUser(c *gin.Context) {
 	// Extract user id from request header
 	session, err := auth.GetSessionAuto(c)
 	if err != nil {
-		util.HandleError(c, http.StatusNotFound, err, err.Error())
+		util.HandleError(c, http.StatusNotFound, err)
 		return
 	}
 
 	userId, err := session.GetUserObjectId()
 	if err != nil {
 		log.Printf("User with IP %v tried to gain access with an invalid user ID or token\n", c.ClientIP())
-		util.HandleError(c, http.StatusBadRequest, err, "Invalid user ID or token")
+		util.HandleError(c, http.StatusBadRequest, err)
 		return
 	}
 
 	err = common.UserCollection.FindOne(ctx, bson.M{"_id": userId}).Decode(&user)
 	if err != nil {
-		util.HandleError(c, http.StatusNotFound, err, "User not found")
+		util.HandleError(c, http.StatusNotFound, err)
 		return
 	}
 	user.Auth.PasswordDigest = ""
@@ -68,31 +68,31 @@ func CreateUser() gin.HandlerFunc {
 
 		var jsonUser models.UserRegistrationBody
 		if err := c.BindJSON(&jsonUser); err != nil {
-			util.HandleError(c, http.StatusBadRequest, err, "Invalid or missing data in request body")
+			util.HandleError(c, http.StatusBadRequest, err)
 			return
 		}
 
 		if err := common.Validate.Struct(&jsonUser); err != nil {
-			util.HandleError(c, http.StatusBadRequest, err, "Invalid or missing data in request body")
+			util.HandleError(c, http.StatusBadRequest, err)
 			return
 		}
 
 		errEmail := util.ValidateEmailAddress(jsonUser.Email)
 		if errEmail != nil {
 			log.Printf("Invalid email address from user %s with IP %s at %s: %s\n", jsonUser.FirstName, c.ClientIP(), time.Now().Format(time.RFC3339), errEmail.Error())
-			util.HandleError(c, http.StatusBadRequest, errEmail, "Invalid email address")
+			util.HandleError(c, http.StatusBadRequest, errEmail)
 			return
 		}
 
 		err := util.ValidatePassword(jsonUser.Password)
 		if err != nil {
-			util.HandleError(c, http.StatusBadRequest, err, "Error validating password")
+			util.HandleError(c, http.StatusBadRequest, err)
 			return
 		}
 
 		hashedPassword, errHashPassword := util.HashPassword(jsonUser.Password)
 		if errHashPassword != nil {
-			util.HandleError(c, http.StatusBadRequest, errHashPassword, "Error hashing password")
+			util.HandleError(c, http.StatusBadRequest, errHashPassword)
 			return
 		}
 
@@ -138,14 +138,14 @@ func CreateUser() gin.HandlerFunc {
 				for _, writeError := range writeException.WriteErrors {
 					if writeError.Code == common.MongoDuplicateKeyCode {
 						log.Printf("User with email already exists: %s\n", writeError.Message)
-						util.HandleError(c, http.StatusBadRequest, writeError, "User with email already exists")
+						util.HandleError(c, http.StatusBadRequest, writeError)
 						return
 					}
 				}
 			}
 
 			log.Printf("Mongo Error: Request could not be completed %s\n", err.Error())
-			util.HandleError(c, http.StatusInternalServerError, err, "Request could not be completed")
+			util.HandleError(c, http.StatusInternalServerError, err)
 			return
 		}
 		notification := models.Notification{
@@ -160,7 +160,7 @@ func CreateUser() gin.HandlerFunc {
 
 		_, err = common.NotificationCollection.InsertOne(ctx, notification)
 		if err != nil {
-			util.HandleError(c, http.StatusInternalServerError, err, "Error creating notification")
+			util.HandleError(c, http.StatusInternalServerError, err)
 			return
 		}
 
@@ -182,24 +182,24 @@ func HandleUserAuthentication() gin.HandlerFunc {
 
 		var jsonUser models.UserLoginBody
 		if err := c.BindJSON(&jsonUser); err != nil {
-			util.HandleError(c, http.StatusBadRequest, err, "Failed to bind request body")
+			util.HandleError(c, http.StatusBadRequest, err)
 			return
 		}
 
 		if err := common.Validate.Struct(&jsonUser); err != nil {
 			log.Println(err)
-			util.HandleError(c, http.StatusBadRequest, err, "Invalid or missing data in request body")
+			util.HandleError(c, http.StatusBadRequest, err)
 			return
 		}
 
 		var validUser models.User
 		if err := common.UserCollection.FindOne(ctx, bson.M{"primary_email": jsonUser.Email}).Decode(&validUser); err != nil {
-			util.HandleError(c, http.StatusNotFound, err, "User not found")
+			util.HandleError(c, http.StatusNotFound, err)
 			return
 		}
 
 		if errPasswordCheck := util.CheckPassword(validUser.Auth.PasswordDigest, jsonUser.Password); errPasswordCheck != nil {
-			util.HandleError(c, http.StatusUnauthorized, errPasswordCheck, "Invalid password")
+			util.HandleError(c, http.StatusUnauthorized, errPasswordCheck)
 			return
 		}
 
@@ -207,7 +207,7 @@ func HandleUserAuthentication() gin.HandlerFunc {
 		txnOptions := options.Transaction().SetWriteConcern(wc)
 		session, err := util.DB.StartSession()
 		if err != nil {
-			util.HandleError(c, http.StatusInternalServerError, err, "Failed to start database session")
+			util.HandleError(c, http.StatusInternalServerError, err)
 			return
 		}
 		defer session.EndSession(ctx)
@@ -243,12 +243,12 @@ func HandleUserAuthentication() gin.HandlerFunc {
 
 		_, err = session.WithTransaction(ctx, callback, txnOptions)
 		if err != nil {
-			util.HandleError(c, http.StatusBadRequest, err, "Failed to execute transaction")
+			util.HandleError(c, http.StatusBadRequest, err)
 			return
 		}
 
 		if err := session.CommitTransaction(ctx); err != nil {
-			util.HandleError(c, http.StatusInternalServerError, err, "Failed to commit transaction")
+			util.HandleError(c, http.StatusInternalServerError, err)
 			return
 		}
 		session.EndSession(ctx)
@@ -284,8 +284,7 @@ func HandleUserAuthentication() gin.HandlerFunc {
 
 		sessionId, err := auth.SetSession(c, validUser.Id.Hex(), validUser.PrimaryEmail, validUser.LoginName)
 		if err != nil {
-			log.Println(err)
-			util.HandleError(c, http.StatusInternalServerError, errors.New("Failed to set session"), "Failed to set session")
+			util.HandleError(c, http.StatusInternalServerError, errors.New("Failed to set session"))
 			return
 		}
 
@@ -318,7 +317,7 @@ func GetMyActiveSession() gin.HandlerFunc {
 		if err != nil {
 			// Delete old session
 			auth.DeleteSession(c)
-			util.HandleError(c, http.StatusUnauthorized, errors.New("Unauthorized request"), "Unauthorized request")
+			util.HandleError(c, http.StatusUnauthorized, errors.New("Unauthorized request"))
 			return
 		}
 
@@ -336,13 +335,13 @@ func RefreshToken() gin.HandlerFunc {
 		if err != nil {
 			// Delete old session
 			auth.DeleteSession(c)
-			util.HandleError(c, http.StatusUnauthorized, errors.New("Unauthorized request"), "Unauthorized request")
+			util.HandleError(c, http.StatusUnauthorized, errors.New("Unauthorized request"))
 			return
 		}
 
 		if session.Expired() {
 			auth.DeleteSession(c)
-			util.HandleError(c, http.StatusUnauthorized, errors.New("Unauthorized request"), "Unauthorized request")
+			util.HandleError(c, http.StatusUnauthorized, errors.New("Unauthorized request"))
 			return
 		}
 
@@ -377,18 +376,18 @@ func SendDeleteUserAccount() gin.HandlerFunc {
 
 		session_, err := auth.GetSessionAuto(c)
 		if err != nil {
-			util.HandleError(c, http.StatusUnauthorized, err, "action is for authorized users")
+			util.HandleError(c, http.StatusUnauthorized, err)
 			return
 		}
 		userId, err := session_.GetUserObjectId()
 		if err != nil {
-			util.HandleError(c, http.StatusUnauthorized, err, "action is for authorized users")
+			util.HandleError(c, http.StatusUnauthorized, err)
 			return
 		}
 
 		_, err = common.UserDeletionCollection.InsertOne(ctx, bson.M{"user_id": userId, "created_at": time.Now()})
 		if err != nil {
-			util.HandleError(c, http.StatusUnauthorized, err, "error while requesting for account deletion")
+			util.HandleError(c, http.StatusUnauthorized, err)
 			return
 		}
 
@@ -404,7 +403,7 @@ func IsAccountPendingDeletion() gin.HandlerFunc {
 
 		userId, err := auth.ValidateUserID(c)
 		if err != nil {
-			util.HandleError(c, http.StatusUnauthorized, err, "action is for authorized users")
+			util.HandleError(c, http.StatusUnauthorized, err)
 			return
 		}
 
@@ -415,7 +414,7 @@ func IsAccountPendingDeletion() gin.HandlerFunc {
 				c.JSON(http.StatusOK, gin.H{"pendingDeletion": false})
 				return
 			}
-			util.HandleError(c, http.StatusInternalServerError, err, "error while checking account deletion status")
+			util.HandleError(c, http.StatusInternalServerError, err)
 			return
 		}
 
@@ -431,13 +430,13 @@ func CancelDeleteUserAccount() gin.HandlerFunc {
 
 		userId, err := auth.ValidateUserID(c)
 		if err != nil {
-			util.HandleError(c, http.StatusUnauthorized, err, "action is for authorized users")
+			util.HandleError(c, http.StatusUnauthorized, err)
 			return
 		}
 
 		_, err = common.UserDeletionCollection.DeleteOne(ctx, bson.M{"user_id": userId})
 		if err != nil {
-			util.HandleError(c, http.StatusUnauthorized, err, "error while cancelling account deletion request")
+			util.HandleError(c, http.StatusUnauthorized, err)
 			return
 		}
 
@@ -454,29 +453,29 @@ func ChangePassword() gin.HandlerFunc {
 		// Verify current user session
 		userId, err := auth.ValidateUserID(c)
 		if err != nil {
-			util.HandleError(c, http.StatusBadRequest, err, err.Error())
+			util.HandleError(c, http.StatusBadRequest, err)
 			return
 		}
 
 		var newPasswordFromRequest models.NewPasswordRequest
 		if err := c.Bind(&newPasswordFromRequest); err != nil {
-			util.HandleError(c, http.StatusInternalServerError, err, "failed to bind request body")
+			util.HandleError(c, http.StatusInternalServerError, err)
 			return
 		}
 		log.Printf("%v", newPasswordFromRequest)
 		var validUser models.User
 		if err := common.UserCollection.FindOne(ctx, bson.M{"_id": userId}).Decode(&validUser); err != nil {
-			util.HandleError(c, http.StatusUnauthorized, err, "User not found")
+			util.HandleError(c, http.StatusUnauthorized, err)
 			return
 		}
 
 		if errPasswordCheck := util.CheckPassword(validUser.Auth.PasswordDigest, newPasswordFromRequest.CurrentPassword); errPasswordCheck != nil {
-			util.HandleError(c, http.StatusUnauthorized, errPasswordCheck, "Invalid current password")
+			util.HandleError(c, http.StatusUnauthorized, errPasswordCheck)
 			return
 		}
 
 		if validationErr := common.Validate.Struct(&newPasswordFromRequest); validationErr != nil {
-			util.HandleError(c, http.StatusUnprocessableEntity, validationErr, "invalid or missing data in request body")
+			util.HandleError(c, http.StatusUnprocessableEntity, validationErr)
 			return
 		}
 
@@ -484,7 +483,7 @@ func ChangePassword() gin.HandlerFunc {
 		err = util.ValidatePassword(newPasswordFromRequest.NewPassword)
 		if err != nil {
 			log.Printf("error validating password: %s\n", err.Error())
-			util.HandleError(c, http.StatusExpectationFailed, err, err.Error())
+			util.HandleError(c, http.StatusExpectationFailed, err)
 			return
 		}
 
@@ -492,7 +491,7 @@ func ChangePassword() gin.HandlerFunc {
 		hashedPassword, errHashPassword := util.HashPassword(newPasswordFromRequest.NewPassword)
 		if errHashPassword != nil {
 			log.Printf("error hashing password: %s\n", errHashPassword.Error())
-			util.HandleError(c, http.StatusExpectationFailed, errHashPassword, errHashPassword.Error())
+			util.HandleError(c, http.StatusExpectationFailed, errHashPassword)
 			return
 		}
 
@@ -504,7 +503,7 @@ func ChangePassword() gin.HandlerFunc {
 		if err != nil {
 			errStr := err.Error()
 			log.Printf("user id, %v doesn't belong to a user on Khoomi %v", userId.String(), errStr)
-			util.HandleError(c, http.StatusExpectationFailed, errHashPassword, errStr)
+			util.HandleError(c, http.StatusExpectationFailed, errHashPassword)
 			return
 		}
 
@@ -526,7 +525,7 @@ func GetUser() gin.HandlerFunc {
 			// If shopid is a valid object ID string
 			userObjectID, e := primitive.ObjectIDFromHex(userID)
 			if e != nil {
-				util.HandleError(c, http.StatusBadRequest, e, "invalid user id was provided")
+				util.HandleError(c, http.StatusBadRequest, e)
 				return
 			}
 
@@ -539,7 +538,7 @@ func GetUser() gin.HandlerFunc {
 		var user models.User
 		err := common.UserCollection.FindOne(ctx, filter).Decode(&user)
 		if err != nil {
-			util.HandleError(c, http.StatusNotFound, err, "User not found")
+			util.HandleError(c, http.StatusNotFound, err)
 			return
 		}
 
@@ -562,19 +561,19 @@ func SendVerifyEmail() gin.HandlerFunc {
 		// Verify current user
 		session, err := auth.GetSessionAuto(c)
 		if err != nil {
-			util.HandleError(c, http.StatusUnauthorized, err, "action is for authorized users")
+			util.HandleError(c, http.StatusUnauthorized, err)
 			return
 		}
 		userId, err := session.GetUserObjectId()
 		if err != nil {
-			util.HandleError(c, http.StatusUnauthorized, err, "action is for authorized users")
+			util.HandleError(c, http.StatusUnauthorized, err)
 			return
 		}
 
 		// Verify current user email
 		err = util.ValidateEmailAddress(emailCurrent)
 		if err != nil {
-			util.HandleError(c, http.StatusBadRequest, err, "Invalid email address")
+			util.HandleError(c, http.StatusBadRequest, err)
 			return
 		}
 
@@ -592,7 +591,7 @@ func SendVerifyEmail() gin.HandlerFunc {
 		filter := bson.M{"user_uid": userId}
 		_, err = common.EmailVerificationTokenCollection.ReplaceOne(ctx, filter, verifyEmail, opts)
 		if err != nil {
-			util.HandleError(c, http.StatusBadRequest, err, err.Error())
+			util.HandleError(c, http.StatusBadRequest, err)
 			return
 		}
 
@@ -616,27 +615,27 @@ func VerifyEmail() gin.HandlerFunc {
 
 		userId, err := primitive.ObjectIDFromHex(currentId)
 		if err != nil {
-			util.HandleError(c, http.StatusBadRequest, err, "Invalid user ID")
+			util.HandleError(c, http.StatusBadRequest, err)
 			return
 		}
 
 		// Get and delete email verification
 		err = common.EmailVerificationTokenCollection.FindOneAndDelete(ctx, bson.M{"user_uid": userId}).Decode(&emailVerificationData)
 		if err != nil {
-			util.HandleError(c, http.StatusNotFound, err, "Email verification token not found")
+			util.HandleError(c, http.StatusNotFound, err)
 			return
 		}
 
 		// Check if verification token has expired
 		now := primitive.NewDateTimeFromTime(time.Now())
 		if now.Time().Unix() > emailVerificationData.ExpiresAt.Time().Unix() {
-			util.HandleError(c, http.StatusNotFound, errors.New("email verification token has expired"), "Email verification token has expired")
+			util.HandleError(c, http.StatusNotFound, errors.New("email verification token has expired"))
 			return
 		}
 
 		// Check if verification token is correct
 		if currentToken != emailVerificationData.TokenDigest {
-			util.HandleError(c, http.StatusNotFound, errors.New("incorrect or expired email verification token"), "Incorrect or expired email verification token")
+			util.HandleError(c, http.StatusNotFound, errors.New("incorrect or expired email verification token"))
 			return
 		}
 
@@ -645,7 +644,7 @@ func VerifyEmail() gin.HandlerFunc {
 		update := bson.M{"$set": bson.M{"status": "Active", "modified_at": now, "auth.modified_at": now, "auth.email_verified": true}}
 		err = common.UserCollection.FindOneAndUpdate(ctx, filter, update).Decode(&user)
 		if err != nil {
-			util.HandleError(c, http.StatusNotModified, err, "Failed to update user")
+			util.HandleError(c, http.StatusNotModified, err)
 			return
 		}
 
@@ -662,12 +661,12 @@ func UpdateMyProfile() gin.HandlerFunc {
 
 		session_, err := auth.GetSessionAuto(c)
 		if err != nil {
-			util.HandleError(c, http.StatusUnauthorized, err, "action is for authorized users")
+			util.HandleError(c, http.StatusUnauthorized, err)
 			return
 		}
 		userId, err := session_.GetUserObjectId()
 		if err != nil {
-			util.HandleError(c, http.StatusUnauthorized, err, "action is for authorized users")
+			util.HandleError(c, http.StatusUnauthorized, err)
 			return
 		}
 
@@ -675,7 +674,7 @@ func UpdateMyProfile() gin.HandlerFunc {
 
 		if firstName := c.Request.FormValue("firstName"); firstName != "" {
 			if err := common.ValidateNameFormat(firstName); err != nil {
-				util.HandleError(c, http.StatusBadRequest, err, "Invalid first name format")
+				util.HandleError(c, http.StatusBadRequest, err)
 				return
 			}
 			updateData["first_name"] = firstName
@@ -683,7 +682,7 @@ func UpdateMyProfile() gin.HandlerFunc {
 
 		if lastName := c.Request.FormValue("lastName"); lastName != "" {
 			if err := common.ValidateNameFormat(lastName); err != nil {
-				util.HandleError(c, http.StatusBadRequest, err, "Invalid last name format")
+				util.HandleError(c, http.StatusBadRequest, err)
 				return
 			}
 			updateData["last_name"] = lastName
@@ -697,20 +696,20 @@ func UpdateMyProfile() gin.HandlerFunc {
 		if fileHeader, err := c.FormFile("image"); err == nil {
 			file, err := fileHeader.Open()
 			if err != nil {
-				util.HandleError(c, http.StatusInternalServerError, err, "Failed to retrieve uploaded file")
+				util.HandleError(c, http.StatusInternalServerError, err)
 				return
 			}
 			defer file.Close()
 
 			uploadResult, err = util.FileUpload(models.File{File: file})
-			if err != nil {
+			{
 				log.Printf("Thumbnail Image upload failed - %v", err.Error())
-				util.HandleError(c, http.StatusInternalServerError, err, "Failed to upload file thumbnail")
+				util.HandleError(c, http.StatusInternalServerError, err)
 				return
 			}
 			updateData["thumbnail"] = uploadResult.SecureURL
 		} else if err != http.ErrMissingFile {
-			util.HandleError(c, http.StatusInternalServerError, err, "Failed to retrieve uploaded file")
+			util.HandleError(c, http.StatusInternalServerError, err)
 			return
 		}
 
@@ -719,7 +718,7 @@ func UpdateMyProfile() gin.HandlerFunc {
 			_, err = util.DestroyMedia(uploadResult.PublicID)
 			log.Println(err)
 			// return error
-			util.HandleError(c, http.StatusBadRequest, errors.New("no update data provided"), "No update data provided")
+			util.HandleError(c, http.StatusBadRequest, errors.New("no update data provided"))
 			return
 		}
 
@@ -730,7 +729,7 @@ func UpdateMyProfile() gin.HandlerFunc {
 
 		_, err = common.UserCollection.UpdateOne(ctx, filter, update)
 		if err != nil {
-			util.HandleError(c, http.StatusExpectationFailed, err, "Failed to update user's profile")
+			util.HandleError(c, http.StatusExpectationFailed, err)
 			return
 		}
 
@@ -748,7 +747,7 @@ func GetLoginHistories() gin.HandlerFunc {
 
 		userId, err := auth.ValidateUserID(c)
 		if err != nil {
-			util.HandleError(c, http.StatusBadRequest, err, err.Error())
+			util.HandleError(c, http.StatusBadRequest, err)
 			return
 		}
 
@@ -760,20 +759,20 @@ func GetLoginHistories() gin.HandlerFunc {
 			SetSort(util.GetLoginHistorySortBson(paginationArgs.Sort))
 		cursor, err := common.LoginHistoryCollection.Find(ctx, filter, findOptions)
 		if err != nil {
-			util.HandleError(c, http.StatusNotFound, err, "Failed to find login histories")
+			util.HandleError(c, http.StatusNotFound, err)
 			return
 		}
 		defer cursor.Close(ctx)
 
 		var loginHistory []models.LoginHistory
 		if err = cursor.All(ctx, &loginHistory); err != nil {
-			util.HandleError(c, http.StatusNotFound, err, "Failed to decode login histories")
+			util.HandleError(c, http.StatusNotFound, err)
 			return
 		}
 
 		count, err := common.LoginHistoryCollection.CountDocuments(ctx, filter)
 		if err != nil {
-			util.HandleError(c, http.StatusInternalServerError, err, "Failed to count login histories")
+			util.HandleError(c, http.StatusInternalServerError, err)
 			return
 		}
 
@@ -795,13 +794,13 @@ func DeleteLoginHistories() gin.HandlerFunc {
 
 		userId, err := auth.ValidateUserID(c)
 		if err != nil {
-			util.HandleError(c, http.StatusBadRequest, err, err.Error())
+			util.HandleError(c, http.StatusBadRequest, err)
 			return
 		}
 
 		var historyIDs models.LoginHistoryIds
 		if err := c.BindJSON(&historyIDs); err != nil {
-			util.HandleError(c, http.StatusBadRequest, err, "Failed to bind JSON")
+			util.HandleError(c, http.StatusBadRequest, err)
 			return
 		}
 
@@ -815,7 +814,7 @@ func DeleteLoginHistories() gin.HandlerFunc {
 		txnOptions := options.Transaction().SetWriteConcern(wc)
 		session, err := util.DB.StartSession()
 		if err != nil {
-			util.HandleError(c, http.StatusInternalServerError, err, "Failed to start database session")
+			util.HandleError(c, http.StatusInternalServerError, err)
 			return
 		}
 		defer session.EndSession(ctx)
@@ -832,12 +831,12 @@ func DeleteLoginHistories() gin.HandlerFunc {
 
 		_, err = session.WithTransaction(ctx, callback, txnOptions)
 		if err != nil {
-			util.HandleError(c, http.StatusBadRequest, err, "Failed to delete login histories")
+			util.HandleError(c, http.StatusBadRequest, err)
 			return
 		}
 
 		if err := session.CommitTransaction(ctx); err != nil {
-			util.HandleError(c, http.StatusInternalServerError, err, "Failed to commit transaction")
+			util.HandleError(c, http.StatusInternalServerError, err)
 			return
 		}
 
@@ -860,7 +859,7 @@ func PasswordResetEmail() gin.HandlerFunc {
 
 		err := common.UserCollection.FindOne(ctx, bson.M{"primary_email": currentEmail}).Decode(&user)
 		if err != nil {
-			util.HandleError(c, http.StatusBadRequest, err, "User with email not found")
+			util.HandleError(c, http.StatusBadRequest, err)
 			return
 		}
 
@@ -878,7 +877,7 @@ func PasswordResetEmail() gin.HandlerFunc {
 		filter := bson.M{"user_uid": user.Id}
 		_, err = common.PasswordResetTokenCollection.ReplaceOne(ctx, filter, passwordReset, opts)
 		if err != nil {
-			util.HandleError(c, http.StatusBadRequest, err, "Failed to replace password reset token")
+			util.HandleError(c, http.StatusBadRequest, err)
 			return
 		}
 
@@ -903,36 +902,36 @@ func PasswordReset() gin.HandlerFunc {
 
 		userId, err := primitive.ObjectIDFromHex(currentId)
 		if err != nil {
-			util.HandleError(c, http.StatusBadRequest, err, "Invalid userID")
+			util.HandleError(c, http.StatusBadRequest, err)
 			return
 		}
 
 		err = common.PasswordResetTokenCollection.FindOneAndDelete(ctx, bson.M{"user_uid": userId}).Decode(&passwordResetData)
 		if err != nil {
-			util.HandleError(c, http.StatusNotFound, err, " Reset token expired or deleted. Please try forgot password again.")
+			util.HandleError(c, http.StatusNotFound, err)
 			return
 		}
 
 		now := primitive.NewDateTimeFromTime(time.Now())
 		if now.Time().Unix() > passwordResetData.ExpiresAt.Time().Unix() {
-			util.HandleError(c, http.StatusNotFound, nil, "Password reset token has expired. Please restart the reset process")
+			util.HandleError(c, http.StatusNotFound, errors.New("Password reset token has expired. Please restart the reset process"))
 			return
 		}
 
 		if currentToken != passwordResetData.TokenDigest {
-			util.HandleError(c, http.StatusNotFound, nil, "Password reset token is incorrect or expired. Please restart the reset process or use a valid token")
+			util.HandleError(c, http.StatusNotFound, errors.New("Password reset token is incorrect or expired. Please restart the reset process or use a valid token"))
 			return
 		}
 
 		err = util.ValidatePassword(newPassword)
 		if err != nil {
-			util.HandleError(c, http.StatusNotFound, err, "Invalid new password")
+			util.HandleError(c, http.StatusNotFound, err)
 			return
 		}
 
 		hashedPassword, err := util.HashPassword(newPassword)
 		if err != nil {
-			util.HandleError(c, http.StatusNotFound, err, "Failed to process new password")
+			util.HandleError(c, http.StatusNotFound, err)
 			return
 		}
 
@@ -940,7 +939,7 @@ func PasswordReset() gin.HandlerFunc {
 		update := bson.M{"$set": bson.M{"auth.password_digest": hashedPassword, "auth.modified_at": now, "auth.email_verified": true}}
 		err = common.UserCollection.FindOneAndUpdate(ctx, filter, update).Decode(&user)
 		if err != nil {
-			util.HandleError(c, http.StatusNotModified, err, "Failed to update user password")
+			util.HandleError(c, http.StatusNotModified, err)
 			return
 		}
 
@@ -961,7 +960,7 @@ func UploadThumbnail() gin.HandlerFunc {
 
 		currentId, err := auth.ValidateUserID(c)
 		if err != nil {
-			util.HandleError(c, http.StatusBadRequest, err, err.Error())
+			util.HandleError(c, http.StatusBadRequest, err)
 			return
 		}
 
@@ -974,7 +973,7 @@ func UploadThumbnail() gin.HandlerFunc {
 		if remoteAddr != "" {
 			uploadResult, err = util.RemoteUpload(models.Url{Url: remoteAddr})
 			if err != nil {
-				util.HandleError(c, http.StatusInternalServerError, err, "Failed to upload remote thumbnail")
+				util.HandleError(c, http.StatusInternalServerError, err)
 				return
 			}
 
@@ -992,20 +991,20 @@ func UploadThumbnail() gin.HandlerFunc {
 			if err != nil {
 				fmt.Printf("Form error: %v\n", err)                                // Debug log
 				fmt.Printf("Available form fields: %v\n", c.Request.MultipartForm) // Debug log
-				util.HandleError(c, http.StatusBadRequest, err, "Failed to get file")
+				util.HandleError(c, http.StatusBadRequest, err)
 				return
 			}
 
 			src, err := file.Open()
 			if err != nil {
-				util.HandleError(c, http.StatusInternalServerError, err, "Failed to open file")
+				util.HandleError(c, http.StatusInternalServerError, err)
 				return
 			}
 			defer src.Close()
 
 			uploadResult, err = util.FileUpload(models.File{File: src})
 			if err != nil {
-				util.HandleError(c, http.StatusInternalServerError, err, "Failed to upload file thumbnail")
+				util.HandleError(c, http.StatusInternalServerError, err)
 				return
 			}
 			update = bson.M{"$set": bson.M{"thumbnail": uploadResult.SecureURL, "modified_at": now}}
@@ -1017,7 +1016,7 @@ func UploadThumbnail() gin.HandlerFunc {
 			_, err = util.DestroyMedia(uploadResult.PublicID)
 			log.Println(err)
 			// return error
-			util.HandleError(c, http.StatusExpectationFailed, err, "Failed to update user's thumbnail")
+			util.HandleError(c, http.StatusExpectationFailed, err)
 			return
 		}
 
@@ -1034,13 +1033,13 @@ func DeleteThumbnail() gin.HandlerFunc {
 
 		myId, err := auth.ValidateUserID(c)
 		if err != nil {
-			util.HandleError(c, http.StatusBadRequest, err, err.Error())
+			util.HandleError(c, http.StatusBadRequest, err)
 			return
 		}
 
 		url := c.Param("url")
 		if url == "" {
-			util.HandleError(c, http.StatusInternalServerError, err, "thumbnail url not provided")
+			util.HandleError(c, http.StatusInternalServerError, err)
 			return
 		}
 
@@ -1051,13 +1050,13 @@ func DeleteThumbnail() gin.HandlerFunc {
 		err = common.UserCollection.FindOneAndUpdate(ctx, filter, update).Decode(&user)
 		if err != nil {
 			log.Printf("Thumbnail deletion failed: %v", err)
-			util.HandleError(c, http.StatusExpectationFailed, err, "Failed to update user's thumbnail")
+			util.HandleError(c, http.StatusExpectationFailed, err)
 			return
 		}
 
 		filename, _, err := extractFilenameAndExtension(url)
 		if err != nil {
-			util.HandleError(c, http.StatusInternalServerError, err, "Internal server error. Please try again later")
+			util.HandleError(c, http.StatusInternalServerError, err)
 			return
 		}
 
@@ -1068,7 +1067,7 @@ func DeleteThumbnail() gin.HandlerFunc {
 			Invalidate:   true,
 		})
 		if errOnDelete != nil {
-			util.HandleError(c, http.StatusExpectationFailed, errOnDelete, "Failed to delete thumbnail image")
+			util.HandleError(c, http.StatusExpectationFailed, errOnDelete)
 			return
 		}
 
@@ -1105,21 +1104,21 @@ func CreateUserAddress() gin.HandlerFunc {
 
 		// Validate the request body
 		if err := c.BindJSON(&userAddress); err != nil {
-			util.HandleError(c, http.StatusBadRequest, err, "Invalid request body")
+			util.HandleError(c, http.StatusBadRequest, err)
 			return
 		}
 
 		log.Println(userAddress)
 		// Validate request body
 		if validationErr := common.Validate.Struct(&userAddress); validationErr != nil {
-			util.HandleError(c, http.StatusUnprocessableEntity, validationErr, "Validation failed")
+			util.HandleError(c, http.StatusUnprocessableEntity, validationErr)
 			return
 		}
 
 		// Extract current user token
 		myId, err := auth.ValidateUserID(c)
 		if err != nil {
-			util.HandleError(c, http.StatusBadRequest, err, err.Error())
+			util.HandleError(c, http.StatusBadRequest, err)
 			return
 		}
 
@@ -1138,12 +1137,12 @@ func CreateUserAddress() gin.HandlerFunc {
 
 		count, err := common.UserAddressCollection.CountDocuments(ctx, bson.M{"user_id": myId})
 		if err != nil {
-			util.HandleError(c, http.StatusInternalServerError, err, "Error counting current payment information")
+			util.HandleError(c, http.StatusInternalServerError, err)
 			return
 		}
 
 		if count >= 5 {
-			util.HandleError(c, http.StatusInsufficientStorage, errors.New("max allowed addresses reached. please delete other address to accommodate a new one"), "max allowed payment information reached")
+			util.HandleError(c, http.StatusInsufficientStorage, errors.New("max allowed addresses reached. please delete other address to accommodate a new one"))
 			return
 		}
 
@@ -1151,7 +1150,7 @@ func CreateUserAddress() gin.HandlerFunc {
 			// Set IsDefaultShippingAddress to false for other addresses belonging to the user
 			err = setOtherAddressesToFalse(ctx, myId, addressId)
 			if err != nil {
-				util.HandleError(c, http.StatusInternalServerError, err, "Failed to update user addresses")
+				util.HandleError(c, http.StatusInternalServerError, err)
 				return
 			}
 
@@ -1159,7 +1158,7 @@ func CreateUserAddress() gin.HandlerFunc {
 
 		_, err = common.UserAddressCollection.InsertOne(ctx, userAddressTemp)
 		if err != nil {
-			util.HandleError(c, http.StatusInternalServerError, err, "Failed to create user address")
+			util.HandleError(c, http.StatusInternalServerError, err)
 			return
 		}
 
@@ -1177,21 +1176,21 @@ func GetUserAddresses() gin.HandlerFunc {
 		userIdStr := c.Param("userid")
 		userId, err := primitive.ObjectIDFromHex(userIdStr)
 		if err != nil {
-			util.HandleError(c, http.StatusUnauthorized, err, "Invalid user ID")
+			util.HandleError(c, http.StatusUnauthorized, err)
 			return
 		}
 
 		filter := bson.M{"user_id": userId}
 		cursor, err := common.UserAddressCollection.Find(ctx, filter)
 		if err != nil {
-			util.HandleError(c, http.StatusNotFound, err, "User addresses not found")
+			util.HandleError(c, http.StatusNotFound, err)
 			return
 		}
 		defer cursor.Close(ctx)
 
 		var userAddresses []models.UserAddress
 		if err := cursor.All(ctx, &userAddresses); err != nil {
-			util.HandleError(c, http.StatusNotFound, err, "Failed to retrieve user addresses")
+			util.HandleError(c, http.StatusNotFound, err)
 			return
 		}
 
@@ -1209,13 +1208,13 @@ func UpdateUserAddress() gin.HandlerFunc {
 
 		// Validate the request body
 		if err := c.BindJSON(&userAddress); err != nil {
-			util.HandleError(c, http.StatusBadRequest, err, "Invalid request body")
+			util.HandleError(c, http.StatusBadRequest, err)
 			return
 		}
 
 		// Validate request body
 		if validationErr := common.Validate.Struct(&userAddress); validationErr != nil {
-			util.HandleError(c, http.StatusUnprocessableEntity, validationErr, "Validation error")
+			util.HandleError(c, http.StatusUnprocessableEntity, validationErr)
 			return
 		}
 
@@ -1223,14 +1222,14 @@ func UpdateUserAddress() gin.HandlerFunc {
 		addressId := c.Param("id")
 		addressObjectId, err := primitive.ObjectIDFromHex(addressId)
 		if err != nil {
-			util.HandleError(c, http.StatusBadRequest, err, err.Error())
+			util.HandleError(c, http.StatusBadRequest, err)
 			return
 		}
 		fmt.Println(addressObjectId)
 		// Extract current user token
 		myId, err := auth.ValidateUserID(c)
 		if err != nil {
-			util.HandleError(c, http.StatusBadRequest, err, err.Error())
+			util.HandleError(c, http.StatusBadRequest, err)
 			return
 		}
 
@@ -1238,7 +1237,7 @@ func UpdateUserAddress() gin.HandlerFunc {
 		if userAddress.IsDefault {
 			err = setOtherAddressesToFalse(ctx, myId, addressObjectId)
 			if err != nil {
-				util.HandleError(c, http.StatusInternalServerError, err, "Failed to update user addresses")
+				util.HandleError(c, http.StatusInternalServerError, err)
 				return
 			}
 		}
@@ -1257,7 +1256,7 @@ func UpdateUserAddress() gin.HandlerFunc {
 
 		_, err = common.UserAddressCollection.UpdateOne(ctx, filter, update)
 		if err != nil {
-			util.HandleError(c, http.StatusBadRequest, err, "Failed to update user address")
+			util.HandleError(c, http.StatusBadRequest, err)
 			return
 		}
 
@@ -1273,33 +1272,33 @@ func ChangeDefaultAddress() gin.HandlerFunc {
 
 		userId, err := auth.ValidateUserID(c)
 		if err != nil {
-			util.HandleError(c, http.StatusUnauthorized, err, "Unauthorized")
+			util.HandleError(c, http.StatusUnauthorized, err)
 			return
 		}
 
 		addressID := c.Param("id")
 		if addressID == "" {
-			util.HandleError(c, http.StatusBadRequest, errors.New("No address id was provided!"), "bad request")
+			util.HandleError(c, http.StatusBadRequest, errors.New("No address id was provided!"))
 			return
 		}
 
 		addressObjectID, err := primitive.ObjectIDFromHex(addressID)
 		if err != nil {
-			util.HandleError(c, http.StatusBadRequest, errors.New("bad address id"), "bad request")
+			util.HandleError(c, http.StatusBadRequest, errors.New("bad address id"))
 			return
 		}
 
 		// Set all other payment information records to is_default=false
 		_, err = common.UserAddressCollection.UpdateMany(ctx, bson.M{"user_id": userId, "_id": bson.M{"$ne": addressObjectID}}, bson.M{"$set": bson.M{"is_default_shipping_address": false}})
 		if err != nil {
-			util.HandleError(c, http.StatusInternalServerError, err, "error modifying address")
+			util.HandleError(c, http.StatusInternalServerError, err)
 			return
 		}
 
 		filter := bson.M{"user_id": userId, "_id": addressObjectID}
 		insertRes, insertErr := common.UserAddressCollection.UpdateOne(ctx, filter, bson.M{"$set": bson.M{"is_default_shipping_address": true}})
 		if insertErr != nil {
-			util.HandleError(c, http.StatusInternalServerError, err, "error modifying payment information")
+			util.HandleError(c, http.StatusInternalServerError, err)
 			return
 		}
 
@@ -1317,33 +1316,33 @@ func DeleteUserAddress() gin.HandlerFunc {
 		addressId := c.Param("id")
 		addressObjectId, err := primitive.ObjectIDFromHex(addressId)
 		if err != nil {
-			util.HandleError(c, http.StatusBadRequest, err, err.Error())
+			util.HandleError(c, http.StatusBadRequest, err)
 			return
 		}
 
 		// Extract current user token
 		myId, err := auth.ValidateUserID(c)
 		if err != nil {
-			util.HandleError(c, http.StatusBadRequest, err, err.Error())
+			util.HandleError(c, http.StatusBadRequest, err)
 			return
 		}
 
 		// Set IsDefaultShippingAddress to false for other addresses belonging to the user
 		err = setOtherAddressesToFalse(ctx, myId, addressObjectId)
 		if err != nil {
-			util.HandleError(c, http.StatusInternalServerError, err, "Failed to update user addresses")
+			util.HandleError(c, http.StatusInternalServerError, err)
 			return
 		}
 
 		filter := bson.M{"user_id": myId, "_id": addressObjectId}
 		res, err := common.UserAddressCollection.DeleteOne(ctx, filter)
 		if err != nil {
-			util.HandleError(c, http.StatusBadRequest, err, "Failed to delete user address")
+			util.HandleError(c, http.StatusBadRequest, err)
 			return
 		}
 
 		if res.DeletedCount == 0 {
-			util.HandleError(c, http.StatusNotFound, errors.New("user address not found"), "User address not found")
+			util.HandleError(c, http.StatusNotFound, errors.New("user address not found"))
 			return
 		}
 
@@ -1378,26 +1377,26 @@ func UpdateUserBirthdate() gin.HandlerFunc {
 
 		errBind := c.BindJSON(&birthDate)
 		if errBind != nil {
-			util.HandleError(c, http.StatusBadRequest, errBind, "Invalid request body")
+			util.HandleError(c, http.StatusBadRequest, errBind)
 			return
 		}
 
 		// Validate request body
 		if validationErr := common.Validate.Struct(&birthDate); validationErr != nil {
-			util.HandleError(c, http.StatusUnprocessableEntity, validationErr, "Validation error")
+			util.HandleError(c, http.StatusUnprocessableEntity, validationErr)
 			return
 		}
 
 		myId, err := auth.ValidateUserID(c)
 		if err != nil {
-			util.HandleError(c, http.StatusBadRequest, err, err.Error())
+			util.HandleError(c, http.StatusBadRequest, err)
 			return
 		}
 		filter := bson.M{"_id": myId}
 		update := bson.M{"$set": bson.M{"birthdate.day": birthDate.Day, "birthdate.month": birthDate.Month, "birthdate.year": birthDate.Year}}
 		_, errUpdateName := common.UserCollection.UpdateOne(ctx, filter, update)
 		if errUpdateName != nil {
-			util.HandleError(c, http.StatusBadRequest, errUpdateName, "Failed to update user birthdate")
+			util.HandleError(c, http.StatusBadRequest, errUpdateName)
 			return
 		}
 
@@ -1416,12 +1415,12 @@ func UpdateUserSingleField() gin.HandlerFunc {
 
 		myId, err := auth.ValidateUserID(c)
 		if err != nil {
-			util.HandleError(c, http.StatusBadRequest, err, err.Error())
+			util.HandleError(c, http.StatusBadRequest, err)
 			return
 		}
 
 		if strings.Contains(field, ".") {
-			util.HandleError(c, http.StatusBadRequest, fmt.Errorf("field '%s' can't contain a '.'", field), "Invalid field")
+			util.HandleError(c, http.StatusBadRequest, fmt.Errorf("field '%s' can't contain a '.'", field))
 			return
 		}
 
@@ -1430,7 +1429,7 @@ func UpdateUserSingleField() gin.HandlerFunc {
 		for _, n := range notAllowedFields {
 			if strings.ToLower(field) == n {
 				log.Printf("User (%v) is trying to change their %v", myId.Hex(), n)
-				util.HandleError(c, http.StatusUnauthorized, fmt.Errorf("cannot change field '%s'", n), "Field not allowed")
+				util.HandleError(c, http.StatusUnauthorized, fmt.Errorf("cannot change field '%s'", n))
 				return
 			}
 		}
@@ -1439,7 +1438,7 @@ func UpdateUserSingleField() gin.HandlerFunc {
 		update := bson.M{"$set": bson.M{field: value}}
 		result, errUpdateField := common.UserCollection.UpdateOne(ctx, filter, update)
 		if errUpdateField != nil {
-			util.HandleError(c, http.StatusBadRequest, errUpdateField, "Failed to update field")
+			util.HandleError(c, http.StatusBadRequest, errUpdateField)
 			return
 		}
 
@@ -1458,7 +1457,7 @@ func AddRemoveFavoriteShop() gin.HandlerFunc {
 
 		myObjectId, err := auth.ValidateUserID(c)
 		if err != nil {
-			util.HandleError(c, http.StatusBadRequest, err, err.Error())
+			util.HandleError(c, http.StatusBadRequest, err)
 			return
 		}
 
@@ -1467,7 +1466,7 @@ func AddRemoveFavoriteShop() gin.HandlerFunc {
 			update := bson.M{"$push": bson.M{"favorite_shops": shop}}
 			res, err := common.UserCollection.UpdateOne(ctx, filter, update)
 			if err != nil {
-				util.HandleError(c, http.StatusBadRequest, err, "Failed to add favorite shop")
+				util.HandleError(c, http.StatusBadRequest, err)
 				return
 			}
 
@@ -1479,7 +1478,7 @@ func AddRemoveFavoriteShop() gin.HandlerFunc {
 			update := bson.M{"$pull": bson.M{"favorite_shops": shop}}
 			res, err := common.UserCollection.UpdateOne(ctx, filter, update)
 			if err != nil {
-				util.HandleError(c, http.StatusBadRequest, err, "Failed to remove favorite shop")
+				util.HandleError(c, http.StatusBadRequest, err)
 				return
 			}
 
@@ -1487,7 +1486,7 @@ func AddRemoveFavoriteShop() gin.HandlerFunc {
 			return
 		}
 
-		util.HandleError(c, http.StatusBadRequest, fmt.Errorf("action '%s' not recognized", action), "Invalid action")
+		util.HandleError(c, http.StatusBadRequest, fmt.Errorf("action '%s' not recognized", action))
 	}
 }
 
@@ -1501,13 +1500,13 @@ func AddWishListItem() gin.HandlerFunc {
 		listingId := c.Query("listing_id")
 		listingObjectId, err := primitive.ObjectIDFromHex(listingId)
 		if err != nil {
-			util.HandleError(c, http.StatusUnauthorized, err, "Invalid listing ID")
+			util.HandleError(c, http.StatusUnauthorized, err)
 			return
 		}
 
 		MyId, err := auth.ValidateUserID(c)
 		if err != nil {
-			util.HandleError(c, http.StatusBadRequest, err, err.Error())
+			util.HandleError(c, http.StatusBadRequest, err)
 			return
 		}
 
@@ -1520,7 +1519,7 @@ func AddWishListItem() gin.HandlerFunc {
 		}
 		_, err = common.WishListCollection.InsertOne(ctx, data)
 		if err != nil {
-			util.HandleError(c, http.StatusNotModified, err, "Failed to add wishlist item")
+			util.HandleError(c, http.StatusNotModified, err)
 			return
 		}
 
@@ -1538,20 +1537,20 @@ func RemoveWishListItem() gin.HandlerFunc {
 		listingId := c.Query("listing_id")
 		listingObjectId, err := primitive.ObjectIDFromHex(listingId)
 		if err != nil {
-			util.HandleError(c, http.StatusUnauthorized, err, "Invalid listing ID")
+			util.HandleError(c, http.StatusUnauthorized, err)
 			return
 		}
 
 		MyId, err := auth.ValidateUserID(c)
 		if err != nil {
-			util.HandleError(c, http.StatusBadRequest, err, err.Error())
+			util.HandleError(c, http.StatusBadRequest, err)
 			return
 		}
 
 		filter := bson.M{"user_id": MyId, "listing_id": listingObjectId}
 		res, err := common.WishListCollection.DeleteOne(ctx, filter)
 		if err != nil {
-			util.HandleError(c, http.StatusNotModified, err, "Failed to remove wishlist item")
+			util.HandleError(c, http.StatusNotModified, err)
 			return
 		}
 
@@ -1567,7 +1566,7 @@ func GetUserWishlist() gin.HandlerFunc {
 
 		MyId, err := auth.ValidateUserID(c)
 		if err != nil {
-			util.HandleError(c, http.StatusBadRequest, err, err.Error())
+			util.HandleError(c, http.StatusBadRequest, err)
 			return
 		}
 
@@ -1576,19 +1575,19 @@ func GetUserWishlist() gin.HandlerFunc {
 		find := options.Find().SetLimit(int64(paginationArgs.Limit)).SetSkip(int64(paginationArgs.Skip))
 		cursor, err := common.WishListCollection.Find(ctx, filter, find)
 		if err != nil {
-			util.HandleError(c, http.StatusNotFound, err, "Wishlist not found")
+			util.HandleError(c, http.StatusNotFound, err)
 			return
 		}
 		defer cursor.Close(ctx)
 		var myWishLists []models.UserWishlist
 		if err := cursor.All(ctx, &myWishLists); err != nil {
-			util.HandleError(c, http.StatusInternalServerError, err, "Internal server error")
+			util.HandleError(c, http.StatusInternalServerError, err)
 			return
 		}
 
 		count, err := common.WishListCollection.CountDocuments(ctx, bson.M{"user_id": MyId})
 		if err != nil {
-			util.HandleError(c, http.StatusInternalServerError, err, "Error counting wishlist")
+			util.HandleError(c, http.StatusInternalServerError, err)
 			return
 		}
 
@@ -1610,13 +1609,13 @@ func UpdateSecurityNotificationSetting() gin.HandlerFunc {
 
 		myID, err := auth.ValidateUserID(c)
 		if err != nil {
-			util.HandleError(c, http.StatusBadRequest, err, err.Error())
+			util.HandleError(c, http.StatusBadRequest, err)
 			return
 		}
 
 		set := c.Query("set")
 		if set == "" {
-			util.HandleError(c, http.StatusBadRequest, errors.New("set can't be empty"), "set can't be empty")
+			util.HandleError(c, http.StatusBadRequest, errors.New("set can't be empty"))
 			return
 		}
 
@@ -1632,12 +1631,12 @@ func UpdateSecurityNotificationSetting() gin.HandlerFunc {
 
 		res, err := common.UserCollection.UpdateOne(ctx, filter, update)
 		if err != nil {
-			util.HandleError(c, http.StatusInternalServerError, err, "error updating user login notification setting")
+			util.HandleError(c, http.StatusInternalServerError, err)
 			return
 		}
 
 		if res.ModifiedCount < 1 {
-			util.HandleError(c, http.StatusNotFound, errors.New("no document was modified"), "error updating user login notification setting")
+			util.HandleError(c, http.StatusNotFound, errors.New("no document was modified"))
 			return
 		}
 
@@ -1653,7 +1652,7 @@ func GetSecurityNotificationSetting() gin.HandlerFunc {
 
 		MyId, err := auth.ValidateUserID(c)
 		if err != nil {
-			util.HandleError(c, http.StatusBadRequest, err, err.Error())
+			util.HandleError(c, http.StatusBadRequest, err)
 			return
 		}
 
@@ -1664,7 +1663,7 @@ func GetSecurityNotificationSetting() gin.HandlerFunc {
 		filter := bson.M{"_id": MyId}
 		err = common.UserCollection.FindOne(ctx, filter, options).Decode(&result)
 		if err != nil {
-			util.HandleError(c, http.StatusNotFound, err, "error retrieving user login notification setting")
+			util.HandleError(c, http.StatusNotFound, err)
 			return
 		}
 

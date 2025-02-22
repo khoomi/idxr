@@ -43,7 +43,7 @@ func CheckShopNameAvailability() gin.HandlerFunc {
 				return
 			}
 
-			util.HandleError(c, http.StatusInternalServerError, errors.New("internal sever error on checking shop username availability"), "")
+			util.HandleError(c, http.StatusInternalServerError, errors.New("internal sever error on checking shop username availability"))
 			return
 		}
 
@@ -59,12 +59,12 @@ func CreateShop() gin.HandlerFunc {
 
 		session_, err := auth.GetSessionAuto(c)
 		if err != nil {
-			util.HandleError(c, http.StatusUnauthorized, err, "unauthorized")
+			util.HandleError(c, http.StatusUnauthorized, err)
 			return
 		}
 		userID, err := session_.GetUserObjectId()
 		if err != nil {
-			util.HandleError(c, http.StatusUnauthorized, err, "Failed to extract user ID from token")
+			util.HandleError(c, http.StatusUnauthorized, err)
 			return
 		}
 		loginName, userEmail := session_.LoginName, session_.Email
@@ -72,13 +72,13 @@ func CreateShop() gin.HandlerFunc {
 		shopName := c.Request.FormValue("name")
 		err = util.ValidateShopName(shopName)
 		if err != nil {
-			util.HandleError(c, http.StatusBadRequest, err, "Invalid shop name")
+			util.HandleError(c, http.StatusBadRequest, err)
 			return
 		}
 		shopUserName := c.Request.FormValue("username")
 		err = util.ValidateShopUserName(shopUserName)
 		if err != nil {
-			util.HandleError(c, http.StatusBadRequest, err, "Invalid shop username name")
+			util.HandleError(c, http.StatusBadRequest, err)
 			return
 		}
 		shopUserName = strings.ToLower(shopUserName)
@@ -86,7 +86,7 @@ func CreateShop() gin.HandlerFunc {
 		shopDescription := c.Request.FormValue("description")
 		err = util.ValidateShopDescription(shopDescription)
 		if err != nil {
-			util.HandleError(c, http.StatusBadRequest, err, "Invalid shop description")
+			util.HandleError(c, http.StatusBadRequest, err)
 			return
 		}
 
@@ -99,7 +99,7 @@ func CreateShop() gin.HandlerFunc {
 			if err != nil {
 				errMsg := fmt.Sprintf("Logo failed to upload - %v", err.Error())
 				log.Print(errMsg)
-				util.HandleError(c, http.StatusInternalServerError, err, errMsg)
+				util.HandleError(c, http.StatusInternalServerError, err)
 				return
 			}
 			logoUploadUrl = logoUploadResult.SecureURL
@@ -118,7 +118,7 @@ func CreateShop() gin.HandlerFunc {
 			if err != nil {
 				errMsg := fmt.Sprintf("Banner failed to upload - %v", err.Error())
 				log.Print(errMsg)
-				util.HandleError(c, http.StatusInternalServerError, err, errMsg)
+				util.HandleError(c, http.StatusInternalServerError, err)
 				return
 			}
 			bannerUploadUrl = bannerUploadResult.SecureURL
@@ -132,7 +132,7 @@ func CreateShop() gin.HandlerFunc {
 		txnOptions := options.Transaction().SetWriteConcern(wc)
 		session, err := util.DB.StartSession()
 		if err != nil {
-			util.HandleError(c, http.StatusUnprocessableEntity, err, "Failed to start new session")
+			util.HandleError(c, http.StatusUnprocessableEntity, err)
 			return
 		}
 		defer session.EndSession(ctx)
@@ -195,7 +195,7 @@ func CreateShop() gin.HandlerFunc {
 
 			_, err = common.ShopAboutCollection.InsertOne(ctx, shopAboutData)
 			if err != nil {
-				util.HandleError(c, http.StatusInternalServerError, err, "Error creating shop about")
+				util.HandleError(c, http.StatusInternalServerError, err)
 				return nil, err
 			}
 
@@ -204,7 +204,7 @@ func CreateShop() gin.HandlerFunc {
 
 		_, err = session.WithTransaction(context.Background(), callback, txnOptions)
 		if err != nil {
-			util.HandleError(c, http.StatusBadRequest, err, "Shop creation failed. Please retry contact khoomi support")
+			util.HandleError(c, http.StatusBadRequest, err)
 			return
 		}
 		err = session.CommitTransaction(context.Background())
@@ -213,7 +213,7 @@ func CreateShop() gin.HandlerFunc {
 			util.DestroyMedia(logoUploadResult.PublicID)
 			util.DestroyMedia(bannerUploadResult.PublicID)
 			// return error
-			util.HandleError(c, http.StatusBadRequest, err, "Shop creation failed. Please retry or contact khoomi support")
+			util.HandleError(c, http.StatusBadRequest, err)
 			return
 		}
 
@@ -233,7 +233,7 @@ func UpdateShopInformation() gin.HandlerFunc {
 
 		shopId, myId, err := common.MyShopIdAndMyId(c)
 		if err != nil {
-			util.HandleError(c, http.StatusBadRequest, err, "Error getting shop ID and user ID")
+			util.HandleError(c, http.StatusBadRequest, err)
 			return
 		}
 
@@ -241,7 +241,7 @@ func UpdateShopInformation() gin.HandlerFunc {
 
 		if shopName := c.Request.FormValue("name"); shopName != "" {
 			if err := util.ValidateShopName(shopName); err != nil {
-				util.HandleError(c, http.StatusBadRequest, err, "Invalid shop name format")
+				util.HandleError(c, http.StatusBadRequest, err)
 				return
 			}
 			updateData["name"] = shopName
@@ -249,7 +249,7 @@ func UpdateShopInformation() gin.HandlerFunc {
 
 		if shopUsername := c.Request.FormValue("username"); shopUsername != "" {
 			if err := util.ValidateShopUserName(shopUsername); err != nil {
-				util.HandleError(c, http.StatusBadRequest, err, "Invalid shop username format")
+				util.HandleError(c, http.StatusBadRequest, err)
 				return
 			}
 			updateData["username"] = shopUsername
@@ -263,7 +263,7 @@ func UpdateShopInformation() gin.HandlerFunc {
 		if fileHeader, err := c.FormFile("logo_url"); err == nil {
 			file, err := fileHeader.Open()
 			if err != nil {
-				util.HandleError(c, http.StatusInternalServerError, err, "Failed to retrieve uploaded file")
+				util.HandleError(c, http.StatusInternalServerError, err)
 				return
 			}
 			defer file.Close()
@@ -271,12 +271,12 @@ func UpdateShopInformation() gin.HandlerFunc {
 			logoUploadResult, err = util.FileUpload(models.File{File: file})
 			if err != nil {
 				log.Printf("Logo Image upload failed - %v", err.Error())
-				util.HandleError(c, http.StatusInternalServerError, err, "Failed to upload file logo")
+				util.HandleError(c, http.StatusInternalServerError, err)
 				return
 			}
 			updateData["logo_url"] = logoUploadResult.SecureURL
 		} else if err != http.ErrMissingFile {
-			util.HandleError(c, http.StatusInternalServerError, err, "Failed to retrieve uploaded file")
+			util.HandleError(c, http.StatusInternalServerError, err)
 			return
 		}
 
@@ -284,7 +284,7 @@ func UpdateShopInformation() gin.HandlerFunc {
 		if fileHeader, err := c.FormFile("banner_url"); err == nil {
 			file, err := fileHeader.Open()
 			if err != nil {
-				util.HandleError(c, http.StatusInternalServerError, err, "Failed to retrieve uploaded file")
+				util.HandleError(c, http.StatusInternalServerError, err)
 				return
 			}
 			defer file.Close()
@@ -292,12 +292,12 @@ func UpdateShopInformation() gin.HandlerFunc {
 			bannerUploadResult, err = util.FileUpload(models.File{File: file})
 			if err != nil {
 				log.Printf("Banner Image upload failed - %v", err.Error())
-				util.HandleError(c, http.StatusInternalServerError, err, "Failed to upload file banner")
+				util.HandleError(c, http.StatusInternalServerError, err)
 				return
 			}
 			updateData["banner_url"] = bannerUploadResult.SecureURL
 		} else if err != http.ErrMissingFile {
-			util.HandleError(c, http.StatusInternalServerError, err, "Failed to retrieve uploaded file")
+			util.HandleError(c, http.StatusInternalServerError, err)
 			return
 		}
 
@@ -308,7 +308,7 @@ func UpdateShopInformation() gin.HandlerFunc {
 			log.Println(err)
 			// return error
 
-			util.HandleError(c, http.StatusOK, errors.New("no update data provided"), "No update data provided")
+			util.HandleError(c, http.StatusOK, errors.New("no update data provided"))
 			return
 		}
 
@@ -326,7 +326,7 @@ func UpdateShopInformation() gin.HandlerFunc {
 			log.Println(err)
 			// return error
 
-			util.HandleError(c, http.StatusExpectationFailed, err, "Failed to update user's shop information")
+			util.HandleError(c, http.StatusExpectationFailed, err)
 			return
 		}
 
@@ -342,13 +342,13 @@ func UpdateMyShopStatus() gin.HandlerFunc {
 		var payload models.UpdateShopStatusReq
 		if err := c.BindJSON(&payload); err != nil {
 			log.Println(err)
-			util.HandleError(c, http.StatusBadRequest, err, "Invalid request body")
+			util.HandleError(c, http.StatusBadRequest, err)
 			return
 		}
 
 		shopId, myId, err := common.MyShopIdAndMyId(c)
 		if err != nil {
-			util.HandleError(c, http.StatusBadRequest, err, "Error getting shop ID and user ID")
+			util.HandleError(c, http.StatusBadRequest, err)
 			return
 		}
 
@@ -356,11 +356,11 @@ func UpdateMyShopStatus() gin.HandlerFunc {
 		update := bson.M{"$set": bson.M{"is_live": payload.Status, "modified_at": time.Now()}}
 		res, err := common.ShopCollection.UpdateOne(ctx, filter, update)
 		if err != nil {
-			util.HandleError(c, http.StatusInternalServerError, err, "Error updating shop status")
+			util.HandleError(c, http.StatusInternalServerError, err)
 			return
 		}
 		if res.ModifiedCount == 0 {
-			util.HandleError(c, http.StatusNotFound, errors.New("no matching documents found"), "No matching documents found")
+			util.HandleError(c, http.StatusNotFound, errors.New("no matching documents found"))
 			return
 		}
 
@@ -382,7 +382,7 @@ func GetShop() gin.HandlerFunc {
 			// If shopid is a valid object ID string
 			shopObjectID, err := primitive.ObjectIDFromHex(shopID)
 			if err != nil {
-				util.HandleError(c, http.StatusNotFound, err, "Invalid shop ID")
+				util.HandleError(c, http.StatusNotFound, err)
 				return
 			}
 			shopIdentifier = bson.M{"_id": shopObjectID}
@@ -496,21 +496,21 @@ func GetShop() gin.HandlerFunc {
 		var shop models.Shop
 		if err != nil {
 			if err == mongo.ErrNoDocuments {
-				util.HandleError(c, http.StatusNotFound, err, "Shop not found")
+				util.HandleError(c, http.StatusNotFound, err)
 				return
 			}
 
-			util.HandleError(c, http.StatusInternalServerError, err, "error while retrieving shop")
+			util.HandleError(c, http.StatusInternalServerError, err)
 			return
 		}
 		if cursor.Next(ctx) {
 			if err := cursor.Decode(&shop); err != nil {
-				util.HandleError(c, http.StatusInternalServerError, err, "error while decoding listing")
+				util.HandleError(c, http.StatusInternalServerError, err)
 				return
 			}
 		} else {
 			log.Printf("NotFound, %v %v", shopIdentifier, err)
-			util.HandleError(c, http.StatusNotFound, errors.New("no shop found"), "no shop found")
+			util.HandleError(c, http.StatusNotFound, errors.New("no shop found"))
 			return
 		}
 		shop.ConstructShopLinks()
@@ -526,7 +526,7 @@ func GetShop() gin.HandlerFunc {
 			cursor, err = common.ListingCollection.Aggregate(ctx, listingPipeline)
 			if err != nil {
 				if err != mongo.ErrNoDocuments {
-					util.HandleError(c, http.StatusInternalServerError, err, "error while retrieving categories and count")
+					util.HandleError(c, http.StatusInternalServerError, err)
 					return
 				}
 			}
@@ -535,7 +535,7 @@ func GetShop() gin.HandlerFunc {
 			if cursor.Next(ctx) {
 				var shopCategory models.ShopCategory
 				if err := cursor.Decode(&shopCategory); err != nil {
-					util.HandleError(c, http.StatusInternalServerError, err, "error while decoding categories and count")
+					util.HandleError(c, http.StatusInternalServerError, err)
 					return
 				}
 
@@ -558,14 +558,14 @@ func GetShopByOwnerUserId() gin.HandlerFunc {
 		userIDStr := c.Param("userid")
 		userID, err := primitive.ObjectIDFromHex(userIDStr)
 		if err != nil {
-			util.HandleError(c, http.StatusBadRequest, err, "Invalid user ID")
+			util.HandleError(c, http.StatusBadRequest, err)
 			return
 		}
 
 		var shop models.Shop
 		err = common.ShopCollection.FindOne(ctx, bson.M{"user_id": userID}).Decode(&shop)
 		if err != nil {
-			util.HandleError(c, http.StatusNotFound, err, "Shop not found")
+			util.HandleError(c, http.StatusNotFound, err)
 			return
 		}
 
@@ -588,14 +588,14 @@ func GetShops() gin.HandlerFunc {
 		result, err := common.ShopCollection.Find(ctx, filter, find)
 		if err != nil {
 			log.Printf("error finding shop members: %v", err.Error())
-			util.HandleError(c, http.StatusNotFound, err, "error finding shop members")
+			util.HandleError(c, http.StatusNotFound, err)
 			return
 		}
 
 		var shops []models.Shop
 		if err = result.All(ctx, &shops); err != nil {
 			log.Printf("error decoding shop members: %v", err.Error())
-			util.HandleError(c, http.StatusNotFound, err, "error decoding shop members")
+			util.HandleError(c, http.StatusNotFound, err)
 			return
 		}
 
@@ -623,7 +623,7 @@ func SearchShops() gin.HandlerFunc {
 			},
 		}, options.Find().SetSkip(int64(paginationArgs.Skip)).SetLimit(int64(paginationArgs.Limit)))
 		if err != nil {
-			util.HandleError(c, http.StatusInternalServerError, err, "Error searching for shops")
+			util.HandleError(c, http.StatusInternalServerError, err)
 			return
 		}
 
@@ -635,7 +635,7 @@ func SearchShops() gin.HandlerFunc {
 			},
 		})
 		if err != nil {
-			util.HandleError(c, http.StatusInternalServerError, err, "Error counting shops")
+			util.HandleError(c, http.StatusInternalServerError, err)
 			return
 		}
 
@@ -644,7 +644,7 @@ func SearchShops() gin.HandlerFunc {
 		for shops.Next(ctx) {
 			var shop models.Shop
 			if err := shops.Decode(&shop); err != nil {
-				util.HandleError(c, http.StatusInternalServerError, err, "Error decoding shops")
+				util.HandleError(c, http.StatusInternalServerError, err)
 				return
 			}
 			serializedShops = append(serializedShops, shop)
@@ -668,23 +668,23 @@ func UpdateShopAnnouncement() gin.HandlerFunc {
 		now := time.Now()
 		var announcement models.ShopAnnouncementRequest
 		if err := c.BindJSON(&announcement); err != nil {
-			util.HandleError(c, http.StatusBadRequest, err, "Error binding JSON")
+			util.HandleError(c, http.StatusBadRequest, err)
 			return
 		}
 
 		if announcement.Announcement == "" {
-			util.HandleError(c, http.StatusBadRequest, errors.New("announcement cannot be empty"), "Invalid announcement")
+			util.HandleError(c, http.StatusBadRequest, errors.New("announcement cannot be empty"))
 			return
 		}
 
 		if len(announcement.Announcement) > 100 {
-			util.HandleError(c, http.StatusBadRequest, errors.New("announcement is too long"), "Invalid announcement length")
+			util.HandleError(c, http.StatusBadRequest, errors.New("announcement is too long"))
 			return
 		}
 
 		shopId, myId, err := common.MyShopIdAndMyId(c)
 		if err != nil {
-			util.HandleError(c, http.StatusBadRequest, err, "Error getting shop ID and user ID")
+			util.HandleError(c, http.StatusBadRequest, err)
 			return
 		}
 
@@ -692,11 +692,11 @@ func UpdateShopAnnouncement() gin.HandlerFunc {
 		update := bson.M{"$set": bson.M{"announcement": announcement.Announcement, "announcement_modified_at": now, "modified_at": now}}
 		res, err := common.ShopCollection.UpdateOne(ctx, filter, update)
 		if err != nil {
-			util.HandleError(c, http.StatusInternalServerError, err, "Error updating shop announcement")
+			util.HandleError(c, http.StatusInternalServerError, err)
 			return
 		}
 		if res.ModifiedCount == 0 {
-			util.HandleError(c, http.StatusNotFound, errors.New("no matching documents found"), "No matching documents found")
+			util.HandleError(c, http.StatusNotFound, errors.New("no matching documents found"))
 			return
 		}
 
@@ -712,13 +712,13 @@ func UpdateShopVacation() gin.HandlerFunc {
 		var vacation models.ShopVacationRequest
 		now := time.Now()
 		if err := c.BindJSON(&vacation); err != nil {
-			util.HandleError(c, http.StatusBadRequest, err, "Error binding JSON")
+			util.HandleError(c, http.StatusBadRequest, err)
 			return
 		}
 
 		shopId, myId, err := common.MyShopIdAndMyId(c)
 		if err != nil {
-			util.HandleError(c, http.StatusBadRequest, err, "Error getting shop ID and user ID")
+			util.HandleError(c, http.StatusBadRequest, err)
 			return
 		}
 
@@ -726,11 +726,11 @@ func UpdateShopVacation() gin.HandlerFunc {
 		update := bson.M{"$set": bson.M{"vacation_message": vacation.Message, "is_vacation": vacation.IsVacation, "modified_at": now}}
 		res, err := common.ShopCollection.UpdateOne(ctx, filter, update)
 		if err != nil {
-			util.HandleError(c, http.StatusInternalServerError, err, "Error updating shop vacation")
+			util.HandleError(c, http.StatusInternalServerError, err)
 			return
 		}
 		if res.ModifiedCount == 0 {
-			util.HandleError(c, http.StatusNotFound, errors.New("no matching documents found"), "No matching documents found")
+			util.HandleError(c, http.StatusNotFound, errors.New("no matching documents found"))
 			return
 		}
 
@@ -745,21 +745,20 @@ func UpdateShopLogo() gin.HandlerFunc {
 
 		shopId, myId, err := common.MyShopIdAndMyId(c)
 		if err != nil {
-			util.HandleError(c, http.StatusBadRequest, err, "Error getting shop ID and user ID")
+			util.HandleError(c, http.StatusBadRequest, err)
 			return
 		}
 
 		logoFile, _, err := c.Request.FormFile("logo")
 		if err != nil {
-			util.HandleError(c, http.StatusInternalServerError, err, "Error retrieving logo file")
+			util.HandleError(c, http.StatusInternalServerError, err)
 			return
 		}
 
 		logoUploadResult, err := util.FileUpload(models.File{File: logoFile})
 		if err != nil {
 			errMsg := fmt.Sprintf("Logo failed to upload - %v", err.Error())
-			log.Print(errMsg)
-			util.HandleError(c, http.StatusInternalServerError, errors.New(errMsg), "Error uploading logo")
+			util.HandleError(c, http.StatusInternalServerError, errors.New(errMsg))
 			return
 		}
 
@@ -772,7 +771,7 @@ func UpdateShopLogo() gin.HandlerFunc {
 			_, err = util.DestroyMedia(logoUploadResult.PublicID)
 			log.Println(err)
 			// return error
-			util.HandleError(c, http.StatusNotModified, err, "updating shop banner not completed")
+			util.HandleError(c, http.StatusNotModified, err)
 			return
 		}
 
@@ -787,21 +786,20 @@ func UpdateShopBanner() gin.HandlerFunc {
 
 		shopId, myId, err := common.MyShopIdAndMyId(c)
 		if err != nil {
-			util.HandleError(c, http.StatusBadRequest, err, "Error getting shop ID and user ID")
+			util.HandleError(c, http.StatusBadRequest, err)
 			return
 		}
 
 		bannerFile, _, err := c.Request.FormFile("banner")
 		if err != nil {
-			util.HandleError(c, http.StatusInternalServerError, err, "Error retrieving banner file")
+			util.HandleError(c, http.StatusInternalServerError, err)
 			return
 		}
 
 		bannerUploadResult, err := util.FileUpload(models.File{File: bannerFile})
 		if err != nil {
 			errMsg := fmt.Sprintf("Banner failed to upload - %v", err.Error())
-			log.Print(errMsg)
-			util.HandleError(c, http.StatusInternalServerError, errors.New(errMsg), "Error uploading banner")
+			util.HandleError(c, http.StatusInternalServerError, errors.New(errMsg))
 			return
 		}
 
@@ -814,7 +812,7 @@ func UpdateShopBanner() gin.HandlerFunc {
 			_, err = util.DestroyMedia(bannerUploadResult.PublicID)
 			log.Println(err)
 			// return error
-			util.HandleError(c, http.StatusNotModified, err, "updating shop banner not completed")
+			util.HandleError(c, http.StatusNotModified, err)
 			return
 		}
 
@@ -829,21 +827,20 @@ func UpdateShopGallery() gin.HandlerFunc {
 
 		shopId, myId, err := common.MyShopIdAndMyId(c)
 		if err != nil {
-			util.HandleError(c, http.StatusBadRequest, err, "Error getting shop ID and user ID")
+			util.HandleError(c, http.StatusBadRequest, err)
 			return
 		}
 
 		imageFile, _, err := c.Request.FormFile("image")
 		if err != nil {
-			util.HandleError(c, http.StatusInternalServerError, err, "Error retrieving image file")
+			util.HandleError(c, http.StatusInternalServerError, err)
 			return
 		}
 
 		imageUploadResult, err := util.FileUpload(models.File{File: imageFile})
 		if err != nil {
 			errMsg := fmt.Sprintf("Image failed to upload - %v", err.Error())
-			log.Print(errMsg)
-			util.HandleError(c, http.StatusInternalServerError, errors.New(errMsg), "Error uploading image")
+			util.HandleError(c, http.StatusInternalServerError, errors.New(errMsg))
 			return
 		}
 
@@ -856,7 +853,7 @@ func UpdateShopGallery() gin.HandlerFunc {
 			_, err = util.DestroyMedia(imageUploadResult.PublicID)
 			log.Println(err)
 			// return error
-			util.HandleError(c, http.StatusNotModified, err, "Error updating shop gallery")
+			util.HandleError(c, http.StatusNotModified, err)
 			return
 		}
 
@@ -875,7 +872,7 @@ func DeleteFromShopGallery() gin.HandlerFunc {
 
 		shopID, myID, err := common.MyShopIdAndMyId(c)
 		if err != nil {
-			util.HandleError(c, http.StatusBadRequest, err, "Error getting shop ID and user ID")
+			util.HandleError(c, http.StatusBadRequest, err)
 			return
 		}
 
@@ -883,11 +880,11 @@ func DeleteFromShopGallery() gin.HandlerFunc {
 		update := bson.M{"$pull": bson.M{"gallery": imageURL}, "modified_at": now}
 		res, err := common.ShopCollection.UpdateOne(ctx, filter, update)
 		if err != nil {
-			util.HandleError(c, http.StatusNotModified, err, "Error removing image from shop gallery")
+			util.HandleError(c, http.StatusNotModified, err)
 			return
 		}
 		if res.ModifiedCount == 0 {
-			util.HandleError(c, http.StatusNotFound, errors.New("no matching documents found"), "No matching documents found")
+			util.HandleError(c, http.StatusNotFound, errors.New("no matching documents found"))
 			return
 		}
 
@@ -906,7 +903,7 @@ func FollowShop() gin.HandlerFunc {
 		shopId, myId, err := common.MyShopIdAndMyId(c)
 		if err != nil {
 			log.Println(err)
-			util.HandleError(c, http.StatusBadRequest, err, "Error getting shop ID and user ID")
+			util.HandleError(c, http.StatusBadRequest, err)
 			return
 		}
 
@@ -916,7 +913,7 @@ func FollowShop() gin.HandlerFunc {
 
 		session, err := util.DB.StartSession()
 		if err != nil {
-			util.HandleError(c, http.StatusUnprocessableEntity, err, "Unable to start new session")
+			util.HandleError(c, http.StatusUnprocessableEntity, err)
 			return
 		}
 		defer session.EndSession(ctx)
@@ -990,12 +987,12 @@ func FollowShop() gin.HandlerFunc {
 
 		_, err = session.WithTransaction(ctx, callback, txnOptions)
 		if err != nil {
-			util.HandleError(c, http.StatusBadRequest, err, "Error executing transaction")
+			util.HandleError(c, http.StatusBadRequest, err)
 			return
 		}
 
 		if err := session.CommitTransaction(ctx); err != nil {
-			util.HandleError(c, http.StatusInternalServerError, err, "Error committing transaction")
+			util.HandleError(c, http.StatusInternalServerError, err)
 			return
 		}
 
@@ -1013,7 +1010,7 @@ func GetShopFollowers() gin.HandlerFunc {
 		shopObjectID, err := primitive.ObjectIDFromHex(shopId)
 		if err != nil {
 			log.Printf("Invalid user id %v", shopId)
-			util.HandleError(c, http.StatusBadRequest, err, "Invalid user ID")
+			util.HandleError(c, http.StatusBadRequest, err)
 			return
 		}
 
@@ -1023,19 +1020,19 @@ func GetShopFollowers() gin.HandlerFunc {
 		result, err := common.ShopFollowerCollection.Find(ctx, filter, find)
 		if err != nil {
 			log.Printf("%v", err)
-			util.HandleError(c, http.StatusNotFound, err, "Error finding shop followers")
+			util.HandleError(c, http.StatusNotFound, err)
 			return
 		}
 
 		count, err := common.ShopFollowerCollection.CountDocuments(ctx, bson.M{"shop_id": shopObjectID})
 		if err != nil {
-			util.HandleError(c, http.StatusInternalServerError, err, "Error counting shop followers")
+			util.HandleError(c, http.StatusInternalServerError, err)
 			return
 		}
 
 		var shopFollowers []models.ShopFollower
 		if err = result.All(ctx, &shopFollowers); err != nil {
-			util.HandleError(c, http.StatusNotFound, err, "Error retrieving shop followers")
+			util.HandleError(c, http.StatusNotFound, err)
 			return
 		}
 
@@ -1058,7 +1055,7 @@ func IsFollowingShop() gin.HandlerFunc {
 
 		shopId, myId, err := common.MyShopIdAndMyId(c)
 		if err != nil {
-			util.HandleError(c, http.StatusBadRequest, err, "Invalid shop or user ID")
+			util.HandleError(c, http.StatusBadRequest, err)
 			return
 		}
 
@@ -1071,7 +1068,7 @@ func IsFollowingShop() gin.HandlerFunc {
 				return
 			}
 
-			util.HandleError(c, http.StatusInternalServerError, err, "Error retrieving shop follower")
+			util.HandleError(c, http.StatusInternalServerError, err)
 			return
 		}
 
@@ -1087,7 +1084,7 @@ func UnfollowShop() gin.HandlerFunc {
 
 		shopId, myId, err := common.MyShopIdAndMyId(c)
 		if err != nil {
-			util.HandleError(c, http.StatusBadRequest, err, "Invalid shop or user ID")
+			util.HandleError(c, http.StatusBadRequest, err)
 			return
 		}
 
@@ -1126,12 +1123,12 @@ func UnfollowShop() gin.HandlerFunc {
 
 		_, err = session.WithTransaction(context.Background(), callback, txnOptions)
 		if err != nil {
-			util.HandleError(c, http.StatusBadRequest, err, "Failed to leave shop")
+			util.HandleError(c, http.StatusBadRequest, err)
 			return
 		}
 
 		if err := session.CommitTransaction(context.Background()); err != nil {
-			util.HandleError(c, http.StatusInternalServerError, err, "Failed to commit transaction")
+			util.HandleError(c, http.StatusInternalServerError, err)
 			return
 		}
 
@@ -1150,25 +1147,25 @@ func RemoveOtherFollower() gin.HandlerFunc {
 
 		shopId, myId, err := common.MyShopIdAndMyId(c)
 		if err != nil {
-			util.HandleError(c, http.StatusBadRequest, err, "Invalid shop or follower ID")
+			util.HandleError(c, http.StatusBadRequest, err)
 			return
 		}
 
 		// Let's verify shop ownership before attempting to remove follower
 		ownershipEerr := common.VerifyShopOwnership(ctx, myId, shopId)
 		if ownershipEerr != nil {
-			util.HandleError(c, http.StatusBadRequest, err, "No Authorised PermissionD")
+			util.HandleError(c, http.StatusBadRequest, err)
 			return
 		}
 
 		userToBeRemovedId, err := primitive.ObjectIDFromHex(userToBeRemoved)
 		if err != nil {
-			util.HandleError(c, http.StatusBadRequest, err, "Invalid user ID")
+			util.HandleError(c, http.StatusBadRequest, err)
 			return
 		}
 
 		if shopId == userToBeRemovedId {
-			util.HandleError(c, http.StatusBadRequest, err, "No Authorised PermissionD")
+			util.HandleError(c, http.StatusBadRequest, err)
 			return
 		}
 
@@ -1203,12 +1200,12 @@ func RemoveOtherFollower() gin.HandlerFunc {
 
 		_, err = session.WithTransaction(context.Background(), callback, txnOptions)
 		if err != nil {
-			util.HandleError(c, http.StatusBadRequest, err, "Failed to remove follower")
+			util.HandleError(c, http.StatusBadRequest, err)
 			return
 		}
 
 		if err := session.CommitTransaction(context.Background()); err != nil {
-			util.HandleError(c, http.StatusInternalServerError, err, "Failed to commit transaction")
+			util.HandleError(c, http.StatusInternalServerError, err)
 			return
 		}
 
@@ -1228,25 +1225,25 @@ func CreateShopReview() gin.HandlerFunc {
 
 		shopId, myId, err := common.MyShopIdAndMyId(c)
 		if err != nil {
-			util.HandleError(c, http.StatusBadRequest, err, "Invalid shop or member ID")
+			util.HandleError(c, http.StatusBadRequest, err)
 			return
 		}
 		session_, err := auth.GetSessionAuto(c)
 		if err != nil {
-			util.HandleError(c, http.StatusBadRequest, err, "Failed to extract token login name")
+			util.HandleError(c, http.StatusBadRequest, err)
 			return
 		}
 		loginName := session_.LoginName
 
 		err = c.BindJSON(&shopReviewJson)
 		if err != nil {
-			util.HandleError(c, http.StatusBadRequest, err, "Failed to bind JSON")
+			util.HandleError(c, http.StatusBadRequest, err)
 			return
 		}
 
 		// validate request body
 		if validationErr := common.Validate.Struct(&shopReviewJson); validationErr != nil {
-			util.HandleError(c, http.StatusUnprocessableEntity, validationErr, "Validation error")
+			util.HandleError(c, http.StatusUnprocessableEntity, validationErr)
 			return
 		}
 
@@ -1256,7 +1253,7 @@ func CreateShopReview() gin.HandlerFunc {
 
 		session, err := util.DB.StartSession()
 		if err != nil {
-			util.HandleError(c, http.StatusUnprocessableEntity, err, "Unable to start new session")
+			util.HandleError(c, http.StatusUnprocessableEntity, err)
 			return
 		}
 		defer session.EndSession(ctx)
@@ -1307,11 +1304,11 @@ func CreateShopReview() gin.HandlerFunc {
 
 		_, err = session.WithTransaction(context.Background(), callback, txnOptions)
 		if err != nil {
-			util.HandleError(c, http.StatusBadRequest, err, "Transaction error")
+			util.HandleError(c, http.StatusBadRequest, err)
 			return
 		}
 		if err := session.CommitTransaction(context.Background()); err != nil {
-			util.HandleError(c, http.StatusInternalServerError, err, "Failed to commit transaction")
+			util.HandleError(c, http.StatusInternalServerError, err)
 			return
 		}
 		session.EndSession(context.Background())
@@ -1329,7 +1326,7 @@ func GetShopReviews() gin.HandlerFunc {
 		shopId := c.Param("shopid")
 		shopObjectID, err := primitive.ObjectIDFromHex(shopId)
 		if err != nil {
-			util.HandleError(c, http.StatusBadRequest, err, "Invalid shop ID")
+			util.HandleError(c, http.StatusBadRequest, err)
 			return
 		}
 
@@ -1338,19 +1335,19 @@ func GetShopReviews() gin.HandlerFunc {
 		find := options.Find().SetLimit(int64(paginationArgs.Limit)).SetSkip(int64(paginationArgs.Skip))
 		result, err := common.ShopReviewCollection.Find(ctx, filter, find)
 		if err != nil {
-			util.HandleError(c, http.StatusNotFound, err, "Failed to retrieve shop reviews")
+			util.HandleError(c, http.StatusNotFound, err)
 			return
 		}
 
 		var shopReviews []models.ShopReview
 		if err = result.All(ctx, &shopReviews); err != nil {
-			util.HandleError(c, http.StatusNotFound, err, "Failed to decode shop reviews")
+			util.HandleError(c, http.StatusNotFound, err)
 			return
 		}
 
 		count, err := common.ShopReviewCollection.CountDocuments(ctx, bson.M{"shop_id": shopObjectID})
 		if err != nil {
-			util.HandleError(c, http.StatusInternalServerError, err, "Failed to count shop reviews")
+			util.HandleError(c, http.StatusInternalServerError, err)
 			return
 		}
 
@@ -1372,7 +1369,7 @@ func DeleteMyReview() gin.HandlerFunc {
 
 		shopId, myId, err := common.MyShopIdAndMyId(c)
 		if err != nil {
-			util.HandleError(c, http.StatusBadRequest, err, "Error retrieving shop ID and user ID")
+			util.HandleError(c, http.StatusBadRequest, err)
 			return
 		}
 
@@ -1413,11 +1410,11 @@ func DeleteMyReview() gin.HandlerFunc {
 
 		_, err = session.WithTransaction(context.Background(), callback, txnOptions)
 		if err != nil {
-			util.HandleError(c, http.StatusBadRequest, err, "Error deleting review")
+			util.HandleError(c, http.StatusBadRequest, err)
 			return
 		}
 		if err := session.CommitTransaction(context.Background()); err != nil {
-			util.HandleError(c, http.StatusInternalServerError, err, "Error committing transaction")
+			util.HandleError(c, http.StatusInternalServerError, err)
 			return
 		}
 		session.EndSession(context.Background())
@@ -1435,20 +1432,20 @@ func DeleteOtherReview() gin.HandlerFunc {
 		userToBeRemoved := c.Query("userid")
 		userToBeRemovedId, err := primitive.ObjectIDFromHex(userToBeRemoved)
 		if err != nil {
-			util.HandleError(c, http.StatusBadRequest, err, "Invalid user ID")
+			util.HandleError(c, http.StatusBadRequest, err)
 			return
 		}
 
 		shopId, myId, err := common.MyShopIdAndMyId(c)
 		if err != nil {
-			util.HandleError(c, http.StatusBadRequest, err, "Error retrieving shop ID and user ID")
+			util.HandleError(c, http.StatusBadRequest, err)
 			return
 		}
 
 		err = common.VerifyShopOwnership(c, myId, shopId)
 		if err != nil {
 			log.Printf("You don't have write access to this shop: %v", err.Error())
-			util.HandleError(c, http.StatusUnauthorized, err, "You don't have write access to this shop")
+			util.HandleError(c, http.StatusUnauthorized, err)
 			return
 		}
 
@@ -1488,11 +1485,11 @@ func DeleteOtherReview() gin.HandlerFunc {
 
 		_, err = session.WithTransaction(context.Background(), callback, txnOptions)
 		if err != nil {
-			util.HandleError(c, http.StatusNotFound, err, "Error deleting review")
+			util.HandleError(c, http.StatusNotFound, err)
 			return
 		}
 		if err := session.CommitTransaction(context.Background()); err != nil {
-			util.HandleError(c, http.StatusInternalServerError, err, "Error committing transaction")
+			util.HandleError(c, http.StatusInternalServerError, err)
 			return
 		}
 		session.EndSession(context.Background())
@@ -1509,14 +1506,14 @@ func CreateShopAbout() gin.HandlerFunc {
 
 		shopId, myId, err := common.MyShopIdAndMyId(c)
 		if err != nil {
-			util.HandleError(c, http.StatusBadRequest, err, "Error retrieving shop ID and user ID")
+			util.HandleError(c, http.StatusBadRequest, err)
 			return
 		}
 
 		err = common.VerifyShopOwnership(c, myId, shopId)
 		if err != nil {
 			log.Printf("You don't have write access to this shop: %s\n", err.Error())
-			util.HandleError(c, http.StatusUnauthorized, err, "You don't have write access to this shop")
+			util.HandleError(c, http.StatusUnauthorized, err)
 			return
 		}
 
@@ -1535,7 +1532,7 @@ func CreateShopAbout() gin.HandlerFunc {
 		opts := options.Update().SetUpsert(true)
 		_, err = common.ShopAboutCollection.UpdateOne(ctx, bson.M{"shop_id": shopId}, bson.M{"$set": shopAboutData}, opts)
 		if err != nil {
-			util.HandleError(c, http.StatusInternalServerError, err, "Error creating shop about")
+			util.HandleError(c, http.StatusInternalServerError, err)
 			return
 		}
 
@@ -1554,18 +1551,18 @@ func GetShopAbout() gin.HandlerFunc {
 		shopId := c.Param("shopid")
 		shopObjectID, err := primitive.ObjectIDFromHex(shopId)
 		if err != nil {
-			util.HandleError(c, http.StatusBadRequest, err, "Error parsing shop ID")
+			util.HandleError(c, http.StatusBadRequest, err)
 			return
 		}
 
 		err = common.ShopAboutCollection.FindOne(ctx, bson.M{"shop_id": shopObjectID}).Decode(&shopAbout)
 		if err != nil {
 			if err == mongo.ErrNoDocuments {
-				util.HandleError(c, http.StatusNotFound, err, "no document in result")
+				util.HandleError(c, http.StatusNotFound, err)
 				return
 			}
 
-			util.HandleError(c, http.StatusInternalServerError, err, "Error retrieving shop about")
+			util.HandleError(c, http.StatusInternalServerError, err)
 			return
 		}
 
@@ -1583,26 +1580,26 @@ func UpdateShopAbout() gin.HandlerFunc {
 
 		shopId, myId, err := common.MyShopIdAndMyId(c)
 		if err != nil {
-			util.HandleError(c, http.StatusBadRequest, err, "Error getting shop ID")
+			util.HandleError(c, http.StatusBadRequest, err)
 			return
 		}
 
 		err = common.VerifyShopOwnership(c, myId, shopId)
 		if err != nil {
 			log.Printf("You don't have write access to this shop: %s\n", err.Error())
-			util.HandleError(c, http.StatusUnauthorized, err, "You don't have write access to this shop")
+			util.HandleError(c, http.StatusUnauthorized, err)
 			return
 		}
 
 		// bind the request body
 		if err := c.BindJSON(&shopAboutJson); err != nil {
-			util.HandleError(c, http.StatusBadRequest, err, "Error parsing request body")
+			util.HandleError(c, http.StatusBadRequest, err)
 			return
 		}
 
 		// validate request body
 		if validationErr := common.Validate.Struct(&shopAboutJson); validationErr != nil {
-			util.HandleError(c, http.StatusUnprocessableEntity, validationErr, "Validation error")
+			util.HandleError(c, http.StatusUnprocessableEntity, validationErr)
 			return
 		}
 
@@ -1620,7 +1617,7 @@ func UpdateShopAbout() gin.HandlerFunc {
 
 		res, err := common.ShopAboutCollection.UpdateOne(ctx, filter, update)
 		if err != nil {
-			util.HandleError(c, http.StatusInternalServerError, err, "Error updating shop about")
+			util.HandleError(c, http.StatusInternalServerError, err)
 			return
 		}
 		if res.ModifiedCount == 0 {
@@ -1641,19 +1638,19 @@ func UpdateShopAboutStatus() gin.HandlerFunc {
 		status := c.Query("status")
 		shopId, myId, err := common.MyShopIdAndMyId(c)
 		if err != nil {
-			util.HandleError(c, http.StatusBadRequest, err, "Error getting shop ID")
+			util.HandleError(c, http.StatusBadRequest, err)
 			return
 		}
 
 		err = common.VerifyShopOwnership(c, myId, shopId)
 		if err != nil {
 			log.Printf("You don't have write access to this shop: %s\n", err.Error())
-			util.HandleError(c, http.StatusUnauthorized, err, "You don't have write access to this shop")
+			util.HandleError(c, http.StatusUnauthorized, err)
 			return
 		}
 
 		if status != "active" && status != "draft" {
-			util.HandleError(c, http.StatusBadRequest, errors.New("status parameter is required and must be either 'active' or 'draft'"), "Invalid status value")
+			util.HandleError(c, http.StatusBadRequest, errors.New("status parameter is required and must be either 'active' or 'draft'"))
 			return
 		}
 
@@ -1661,7 +1658,7 @@ func UpdateShopAboutStatus() gin.HandlerFunc {
 		update := bson.M{"$set": bson.M{"status": status}}
 		res, err := common.ShopAboutCollection.UpdateOne(ctx, filter, update)
 		if err != nil {
-			util.HandleError(c, http.StatusInternalServerError, err, "Error updating shop about status")
+			util.HandleError(c, http.StatusInternalServerError, err)
 			return
 		}
 		if res.ModifiedCount == 0 {
@@ -1682,24 +1679,24 @@ func CreateShopReturnPolicy() gin.HandlerFunc {
 
 		shopId, myId, err := common.MyShopIdAndMyId(c)
 		if err != nil {
-			util.HandleError(c, http.StatusBadRequest, err, "Error getting shop ID and user ID")
+			util.HandleError(c, http.StatusBadRequest, err)
 			return
 		}
 
 		if err := c.BindJSON(&shopReturnPolicyJson); err != nil {
-			util.HandleError(c, http.StatusBadRequest, err, "Error binding JSON")
+			util.HandleError(c, http.StatusBadRequest, err)
 			return
 		}
 
 		if validationErr := common.Validate.Struct(&shopReturnPolicyJson); validationErr != nil {
-			util.HandleError(c, http.StatusBadRequest, validationErr, "Validation error")
+			util.HandleError(c, http.StatusBadRequest, validationErr)
 			return
 		}
 
 		err = common.VerifyShopOwnership(c, myId, shopId)
 		if err != nil {
 			log.Printf("You don't have write access to this shop: %s\n", err.Error())
-			util.HandleError(c, http.StatusUnauthorized, err, "You don't have write access to this shop")
+			util.HandleError(c, http.StatusUnauthorized, err)
 			return
 		}
 
@@ -1708,7 +1705,7 @@ func CreateShopReturnPolicy() gin.HandlerFunc {
 
 		_, err = common.ShopReturnPolicyCollection.InsertOne(ctx, shopReturnPolicyJson)
 		if err != nil {
-			util.HandleError(c, http.StatusInternalServerError, err, "Error creating shop policy")
+			util.HandleError(c, http.StatusInternalServerError, err)
 			return
 		}
 
@@ -1725,24 +1722,24 @@ func UpdateShopReturnPolicy() gin.HandlerFunc {
 
 		shopId, myId, err := common.MyShopIdAndMyId(c)
 		if err != nil {
-			util.HandleError(c, http.StatusBadRequest, err, "Error getting shop ID and user ID")
+			util.HandleError(c, http.StatusBadRequest, err)
 			return
 		}
 
 		if err := c.BindJSON(&shopReturnPolicyJson); err != nil {
-			util.HandleError(c, http.StatusBadRequest, err, "Error binding JSON")
+			util.HandleError(c, http.StatusBadRequest, err)
 			return
 		}
 
 		if validationErr := common.Validate.Struct(&shopReturnPolicyJson); validationErr != nil {
-			util.HandleError(c, http.StatusBadRequest, validationErr, "Validation error")
+			util.HandleError(c, http.StatusBadRequest, validationErr)
 			return
 		}
 
 		err = common.VerifyShopOwnership(c, myId, shopId)
 		if err != nil {
 			log.Printf("You don't have write access to this shop: %s\n", err.Error())
-			util.HandleError(c, http.StatusUnauthorized, err, "You don't have write access to this shop")
+			util.HandleError(c, http.StatusUnauthorized, err)
 			return
 		}
 
@@ -1750,12 +1747,12 @@ func UpdateShopReturnPolicy() gin.HandlerFunc {
 		update := bson.M{"$set": bson.M{"accepts_return": shopReturnPolicyJson.AcceptsReturn, "accepts_echanges": shopReturnPolicyJson.AcceptsExchanges, "deadline": shopReturnPolicyJson.Deadline}}
 		res, err := common.ShopReturnPolicyCollection.UpdateOne(ctx, filter, update)
 		if err != nil {
-			util.HandleError(c, http.StatusInternalServerError, err, "Error updating shop policy")
+			util.HandleError(c, http.StatusInternalServerError, err)
 			return
 		}
 
 		if res.ModifiedCount == 0 {
-			util.HandleError(c, http.StatusNotFound, nil, "No matching documents found")
+			util.HandleError(c, http.StatusNotFound, nil)
 			return
 		}
 
@@ -1772,27 +1769,27 @@ func DeleteShopReturnPolicy() gin.HandlerFunc {
 		policyIdStr := c.Param("policyid")
 		policyId, err := primitive.ObjectIDFromHex(policyIdStr)
 		if err != nil {
-			util.HandleError(c, http.StatusBadRequest, err, "Invalid policy ID")
+			util.HandleError(c, http.StatusBadRequest, err)
 			return
 		}
 
 		shopId, myId, err := common.MyShopIdAndMyId(c)
 		if err != nil {
-			util.HandleError(c, http.StatusBadRequest, err, "Error getting shop ID and user ID")
+			util.HandleError(c, http.StatusBadRequest, err)
 			return
 		}
 
 		err = common.VerifyShopOwnership(c, myId, shopId)
 		if err != nil {
 			log.Printf("You don't have write access to this shop: %s\n", err.Error())
-			util.HandleError(c, http.StatusUnauthorized, err, "You don't have write access to this shop")
+			util.HandleError(c, http.StatusUnauthorized, err)
 			return
 		}
 
 		filter := bson.M{"_id": policyId, "shop_id": shopId}
 		res, err := common.ShopReturnPolicyCollection.DeleteOne(ctx, filter)
 		if err != nil {
-			util.HandleError(c, http.StatusInternalServerError, err, "Error deleting shop policy")
+			util.HandleError(c, http.StatusInternalServerError, err)
 			return
 		}
 
@@ -1809,13 +1806,13 @@ func GetShopReturnPolicy() gin.HandlerFunc {
 		policyIdStr := c.Param("policyid")
 		policyId, err := primitive.ObjectIDFromHex(policyIdStr)
 		if err != nil {
-			util.HandleError(c, http.StatusBadRequest, err, "Invalid policy ID")
+			util.HandleError(c, http.StatusBadRequest, err)
 			return
 		}
 
 		shopId, _, err := common.MyShopIdAndMyId(c)
 		if err != nil {
-			util.HandleError(c, http.StatusBadRequest, err, "Error getting shop ID and user ID")
+			util.HandleError(c, http.StatusBadRequest, err)
 			return
 		}
 
@@ -1823,7 +1820,7 @@ func GetShopReturnPolicy() gin.HandlerFunc {
 		filter := bson.M{"_id": policyId, "shop_id": shopId}
 		err = common.ShopReturnPolicyCollection.FindOne(ctx, filter).Decode(&currentPolicy)
 		if err != nil {
-			util.HandleError(c, http.StatusInternalServerError, err, "Error retrieving shop policy")
+			util.HandleError(c, http.StatusInternalServerError, err)
 			return
 		}
 
@@ -1839,14 +1836,14 @@ func GetShopReturnPolicies() gin.HandlerFunc {
 
 		shopId, _, err := common.MyShopIdAndMyId(c)
 		if err != nil {
-			util.HandleError(c, http.StatusBadRequest, err, "Error getting shop ID and user ID")
+			util.HandleError(c, http.StatusBadRequest, err)
 			return
 		}
 
 		// Query the database for shops that match the search query
 		cursor, err := common.ShopReturnPolicyCollection.Find(ctx, bson.M{"shop_id": shopId})
 		if err != nil {
-			util.HandleError(c, http.StatusInternalServerError, err, "Error searching for shops")
+			util.HandleError(c, http.StatusInternalServerError, err)
 			return
 		}
 		defer cursor.Close(ctx)
@@ -1856,7 +1853,7 @@ func GetShopReturnPolicies() gin.HandlerFunc {
 		for cursor.Next(ctx) {
 			var policy models.ShopReturnPolicies
 			if err := cursor.Decode(&policy); err != nil {
-				util.HandleError(c, http.StatusInternalServerError, err, "Error decoding shops")
+				util.HandleError(c, http.StatusInternalServerError, err)
 				return
 			}
 			policies = append(policies, policy)
@@ -1875,24 +1872,24 @@ func CreateShopComplianceInformation() gin.HandlerFunc {
 
 		shopId, myId, err := common.MyShopIdAndMyId(c)
 		if err != nil {
-			util.HandleError(c, http.StatusBadRequest, err, "Error getting shop ID and user ID")
+			util.HandleError(c, http.StatusBadRequest, err)
 			return
 		}
 
 		if err := c.BindJSON(&complianceJson); err != nil {
-			util.HandleError(c, http.StatusBadRequest, err, "Error binding JSON")
+			util.HandleError(c, http.StatusBadRequest, err)
 			return
 		}
 
 		if validationErr := common.Validate.Struct(&complianceJson); validationErr != nil {
-			util.HandleError(c, http.StatusBadRequest, validationErr, "Validation error")
+			util.HandleError(c, http.StatusBadRequest, validationErr)
 			return
 		}
 
 		err = common.VerifyShopOwnership(c, myId, shopId)
 		if err != nil {
 			log.Printf("Error verifying if you the shop owner: %s\n", err.Error())
-			util.HandleError(c, http.StatusUnauthorized, err, "shop ownership validation error")
+			util.HandleError(c, http.StatusUnauthorized, err)
 			return
 		}
 
@@ -1906,7 +1903,7 @@ func CreateShopComplianceInformation() gin.HandlerFunc {
 
 		_, err = common.ShopCompliancePolicyCollection.InsertOne(ctx, complianceInformation)
 		if err != nil {
-			util.HandleError(c, http.StatusInternalServerError, err, "Error creating shop compliance policy")
+			util.HandleError(c, http.StatusInternalServerError, err)
 			return
 		}
 
@@ -1922,7 +1919,7 @@ func GetShopComplianceInformation() gin.HandlerFunc {
 
 		shopId, _, err := common.MyShopIdAndMyId(c)
 		if err != nil {
-			util.HandleError(c, http.StatusBadRequest, err, "Error getting shop ID and user ID")
+			util.HandleError(c, http.StatusBadRequest, err)
 			return
 		}
 
@@ -1931,10 +1928,10 @@ func GetShopComplianceInformation() gin.HandlerFunc {
 		err = common.ShopCompliancePolicyCollection.FindOne(ctx, bson.M{"shop_id": shopId}).Decode(&complianceInformation)
 		if err != nil {
 			if err == mongo.ErrNoDocuments {
-				util.HandleError(c, http.StatusNotFound, err, "Shop compliance information not found")
+				util.HandleError(c, http.StatusNotFound, err)
 				return
 			}
-			util.HandleError(c, http.StatusInternalServerError, err, "Error retrieving shop compliance information")
+			util.HandleError(c, http.StatusInternalServerError, err)
 			return
 		}
 

@@ -30,19 +30,19 @@ func CreateCategorySingle() gin.HandlerFunc {
 
 		// Bind and validate the request body
 		if err := c.ShouldBindJSON(&categoryJson); err != nil {
-			util.HandleError(c, http.StatusUnprocessableEntity, err, "Invalid request body")
+			util.HandleError(c, http.StatusUnprocessableEntity, err)
 			return
 		}
 
 		// Validate the request body
 		if validationErr := common.Validate.Struct(&categoryJson); validationErr != nil {
-			util.HandleError(c, http.StatusUnprocessableEntity, validationErr, "Invalid request body")
+			util.HandleError(c, http.StatusUnprocessableEntity, validationErr)
 			return
 		}
 
 		res, err := ListingCategoryCollection.InsertOne(ctx, categoryJson)
 		if err != nil {
-			util.HandleError(c, http.StatusInternalServerError, err, "an error occured while creating")
+			util.HandleError(c, http.StatusInternalServerError, err)
 			return
 		}
 
@@ -59,13 +59,13 @@ func CreateCategoryMulti() gin.HandlerFunc {
 
 		// Bind and validate the request body
 		if err := c.ShouldBindJSON(&categoryJson); err != nil {
-			util.HandleError(c, http.StatusUnprocessableEntity, err, "Invalid request body")
+			util.HandleError(c, http.StatusUnprocessableEntity, err)
 			return
 		}
 
 		// Validate the request body
 		if validationErr := common.Validate.Struct(&categoryJson); validationErr != nil {
-			util.HandleError(c, http.StatusUnprocessableEntity, validationErr, "Invalid request body")
+			util.HandleError(c, http.StatusUnprocessableEntity, validationErr)
 			return
 		}
 
@@ -73,7 +73,7 @@ func CreateCategoryMulti() gin.HandlerFunc {
 		txnOptions := options.Transaction().SetWriteConcern(wc)
 		session, err := util.DB.StartSession()
 		if err != nil {
-			util.HandleError(c, http.StatusInternalServerError, err, "Failed to start database session")
+			util.HandleError(c, http.StatusInternalServerError, err)
 			return
 		}
 		defer session.EndSession(ctx)
@@ -99,12 +99,12 @@ func CreateCategoryMulti() gin.HandlerFunc {
 
 		res, err := session.WithTransaction(context.Background(), callback, txnOptions)
 		if err != nil {
-			util.HandleError(c, http.StatusInternalServerError, err, "Error creating categories")
+			util.HandleError(c, http.StatusInternalServerError, err)
 			return
 		}
 
 		if err := session.CommitTransaction(context.Background()); err != nil {
-			util.HandleError(c, http.StatusInternalServerError, err, "Failed to commit transaction")
+			util.HandleError(c, http.StatusInternalServerError, err)
 			return
 		}
 		session.EndSession(context.Background())
@@ -125,13 +125,13 @@ func GetAllCategories() gin.HandlerFunc {
 		result, err := ListingCategoryCollection.Find(ctx, bson.D{}, find)
 		if err != nil {
 			log.Println(err)
-			util.HandleError(c, http.StatusInternalServerError, err, "Failed to retrieve categories")
+			util.HandleError(c, http.StatusInternalServerError, err)
 			return
 		}
 
 		if err = result.All(ctx, &categories); err != nil {
 			log.Println(err)
-			util.HandleError(c, http.StatusInternalServerError, err, "Failed to decode categories")
+			util.HandleError(c, http.StatusInternalServerError, err)
 			return
 		}
 
@@ -155,12 +155,12 @@ func GetCategoryChildren() gin.HandlerFunc {
 		result, err := ListingCategoryCollection.Find(ctx, filter)
 		if err != nil {
 			log.Println(err)
-			util.HandleError(c, http.StatusInternalServerError, err, "Failed to retrieve category children")
+			util.HandleError(c, http.StatusInternalServerError, err)
 			return
 		}
 		if err = result.All(ctx, &children); err != nil {
 			log.Println(err)
-			util.HandleError(c, http.StatusInternalServerError, err, "Failed to decode category children")
+			util.HandleError(c, http.StatusInternalServerError, err)
 			return
 		}
 
@@ -181,10 +181,10 @@ func GetCategoryAncestor() gin.HandlerFunc {
 		err := ListingCategoryCollection.FindOne(ctx, bson.M{"_id": categoryID}).Decode(&category)
 		if err != nil {
 			if err == mongo.ErrNoDocuments {
-				util.HandleError(c, http.StatusNotFound, err, "category not found")
+				util.HandleError(c, http.StatusNotFound, err)
 				return
 			}
-			util.HandleError(c, http.StatusInternalServerError, err, "Failed to retrieve category")
+			util.HandleError(c, http.StatusInternalServerError, err)
 			return
 		}
 
@@ -201,10 +201,10 @@ func GetCategoryAncestor() gin.HandlerFunc {
 			err = ListingCategoryCollection.FindOne(ctx, bson.M{"_id": category.ParentID}).Decode(&parent)
 			if err != nil {
 				if err == mongo.ErrNoDocuments {
-					util.HandleError(c, http.StatusNotFound, err, "parent category not found")
+					util.HandleError(c, http.StatusNotFound, err)
 					return
 				}
-				util.HandleError(c, http.StatusInternalServerError, err, "Failed to retrieve category parent")
+				util.HandleError(c, http.StatusInternalServerError, err)
 				return
 			}
 
@@ -237,7 +237,7 @@ func SearchCategories() gin.HandlerFunc {
 			},
 		}, options.Find())
 		if err != nil {
-			util.HandleError(c, http.StatusInternalServerError, err, "Error searching for categories")
+			util.HandleError(c, http.StatusInternalServerError, err)
 			return
 		}
 
@@ -246,7 +246,7 @@ func SearchCategories() gin.HandlerFunc {
 		for result.Next(ctx) {
 			var category models.Category
 			if err := result.Decode(&category); err != nil {
-				util.HandleError(c, http.StatusInternalServerError, err, "Error decoding categories")
+				util.HandleError(c, http.StatusInternalServerError, err)
 				return
 			}
 			serializedCategories = append(serializedCategories, &category)
@@ -264,7 +264,7 @@ func DeleteAllCategories() gin.HandlerFunc {
 
 		res, err := ListingCategoryCollection.DeleteMany(ctx, bson.M{})
 		if err != nil {
-			util.HandleError(c, http.StatusInternalServerError, err, "Failed to delete categories")
+			util.HandleError(c, http.StatusInternalServerError, err)
 			return
 		}
 
