@@ -359,7 +359,8 @@ func CreatePaymentCard() gin.HandlerFunc {
 			Year:    string(cardInfo.ExpiryYear),
 			Company: creditcard.Company{},
 		}
-		if card.Validate(true) != nil {
+		err = card.Validate(true)
+		if err != nil {
 			util.HandleError(c, http.StatusBadRequest, err)
 			return
 		}
@@ -383,7 +384,7 @@ func CreatePaymentCard() gin.HandlerFunc {
 			UpdatedAt:      now,
 		}
 
-		count, err := common.PaymentInformationCollection.CountDocuments(ctx, bson.M{"user_id": userId})
+		count, err := common.UserPaymentCardsTable.CountDocuments(ctx, bson.M{"userId": userId})
 		if err != nil {
 			util.HandleError(c, http.StatusInternalServerError, err)
 			return
@@ -408,14 +409,14 @@ func CreatePaymentCard() gin.HandlerFunc {
 			log.Println("Starting mongo transaction for new payment card creation")
 			if cardToUpload.IsDefault {
 				// Set IsDefaultShippingAddress to false for other addresses belonging to the user
-				err = setOtherPaymentsToFalse(ctx, common.PaymentInformationCollection, userId, cardToUpload.ID)
+				err = setOtherPaymentsToFalse(ctx, common.UserPaymentCardsTable, userId, cardToUpload.ID)
 				if err != nil {
 					return nil, err
 				}
 
 			}
 
-			insertRes, insertErr := common.SellerPaymentInformationCollection.InsertOne(ctx, cardToUpload)
+			insertRes, insertErr := common.UserPaymentCardsTable.InsertOne(ctx, cardToUpload)
 			if insertErr != nil {
 				return nil, insertErr
 			}
@@ -457,7 +458,7 @@ func GetPaymentCards() gin.HandlerFunc {
 			SetLimit(int64(paginationArgs.Limit)).
 			SetSkip(int64(paginationArgs.Skip)).
 			SetSort(bson.D{{Key: "createdAt", Value: -1}})
-		cursor, err := common.PaymentInformationCollection.Find(ctx, filter, findOptions)
+		cursor, err := common.UserPaymentCardsTable.Find(ctx, filter, findOptions)
 		if err != nil {
 			util.HandleError(c, http.StatusNotFound, err)
 			return
@@ -470,7 +471,7 @@ func GetPaymentCards() gin.HandlerFunc {
 			return
 		}
 
-		count, err := common.PaymentInformationCollection.CountDocuments(ctx, filter)
+		count, err := common.UserPaymentCardsTable.CountDocuments(ctx, filter)
 		if err != nil {
 			util.HandleError(c, http.StatusInternalServerError, err)
 			return
@@ -547,7 +548,7 @@ func DeletePaymentCard() gin.HandlerFunc {
 		}
 
 		filter := bson.M{"_id": paymentObjectID, "userId": userId}
-		result, err := common.PaymentInformationCollection.DeleteOne(ctx, filter)
+		result, err := common.UserPaymentCardsTable.DeleteOne(ctx, filter)
 		if err != nil {
 			util.HandleError(c, http.StatusNotFound, err)
 			return

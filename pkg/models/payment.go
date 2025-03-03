@@ -27,8 +27,8 @@ type SellerPaymentInformationRequest struct {
 
 // Used for Payment Card details.
 type PaymentCardInformation struct {
-	CreatedAt      time.Time          `bson:"created_at" json:"createdAt"`
-	UpdatedAt      time.Time          `bson:"updated_at" json:"updatedAt"`
+	CreatedAt      time.Time          `bson:"createdAt" json:"createdAt"`
+	UpdatedAt      time.Time          `bson:"updatedAt" json:"updatedAt"`
 	CardHolderName string             `bson:"cardHolderName" json:"cardHolderName,omitempty" validate:"required"`
 	CardNumber     string             `bson:"cardNumber" json:"_" validate:"required"`
 	LastFourDigits string             `bson:"lastFourDigits" json:"lastFourDigits,omitempty" validate:"required"`
@@ -36,8 +36,8 @@ type PaymentCardInformation struct {
 	ExpiryYear     string             `bson:"expiryYear" json:"expiryYear,omitempty" validate:"required"`
 	CVV            string             `bson:"cvv" json:"cvv,omitempty" validate:"required"`
 	ID             primitive.ObjectID `bson:"_id" json:"_id" validate:"required"`
-	UserID         primitive.ObjectID `bson:"user_id" json:"userId" validate:"required"`
-	IsDefault      bool               `bson:"is_default" json:"isDefault"`
+	UserID         primitive.ObjectID `bson:"userId" json:"userId" validate:"required"`
+	IsDefault      bool               `bson:"isDefault" json:"isDefault"`
 }
 
 type PaymentCardInformationRequest struct {
