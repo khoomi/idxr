@@ -77,8 +77,8 @@ func CreateCategoryMulti() gin.HandlerFunc {
 			return
 		}
 		defer session.EndSession(ctx)
-		callback := func(ctx mongo.SessionContext) (interface{}, error) {
-			var categories []interface{}
+		callback := func(ctx mongo.SessionContext) (any, error) {
+			var categories []any
 			for _, category := range categoryJson.Categories {
 				categories = append(categories, models.Category{
 					ID:          slug2.Make(strings.ToLower(strings.Replace(category.Name, "'", "", 5))),
@@ -190,12 +190,8 @@ func GetCategoryAncestor() gin.HandlerFunc {
 
 		// Traverse up the category tree to find ancestors
 		var ancestors []*models.Category
-		for {
+		for category.ParentID != "" {
 			// If this category has no parent, it's the root category
-			if category.ParentID == "" {
-				break
-			}
-
 			// Find the parent category
 			var parent models.Category
 			err = ListingCategoryCollection.FindOne(ctx, bson.M{"_id": category.ParentID}).Decode(&parent)

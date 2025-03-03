@@ -136,7 +136,7 @@ func CreateShop() gin.HandlerFunc {
 			return
 		}
 		defer session.EndSession(ctx)
-		callback := func(ctx mongo.SessionContext) (interface{}, error) {
+		callback := func(ctx mongo.SessionContext) (any, error) {
 			slug := slug2.Make(shopUserName)
 			policy := models.ShopPolicy{
 				PaymentPolicy:  "",
@@ -304,6 +304,7 @@ func UpdateShopInformation() gin.HandlerFunc {
 		if len(updateData) == 0 {
 			// delete media
 			_, err := util.DestroyMedia(logoUploadResult.PublicID)
+			log.Println(err)
 			_, err = util.DestroyMedia(bannerUploadResult.PublicID)
 			log.Println(err)
 			// return error
@@ -918,7 +919,7 @@ func FollowShop() gin.HandlerFunc {
 		}
 		defer session.EndSession(ctx)
 		followerId := primitive.NewObjectID()
-		callback := func(ctx mongo.SessionContext) (interface{}, error) {
+		callback := func(ctx mongo.SessionContext) (any, error) {
 			var user models.User
 			err := common.UserCollection.FindOne(ctx, bson.M{"_id": myId}).Decode(&user)
 			if err != nil {
@@ -1098,7 +1099,7 @@ func UnfollowShop() gin.HandlerFunc {
 		}
 		defer session.EndSession(ctx)
 
-		callback := func(ctx mongo.SessionContext) (interface{}, error) {
+		callback := func(ctx mongo.SessionContext) (any, error) {
 			// attempt to remove member from member collection table
 			filter := bson.M{"shop_id": shopId, "user_id": myId}
 			_, err := common.ShopFollowerCollection.DeleteOne(ctx, filter)
@@ -1179,7 +1180,7 @@ func RemoveOtherFollower() gin.HandlerFunc {
 		}
 		defer session.EndSession(ctx)
 
-		callback := func(ctx mongo.SessionContext) (interface{}, error) {
+		callback := func(ctx mongo.SessionContext) (any, error) {
 			// attempt to remove follower from shop follower collection table
 			filter := bson.M{"shop_id": shopId, "user_id": userToBeRemovedId}
 			_, err := common.ShopFollowerCollection.DeleteOne(ctx, filter)
@@ -1259,7 +1260,7 @@ func CreateShopReview() gin.HandlerFunc {
 		defer session.EndSession(ctx)
 
 		reviewId := primitive.NewObjectID()
-		callback := func(ctx mongo.SessionContext) (interface{}, error) {
+		callback := func(ctx mongo.SessionContext) (any, error) {
 			var userProfile models.User
 			err := common.UserCollection.FindOne(ctx, bson.M{"_id": myId}).Decode(&userProfile)
 			if err != nil {
@@ -1383,8 +1384,8 @@ func DeleteMyReview() gin.HandlerFunc {
 		}
 		defer session.EndSession(ctx)
 
-		var deletedReviewId interface{}
-		callback := func(ctx mongo.SessionContext) (interface{}, error) {
+		var deletedReviewId any
+		callback := func(ctx mongo.SessionContext) (any, error) {
 			// Attempt to remove review from review collection table
 			filter := bson.M{"shop_id": shopId, "user_id": myId}
 			_, err := common.ShopReviewCollection.DeleteOne(ctx, filter)
@@ -1449,7 +1450,7 @@ func DeleteOtherReview() gin.HandlerFunc {
 			return
 		}
 
-		var deletedReviewId interface{}
+		var deletedReviewId any
 		// Shop review session
 		wc := writeconcern.New(writeconcern.WMajority())
 		txnOptions := options.Transaction().SetWriteConcern(wc)
@@ -1459,7 +1460,7 @@ func DeleteOtherReview() gin.HandlerFunc {
 		}
 		defer session.EndSession(ctx)
 
-		callback := func(ctx mongo.SessionContext) (interface{}, error) {
+		callback := func(ctx mongo.SessionContext) (any, error) {
 			// Attempt to remove review from review collection table
 			filter := bson.M{"shop_id": shopId, "owner_id": myId, "user_id": userToBeRemovedId}
 			_, err = common.ShopFollowerCollection.DeleteOne(ctx, filter)

@@ -212,7 +212,7 @@ func HandleUserAuthentication() gin.HandlerFunc {
 		}
 		defer session.EndSession(ctx)
 
-		callback := func(ctx mongo.SessionContext) (interface{}, error) {
+		callback := func(ctx mongo.SessionContext) (any, error) {
 			filter := bson.M{"primary_email": validUser.PrimaryEmail}
 			update := bson.M{
 				"$set": bson.M{
@@ -284,11 +284,11 @@ func HandleUserAuthentication() gin.HandlerFunc {
 
 		sessionId, err := auth.SetSession(c, validUser.Id.Hex(), validUser.PrimaryEmail, validUser.LoginName)
 		if err != nil {
-			util.HandleError(c, http.StatusInternalServerError, errors.New("Failed to set session"))
+			util.HandleError(c, http.StatusInternalServerError, errors.New("failed to set session"))
 			return
 		}
 
-		userData := map[string]interface{}{
+		userData := map[string]any{
 			"userId":        validUser.Id.Hex(),
 			"role":          validUser.Role,
 			"email":         validUser.PrimaryEmail,
@@ -317,7 +317,7 @@ func GetMyActiveSession() gin.HandlerFunc {
 		if err != nil {
 			// Delete old session
 			auth.DeleteSession(c)
-			util.HandleError(c, http.StatusUnauthorized, errors.New("Unauthorized request"))
+			util.HandleError(c, http.StatusUnauthorized, errors.New("unauthorized request"))
 			return
 		}
 
@@ -335,13 +335,13 @@ func RefreshToken() gin.HandlerFunc {
 		if err != nil {
 			// Delete old session
 			auth.DeleteSession(c)
-			util.HandleError(c, http.StatusUnauthorized, errors.New("Unauthorized request"))
+			util.HandleError(c, http.StatusUnauthorized, errors.New("unauthorized request"))
 			return
 		}
 
 		if session.Expired() {
 			auth.DeleteSession(c)
-			util.HandleError(c, http.StatusUnauthorized, errors.New("Unauthorized request"))
+			util.HandleError(c, http.StatusUnauthorized, errors.New("unauthorized request"))
 			return
 		}
 
@@ -700,11 +700,9 @@ func UpdateMyProfile() gin.HandlerFunc {
 				return
 			}
 			defer file.Close()
-
 			uploadResult, err = util.FileUpload(models.File{File: file})
-			{
-				log.Printf("Thumbnail Image upload failed - %v", err.Error())
-				util.HandleError(c, http.StatusInternalServerError, err)
+			if err != nil {
+				util.HandleError(c, http.StatusInternalServerError, fmt.Errorf("thumbnail Image upload failed - %v", err.Error()))
 				return
 			}
 			updateData["thumbnail"] = uploadResult.SecureURL
@@ -819,7 +817,7 @@ func DeleteLoginHistories() gin.HandlerFunc {
 		}
 		defer session.EndSession(ctx)
 
-		callback := func(ctx mongo.SessionContext) (interface{}, error) {
+		callback := func(ctx mongo.SessionContext) (any, error) {
 			filter := bson.M{"_id": bson.M{"$in": IdsToDelete}, "user_uid": userId}
 			result, err := common.LoginHistoryCollection.DeleteMany(ctx, filter)
 			if err != nil {
@@ -914,12 +912,12 @@ func PasswordReset() gin.HandlerFunc {
 
 		now := primitive.NewDateTimeFromTime(time.Now())
 		if now.Time().Unix() > passwordResetData.ExpiresAt.Time().Unix() {
-			util.HandleError(c, http.StatusNotFound, errors.New("Password reset token has expired. Please restart the reset process"))
+			util.HandleError(c, http.StatusNotFound, errors.New("password reset token has expired. Please restart the reset process"))
 			return
 		}
 
 		if currentToken != passwordResetData.TokenDigest {
-			util.HandleError(c, http.StatusNotFound, errors.New("Password reset token is incorrect or expired. Please restart the reset process or use a valid token"))
+			util.HandleError(c, http.StatusNotFound, errors.New("password reset token is incorrect or expired. Please restart the reset process or use a valid token"))
 			return
 		}
 
@@ -1278,7 +1276,7 @@ func ChangeDefaultAddress() gin.HandlerFunc {
 
 		addressID := c.Param("id")
 		if addressID == "" {
-			util.HandleError(c, http.StatusBadRequest, errors.New("No address id was provided!"))
+			util.HandleError(c, http.StatusBadRequest, errors.New("no address id was provided"))
 			return
 		}
 

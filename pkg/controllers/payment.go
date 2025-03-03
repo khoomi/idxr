@@ -104,7 +104,7 @@ func CreateSellerPaymentInformation() gin.HandlerFunc {
 
 		defer session.EndSession(ctx)
 
-		callback := func(ctx mongo.SessionContext) (interface{}, error) {
+		callback := func(ctx mongo.SessionContext) (any, error) {
 			log.Println("Start mongo transaction for new payament information creation")
 			if paymentInfoToUpload.IsDefault {
 				// Set IsDefaultShippingAddress to false for other addresses belonging to the user
@@ -405,7 +405,7 @@ func CreatePaymentCard() gin.HandlerFunc {
 
 		defer session.EndSession(ctx)
 
-		callback := func(ctx mongo.SessionContext) (interface{}, error) {
+		callback := func(ctx mongo.SessionContext) (any, error) {
 			log.Println("Starting mongo transaction for new payment card creation")
 			if cardToUpload.IsDefault {
 				// Set IsDefaultShippingAddress to false for other addresses belonging to the user

@@ -2,9 +2,8 @@ package common
 
 import (
 	rand2 "crypto/rand"
+	"errors"
 	"fmt"
-	"khoomi-api-io/api/pkg/models"
-	"khoomi-api-io/api/pkg/util"
 	"math/big"
 	"math/rand"
 	"net/http"
@@ -13,6 +12,9 @@ import (
 	"sync"
 	"time"
 	"unicode/utf8"
+
+	"khoomi-api-io/api/pkg/models"
+	"khoomi-api-io/api/pkg/util"
 
 	"github.com/cloudinary/cloudinary-go/api/uploader"
 	"github.com/gin-gonic/gin"
@@ -174,7 +176,7 @@ func MapFormDataToNewListing(formData func(key string) (value string)) (*models.
 	listing.Inventory = models.Inventory{
 		Price:           price,
 		Quantity:        quantity,
-		SKU:             formData("inventory.sku"),
+		SKU:             sku,
 		DomesticPricing: false,
 		DomesticPrice:   0,
 	}
@@ -312,10 +314,10 @@ func HandleSequentialImages(c *gin.Context) ([]string, []uploader.UploadResult, 
 		for _, err := range errs {
 			errMsg += "\n" + err.Error()
 		}
-		return uploadedImagesUrl, uploadedImagesResult, fmt.Errorf(errMsg)
+		return uploadedImagesUrl, uploadedImagesResult, errors.New(errMsg)
 	}
 
-	var defaultThumbnail = "https://res.cloudinary.com/kh-oo-mi/image/upload/v1705607175/khoomi/mypvl86lihcqvkcqmvbg.jpg"
+	defaultThumbnail := "https://res.cloudinary.com/kh-oo-mi/image/upload/v1705607175/khoomi/mypvl86lihcqvkcqmvbg.jpg"
 	// If no images were uploaded, use default thumbnail
 	if len(uploadedImagesUrl) == 0 {
 		tempImage := uploader.UploadResult{

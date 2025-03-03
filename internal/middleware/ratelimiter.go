@@ -1,11 +1,11 @@
 package middleware
 
 import (
-	"khoomi-api-io/api/pkg/util"
 	"time"
 
 	ratelimit "github.com/JGLTechnologies/gin-rate-limit"
 	"github.com/gin-gonic/gin"
+	"khoomi-api-io/api/pkg/util"
 )
 
 func keyFunc(c *gin.Context) string {

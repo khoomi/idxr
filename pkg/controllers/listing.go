@@ -39,9 +39,13 @@ func CreateListing() gin.HandlerFunc {
 		}
 		loginName, loginEmail := session.LoginName, session.Email
 		newListing, err := common.MapFormDataToNewListing(c.PostForm)
-
 		if validationErr := common.Validate.Struct(newListing); validationErr != nil {
-			util.HandleError(c, http.StatusBadRequest, validationErr)
+			util.HandleError(c, http.StatusBadRequest, err)
+			return
+		}
+
+		if err := common.Validate.Struct(newListing); err != nil {
+			util.HandleError(c, http.StatusBadRequest, err)
 			return
 		}
 
@@ -619,7 +623,7 @@ func DeleteListings() gin.HandlerFunc {
 			deletedObjectIDs = append(deletedObjectIDs, idObjectID)
 		}
 
-		util.HandleSuccess(c, http.StatusOK, "Listing(s) deleted", gin.H{"deleted": listingIDs, "not_deleted": notDeletedObjectIDs})
+		util.HandleSuccess(c, http.StatusOK, "Listing(s) deleted", gin.H{"deleted": deletedObjectIDs, "not_deleted": notDeletedObjectIDs})
 	}
 }
 
@@ -666,6 +670,6 @@ func DeactivateListings() gin.HandlerFunc {
 			deletedObjectIDs = append(deletedObjectIDs, idObjectID)
 		}
 
-		util.HandleSuccess(c, http.StatusOK, "Listing(s) deleted", gin.H{"deactivated": listingIDs, "not_deactivated": notDeletedObjectIDs})
+		util.HandleSuccess(c, http.StatusOK, "Listing(s) deleted", gin.H{"deactivated": deletedObjectIDs, "not_deactivated": notDeletedObjectIDs})
 	}
 }
