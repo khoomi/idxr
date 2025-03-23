@@ -54,8 +54,9 @@ func CreateSellerPaymentInformation() gin.HandlerFunc {
 			util.HandleError(c, http.StatusInternalServerError, err)
 			return
 		}
+
 		if !res {
-			util.HandleError(c, http.StatusUnauthorized, errors.New("Only sellers can perform this action"))
+			util.HandleError(c, http.StatusUnauthorized, errors.New("only sellers can perform this action"))
 			return
 		}
 
@@ -66,12 +67,12 @@ func CreateSellerPaymentInformation() gin.HandlerFunc {
 		}
 
 		if len(paymentInfo.AccountNumber) != 10 {
-			util.HandleError(c, http.StatusBadRequest, errors.New("Account number must be 10 digits"))
+			util.HandleError(c, http.StatusBadRequest, errors.New("account number must be 10 digits"))
 			return
 		}
 
 		if len(paymentInfo.BankName) < 3 {
-			util.HandleError(c, http.StatusBadRequest, errors.New("Invalid bank name"))
+			util.HandleError(c, http.StatusBadRequest, errors.New("invalid bank name"))
 			return
 		}
 

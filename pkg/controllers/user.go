@@ -41,14 +41,7 @@ func ActiveSessionUser(c *gin.Context) {
 		return
 	}
 
-	userId, err := session.GetUserObjectId()
-	if err != nil {
-		log.Printf("User with IP %v tried to gain access with an invalid user ID or token\n", c.ClientIP())
-		util.HandleError(c, http.StatusBadRequest, err)
-		return
-	}
-
-	err = common.UserCollection.FindOne(ctx, bson.M{"_id": userId}).Decode(&user)
+	err = common.UserCollection.FindOne(ctx, bson.M{"_id": session.UserId}).Decode(&user)
 	if err != nil {
 		util.HandleError(c, http.StatusNotFound, err)
 		return
@@ -282,7 +275,7 @@ func HandleUserAuthentication() gin.HandlerFunc {
 		// 	email.SendVerifyEmailNotification(validUser.PrimaryEmail, validUser.FirstName, link)
 		// }
 
-		sessionId, err := auth.SetSession(c, validUser.Id.Hex(), validUser.PrimaryEmail, validUser.LoginName)
+		sessionId, err := auth.SetSession(c, validUser.Id, validUser.PrimaryEmail, validUser.LoginName)
 		if err != nil {
 			util.HandleError(c, http.StatusInternalServerError, errors.New("failed to set session"))
 			return
@@ -379,13 +372,7 @@ func SendDeleteUserAccount() gin.HandlerFunc {
 			util.HandleError(c, http.StatusUnauthorized, err)
 			return
 		}
-		userId, err := session_.GetUserObjectId()
-		if err != nil {
-			util.HandleError(c, http.StatusUnauthorized, err)
-			return
-		}
-
-		_, err = common.UserDeletionCollection.InsertOne(ctx, bson.M{"user_id": userId, "created_at": time.Now()})
+		_, err = common.UserDeletionCollection.InsertOne(ctx, bson.M{"user_id": session_.UserId, "created_at": time.Now()})
 		if err != nil {
 			util.HandleError(c, http.StatusUnauthorized, err)
 			return
@@ -564,12 +551,6 @@ func SendVerifyEmail() gin.HandlerFunc {
 			util.HandleError(c, http.StatusUnauthorized, err)
 			return
 		}
-		userId, err := session.GetUserObjectId()
-		if err != nil {
-			util.HandleError(c, http.StatusUnauthorized, err)
-			return
-		}
-
 		// Verify current user email
 		err = util.ValidateEmailAddress(emailCurrent)
 		if err != nil {
@@ -582,23 +563,23 @@ func SendVerifyEmail() gin.HandlerFunc {
 
 		expirationTime := now.Add(common.VERIFICATION_EMAIL_EXPIRATION_TIME)
 		verifyEmail := models.UserVerifyEmailToken{
-			UserId:      userId,
+			UserId:      session.UserId,
 			TokenDigest: token,
 			CreatedAt:   primitive.NewDateTimeFromTime(now),
 			ExpiresAt:   primitive.NewDateTimeFromTime(expirationTime),
 		}
 		opts := options.Replace().SetUpsert(true)
-		filter := bson.M{"user_uid": userId}
+		filter := bson.M{"user_uid": session.UserId}
 		_, err = common.EmailVerificationTokenCollection.ReplaceOne(ctx, filter, verifyEmail, opts)
 		if err != nil {
 			util.HandleError(c, http.StatusBadRequest, err)
 			return
 		}
 
-		link := fmt.Sprintf("https://khoomi.com/verify-email?token=%v&id=%v", token, userId)
+		link := fmt.Sprintf("https://khoomi.com/verify-email?token=%v&id=%v", token, session.UserId)
 		email.SendVerifyEmailNotification(emailCurrent, firstName, link)
 
-		util.HandleSuccess(c, http.StatusOK, "Verification email successfully sent", gin.H{"_id": userId.Hex()})
+		util.HandleSuccess(c, http.StatusOK, "Verification email successfully sent", gin.H{"_id": session.UserId.Hex()})
 	}
 }
 
@@ -664,14 +645,8 @@ func UpdateMyProfile() gin.HandlerFunc {
 			util.HandleError(c, http.StatusUnauthorized, err)
 			return
 		}
-		userId, err := session_.GetUserObjectId()
-		if err != nil {
-			util.HandleError(c, http.StatusUnauthorized, err)
-			return
-		}
 
 		updateData := bson.M{}
-
 		if firstName := c.Request.FormValue("firstName"); firstName != "" {
 			if err := common.ValidateNameFormat(firstName); err != nil {
 				util.HandleError(c, http.StatusBadRequest, err)
@@ -722,7 +697,7 @@ func UpdateMyProfile() gin.HandlerFunc {
 
 		updateData["modified_at"] = time.Now()
 
-		filter := bson.M{"_id": userId}
+		filter := bson.M{"_id": session_.UserId}
 		update := bson.M{"$set": updateData}
 
 		_, err = common.UserCollection.UpdateOne(ctx, filter, update)

@@ -19,10 +19,10 @@ type SellerPaymentInformation struct {
 
 // Used when a seller submits new or updated bank account info.
 type SellerPaymentInformationRequest struct {
-	AccountName   string `bson:"account_name" json:"accountName" validate:"required"`
-	AccountNumber string `bson:"account_number" json:"accountNumber" validate:"required,min=10,max=10"`
-	BankName      string `bson:"bank_name" json:"bankName" validate:"required"`
-	IsDefault     bool   `bson:"is_default" json:"isDefault"`
+	BankName      string `json:"bankName" validate:"required"`
+	AccountName   string `json:"accountName" validate:"required"`
+	AccountNumber string `json:"accountNumber" validate:"required"`
+	IsDefault     bool   `json:"isDefault"`
 }
 
 // Used for Payment Card details.

@@ -62,13 +62,8 @@ func CreateShop() gin.HandlerFunc {
 			util.HandleError(c, http.StatusUnauthorized, err)
 			return
 		}
-		userID, err := session_.GetUserObjectId()
-		if err != nil {
-			util.HandleError(c, http.StatusUnauthorized, err)
-			return
-		}
-		loginName, userEmail := session_.LoginName, session_.Email
 
+		loginName, userEmail := session_.LoginName, session_.Email
 		shopName := c.Request.FormValue("name")
 		err = util.ValidateShopName(shopName)
 		if err != nil {
@@ -149,7 +144,7 @@ func CreateShop() gin.HandlerFunc {
 				Name:               shopName,
 				Description:        shopDescription,
 				Username:           shopUserName,
-				UserID:             userID,
+				UserID:             session_.UserId,
 				ListingActiveCount: 0,
 				Announcement:       "",
 				IsVacation:         false,
@@ -174,7 +169,7 @@ func CreateShop() gin.HandlerFunc {
 			}
 
 			// Update user profile shop
-			filter := bson.M{"_id": userID}
+			filter := bson.M{"_id": session_.UserId}
 			update := bson.M{"$set": bson.M{"shop_id": shopID, "is_seller": true, "modified_at": now}}
 			result, err := common.UserCollection.UpdateOne(ctx, filter, update)
 			if err != nil {

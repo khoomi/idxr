@@ -111,6 +111,13 @@ func userRoutes(api *gin.RouterGroup) {
 			payment.PUT("/:id/default", controllers.ChangeDefaultPaymentCard())
 			payment.DELETE("/:id", controllers.DeletePaymentCard())
 
+			// Seller Payment information endpoints
+			secured.POST("/:userid/payment-information/", controllers.CreateSellerPaymentInformation())
+			secured.GET("/:userid/payment-information/onboarded", controllers.CompletedPaymentOnboarding())
+			secured.GET("/:userid/payment-information", controllers.GetSellerPaymentInformations())
+			secured.PUT("/:userid/payment-information/:paymentInfoId/default", controllers.ChangeDefaultSellerPaymentInformation())
+			secured.DELETE("/:userid/payment-information/:paymentInfoId", controllers.DeleteSellerPaymentInformation())
+
 		}
 	}
 }
@@ -185,13 +192,6 @@ func shopRoutes(api *gin.RouterGroup) {
 			// Compliance information endpoints
 			secured.POST("/:shopid/compliance", controllers.CreateShopComplianceInformation())
 			secured.GET("/:shopid/compliance", controllers.GetShopComplianceInformation())
-			// Payment information endpoints
-			secured.POST("/:shopid/payment-information/", controllers.CreateSellerPaymentInformation())
-			secured.GET("/:shopid/payment-information/onboarded", controllers.CompletedPaymentOnboarding())
-			secured.GET("/:shopid/payment-information", controllers.GetSellerPaymentInformations())
-			secured.PUT("/:shopid/payment-information/:paymentInfoId/default", controllers.ChangeDefaultSellerPaymentInformation())
-			secured.DELETE("/:shopid/payment-information/:paymentInfoId", controllers.DeleteSellerPaymentInformation())
-
 		}
 
 		listing := shop.Group("")

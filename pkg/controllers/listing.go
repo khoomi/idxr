@@ -638,12 +638,6 @@ func DeactivateListings() gin.HandlerFunc {
 			util.HandleError(c, http.StatusUnauthorized, err)
 			return
 		}
-		myId, err := session.GetUserObjectId()
-		if err != nil {
-			util.HandleError(c, http.StatusUnauthorized, err)
-			return
-		}
-
 		listingIDs := c.PostFormArray("id")
 		fmt.Println(listingIDs)
 		if len(listingIDs) < 1 {
@@ -661,7 +655,7 @@ func DeactivateListings() gin.HandlerFunc {
 				continue
 			}
 
-			_, err = common.ListingCollection.UpdateOne(ctx, bson.M{"_id": idObjectID, "user_id": myId}, bson.M{"state.state": models.ListingStateDeactivated, "state.state_updated_at": now, "date.modified_at": now})
+			_, err = common.ListingCollection.UpdateOne(ctx, bson.M{"_id": idObjectID, "user_id": session.UserId}, bson.M{"state.state": models.ListingStateDeactivated, "state.state_updated_at": now, "date.modified_at": now})
 			if err != nil {
 				notDeletedObjectIDs = append(notDeletedObjectIDs, idObjectID)
 				continue
