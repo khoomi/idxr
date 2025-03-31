@@ -202,7 +202,7 @@ func shopRoutes(api *gin.RouterGroup) {
 			{
 				// Endpoint to create a single listing
 				secured.POST("/:shopid/listings", controllers.CreateListing())
-				secured.GET("/:shopid/listing-summary", controllers.GetMyListingsSummary())
+				secured.GET("/:shopid/listings/summary", controllers.GetMyListingsSummary())
 				secured.GET("/:shopid/check-listing-onboarding", controllers.HasUserCreatedListingOnboarding())
 			}
 		}

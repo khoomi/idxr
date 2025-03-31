@@ -28,7 +28,7 @@ func CreateListing() gin.HandlerFunc {
 		defer cancel()
 
 		shopId, myId, err := common.MyShopIdAndMyId(c)
-		if err == nil {
+		if err != nil {
 			util.HandleError(c, http.StatusBadRequest, err)
 			return
 		}
@@ -552,12 +552,14 @@ func HasUserCreatedListingOnboarding() gin.HandlerFunc {
 
 		shopId, userId, err := common.MyShopIdAndMyId(c)
 		if err != nil {
+			fmt.Println(err)
 			util.HandleError(c, http.StatusBadRequest, err)
 			return
 		}
 
 		err = common.VerifyShopOwnership(c, userId, shopId)
 		if err != nil {
+			fmt.Println(err)
 			util.HandleError(c, http.StatusUnauthorized, errors.New("Only sellers can perform this action"))
 			return
 		}

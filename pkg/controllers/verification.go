@@ -53,7 +53,7 @@ func CreateSellerVerificationProfile() gin.HandlerFunc {
 
 		// Validate request body
 		if validationErr := common.Validate.Struct(&verificationJson); validationErr != nil {
-			util.HandleError(c, http.StatusUnprocessableEntity, err)
+			util.HandleError(c, http.StatusUnprocessableEntity, validationErr)
 			return
 		}
 

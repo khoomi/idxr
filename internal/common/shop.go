@@ -3,6 +3,7 @@ package common
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 
 	auth "khoomi-api-io/api/internal/auth"
@@ -32,6 +33,7 @@ func MyShopIdAndMyId(c *gin.Context) (primitive.ObjectID, primitive.ObjectID, er
 	nilObjectId := primitive.NilObjectID
 
 	shopId := c.Param("shopid")
+	fmt.Println(shopId)
 	shopOBjectID, err := primitive.ObjectIDFromHex(shopId)
 	if err != nil {
 		return nilObjectId, nilObjectId, err
