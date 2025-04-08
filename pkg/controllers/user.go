@@ -11,10 +11,13 @@ import (
 	"strings"
 	"time"
 
-	auth "khoomi-api-io/api/internal/auth"
 	"khoomi-api-io/api/internal/common"
 	"khoomi-api-io/api/pkg/models"
 	"khoomi-api-io/api/pkg/util"
+
+	"github.com/futurenda/google-auth-id-token-verifier"
+	auth "khoomi-api-io/api/internal/auth"
+
 	email "khoomi-api-io/api/web/email"
 
 	"github.com/cloudinary/cloudinary-go/api/uploader"
@@ -27,6 +30,128 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
+
+func createUserImpl(c *gin.Context, claim *googleAuthIDTokenVerifier.ClaimSet, jsonUser models.UserRegistrationBody) *mongo.InsertOneResult {
+	ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
+	defer cancel()
+	now := time.Now()
+
+	firstName := ""
+	lastName := ""
+	userEmail := ""
+	thumbnail := common.DefaultUserThumbnail
+	userAuth := models.UserAuthData{}
+
+	if claim == nil {
+		errEmail := util.ValidateEmailAddress(jsonUser.Email)
+		if errEmail != nil {
+			log.Printf("Invalid email address from user %s with IP %s at %s: %s\n", jsonUser.FirstName, c.ClientIP(), time.Now().Format(time.RFC3339), errEmail.Error())
+			util.HandleError(c, http.StatusBadRequest, errEmail)
+			return nil
+		}
+		userEmail = strings.ToLower(jsonUser.Email)
+
+		err := util.ValidatePassword(jsonUser.Password)
+		if err != nil {
+			util.HandleError(c, http.StatusBadRequest, err)
+			return nil
+		}
+
+		hashedPassword, errHashPassword := util.HashPassword(jsonUser.Password)
+		if errHashPassword != nil {
+			util.HandleError(c, http.StatusBadRequest, errHashPassword)
+			return nil
+		}
+
+		firstName = jsonUser.FirstName
+		lastName = jsonUser.LastName
+		userAuth = models.UserAuthData{
+			EmailVerified:  false,
+			ModifiedAt:     time.Now(),
+			PasswordDigest: hashedPassword,
+		}
+	} else {
+		fmt.Println("HERE")
+		firstName = claim.Name
+		lastName = claim.FamilyName
+		userEmail = claim.Email
+		userAuth = models.UserAuthData{
+			EmailVerified:  claim.EmailVerified,
+			ModifiedAt:     time.Now(),
+			PasswordDigest: "",
+		}
+		if claim.Picture != "" {
+			thumbnail = claim.Picture
+		}
+	}
+
+	userId := primitive.NewObjectID()
+	newUser := bson.M{
+		"_id":                         userId,
+		"login_name":                  common.GenerateRandomUsername(),
+		"primary_email":               userEmail,
+		"first_name":                  firstName,
+		"last_name":                   lastName,
+		"auth":                        userAuth,
+		"thumbnail":                   thumbnail,
+		"bio":                         bsonx.Null(),
+		"phone":                       bsonx.Null(),
+		"birthdate":                   models.UserBirthdate{},
+		"is_seller":                   false,
+		"transaction_buy_count":       0,
+		"transaction_sold_count":      0,
+		"referred_by_user":            bsonx.Null(),
+		"role":                        models.Regular,
+		"status":                      models.Inactive,
+		"shop_id":                     bsonx.Null(),
+		"favorite_shops":              []string{},
+		"created_at":                  now,
+		"modified_at":                 now,
+		"last_login":                  now,
+		"login_counts":                0,
+		"last_login_ip":               c.ClientIP(),
+		"allow_login_ip_notification": true,
+	}
+
+	fmt.Println("HERE2")
+	result, err := common.UserCollection.InsertOne(ctx, newUser)
+	if err != nil {
+		writeException, ok := err.(mongo.WriteException)
+		if ok {
+			for _, writeError := range writeException.WriteErrors {
+				if writeError.Code == common.MongoDuplicateKeyCode {
+					log.Printf("User with email already exists: %s\n", writeError.Message)
+					util.HandleError(c, http.StatusBadRequest, writeError)
+					return nil
+				}
+			}
+		}
+
+		log.Printf("Mongo Error: Request could not be completed %s\n", err.Error())
+		util.HandleError(c, http.StatusInternalServerError, err)
+		return nil
+	}
+	notification := models.Notification{
+		ID:               primitive.NewObjectID(),
+		UserID:           userId,
+		NewMessage:       true,
+		NewFollower:      true,
+		ListingExpNotice: true,
+		SellerActivity:   true,
+		NewsAndFeatures:  true,
+	}
+
+	_, err = common.NotificationCollection.InsertOne(ctx, notification)
+	if err != nil {
+		util.HandleError(c, http.StatusInternalServerError, err)
+		return nil
+	}
+
+	// Send welcome email.
+	email.SendWelcomeEmail(userEmail, jsonUser.FirstName)
+
+	return result
+}
 
 // CurrentUser get current user using userId from request headers.
 func ActiveSessionUser(c *gin.Context) {
@@ -55,10 +180,6 @@ func ActiveSessionUser(c *gin.Context) {
 // CreateUser creates new user account, and send welcome and verify email notifications.
 func CreateUser() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		now := time.Now()
-		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
-		defer cancel()
-
 		var jsonUser models.UserRegistrationBody
 		if err := c.BindJSON(&jsonUser); err != nil {
 			util.HandleError(c, http.StatusBadRequest, err)
@@ -70,95 +191,10 @@ func CreateUser() gin.HandlerFunc {
 			return
 		}
 
-		errEmail := util.ValidateEmailAddress(jsonUser.Email)
-		if errEmail != nil {
-			log.Printf("Invalid email address from user %s with IP %s at %s: %s\n", jsonUser.FirstName, c.ClientIP(), time.Now().Format(time.RFC3339), errEmail.Error())
-			util.HandleError(c, http.StatusBadRequest, errEmail)
+		result := createUserImpl(c, nil, jsonUser)
+		if result == nil {
 			return
 		}
-
-		err := util.ValidatePassword(jsonUser.Password)
-		if err != nil {
-			util.HandleError(c, http.StatusBadRequest, err)
-			return
-		}
-
-		hashedPassword, errHashPassword := util.HashPassword(jsonUser.Password)
-		if errHashPassword != nil {
-			util.HandleError(c, http.StatusBadRequest, errHashPassword)
-			return
-		}
-
-		userAuth := models.UserAuthData{
-			EmailVerified:  false,
-			ModifiedAt:     time.Now(),
-			PasswordDigest: hashedPassword,
-		}
-
-		jsonUser.Email = strings.ToLower(jsonUser.Email)
-		userId := primitive.NewObjectID()
-		newUser := bson.M{
-			"_id":                         userId,
-			"login_name":                  common.GenerateRandomUsername(),
-			"primary_email":               jsonUser.Email,
-			"first_name":                  jsonUser.FirstName,
-			"last_name":                   jsonUser.LastName,
-			"auth":                        userAuth,
-			"thumbnail":                   common.DefaultUserThumbnail,
-			"bio":                         bsonx.Null(),
-			"phone":                       bsonx.Null(),
-			"birthdate":                   models.UserBirthdate{},
-			"is_seller":                   false,
-			"transaction_buy_count":       0,
-			"transaction_sold_count":      0,
-			"referred_by_user":            bsonx.Null(),
-			"role":                        models.Regular,
-			"status":                      models.Inactive,
-			"shop_id":                     bsonx.Null(),
-			"favorite_shops":              []string{},
-			"created_at":                  now,
-			"modified_at":                 now,
-			"last_login":                  now,
-			"login_counts":                0,
-			"last_login_ip":               c.ClientIP(),
-			"allow_login_ip_notification": true,
-		}
-
-		result, err := common.UserCollection.InsertOne(ctx, newUser)
-		if err != nil {
-			writeException, ok := err.(mongo.WriteException)
-			if ok {
-				for _, writeError := range writeException.WriteErrors {
-					if writeError.Code == common.MongoDuplicateKeyCode {
-						log.Printf("User with email already exists: %s\n", writeError.Message)
-						util.HandleError(c, http.StatusBadRequest, writeError)
-						return
-					}
-				}
-			}
-
-			log.Printf("Mongo Error: Request could not be completed %s\n", err.Error())
-			util.HandleError(c, http.StatusInternalServerError, err)
-			return
-		}
-		notification := models.Notification{
-			ID:               primitive.NewObjectID(),
-			UserID:           userId,
-			NewMessage:       true,
-			NewFollower:      true,
-			ListingExpNotice: true,
-			SellerActivity:   true,
-			NewsAndFeatures:  true,
-		}
-
-		_, err = common.NotificationCollection.InsertOne(ctx, notification)
-		if err != nil {
-			util.HandleError(c, http.StatusInternalServerError, err)
-			return
-		}
-
-		// Send welcome email.
-		email.SendWelcomeEmail(jsonUser.Email, jsonUser.FirstName)
 
 		util.HandleSuccess(c, http.StatusOK, "signup successful", result.InsertedID)
 	}
@@ -254,6 +290,166 @@ func HandleUserAuthentication() gin.HandlerFunc {
 		// Send verify email
 		// Generate secure and unique token
 		token := auth.GenerateSecureToken(8)
+
+		expirationTime := now.Add(common.VERIFICATION_EMAIL_EXPIRATION_TIME)
+		verifyEmail := models.UserVerifyEmailToken{
+			UserId:      validUser.Id,
+			TokenDigest: token,
+			CreatedAt:   primitive.NewDateTimeFromTime(now),
+			ExpiresAt:   primitive.NewDateTimeFromTime(expirationTime),
+		}
+		opts := options.Replace().SetUpsert(true)
+		filter := bson.M{"user_uid": validUser.Id}
+		_, err = common.EmailVerificationTokenCollection.ReplaceOne(ctx, filter, verifyEmail, opts)
+		if err != nil {
+			log.Printf("error sending verification email for user: %v, error: %v", validUser.PrimaryEmail, err)
+		}
+
+		// Send verification email if user's email is not verified.
+		// if !validUser.Auth.EmailVerified {
+		// 	link := fmt.Sprintf("https://khoomi.com/verify-email?token=%v&id=%v", token, validUser.Id.Hex())
+		// 	email.SendVerifyEmailNotification(validUser.PrimaryEmail, validUser.FirstName, link)
+		// }
+
+		sessionId, err := auth.SetSession(c, validUser.Id, validUser.PrimaryEmail, validUser.LoginName)
+		if err != nil {
+			util.HandleError(c, http.StatusInternalServerError, errors.New("failed to set session"))
+			return
+		}
+
+		userData := map[string]any{
+			"userId":        validUser.Id.Hex(),
+			"role":          validUser.Role,
+			"email":         validUser.PrimaryEmail,
+			"FirstName":     validUser.FirstName,
+			"lastName":      validUser.LastName,
+			"loginName":     validUser.LoginName,
+			"thumbnail":     validUser.Thumbnail,
+			"emailverified": validUser.Auth.EmailVerified,
+			"isSeller":      validUser.IsSeller,
+		}
+		util.HandleSuccess(c, http.StatusOK, "Authentication successful",
+			gin.H{
+				"user":      userData,
+				"sessionId": sessionId,
+			})
+	}
+}
+
+func HandleUserGoogleAuthentication() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
+		defer cancel()
+
+		fmt.Println("HERE3")
+		var body struct {
+			IDToken string `json:"idToken"`
+		}
+
+		fmt.Println("HERE4")
+		clientIP := c.ClientIP()
+		now := time.Now()
+
+		if err := c.BindJSON(&body); err != nil {
+			util.HandleError(c, http.StatusBadRequest, err)
+			return
+		}
+
+		if err := common.Validate.Struct(&body); err != nil {
+			util.HandleError(c, http.StatusBadRequest, err)
+			return
+		}
+
+		v := googleAuthIDTokenVerifier.Verifier{}
+		token := util.LoadEnvFor("GOOGLE_CLIENT_ID")
+		err := v.VerifyIDToken(body.IDToken, []string{
+			token,
+		})
+		if err != nil {
+			util.HandleError(c, http.StatusBadRequest, err)
+			return
+		}
+
+		claimSet, err := googleAuthIDTokenVerifier.Decode(body.IDToken)
+		if err != nil {
+			util.HandleError(c, http.StatusBadRequest, errors.New("cannot decode token"))
+			return
+		}
+
+		var validUser models.User
+		// If no user is found with email, create new user
+		if err := common.UserCollection.FindOne(ctx, bson.M{"primary_email": claimSet.Email}).Decode(&validUser); err != nil {
+			result := createUserImpl(c, claimSet, models.UserRegistrationBody{})
+			if result == nil {
+				util.HandleError(c, http.StatusBadRequest, errors.New("error setting up user"))
+				return
+			}
+		}
+
+		if err := common.UserCollection.FindOne(ctx, bson.M{"primary_email": claimSet.Email}).Decode(&validUser); err != nil {
+			util.HandleError(c, http.StatusBadRequest, err)
+			return
+
+		}
+
+		wc := writeconcern.New(writeconcern.WMajority())
+		txnOptions := options.Transaction().SetWriteConcern(wc)
+		session, err := util.DB.StartSession()
+		if err != nil {
+			util.HandleError(c, http.StatusInternalServerError, err)
+			return
+		}
+		defer session.EndSession(ctx)
+
+		callback := func(ctx mongo.SessionContext) (any, error) {
+			filter := bson.M{"primary_email": validUser.PrimaryEmail}
+			update := bson.M{
+				"$set": bson.M{
+					"last_login":    now,
+					"login_counts":  validUser.LoginCounts + 1,
+					"last_login_ip": clientIP,
+				},
+			}
+			errUpdateLoginCounts := common.UserCollection.FindOneAndUpdate(ctx, filter, update).Decode(&validUser)
+			if errUpdateLoginCounts != nil {
+				return nil, errUpdateLoginCounts
+			}
+
+			doc := models.LoginHistory{
+				Id:        primitive.NewObjectID(),
+				UserUid:   validUser.Id,
+				Date:      now,
+				UserAgent: c.Request.UserAgent(),
+				IpAddr:    clientIP,
+			}
+			result, errLoginHistory := common.LoginHistoryCollection.InsertOne(ctx, doc)
+			if errLoginHistory != nil {
+				return result, errLoginHistory
+			}
+
+			return result, nil
+		}
+
+		_, err = session.WithTransaction(ctx, callback, txnOptions)
+		if err != nil {
+			util.HandleError(c, http.StatusBadRequest, err)
+			return
+		}
+
+		if err := session.CommitTransaction(ctx); err != nil {
+			util.HandleError(c, http.StatusInternalServerError, err)
+			return
+		}
+		session.EndSession(ctx)
+
+		// Send new login IP notification on condition
+		if validUser.AllowLoginIpNotification && validUser.LastLoginIp != clientIP {
+			email.SendNewIpLoginNotification(validUser.PrimaryEmail, validUser.LoginName, validUser.LastLoginIp, validUser.LastLogin)
+		}
+
+		// Send verify email
+		// Generate secure and unique token
+		// token := auth.GenerateSecureToken(8)
 
 		expirationTime := now.Add(common.VERIFICATION_EMAIL_EXPIRATION_TIME)
 		verifyEmail := models.UserVerifyEmailToken{

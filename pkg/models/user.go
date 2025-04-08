@@ -74,9 +74,10 @@ const (
 
 // UserAuthData -> authentication data
 type UserAuthData struct {
-	ModifiedAt     time.Time `bson:"modified_at"`
-	PasswordDigest string    `bson:"password_digest,omitempty" json:"-"`
-	EmailVerified  bool      `bson:"email_verified"`
+	ModifiedAt         time.Time `bson:"modified_at" json:"modifiedAt"`
+	PasswordDigest     string    `bson:"password_digest,omitempty" json:"-"`
+	EmailVerified      bool      `bson:"email_verified" json:"emailVerified"`
+	AuthenticationType bool      `bson:"authentication_type" json:"authenticationType"`
 }
 
 // UserLoginBody -> expected data for login process
