@@ -285,3 +285,20 @@ type ClothListing struct {
 	Scale     string   `json:"scale" validate:"oneof=EU US/CA"`
 	Materials []string `json:"materials"`
 }
+
+type CartListing struct {
+	ID        primitive.ObjectID `bson:"_id" json:"_id"`
+	UserId    primitive.ObjectID `bson:"userId" json:"userId"`
+	ListingId primitive.ObjectID `bson:"listingId" json:"listingId"`
+	Quantity  int                `bson:"quantity" json:"quantity"`
+	Options   map[string]string  `bson:"options,omitempty" json:"options,omitempty"`
+	Price     float64            `bson:"price,omitempty" json:"price,omitempty"`
+	ExpiresAt primitive.DateTime `bson:"expiresAt" json:"expiresAt"`
+	AddedAt   primitive.DateTime `bson:"addedAt" json:"addedAt"`
+}
+
+type CartListRequest struct {
+	ListingId primitive.ObjectID `bson:"listingId" json:"listingId"`
+	Quantity  int                `bson:"quantity" json:"quantity"`
+	Options   map[string]string  `bson:"options,omitempty" json:"options,omitempty"`
+}

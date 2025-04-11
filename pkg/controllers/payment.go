@@ -37,7 +37,7 @@ func setOtherPaymentsToFalse(ctx context.Context, collection *mongo.Collection, 
 	return err
 }
 
-// / CreateSellerPaymentInformation -> POST /shop/:shopId/payment-information/
+// CreateSellerPaymentInformation -> POST /shop/:shopId/payment-information/
 func CreateSellerPaymentInformation() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
@@ -140,7 +140,7 @@ func CreateSellerPaymentInformation() gin.HandlerFunc {
 	}
 }
 
-// / GetSellerPaymentInformations -> GET /shop/:shopId/payment-information/
+// GetSellerPaymentInformations -> GET /shop/:shopId/payment-information/
 func GetSellerPaymentInformations() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
@@ -196,7 +196,7 @@ func GetSellerPaymentInformations() gin.HandlerFunc {
 	}
 }
 
-// / ChangeDefaultSellerPaymentInformation -> PUT /shop/:shopId/payment-information/:paymentInfoId
+// ChangeDefaultSellerPaymentInformation -> PUT /shop/:shopId/payment-information/:paymentInfoId
 func ChangeDefaultSellerPaymentInformation() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
@@ -247,7 +247,7 @@ func ChangeDefaultSellerPaymentInformation() gin.HandlerFunc {
 	}
 }
 
-// / DeleteSellerPaymentInformation -> DELETE /shop/:shopId/payment-information/:paymentInfoId
+// DeleteSellerPaymentInformation -> DELETE /shop/:shopId/payment-information/:paymentInfoId
 func DeleteSellerPaymentInformation() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
@@ -277,7 +277,6 @@ func DeleteSellerPaymentInformation() gin.HandlerFunc {
 		filter := bson.M{"_id": paymentObjectID, "user_id": userId}
 		result, err := common.SellerPaymentInformationCollection.DeleteOne(ctx, filter)
 		if err != nil {
-			log.Printf("Error deleting payment information: %v", err)
 			util.HandleError(c, http.StatusNotFound, err)
 			return
 		}

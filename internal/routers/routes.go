@@ -212,7 +212,6 @@ func shopRoutes(api *gin.RouterGroup) {
 }
 
 func listingRoutes(api *gin.RouterGroup) {
-	// Define the "/listing" group
 	listing := api.Group("/listings")
 	// Get all listings -> /api/listings/?limit=50&skip=0&sort=date.created_at
 	listing.GET("/", controllers.GetListings())
@@ -223,6 +222,19 @@ func listingRoutes(api *gin.RouterGroup) {
 	{
 		secured.DELETE("/", controllers.DeleteListings())
 		secured.PUT("/deactivate", controllers.DeactivateListings())
+	}
+}
+
+func cartRoutes(api *gin.RouterGroup) {
+	cart := api.Group("/carts")
+	// Secured endpoints that require authentication
+	secured := cart.Group("").Use(auth.Auth())
+	{
+		secured.GET("/", controllers.GetCartItems())
+		secured.POST("/", controllers.SaveCartItem())
+		secured.DELETE("/:cartId", controllers.DeleteCartItem())
+		secured.DELETE("/many", controllers.DeleteCartItems())
+		secured.DELETE("/clear", controllers.DeleteCartItems())
 	}
 }
 
