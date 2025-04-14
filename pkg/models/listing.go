@@ -56,7 +56,7 @@ const (
 	DimensionUnitM   = "m"
 )
 
-type ListingMeasurement struct {
+type Measurement struct {
 	ItemWeightUnit    WeightUnit    `bson:"item_weight_unit" json:"itemWeightUnit" validate:"oneof=oz g lb kg"`
 	ItemDimensionUnit DimensionUnit `bson:"item_dimension_unit" json:"itemDimensionUnit" validate:"oneof=inc ft mm cm m"`
 	ItemWeight        float64       `bson:"item_weight" json:"itemWeight"`
@@ -83,7 +83,7 @@ type Listing struct {
 	Variations           []ListingVariation          `bson:"variations" json:"variations"`
 	RecentReviews        []ListingReview             `bson:"recent_reviews" json:"recentReviews"`
 	ListingDetails       ListingDetails              `bson:"details" json:"details"`
-	Measurements         ListingMeasurement          `bson:"measurements" json:"measurements"`
+	Measurements         Measurement                 `bson:"measurements" json:"measurements"`
 	Inventory            Inventory                   `bson:"inventory" json:"inventory"`
 	FinancialInformation ListingFinancialInformation `bson:"financial_information" json:"financialInformation"`
 	Rating               ListingRating               `bson:"rating" json:"rating"`
@@ -139,7 +139,7 @@ type ListingExtra struct {
 	RecentReviews        []ListingReview             `bson:"recent_reviews" json:"recentReviews"`
 	Variations           []ListingVariation          `bson:"variations" json:"variations"`
 	ListingDetails       ListingDetails              `bson:"details" json:"details"`
-	Measurements         ListingMeasurement          `bson:"measurements" json:"measurements"`
+	Measurements         Measurement                 `bson:"measurements" json:"measurements"`
 	Inventory            Inventory                   `bson:"inventory" json:"inventory"`
 	FinancialInformation ListingFinancialInformation `bson:"financial_information" json:"financialInformation"`
 	Rating               ListingRating               `bson:"rating" json:"rating"`
@@ -172,25 +172,37 @@ type ListingShopExcept struct {
 	ReviewsCount int    `bson:"reviews_count" json:"reviewsCount"`
 }
 
+type Personalization struct {
+	Text       string `bson:"text" json:"text"`
+	Characters int    `bson:"characters" json:"characters"`
+	Optional   bool   `bson:"optional" json:"optional"`
+}
+
 type ListingDetails struct {
-	Dynamic                     map[string]interface{} `bson:"dynamic" json:"dynamic"`
-	Category                    ListingCategory        `bson:"category" json:"category"`
-	Sustainability              string                 `bson:"sustainability" json:"sustainability"`
-	Description                 string                 `bson:"description" json:"description"`
-	Condition                   string                 `bson:"condition" json:"condition" validate:"oneof=new used refurbished"`
-	WhoMade                     string                 `bson:"who_made" json:"whoMade" validate:"oneof=i_did collective someone_else"`
-	WhenMade                    string                 `bson:"when_made" json:"whenMade"  validate:"oneof=in2020_2023 in2010_2019 in2003_2009 before_2003 in2000_2002 in1990s in1980s in1970s in1960s in1950s in1940s in1930s in1920s in1910s in1900s in1800s in1700s before_1700"`
-	Type                        string                 `bson:"type" json:"type"`
-	PersonalizationText         string                 `bson:"personalization_text" json:"personalizationText"`
-	Title                       string                 `bson:"title" json:"title"`
-	Color                       string                 `bson:"color" json:"color"`
-	DynamicType                 string                 `bson:"dynamic_type" json:"dynamicType" validate:"oneof=accessories-and-jewelry art clothing furniture gifts home general"`
-	Tags                        []string               `bson:"tags" json:"tags"`
-	Keywords                    []string               `bson:"keywords" json:"keywords"`
-	PersonalizationTextChars    int                    `bson:"personalization_text_chars" json:"personalizationTextChars"`
-	HasVariations               bool                   `bson:"has_variations" json:"hasVariations"`
-	Personalization             bool                   `bson:"personalization" json:"personalization"`
-	PersonalizationTextOptional bool                   `bson:"personalization_text_optional" json:"personalizationTextOptional"`
+	Dynamic             map[string]any  `bson:"dynamic" json:"dynamic"`
+	DynamicType         DynamicType     `bson:"dynamic_type" json:"dynamicType" validate:"oneof=accessories-and-jewelry art clothing furniture gifts home general"`
+	Category            ListingCategory `bson:"category" json:"category"`
+	Sustainability      string          `bson:"sustainability" json:"sustainability"`
+	Description         string          `bson:"description" json:"description"`
+	Condition           string          `bson:"condition" json:"condition" validate:"oneof=new used refurbished"`
+	WhoMade             string          `bson:"who_made" json:"whoMade" validate:"oneof=i_did collective someone_else"`
+	WhenMade            string          `bson:"when_made" json:"whenMade"  validate:"oneof=in2020_2023 in2010_2019 in2003_2009 before_2003 in2000_2002 in1990s in1980s in1970s in1960s in1950s in1940s in1930s in1920s in1910s in1900s in1800s in1700s before_1700"`
+	Type                string          `bson:"type" json:"type"`
+	PersonalizationText string          `bson:"personalization_text" json:"personalizationText"`
+	Title               string          `bson:"title" json:"title"`
+	Color               string          `bson:"color" json:"color"`
+	Tags                []string        `bson:"tags" json:"tags"`
+	Keywords            []string        `bson:"keywords" json:"keywords"`
+	HasVariations       bool            `bson:"has_variations" json:"hasVariations"`
+	HasPersonalization  bool            `bson:"has_personalization" json:"has_personalization"`
+	Personalization     Personalization `json:"personalization"`
+
+	AceessoriesAndJewelryData *AceessoriesAndJewelry `json:"-" bson:"accessories_and_jewelry_data,omitempty"`
+	ClothingData              *Clothing              `json:"-" bson:"clothing_data,omitempty"`
+	FurnitureData             *Furniture             `json:"-" bson:"furniture_data,omitempty"`
+	GiftsAndOccasionsData     *GiftsAndOccasions     `json:"-" bson:"gifts_and_occasions_data,omitempty"`
+	ArtAndCollectiblesData    *ArtAndCollectibles    `json:"-" bson:"art_and_collectibles_data,omitempty"`
+	HomeAndLivingData         *HomeAndLiving         `json:"-" bson:"home_and_living_data,omitempty"`
 }
 
 type ListingReview struct {
@@ -251,54 +263,36 @@ type ListingFinancialInformation struct {
 
 type NewListing struct {
 	ListingDetails NewListingDetails  `json:"details"`
-	Measurements   ListingMeasurement `json:"measurements"`
+	Measurements   Measurement        `json:"measurements"`
 	Variations     []ListingVariation `json:"variations"`
 	Inventory      Inventory          `json:"inventory" validate:"required"`
 }
 
 type NewListingDetails struct {
-	Dynamic                     map[string]interface{} `json:"dynamic"`
-	Category                    ListingCategory        `json:"category" validate:"required"`
-	Condition                   string                 `json:"condition" validate:"oneof=new used refurbished"`
-	Title                       string                 `json:"title" validate:"required,min=10,max=50"`
-	WhenMade                    string                 `json:"whenMade"  validate:"oneof=in2020_2023 in2010_2019 in2003_2009 before_2003 in2000_2002 in1990s in1980s in1970s in1960s in1950s in1940s in1930s in1920s in1910s in1900s in1800s in1700s before_1700"`
-	Type                        string                 `json:"type" validate:"required"`
-	Sustainability              string                 `json:"sustainability"`
-	WhoMade                     string                 `json:"whoMade" validate:"oneof=i_did collective someone_else"`
-	ShippingProfileId           string                 `json:"shippingProfileId"`
-	PersonalizationText         string                 `json:"personalizationText"`
-	OtherColor                  string                 `json:"otherColor"`
-	Color                       string                 `json:"color"`
-	Description                 string                 `json:"description" validate:"required,min=50,max=500"`
-	DynamicType                 string                 `json:"dynamic_type"`
-	Tags                        []string               `json:"tags"`
-	Keywords                    []string               `json:"keywords"`
-	PersonalizationTextChars    int                    `json:"personalizationTextChars"`
-	HasVariations               bool                   `json:"has_variations"`
-	PersonalizationTextOptional bool                   `json:"personalizationTextOptional"`
-	Personalization             bool                   `json:"personalization"`
-}
+	Dynamic             map[string]any  `json:"dynamic"`
+	DynamicType         DynamicType     `json:"dynamic_type"`
+	Category            ListingCategory `json:"category" validate:"required"`
+	Condition           string          `json:"condition" validate:"oneof=new used refurbished"`
+	Title               string          `json:"title" validate:"required,min=10,max=50"`
+	WhenMade            string          `json:"whenMade"  validate:"oneof=in2020_2023 in2010_2019 in2003_2009 before_2003 in2000_2002 in1990s in1980s in1970s in1960s in1950s in1940s in1930s in1920s in1910s in1900s in1800s in1700s before_1700"`
+	Type                string          `json:"type" validate:"required"`
+	Sustainability      string          `json:"sustainability"`
+	WhoMade             string          `json:"whoMade" validate:"oneof=i_did collective someone_else"`
+	ShippingProfileId   string          `json:"shippingProfileId"`
+	PersonalizationText string          `json:"personalizationText"`
+	OtherColor          string          `json:"otherColor"`
+	Color               string          `json:"color"`
+	Description         string          `json:"description" validate:"required,min=50,max=500"`
+	Tags                []string        `json:"tags"`
+	Keywords            []string        `json:"keywords"`
+	HasVariations       bool            `json:"has_variations"`
+	HasPersonalization  bool            `json:"has_personalization"`
+	Personalization     Personalization `json:"personalization"`
 
-type ClothListing struct {
-	Fabric    string   `json:"fabric"`
-	Size      string   `json:"size"`
-	Scale     string   `json:"scale" validate:"oneof=EU US/CA"`
-	Materials []string `json:"materials"`
-}
-
-type CartListing struct {
-	ID        primitive.ObjectID `bson:"_id" json:"_id"`
-	UserId    primitive.ObjectID `bson:"userId" json:"userId"`
-	ListingId primitive.ObjectID `bson:"listingId" json:"listingId"`
-	Quantity  int                `bson:"quantity" json:"quantity"`
-	Options   map[string]string  `bson:"options,omitempty" json:"options,omitempty"`
-	Price     float64            `bson:"price,omitempty" json:"price,omitempty"`
-	ExpiresAt primitive.DateTime `bson:"expiresAt" json:"expiresAt"`
-	AddedAt   primitive.DateTime `bson:"addedAt" json:"addedAt"`
-}
-
-type CartListRequest struct {
-	ListingId primitive.ObjectID `bson:"listingId" json:"listingId"`
-	Quantity  int                `bson:"quantity" json:"quantity"`
-	Options   map[string]string  `bson:"options,omitempty" json:"options,omitempty"`
+	AceessoriesAndJewelryData *AceessoriesAndJewelry `json:"-" bson:"accessories_and_jewelry_data,omitempty"`
+	ClothingData              *Clothing              `json:"-" bson:"clothing_data,omitempty"`
+	FurnitureData             *Furniture             `json:"-" bson:"furniture_data,omitempty"`
+	GiftsAndOccasionsData     *GiftsAndOccasions     `json:"-" bson:"gifts_and_occasions_data,omitempty"`
+	ArtAndCollectiblesData    *ArtAndCollectibles    `json:"-" bson:"art_and_collectibles_data,omitempty"`
+	HomeAndLivingData         *HomeAndLiving         `json:"-" bson:"home_and_living_data,omitempty"`
 }

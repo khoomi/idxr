@@ -32,38 +32,51 @@ func SaveCartItem() gin.HandlerFunc {
 			return
 		}
 
-		var cartItem models.CartListing
-		err = c.BindJSON(&cartItem)
-		if err != nil {
+		var cartReq models.CartItemRequest
+		if err := c.ShouldBindJSON(&cartReq); err != nil {
 			util.HandleError(c, http.StatusBadRequest, err)
 			return
 		}
 
-		// Validate request body
-		if validationErr := common.Validate.Struct(&cartItem); validationErr != nil {
-			util.HandleError(c, http.StatusBadRequest, validationErr)
+		if err := common.Validate.Struct(&cartReq); err != nil {
+			util.HandleError(c, http.StatusBadRequest, err)
 			return
 		}
 
-		expirationTime := now.Add(common.CART_ITEM_EXPIRATION_TIME)
-		ShippingProfile := models.CartListing{
-			ID:        primitive.NewObjectID(),
-			UserId:    myId,
-			ListingId: primitive.ObjectID{},
-			ExpiresAt: primitive.NewDateTimeFromTime(expirationTime),
-			Quantity:  cartItem.Quantity,
-			Options:   cartItem.Options,
-			Price:     cartItem.Price,
-			AddedAt:   primitive.NewDateTimeFromTime(now),
-		}
-
-		res, err := common.UserCartCollection.InsertOne(ctx, ShippingProfile)
+		// Fetch listing snapshot (e.g. title, price, image, dynamic_type)
+		var listing models.Listing
+		err = common.ListingCollection.FindOne(ctx, bson.M{"_id": cartReq.ListingId}).Decode(&listing)
 		if err != nil {
-			util.HandleError(c, http.StatusUnauthorized, err)
+			util.HandleError(c, http.StatusNotFound, fmt.Errorf("listing not found"))
 			return
 		}
 
-		util.HandleSuccess(c, http.StatusOK, "successful", res.InsertedID)
+		unitPrice := listing.Inventory.Price
+		totalPrice := float64(cartReq.Quantity) * unitPrice
+
+		cartDoc := models.CartItem{
+			UserId:          myId,
+			ListingId:       cartReq.ListingId,
+			Title:           listing.ListingDetails.Title,
+			Thumbnail:       listing.MainImage,
+			Quantity:        cartReq.Quantity,
+			UnitPrice:       unitPrice,
+			TotalPrice:      totalPrice,
+			Variant:         cartReq.Variant,
+			DynamicType:     listing.ListingDetails.DynamicType,
+			Personalization: cartReq.Personalization,
+			ModifiedAt:      now,
+			ExpiresAt:       now.Add(common.CART_ITEM_EXPIRATION_TIME),
+		}
+
+		// You can also Upsert instead of InsertOne if you want to overwrite
+		res, err := common.UserCartCollection.InsertOne(ctx, cartDoc)
+		if err != nil {
+			util.HandleError(c, http.StatusInternalServerError, err)
+			return
+		}
+
+		util.HandleSuccess(c, http.StatusOK, "Item added to cart", res.InsertedID)
 	}
 }
 
@@ -92,7 +105,7 @@ func GetCartItems() gin.HandlerFunc {
 		}
 		defer cursor.Close(ctx)
 
-		var cartItems []models.CartListing
+		var cartItems []models.CartItem
 		if err = cursor.All(ctx, &cartItems); err != nil {
 			util.HandleError(c, http.StatusNotFound, err)
 			return

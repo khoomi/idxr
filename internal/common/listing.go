@@ -201,7 +201,7 @@ func MapFormDataToNewListing(formData func(key string) (value string)) (*models.
 
 	itemWeightUnit := parseWeightUnit(formData("measurements.itemWeightUnit"))
 	itemDimensionUnit := parseDimensionUnit(formData("measurements.itemDimensionUnit"))
-	listing.Measurements = models.ListingMeasurement{
+	listing.Measurements = models.Measurement{
 		ItemWeight:        itemWeight,
 		ItemWeightUnit:    itemWeightUnit,
 		ItemLength:        itemLength,
@@ -215,10 +215,14 @@ func MapFormDataToNewListing(formData func(key string) (value string)) (*models.
 		tags = strings.Split(formData("details.tags"), ",")
 	}
 
-	personalization := formData("details.personalization") == "on"
-	var personalizationTextChars int
-	if formData("details.personalizationTextChars") != "" {
-		personalizationTextChars, _ = strconv.Atoi(formData("details.personalizationTextChars"))
+	personalization := models.Personalization{
+		Text:       formData("details.personalization.text"),
+		Optional:   formData("details.personalization") == "on",
+		Characters: 0,
+	}
+	if formData("details.personalization.characters") != "" {
+		personalizationTextChars, _ := strconv.Atoi(formData("details.personalization.characters"))
+		personalization.Characters = personalizationTextChars
 	}
 
 	title := strings.TrimSpace(formData("details.title"))
@@ -238,18 +242,16 @@ func MapFormDataToNewListing(formData func(key string) (value string)) (*models.
 			CategoryName: formData("details.category.categoryName"),
 			CategoryPath: formData("details.category.categoryPath"),
 		},
-		Condition:                getFormValue(formData, "details.condition", "new"),
-		Sustainability:           getFormValue(formData, "details.sustainability", "eco-friendly"),
-		Description:              description,
-		Tags:                     tags,
-		WhoMade:                  formData("details.whoMade"),
-		WhenMade:                 formData("details.whenMade"),
-		Type:                     formData("details.type"),
-		Color:                    formData("details.mainColor"),
-		OtherColor:               formData("details.otherColor"),
-		Personalization:          personalization,
-		PersonalizationText:      formData("details.personalizationText"),
-		PersonalizationTextChars: personalizationTextChars,
+		Condition:       getFormValue(formData, "details.condition", "new"),
+		Sustainability:  getFormValue(formData, "details.sustainability", "eco-friendly"),
+		Description:     description,
+		Tags:            tags,
+		WhoMade:         formData("details.whoMade"),
+		WhenMade:        formData("details.whenMade"),
+		Type:            formData("details.type"),
+		Color:           formData("details.mainColor"),
+		OtherColor:      formData("details.otherColor"),
+		Personalization: personalization,
 	}
 
 	return listing, nil
@@ -394,7 +396,7 @@ func (g *SKUGenerator) GeneratePatternSKU(pattern string) string {
 	return result.String()
 }
 
-// Helper function to generate random integer
+// generate random integer.
 func randInt(max int) int {
 	n, _ := rand2.Int(rand2.Reader, big.NewInt(int64(max)))
 	return int(n.Int64())
