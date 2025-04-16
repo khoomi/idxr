@@ -253,6 +253,14 @@ func GetListing() gin.HandlerFunc {
 					"as":           "shipping",
 				},
 			},
+			{
+				"$lookup": bson.M{
+					"from":         "ShopShippingProfile",
+					"localField":   "shipping_profile_id",
+					"foreignField": "_id",
+					"as":           "shipping",
+				},
+			},
 			{"$unwind": "$shipping"},
 			{
 				"$project": bson.M{
@@ -328,7 +336,6 @@ func GetListing() gin.HandlerFunc {
 
 		if cursor.Next(ctx) {
 			if err := cursor.Decode(&listing); err != nil {
-				println(err)
 				util.HandleError(c, http.StatusInternalServerError, err)
 				return
 			}
@@ -405,7 +412,7 @@ func GetListings() gin.HandlerFunc {
 						"thumbnail":  "$user.thumbnail",
 					},
 					"shop": bson.M{
-						"name":          "$shop.username",
+						"name":          "$shop.name",
 						"username":      "$shop.username",
 						"slug":          "$shop.slug",
 						"logo_url":      "$shop.logo_url",

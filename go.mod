@@ -8,10 +8,10 @@ require (
 	github.com/JGLTechnologies/gin-rate-limit v1.5.4
 	github.com/cloudinary/cloudinary-go v1.7.0
 	github.com/durango/go-credit-card v0.0.0-20220404131259-a9e175ba4082
+	github.com/futurenda/google-auth-id-token-verifier v0.0.0-20170311140316-2a5b89f28b7e
 	github.com/gin-gonic/gin v1.10.0
 	github.com/go-playground/validator/v10 v10.26.0
 	github.com/gosimple/slug v1.13.1
-	github.com/futurenda/google-auth-id-token-verifier v0.0.0-20170311140316-2a5b89f28b7e
 	github.com/joho/godotenv v1.5.1
 	github.com/pkg/errors v0.9.1
 	github.com/redis/go-redis/v9 v9.5.1
