@@ -7,7 +7,6 @@ import (
 	"math/big"
 	"math/rand"
 	"net/http"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -152,109 +151,6 @@ func parseWeightUnit(unit string) models.WeightUnit {
 	default:
 		return models.WeightUnitKG
 	}
-}
-
-func MapFormDataToNewListing(formData func(key string) (value string)) (*models.NewListing, error) {
-	listing := &models.NewListing{}
-
-	// Map Inventory
-	price, err := strconv.ParseFloat(formData("inventory.price"), 64)
-	if err != nil {
-		return nil, err
-	}
-	quantity, err := strconv.Atoi(formData("inventory.quantity"))
-	if err != nil {
-		return nil, err
-	}
-
-	sku := formData("inventory.sku")
-	if sku == "" {
-		newSku := NewSKUGenerator()
-		sku = newSku.GenerateSKU()
-	}
-
-	listing.Inventory = models.Inventory{
-		Price:           price,
-		Quantity:        quantity,
-		SKU:             sku,
-		DomesticPricing: false,
-		DomesticPrice:   0,
-	}
-
-	// Map Measurements
-	itemWeight, err := strconv.ParseFloat(formData("measurements.itemWeight"), 64)
-	if err != nil {
-		itemWeight = 0
-	}
-	itemLength, err := strconv.ParseFloat(formData("measurements.itemLength"), 64)
-	if err != nil {
-		itemLength = 0
-	}
-	itemHeight, err := strconv.ParseFloat(formData("measurements.itemHeight"), 64)
-	if err != nil {
-		itemHeight = 0
-	}
-	itemWidth, err := strconv.ParseFloat(formData("measurements.itemWidth"), 64)
-	if err != nil {
-		itemWidth = 0
-	}
-
-	itemWeightUnit := parseWeightUnit(formData("measurements.itemWeightUnit"))
-	itemDimensionUnit := parseDimensionUnit(formData("measurements.itemDimensionUnit"))
-	listing.Measurements = models.Measurement{
-		ItemWeight:        itemWeight,
-		ItemWeightUnit:    itemWeightUnit,
-		ItemLength:        itemLength,
-		ItemDimensionUnit: itemDimensionUnit,
-		ItemHeight:        itemHeight,
-		ItemWidth:         itemWidth,
-	}
-
-	var tags []string
-	if formData("details.tags") != "" {
-		tags = strings.Split(formData("details.tags"), ",")
-	}
-
-	personalization := models.Personalization{
-		Text:       formData("details.personalization.text"),
-		Optional:   formData("details.personalization") == "on",
-		Characters: 0,
-	}
-	if formData("details.personalization.characters") != "" {
-		personalizationTextChars, _ := strconv.Atoi(formData("details.personalization.characters"))
-		personalization.Characters = personalizationTextChars
-	}
-
-	title := strings.TrimSpace(formData("details.title"))
-	if err := validateTitle(title); err != nil {
-		return nil, err
-	}
-
-	description := strings.TrimSpace(formData("details.description"))
-	if err := validateDescription(description); err != nil {
-		return nil, err
-	}
-
-	listing.ListingDetails = models.NewListingDetails{
-		Title: title,
-		Category: models.ListingCategory{
-			CategoryId:   formData("details.category.categoryId"),
-			CategoryName: formData("details.category.categoryName"),
-			CategoryPath: formData("details.category.categoryPath"),
-		},
-		Condition:       getFormValue(formData, "details.condition", "new"),
-		Sustainability:  getFormValue(formData, "details.sustainability", "eco-friendly"),
-		Description:     description,
-		Tags:            tags,
-		WhoMade:         formData("details.whoMade"),
-		WhenMade:        formData("details.whenMade"),
-		Type:            formData("details.type"),
-		Color:           formData("details.mainColor"),
-		OtherColor:      formData("details.otherColor"),
-		Personalization: personalization,
-	}
-
-	return listing, nil
 }
 
 const (

@@ -194,7 +194,6 @@ type ListingDetails struct {
 	Tags                []string        `bson:"tags" json:"tags"`
 	Keywords            []string        `bson:"keywords" json:"keywords"`
 	HasVariations       bool            `bson:"has_variations" json:"hasVariations"`
-	HasPersonalization  bool            `bson:"has_personalization" json:"has_personalization"`
 	Personalization     Personalization `json:"personalization"`
 
 	AceessoriesAndJewelryData *AceessoriesAndJewelry `json:"-" bson:"accessories_and_jewelry_data,omitempty"`
@@ -286,7 +285,6 @@ type NewListingDetails struct {
 	Tags                []string        `json:"tags"`
 	Keywords            []string        `json:"keywords"`
 	HasVariations       bool            `json:"has_variations"`
-	HasPersonalization  bool            `json:"has_personalization"`
 	Personalization     Personalization `json:"personalization"`
 
 	AceessoriesAndJewelryData *AceessoriesAndJewelry `json:"-" bson:"accessories_and_jewelry_data,omitempty"`

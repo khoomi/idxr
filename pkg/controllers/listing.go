@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -39,15 +40,20 @@ func CreateListing() gin.HandlerFunc {
 		}
 
 		loginName, loginEmail := session.LoginName, session.Email
-
-		newListing, err := common.MapFormDataToNewListing(c.PostForm)
-		if validationErr := common.Validate.Struct(newListing); validationErr != nil {
-			util.HandleError(c, http.StatusBadRequest, err)
+		listingJson := c.PostForm("listing")
+		if listingJson == "" {
+			util.HandleError(c, http.StatusBadRequest, errors.New("missing listing payload"))
 			return
 		}
 
-		if err := common.Validate.Struct(newListing); err != nil {
-			util.HandleError(c, http.StatusBadRequest, err)
+		var newListing models.NewListing
+		if err := json.Unmarshal([]byte(listingJson), &newListing); err != nil {
+			util.HandleError(c, http.StatusBadRequest, fmt.Errorf("invalid JSON: %v", err))
+			return
+		}
+
+		if validationErr := common.Validate.Struct(newListing); validationErr != nil {
+			util.HandleError(c, http.StatusBadRequest, validationErr)
 			return
 		}
 
@@ -99,22 +105,21 @@ func CreateListing() gin.HandlerFunc {
 
 		now := time.Now()
 		listingDetails := models.ListingDetails{
-			Type:               newListing.ListingDetails.Type,
-			Tags:               newListing.ListingDetails.Tags,
-			Title:              newListing.ListingDetails.Title,
-			Color:              newListing.ListingDetails.Color,
-			Dynamic:            newListing.ListingDetails.Dynamic,
-			DynamicType:        newListing.ListingDetails.DynamicType,
-			WhoMade:            newListing.ListingDetails.WhoMade,
-			Keywords:           newListing.ListingDetails.Keywords,
-			WhenMade:           newListing.ListingDetails.WhenMade,
-			Category:           newListing.ListingDetails.Category,
-			Condition:          newListing.ListingDetails.Condition,
-			Description:        newListing.ListingDetails.Description,
-			HasVariations:      newListing.ListingDetails.HasVariations,
-			Sustainability:     newListing.ListingDetails.Sustainability,
-			HasPersonalization: newListing.ListingDetails.HasPersonalization,
-			Personalization:    newListing.ListingDetails.Personalization,
+			Type:            newListing.ListingDetails.Type,
+			Tags:            newListing.ListingDetails.Tags,
+			Title:           newListing.ListingDetails.Title,
+			Color:           newListing.ListingDetails.Color,
+			Dynamic:         newListing.ListingDetails.Dynamic,
+			DynamicType:     newListing.ListingDetails.DynamicType,
+			WhoMade:         newListing.ListingDetails.WhoMade,
+			Keywords:        newListing.ListingDetails.Keywords,
+			WhenMade:        newListing.ListingDetails.WhenMade,
+			Category:        newListing.ListingDetails.Category,
+			Condition:       newListing.ListingDetails.Condition,
+			Description:     newListing.ListingDetails.Description,
+			HasVariations:   newListing.ListingDetails.HasVariations,
+			Sustainability:  newListing.ListingDetails.Sustainability,
+			Personalization: newListing.ListingDetails.Personalization,
 
 			ClothingData:              newListing.ListingDetails.ClothingData,
 			FurnitureData:             newListing.ListingDetails.FurnitureData,
