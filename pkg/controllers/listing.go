@@ -57,7 +57,7 @@ func CreateListing() gin.HandlerFunc {
 			return
 		}
 
-		if err := newListing.ListingDetails.SetDynamicToTypedField(); err != nil {
+		if err := newListing.Details.SetDynamicToTypedField(); err != nil {
 			util.HandleError(c, http.StatusBadRequest, fmt.Errorf("invalid dynamic data: %v", err))
 			return
 		}
@@ -90,7 +90,7 @@ func CreateListing() gin.HandlerFunc {
 
 		// Verify shipping id, if null, find default shipping profile from db and use for listing.
 		var shippingId primitive.ObjectID
-		shippingObj, err := primitive.ObjectIDFromHex(newListing.ListingDetails.ShippingProfileId)
+		shippingObj, err := primitive.ObjectIDFromHex(newListing.Details.ShippingProfileId)
 		if err != nil {
 			var shipping models.ShopShippingProfile
 			err := common.ShippingProfileCollection.FindOne(ctx, bson.M{"shop_id": shopId, "is_default_profile": true}).Decode(shipping)
@@ -104,30 +104,30 @@ func CreateListing() gin.HandlerFunc {
 		}
 
 		now := time.Now()
-		listingDetails := models.ListingDetails{
-			Type:               newListing.ListingDetails.Type,
-			Tags:               newListing.ListingDetails.Tags,
-			Title:              newListing.ListingDetails.Title,
-			Color:              newListing.ListingDetails.Color,
-			Dynamic:            newListing.ListingDetails.Dynamic,
-			DynamicType:        newListing.ListingDetails.DynamicType,
-			WhoMade:            newListing.ListingDetails.WhoMade,
-			Keywords:           newListing.ListingDetails.Keywords,
-			WhenMade:           newListing.ListingDetails.WhenMade,
-			Category:           newListing.ListingDetails.Category,
-			Condition:          newListing.ListingDetails.Condition,
-			Description:        newListing.ListingDetails.Description,
-			HasVariations:      newListing.ListingDetails.HasVariations,
-			Sustainability:     newListing.ListingDetails.Sustainability,
-			HasPersonalization: newListing.ListingDetails.HasPersonalization,
-			Personalization:    newListing.ListingDetails.Personalization,
+		listingDetails := models.Details{
+			Type:               newListing.Details.Type,
+			Tags:               newListing.Details.Tags,
+			Title:              newListing.Details.Title,
+			Color:              newListing.Details.Color,
+			Dynamic:            newListing.Details.Dynamic,
+			DynamicType:        newListing.Details.DynamicType,
+			WhoMade:            newListing.Details.WhoMade,
+			Keywords:           newListing.Details.Keywords,
+			WhenMade:           newListing.Details.WhenMade,
+			Category:           newListing.Details.Category,
+			Condition:          newListing.Details.Condition,
+			Description:        newListing.Details.Description,
+			HasVariations:      newListing.Details.HasVariations,
+			Sustainability:     newListing.Details.Sustainability,
+			HasPersonalization: newListing.Details.HasPersonalization,
+			Personalization:    newListing.Details.Personalization,
 
-			ClothingData:              newListing.ListingDetails.ClothingData,
-			FurnitureData:             newListing.ListingDetails.FurnitureData,
-			GiftsAndOccasionsData:     newListing.ListingDetails.GiftsAndOccasionsData,
-			ArtAndCollectiblesData:    newListing.ListingDetails.ArtAndCollectiblesData,
-			AceessoriesAndJewelryData: newListing.ListingDetails.AceessoriesAndJewelryData,
-			HomeAndLivingData:         newListing.ListingDetails.HomeAndLivingData,
+			ClothingData:              newListing.Details.ClothingData,
+			FurnitureData:             newListing.Details.FurnitureData,
+			GiftsAndOccasionsData:     newListing.Details.GiftsAndOccasionsData,
+			ArtAndCollectiblesData:    newListing.Details.ArtAndCollectiblesData,
+			AceessoriesAndJewelryData: newListing.Details.AceessoriesAndJewelryData,
+			HomeAndLivingData:         newListing.Details.HomeAndLivingData,
 		}
 
 		listingInventory := models.Inventory{
@@ -154,7 +154,7 @@ func CreateListing() gin.HandlerFunc {
 			NegativeReviews: 0,
 		}
 
-		listingFinancialInformation := models.ListingFinancialInformation{
+		listingFinancialInformation := models.FinancialInformation{
 			TotalOrders:     0,
 			Sales:           0,
 			OrdersPending:   0,
@@ -172,8 +172,8 @@ func CreateListing() gin.HandlerFunc {
 			ShopId:               shopId,
 			MainImage:            mainImageUploadUrl.SecureURL,
 			Images:               uploadedImagesUrl,
-			ListingDetails:       listingDetails,
-			Slug:                 slug2.Make(newListing.ListingDetails.Title),
+			Details:              listingDetails,
+			Slug:                 slug2.Make(newListing.Details.Title),
 			Date:                 listingDate,
 			State:                models.ListingState{State: models.ListingStateActive, StateUpdatedAt: now},
 			ShippingProfileId:    shippingId,
@@ -189,7 +189,7 @@ func CreateListing() gin.HandlerFunc {
 			FavorersCount:        0,
 		}
 
-		fmt.Println(listing.ListingDetails.Type)
+		fmt.Println(listing.Details.Type)
 		res, err := common.ListingCollection.InsertOne(ctx, listing)
 		if err != nil {
 			// delete images
@@ -204,7 +204,7 @@ func CreateListing() gin.HandlerFunc {
 		}
 
 		// send new listing email notification to user
-		email.SendNewListingEmail(loginEmail, loginName, newListing.ListingDetails.Title)
+		email.SendNewListingEmail(loginEmail, loginName, newListing.Details.Title)
 
 		util.HandleSuccess(c, http.StatusOK, "Listing was created successfully", res.InsertedID)
 	}
