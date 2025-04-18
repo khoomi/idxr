@@ -1,89 +1,52 @@
 {
   "details": {
-    "dynamic": {
-      "material": "Solid oak wood",
-      "style": "Minimalist Scandinavian",
-      "room": "Living room",
-      "finish": "Natural oil wax"
-    },
-    "dynamic_type": "furniture",
+    "title": "Deluxe Birthday Gift Box Set",
     "category": {
-      "categoryId": "furn-001",
-      "categoryName": "Coffee Tables",
-      "categoryPath": "home/furniture/living-room/coffee-tables"
+      "categoryId": "gift001",
+      "categoryName": "Birthday Gifts",
+      "categoryPath": "/gifts-and-occasions/birthday/"
     },
     "condition": "new",
-    "title": "Handcrafted Minimalist Oak Coffee Table",
     "whenMade": "in2020_2023",
-    "type": "coffee_table",
-    "sustainability": "Made with sustainably harvested wood and natural finish",
-    "whoMade": "i_did",
-    "shippingProfileId": "662e3f9e0d5f3f002138b91e",
-    "personalizationText": "Engrave a name or short message under the tabletop",
-    "otherColor": "walnut",
-    "color": "natural oak",
-    "description": "This handcrafted oak coffee table brings simplicity and elegance to your living space. Designed with clean lines and natural finishes, it suits modern and minimalist interiors. Made from sustainably sourced oak and finished with an eco-friendly oil wax for lasting beauty.",
-    "tags": [
-      "oak table",
-      "minimalist furniture",
-      "living room",
-      "eco-friendly",
-      "custom coffee table"
-    ],
-    "keywords": [
-      "wooden table",
-      "handcrafted coffee table",
-      "natural furniture",
-      "oak furniture",
-      "scandinavian style"
-    ],
-    "has_variations": true,
+    "type": "gift_box",
+    "sustainability": "Other",
+    "whoMade": "collective",
+    "shippingProfileId": "662f03ab1c2e88007e3b4112",
+    "otherColor": "custom mix",
+    "color": "blue + gold",
+    "description": "Celebrate birthdays in style with this curated gift box. Includes a scented candle, custom mug, chocolate bar, mini notepad, and a handwritten birthday card. Beautifully packed and ready to delight!",
+    "tags": ["birthday", "gift", "box", "celebration", "ready-to-ship"],
+    "keywords": ["gift box", "birthday gift set", "luxury box", "celebrate", "hamper"],
+    "has_variations": false,
     "has_personalization": true,
     "personalization": {
-      "text": "Text to engrave under the tabletop (optional)",
-      "characters": 30,
+      "text": "Write a birthday message for the card (max 120 chars)",
+      "characters": 120,
       "optional": true
     },
-    "FurnitureData": {
-      "assembly_required": true,
-      "care_instructions": "Wipe with a dry cloth. Avoid harsh chemicals.",
-      "indoor_outdoor": "indoor"
+    "dynamic_type": "gifts-and-occasions",
+    "dynamic": {
+      "items_included": ["Candle", "Card", "Mug", "Notebook", "Chocolate"],
+      "packaging": "Magnetic flap box with ribbon"
     }
   },
   "measurements": {
     "itemWeightUnit": "kg",
     "itemDimensionUnit": "cm",
-    "itemWeight": 14.5,
-    "itemLength": 100.0,
-    "itemWidth": 60.0,
-    "itemHeight": 40.0
+    "itemWeight": 1.8,
+    "itemLength": 30.0,
+    "itemWidth": 20.0,
+    "itemHeight": 10.0
   },
-  "variations": [
-    {
-      "type": "wood finish",
-      "value": "natural oak",
-      "price": "45000",
-      "sku": "TBL-NOAK-001",
-      "unit": "unit",
-      "quantity": 5
-    },
-    {
-      "type": "wood finish",
-      "value": "dark walnut",
-      "price": "47000",
-      "sku": "TBL-WALNUT-002",
-      "unit": "unit",
-      "quantity": 3
-    }
-  ],
+  "variations": [],
   "inventory": {
-    "modifiedAt": "2025-04-16T17:00:00Z",
-    "sku": "TBL-NOAK-001",
+    "sku": "BDAY-BOX-DELUXE",
     "currencyCode": "NGN",
-    "domesticPrice": 45000,
-    "price": 45000,
-    "initialQuantity": 8,
-    "quantity": 8,
-    "domesticPricing": true
+    "domesticPrice": 22000,
+    "price": 22000,
+    "initialQuantity": 10,
+    "quantity": 10,
+    "domesticPricing": true,
+    "modifiedAt": "2025-04-16T19:25:00Z"
   }
 }

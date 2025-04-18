@@ -7,6 +7,7 @@ import (
 	"math/big"
 	"math/rand"
 	"net/http"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -18,6 +19,7 @@ import (
 	"github.com/cloudinary/cloudinary-go/api/uploader"
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 const (
@@ -111,6 +113,10 @@ func GetListingSortingBson(sort string) bson.D {
 		key = "inventory.price"
 	case "rating_desc":
 		key = "rating.rating.positive_reviews"
+	case "category_asc":
+		key = "details.category.categoryPath"
+	case "category_desc":
+		key = "details.category.categoryPath"
 	default:
 		key = "date.created_at"
 	}
@@ -296,4 +302,93 @@ func (g *SKUGenerator) GeneratePatternSKU(pattern string) string {
 func randInt(max int) int {
 	n, _ := rand2.Int(rand2.Reader, big.NewInt(int64(max)))
 	return int(n.Int64())
+}
+
+func GetListingFilters(c *gin.Context) bson.M {
+	match := bson.M{}
+
+	if minPrice := c.Query("min_price"); minPrice != "" {
+		if price, err := strconv.ParseFloat(minPrice, 64); err == nil {
+			match["inventory.price"] = bson.M{"$gte": price}
+		}
+	}
+	if maxPrice := c.Query("max_price"); maxPrice != "" {
+		if price, err := strconv.ParseFloat(maxPrice, 64); err == nil {
+			if val, ok := match["inventory.price"].(bson.M); ok {
+				val["$lte"] = price
+			} else {
+				match["inventory.price"] = bson.M{"$lte": price}
+			}
+		}
+	}
+	if category := c.Query("category"); category != "" && category != "All" {
+		match["details.category.categoryName"] = category
+	}
+
+	if state := c.Query("state"); state != "" {
+		match["state.state"] = state
+	}
+
+	if userID := c.Query("user_id"); userID != "" {
+		if oid, err := primitive.ObjectIDFromHex(userID); err == nil {
+			match["user_id"] = oid
+		}
+	}
+
+	if shopID := c.Query("shop_id"); shopID != "" {
+		if oid, err := primitive.ObjectIDFromHex(shopID); err == nil {
+			match["shop_id"] = oid
+		}
+	}
+
+	if days := c.Query("recent_days"); days != "" {
+		if d, err := strconv.Atoi(days); err == nil {
+			from := time.Now().AddDate(0, 0, -d)
+			match["date.created_at"] = bson.M{"$gte": from}
+		}
+	}
+
+	if tags := c.QueryArray("tags"); len(tags) > 0 {
+		match["details.tags"] = bson.M{"$in": tags}
+	}
+
+	if color := c.Query("color"); color != "" {
+		match["details.color"] = color
+	}
+
+	if q := c.Query("q"); q != "" {
+		match["$text"] = bson.M{"$search": q}
+	}
+
+	if hp := c.Query("has_personalization"); hp == "true" {
+		match["details.has_personalization"] = true
+	}
+
+	if hv := c.Query("has_variations"); hv == "true" {
+		match["details.has_variations"] = true
+	}
+
+	if wm := c.Query("who_made"); wm != "" {
+		match["details.who_made"] = wm
+	}
+
+	if wm := c.Query("when_made"); wm != "" {
+		match["details.when_made"] = wm
+	}
+
+	if c := c.Query("condition"); c != "" {
+		match["details.condition"] = c
+	}
+
+	if c := c.Query("sustainability"); c != "" {
+		match["details.sustainability"] = c
+	}
+
+	if rating := c.Query("min_rating"); rating != "" {
+		if r, err := strconv.ParseFloat(rating, 64); err == nil {
+			match["rating.rating"] = bson.M{"$gte": r}
+		}
+	}
+
+	return match
 }

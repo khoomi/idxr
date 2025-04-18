@@ -3,12 +3,12 @@ package models
 type DynamicType string
 
 const (
-	FurnitureType             = "furniture"
-	GiftsAndOccasionsType     = "gifts_and_occasions"
+	FurnitureType             = "furnitures"
+	GiftsAndOccasionsType     = "gifts-and-occasions"
 	ClothingType              = "clothing"
-	ArtAndCollectiblesType    = "art_and_collectibles"
-	AceessoriesAndJewelryType = "aceessories"
-	HomeAndLivingType         = "home_and_living"
+	ArtAndCollectiblesType    = "art-and-collectibles"
+	AceessoriesAndJewelryType = "accessories-and-jewelry"
+	HomeAndLivingType         = "home-and-living"
 )
 
 type Clothing struct {

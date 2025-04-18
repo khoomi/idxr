@@ -105,21 +105,22 @@ func CreateListing() gin.HandlerFunc {
 
 		now := time.Now()
 		listingDetails := models.ListingDetails{
-			Type:            newListing.ListingDetails.Type,
-			Tags:            newListing.ListingDetails.Tags,
-			Title:           newListing.ListingDetails.Title,
-			Color:           newListing.ListingDetails.Color,
-			Dynamic:         newListing.ListingDetails.Dynamic,
-			DynamicType:     newListing.ListingDetails.DynamicType,
-			WhoMade:         newListing.ListingDetails.WhoMade,
-			Keywords:        newListing.ListingDetails.Keywords,
-			WhenMade:        newListing.ListingDetails.WhenMade,
-			Category:        newListing.ListingDetails.Category,
-			Condition:       newListing.ListingDetails.Condition,
-			Description:     newListing.ListingDetails.Description,
-			HasVariations:   newListing.ListingDetails.HasVariations,
-			Sustainability:  newListing.ListingDetails.Sustainability,
-			Personalization: newListing.ListingDetails.Personalization,
+			Type:               newListing.ListingDetails.Type,
+			Tags:               newListing.ListingDetails.Tags,
+			Title:              newListing.ListingDetails.Title,
+			Color:              newListing.ListingDetails.Color,
+			Dynamic:            newListing.ListingDetails.Dynamic,
+			DynamicType:        newListing.ListingDetails.DynamicType,
+			WhoMade:            newListing.ListingDetails.WhoMade,
+			Keywords:           newListing.ListingDetails.Keywords,
+			WhenMade:           newListing.ListingDetails.WhenMade,
+			Category:           newListing.ListingDetails.Category,
+			Condition:          newListing.ListingDetails.Condition,
+			Description:        newListing.ListingDetails.Description,
+			HasVariations:      newListing.ListingDetails.HasVariations,
+			Sustainability:     newListing.ListingDetails.Sustainability,
+			HasPersonalization: newListing.ListingDetails.HasPersonalization,
+			Personalization:    newListing.ListingDetails.Personalization,
 
 			ClothingData:              newListing.ListingDetails.ClothingData,
 			FurnitureData:             newListing.ListingDetails.FurnitureData,
@@ -359,13 +360,8 @@ func GetListings() gin.HandlerFunc {
 		defer cancel()
 
 		paginationArgs := common.GetPaginationArgs(c)
+		match := common.GetListingFilters(c)
 		sort := common.GetListingSortingBson(paginationArgs.Sort)
-
-		match := bson.M{}
-		category := c.Query("category")
-		if len(category) > 0 && category != "All" {
-			match = bson.M{"details.category.category_name": category}
-		}
 
 		pipeline := []bson.M{
 			{"$match": match},
@@ -531,19 +527,21 @@ func GetShopListings() gin.HandlerFunc {
 			return
 		}
 
+		match := common.GetListingFilters(c)
+		match["shop_id"] = shopObjectId
 		paginationArgs := common.GetPaginationArgs(c)
 		findOptions := options.Find().
 			SetLimit(int64(paginationArgs.Limit)).
 			SetSkip(int64(paginationArgs.Skip)).
 			SetSort(common.GetListingSortingBson(paginationArgs.Sort))
-		cursor, err := common.ListingCollection.Find(ctx, bson.M{"shop_id": shopObjectId}, findOptions)
+		cursor, err := common.ListingCollection.Find(ctx, match, findOptions)
 		if err != nil {
 			util.HandleError(c, http.StatusNotFound, err)
 			return
 		}
 		defer cursor.Close(ctx)
 
-		count, err := common.ListingCollection.CountDocuments(ctx, bson.M{"shop_id": shopObjectId})
+		count, err := common.ListingCollection.CountDocuments(ctx, match)
 		if err != nil {
 			util.HandleError(c, http.StatusInternalServerError, err)
 			return
