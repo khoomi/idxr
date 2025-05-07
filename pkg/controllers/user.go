@@ -531,7 +531,7 @@ func GetUser() gin.HandlerFunc {
 
 			filter = bson.M{"_id": userObjectID}
 		} else {
-			filter = bson.M{"username": userID}
+			filter = bson.M{"login_name": userID}
 		}
 
 		// Query the database to find the user based on the specified field and value
