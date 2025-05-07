@@ -114,7 +114,6 @@ func createUserImpl(c *gin.Context, claim *googleAuthIDTokenVerifier.ClaimSet, j
 		"review_count":                0,
 	}
 
-	fmt.Println("HERE2")
 	result, err := common.UserCollection.InsertOne(ctx, newUser)
 	if err != nil {
 		writeException, ok := err.(mongo.WriteException)
