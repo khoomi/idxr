@@ -1296,7 +1296,7 @@ func CreateShopReview() gin.HandlerFunc {
 			}
 
 			// attempt updating user reviewCount fields.
-			_, err := common.UserCollection.UpdateOne(ctx, bson.M{"_id": myId}, bson.M{"$inc": bson.M{"review_count": 1}})
+			_, err = common.UserCollection.UpdateOne(ctx, bson.M{"_id": myId}, bson.M{"$inc": bson.M{"review_count": 1}})
 			if err != nil {
 				log.Println("Failed to update review count:", err)
 				return nil, err
@@ -1408,7 +1408,7 @@ func DeleteMyReview() gin.HandlerFunc {
 			}
 
 			// attempt updating user reviewCount fields.
-			_, err := common.UserCollection.UpdateOne(ctx, bson.M{"_id": myId}, bson.M{"$inc": bson.M{"review_count": -1}})
+			_, err = common.UserCollection.UpdateOne(ctx, bson.M{"_id": myId}, bson.M{"$inc": bson.M{"review_count": -1}})
 			if err != nil {
 				log.Println("Failed to update review count:", err)
 				return nil, err
