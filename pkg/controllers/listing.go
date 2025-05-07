@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -28,7 +29,7 @@ func CreateListing() gin.HandlerFunc {
 		defer cancel()
 
 		shopId, myId, err := common.MyShopIdAndMyId(c)
-		if err == nil {
+		if err != nil {
 			util.HandleError(c, http.StatusBadRequest, err)
 			return
 		}
@@ -37,11 +38,27 @@ func CreateListing() gin.HandlerFunc {
 			util.HandleError(c, http.StatusUnauthorized, err)
 			return
 		}
+
 		loginName, loginEmail := session.LoginName, session.Email
-		newListing, err := common.MapFormDataToNewListing(c.PostForm)
+		listingJson := c.PostForm("listing")
+		if listingJson == "" {
+			util.HandleError(c, http.StatusBadRequest, errors.New("missing listing payload"))
+			return
+		}
+
+		var newListing models.NewListing
+		if err := json.Unmarshal([]byte(listingJson), &newListing); err != nil {
+			util.HandleError(c, http.StatusBadRequest, fmt.Errorf("invalid JSON: %v", err))
+			return
+		}
 
 		if validationErr := common.Validate.Struct(newListing); validationErr != nil {
 			util.HandleError(c, http.StatusBadRequest, validationErr)
+			return
+		}
+
+		if err := newListing.Details.SetDynamicToTypedField(); err != nil {
+			util.HandleError(c, http.StatusBadRequest, fmt.Errorf("invalid dynamic data: %v", err))
 			return
 		}
 
@@ -73,7 +90,7 @@ func CreateListing() gin.HandlerFunc {
 
 		// Verify shipping id, if null, find default shipping profile from db and use for listing.
 		var shippingId primitive.ObjectID
-		shippingObj, err := primitive.ObjectIDFromHex(newListing.ListingDetails.ShippingProfileId)
+		shippingObj, err := primitive.ObjectIDFromHex(newListing.Details.ShippingProfileId)
 		if err != nil {
 			var shipping models.ShopShippingProfile
 			err := common.ShippingProfileCollection.FindOne(ctx, bson.M{"shop_id": shopId, "is_default_profile": true}).Decode(shipping)
@@ -87,25 +104,30 @@ func CreateListing() gin.HandlerFunc {
 		}
 
 		now := time.Now()
-		listingDetails := models.ListingDetails{
-			Type:                        newListing.ListingDetails.Type,
-			Tags:                        newListing.ListingDetails.Tags,
-			Title:                       newListing.ListingDetails.Title,
-			Color:                       newListing.ListingDetails.Color,
-			Dynamic:                     newListing.ListingDetails.Dynamic,
-			DynamicType:                 "general",
-			WhoMade:                     newListing.ListingDetails.WhoMade,
-			Keywords:                    newListing.ListingDetails.Keywords,
-			WhenMade:                    newListing.ListingDetails.WhenMade,
-			Category:                    newListing.ListingDetails.Category,
-			Condition:                   newListing.ListingDetails.Condition,
-			Description:                 newListing.ListingDetails.Description,
-			HasVariations:               newListing.ListingDetails.HasVariations,
-			Sustainability:              newListing.ListingDetails.Sustainability,
-			Personalization:             newListing.ListingDetails.Personalization,
-			PersonalizationText:         newListing.ListingDetails.PersonalizationText,
-			PersonalizationTextChars:    newListing.ListingDetails.PersonalizationTextChars,
-			PersonalizationTextOptional: newListing.ListingDetails.PersonalizationTextOptional,
+		listingDetails := models.Details{
+			Type:               newListing.Details.Type,
+			Tags:               newListing.Details.Tags,
+			Title:              newListing.Details.Title,
+			Color:              newListing.Details.Color,
+			Dynamic:            newListing.Details.Dynamic,
+			DynamicType:        newListing.Details.DynamicType,
+			WhoMade:            newListing.Details.WhoMade,
+			Keywords:           newListing.Details.Keywords,
+			WhenMade:           newListing.Details.WhenMade,
+			Category:           newListing.Details.Category,
+			Condition:          newListing.Details.Condition,
+			Description:        newListing.Details.Description,
+			HasVariations:      newListing.Details.HasVariations,
+			Sustainability:     newListing.Details.Sustainability,
+			HasPersonalization: newListing.Details.HasPersonalization,
+			Personalization:    newListing.Details.Personalization,
+
+			ClothingData:              newListing.Details.ClothingData,
+			FurnitureData:             newListing.Details.FurnitureData,
+			GiftsAndOccasionsData:     newListing.Details.GiftsAndOccasionsData,
+			ArtAndCollectiblesData:    newListing.Details.ArtAndCollectiblesData,
+			AceessoriesAndJewelryData: newListing.Details.AceessoriesAndJewelryData,
+			HomeAndLivingData:         newListing.Details.HomeAndLivingData,
 		}
 
 		listingInventory := models.Inventory{
@@ -132,7 +154,7 @@ func CreateListing() gin.HandlerFunc {
 			NegativeReviews: 0,
 		}
 
-		listingFinancialInformation := models.ListingFinancialInformation{
+		listingFinancialInformation := models.FinancialInformation{
 			TotalOrders:     0,
 			Sales:           0,
 			OrdersPending:   0,
@@ -144,33 +166,30 @@ func CreateListing() gin.HandlerFunc {
 		}
 
 		listing := models.Listing{
-			ID:   primitive.NewObjectID(),
-			Code: common.GenerateListingCode(),
-			State: models.ListingState{
-				State:          models.ListingStateActive,
-				StateUpdatedAt: now,
-			},
+			ID:                   primitive.NewObjectID(),
+			Code:                 common.GenerateListingCode(),
 			UserId:               myId,
 			ShopId:               shopId,
 			MainImage:            mainImageUploadUrl.SecureURL,
 			Images:               uploadedImagesUrl,
-			ListingDetails:       listingDetails,
+			Details:              listingDetails,
+			Slug:                 slug2.Make(newListing.Details.Title),
 			Date:                 listingDate,
-			Slug:                 slug2.Make(newListing.ListingDetails.Title),
-			Views:                0,
-			FavorersCount:        0,
+			State:                models.ListingState{State: models.ListingStateActive, StateUpdatedAt: now},
 			ShippingProfileId:    shippingId,
 			NonTaxable:           true,
-			Variations:           newListing.Variations,
 			ShouldAutoRenew:      false,
+			Variations:           newListing.Variations,
 			Inventory:            listingInventory,
 			RecentReviews:        nil,
 			Rating:               listingRating,
 			Measurements:         newListing.Measurements,
 			FinancialInformation: listingFinancialInformation,
+			Views:                0,
+			FavorersCount:        0,
 		}
 
-		fmt.Println(listing.ListingDetails.Type)
+		fmt.Println(listing.Details.Type)
 		res, err := common.ListingCollection.InsertOne(ctx, listing)
 		if err != nil {
 			// delete images
@@ -180,13 +199,12 @@ func CreateListing() gin.HandlerFunc {
 				println(err)
 			}
 			// return error
-			errMsg := fmt.Sprintf("Failed to create new listing — %v", err.Error())
-			util.HandleError(c, http.StatusInternalServerError, errors.New(errMsg))
+			util.HandleError(c, http.StatusInternalServerError, fmt.Errorf("failed to create listing — %v", err))
 			return
 		}
 
 		// send new listing email notification to user
-		email.SendNewListingEmail(loginEmail, loginName, newListing.ListingDetails.Title)
+		email.SendNewListingEmail(loginEmail, loginName, newListing.Details.Title)
 
 		util.HandleSuccess(c, http.StatusOK, "Listing was created successfully", res.InsertedID)
 	}
@@ -233,6 +251,14 @@ func GetListing() gin.HandlerFunc {
 				},
 			},
 			{"$unwind": "$user"},
+			{
+				"$lookup": bson.M{
+					"from":         "ShopShippingProfile",
+					"localField":   "shipping_profile_id",
+					"foreignField": "_id",
+					"as":           "shipping",
+				},
+			},
 			{
 				"$lookup": bson.M{
 					"from":         "ShopShippingProfile",
@@ -316,7 +342,6 @@ func GetListing() gin.HandlerFunc {
 
 		if cursor.Next(ctx) {
 			if err := cursor.Decode(&listing); err != nil {
-				println(err)
 				util.HandleError(c, http.StatusInternalServerError, err)
 				return
 			}
@@ -335,13 +360,8 @@ func GetListings() gin.HandlerFunc {
 		defer cancel()
 
 		paginationArgs := common.GetPaginationArgs(c)
+		match := common.GetListingFilters(c)
 		sort := common.GetListingSortingBson(paginationArgs.Sort)
-
-		match := bson.M{}
-		category := c.Query("category")
-		if len(category) > 0 && category != "All" {
-			match = bson.M{"details.category.category_name": category}
-		}
 
 		pipeline := []bson.M{
 			{"$match": match},
@@ -393,7 +413,7 @@ func GetListings() gin.HandlerFunc {
 						"thumbnail":  "$user.thumbnail",
 					},
 					"shop": bson.M{
-						"name":          "$shop.username",
+						"name":          "$shop.name",
 						"username":      "$shop.username",
 						"slug":          "$shop.slug",
 						"logo_url":      "$shop.logo_url",
@@ -507,19 +527,21 @@ func GetShopListings() gin.HandlerFunc {
 			return
 		}
 
+		match := common.GetListingFilters(c)
+		match["shop_id"] = shopObjectId
 		paginationArgs := common.GetPaginationArgs(c)
 		findOptions := options.Find().
 			SetLimit(int64(paginationArgs.Limit)).
 			SetSkip(int64(paginationArgs.Skip)).
 			SetSort(common.GetListingSortingBson(paginationArgs.Sort))
-		cursor, err := common.ListingCollection.Find(ctx, bson.M{"shop_id": shopObjectId}, findOptions)
+		cursor, err := common.ListingCollection.Find(ctx, match, findOptions)
 		if err != nil {
 			util.HandleError(c, http.StatusNotFound, err)
 			return
 		}
 		defer cursor.Close(ctx)
 
-		count, err := common.ListingCollection.CountDocuments(ctx, bson.M{"shop_id": shopObjectId})
+		count, err := common.ListingCollection.CountDocuments(ctx, match)
 		if err != nil {
 			util.HandleError(c, http.StatusInternalServerError, err)
 			return
@@ -548,12 +570,14 @@ func HasUserCreatedListingOnboarding() gin.HandlerFunc {
 
 		shopId, userId, err := common.MyShopIdAndMyId(c)
 		if err != nil {
+			fmt.Println(err)
 			util.HandleError(c, http.StatusBadRequest, err)
 			return
 		}
 
 		err = common.VerifyShopOwnership(c, userId, shopId)
 		if err != nil {
+			fmt.Println(err)
 			util.HandleError(c, http.StatusUnauthorized, errors.New("Only sellers can perform this action"))
 			return
 		}
@@ -619,7 +643,7 @@ func DeleteListings() gin.HandlerFunc {
 			deletedObjectIDs = append(deletedObjectIDs, idObjectID)
 		}
 
-		util.HandleSuccess(c, http.StatusOK, "Listing(s) deleted", gin.H{"deleted": listingIDs, "not_deleted": notDeletedObjectIDs})
+		util.HandleSuccess(c, http.StatusOK, "Listing(s) deleted", gin.H{"deleted": deletedObjectIDs, "not_deleted": notDeletedObjectIDs})
 	}
 }
 
@@ -634,12 +658,6 @@ func DeactivateListings() gin.HandlerFunc {
 			util.HandleError(c, http.StatusUnauthorized, err)
 			return
 		}
-		myId, err := session.GetUserObjectId()
-		if err != nil {
-			util.HandleError(c, http.StatusUnauthorized, err)
-			return
-		}
-
 		listingIDs := c.PostFormArray("id")
 		fmt.Println(listingIDs)
 		if len(listingIDs) < 1 {
@@ -657,7 +675,7 @@ func DeactivateListings() gin.HandlerFunc {
 				continue
 			}
 
-			_, err = common.ListingCollection.UpdateOne(ctx, bson.M{"_id": idObjectID, "user_id": myId}, bson.M{"state.state": models.ListingStateDeactivated, "state.state_updated_at": now, "date.modified_at": now})
+			_, err = common.ListingCollection.UpdateOne(ctx, bson.M{"_id": idObjectID, "user_id": session.UserId}, bson.M{"state.state": models.ListingStateDeactivated, "state.state_updated_at": now, "date.modified_at": now})
 			if err != nil {
 				notDeletedObjectIDs = append(notDeletedObjectIDs, idObjectID)
 				continue
@@ -666,6 +684,6 @@ func DeactivateListings() gin.HandlerFunc {
 			deletedObjectIDs = append(deletedObjectIDs, idObjectID)
 		}
 
-		util.HandleSuccess(c, http.StatusOK, "Listing(s) deleted", gin.H{"deactivated": listingIDs, "not_deactivated": notDeletedObjectIDs})
+		util.HandleSuccess(c, http.StatusOK, "Listing(s) deleted", gin.H{"deactivated": deletedObjectIDs, "not_deactivated": notDeletedObjectIDs})
 	}
 }

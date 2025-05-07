@@ -36,13 +36,8 @@ func CreateShopShippingProfile() gin.HandlerFunc {
 			util.HandleError(c, http.StatusUnauthorized, err)
 			return
 		}
-		userID, err := session.GetUserObjectId()
-		if err != nil {
-			util.HandleError(c, http.StatusUnauthorized, err)
-			return
-		}
 
-		err = common.VerifyShopOwnership(c, userID, shopIdObj)
+		err = common.VerifyShopOwnership(c, session.UserId, shopIdObj)
 		if err != nil {
 			log.Printf("Error you the shop owner: %s\n", err.Error())
 			util.HandleError(c, http.StatusForbidden, err)

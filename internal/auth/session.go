@@ -16,10 +16,10 @@ import (
 var SESSION_NAME = "____kh"
 
 type UserSession struct {
-	ExpiresAt time.Time `json:"expiresAt"`
-	UserId    string    `json:"userId"`
-	Email     string    `json:"email"`
-	LoginName string    `json:"loginName"`
+	ExpiresAt time.Time          `json:"expiresAt"`
+	UserId    primitive.ObjectID `json:"userId"`
+	Email     string             `json:"email"`
+	LoginName string             `json:"loginName"`
 }
 
 func (s UserSession) MarshalBinary() ([]byte, error) {
@@ -30,12 +30,6 @@ func (s *UserSession) UnmarshalBinary(data []byte) error {
 	return json.Unmarshal(data, s)
 }
 
-// Get user objectId
-func (s UserSession) GetUserObjectId() (primitive.ObjectID, error) {
-	id, err := primitive.ObjectIDFromHex(s.UserId)
-	return id, err
-}
-
 // Checks if user session is expired.
 func (s UserSession) Expired() bool {
 	expired := s.ExpiresAt.Before(time.Now())
@@ -43,7 +37,7 @@ func (s UserSession) Expired() bool {
 }
 
 // Set new user login session
-func SetSession(ctx *gin.Context, userId, email, loginName string) (string, error) {
+func SetSession(ctx *gin.Context, userId primitive.ObjectID, email, loginName string) (string, error) {
 	key := GenerateSecureToken(20)
 	ttl := time.Hour * (24 * 7)
 	sessExpTime := time.Now().Add(ttl)

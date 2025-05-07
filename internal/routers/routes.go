@@ -21,6 +21,7 @@ func InitRoute() *gin.Engine {
 		// Public endpoints
 		api.POST("/signup", controllers.CreateUser())
 		api.POST("/auth", controllers.HandleUserAuthentication())
+		api.POST("/auth/google", controllers.HandleUserGoogleAuthentication())
 		api.PUT("/auth/refresh-token", controllers.RefreshToken())
 		api.DELETE("/logout", controllers.Logout())
 		api.GET("/verify-email", controllers.VerifyEmail())
@@ -111,6 +112,13 @@ func userRoutes(api *gin.RouterGroup) {
 			payment.PUT("/:id/default", controllers.ChangeDefaultPaymentCard())
 			payment.DELETE("/:id", controllers.DeletePaymentCard())
 
+			// Seller Payment information endpoints
+			secured.POST("/:userid/payment-information/", controllers.CreateSellerPaymentInformation())
+			secured.GET("/:userid/payment-information/onboarded", controllers.CompletedPaymentOnboarding())
+			secured.GET("/:userid/payment-information", controllers.GetSellerPaymentInformations())
+			secured.PUT("/:userid/payment-information/:paymentInfoId/default", controllers.ChangeDefaultSellerPaymentInformation())
+			secured.DELETE("/:userid/payment-information/:paymentInfoId", controllers.DeleteSellerPaymentInformation())
+
 		}
 	}
 }
@@ -185,13 +193,6 @@ func shopRoutes(api *gin.RouterGroup) {
 			// Compliance information endpoints
 			secured.POST("/:shopid/compliance", controllers.CreateShopComplianceInformation())
 			secured.GET("/:shopid/compliance", controllers.GetShopComplianceInformation())
-			// Payment information endpoints
-			secured.POST("/:shopid/payment-information/", controllers.CreateSellerPaymentInformation())
-			secured.GET("/:shopid/payment-information/onboarded", controllers.CompletedPaymentOnboarding())
-			secured.GET("/:shopid/payment-information", controllers.GetSellerPaymentInformations())
-			secured.PUT("/:shopid/payment-information/:paymentInfoId/default", controllers.ChangeDefaultSellerPaymentInformation())
-			secured.DELETE("/:shopid/payment-information/:paymentInfoId", controllers.DeleteSellerPaymentInformation())
-
 		}
 
 		listing := shop.Group("")
@@ -202,7 +203,7 @@ func shopRoutes(api *gin.RouterGroup) {
 			{
 				// Endpoint to create a single listing
 				secured.POST("/:shopid/listings", controllers.CreateListing())
-				secured.GET("/:shopid/listing-summary", controllers.GetMyListingsSummary())
+				secured.GET("/:shopid/listings/summary", controllers.GetMyListingsSummary())
 				secured.GET("/:shopid/check-listing-onboarding", controllers.HasUserCreatedListingOnboarding())
 			}
 		}
@@ -211,7 +212,6 @@ func shopRoutes(api *gin.RouterGroup) {
 }
 
 func listingRoutes(api *gin.RouterGroup) {
-	// Define the "/listing" group
 	listing := api.Group("/listings")
 	// Get all listings -> /api/listings/?limit=50&skip=0&sort=date.created_at
 	listing.GET("/", controllers.GetListings())
@@ -222,6 +222,19 @@ func listingRoutes(api *gin.RouterGroup) {
 	{
 		secured.DELETE("/", controllers.DeleteListings())
 		secured.PUT("/deactivate", controllers.DeactivateListings())
+	}
+}
+
+func cartRoutes(api *gin.RouterGroup) {
+	cart := api.Group("/carts")
+	// Secured endpoints that require authentication
+	secured := cart.Group("").Use(auth.Auth())
+	{
+		secured.GET("/", controllers.GetCartItems())
+		secured.POST("/", controllers.SaveCartItem())
+		secured.DELETE("/:cartId", controllers.DeleteCartItem())
+		secured.DELETE("/many", controllers.DeleteCartItems())
+		secured.DELETE("/clear", controllers.DeleteCartItems())
 	}
 }
 

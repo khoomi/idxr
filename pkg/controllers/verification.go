@@ -2,13 +2,14 @@ package controllers
 
 import (
 	"context"
+	"log"
+	"net/http"
+	"time"
+
 	"khoomi-api-io/api/internal/auth"
 	"khoomi-api-io/api/internal/common"
 	"khoomi-api-io/api/pkg/models"
 	"khoomi-api-io/api/pkg/util"
-	"log"
-	"net/http"
-	"time"
 
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/bson"
@@ -35,13 +36,8 @@ func CreateSellerVerificationProfile() gin.HandlerFunc {
 			util.HandleError(c, http.StatusUnauthorized, err)
 			return
 		}
-		userId, err := session_.GetUserObjectId()
-		if err != nil {
-			util.HandleError(c, http.StatusUnauthorized, err)
-			return
-		}
 
-		err = common.VerifyShopOwnership(c, userId, shopIdObj)
+		err = common.VerifyShopOwnership(c, session_.UserId, shopIdObj)
 		if err != nil {
 			log.Printf("Error you the shop owner: %s\n", err.Error())
 			util.HandleError(c, http.StatusForbidden, err)
@@ -57,7 +53,7 @@ func CreateSellerVerificationProfile() gin.HandlerFunc {
 
 		// Validate request body
 		if validationErr := common.Validate.Struct(&verificationJson); validationErr != nil {
-			util.HandleError(c, http.StatusUnprocessableEntity, err)
+			util.HandleError(c, http.StatusUnprocessableEntity, validationErr)
 			return
 		}
 
@@ -105,12 +101,7 @@ func GetSellerVerificationProfile() gin.HandlerFunc {
 			util.HandleError(c, http.StatusUnauthorized, err)
 			return
 		}
-		userId, err := session_.GetUserObjectId()
-		if err != nil {
-			util.HandleError(c, http.StatusUnauthorized, err)
-			return
-		}
-		err = common.VerifyShopOwnership(c, userId, shopIdObj)
+		err = common.VerifyShopOwnership(c, session_.UserId, shopIdObj)
 		if err != nil {
 			log.Printf("Error you the shop owner: %s\n", err.Error())
 			util.HandleError(c, http.StatusForbidden, err)
@@ -129,6 +120,5 @@ func GetSellerVerificationProfile() gin.HandlerFunc {
 		}
 
 		util.HandleSuccess(c, http.StatusOK, "Seller verification profile retrieved successfully", verificationProfile)
-
 	}
 }

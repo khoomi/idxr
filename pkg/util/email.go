@@ -19,7 +19,7 @@ type KhoomiEmailComposer struct {
 }
 
 func SendMail(mail KhoomiEmailComposer) error {
-	data := map[string]interface{}{
+	data := map[string]any{
 		"sender": map[string]string{
 			"name":  mail.SenderName,
 			"email": mail.Sender,

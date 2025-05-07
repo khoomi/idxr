@@ -34,7 +34,7 @@ func Auth() gin.HandlerFunc {
 			if err != nil {
 				fmt.Println(err)
 			}
-			util.HandleError(c, 401, errors.New("Session expired"))
+			util.HandleError(c, 401, errors.New("session expired"))
 			c.Abort()
 			return
 		}
@@ -69,7 +69,7 @@ func ValidateUserID(c *gin.Context) (primitive.ObjectID, error) {
 		return primitive.NilObjectID, err
 	}
 
-	if userId != session.UserId {
+	if userId != session.UserId.Hex() {
 		errMsg := fmt.Sprintln("unauthorized")
 		return primitive.NilObjectID, errors.New(errMsg)
 	}

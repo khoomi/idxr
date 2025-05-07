@@ -2,9 +2,8 @@ package common
 
 import (
 	rand2 "crypto/rand"
+	"errors"
 	"fmt"
-	"khoomi-api-io/api/pkg/models"
-	"khoomi-api-io/api/pkg/util"
 	"math/big"
 	"math/rand"
 	"net/http"
@@ -14,9 +13,13 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"khoomi-api-io/api/pkg/models"
+	"khoomi-api-io/api/pkg/util"
+
 	"github.com/cloudinary/cloudinary-go/api/uploader"
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 const (
@@ -110,6 +113,10 @@ func GetListingSortingBson(sort string) bson.D {
 		key = "inventory.price"
 	case "rating_desc":
 		key = "rating.rating.positive_reviews"
+	case "category_asc":
+		key = "details.category.categoryPath"
+	case "category_desc":
+		key = "details.category.categoryPath"
 	default:
 		key = "date.created_at"
 	}
@@ -150,107 +157,6 @@ func parseWeightUnit(unit string) models.WeightUnit {
 	default:
 		return models.WeightUnitKG
 	}
-}
-
-func MapFormDataToNewListing(formData func(key string) (value string)) (*models.NewListing, error) {
-	listing := &models.NewListing{}
-
-	// Map Inventory
-	price, err := strconv.ParseFloat(formData("inventory.price"), 64)
-	if err != nil {
-		return nil, err
-	}
-	quantity, err := strconv.Atoi(formData("inventory.quantity"))
-	if err != nil {
-		return nil, err
-	}
-
-	sku := formData("inventory.sku")
-	if sku == "" {
-		newSku := NewSKUGenerator()
-		sku = newSku.GenerateSKU()
-	}
-
-	listing.Inventory = models.Inventory{
-		Price:           price,
-		Quantity:        quantity,
-		SKU:             formData("inventory.sku"),
-		DomesticPricing: false,
-		DomesticPrice:   0,
-	}
-
-	// Map Measurements
-	itemWeight, err := strconv.ParseFloat(formData("measurements.itemWeight"), 64)
-	if err != nil {
-		itemWeight = 0
-	}
-	itemLength, err := strconv.ParseFloat(formData("measurements.itemLength"), 64)
-	if err != nil {
-		itemLength = 0
-	}
-	itemHeight, err := strconv.ParseFloat(formData("measurements.itemHeight"), 64)
-	if err != nil {
-		itemHeight = 0
-	}
-	itemWidth, err := strconv.ParseFloat(formData("measurements.itemWidth"), 64)
-	if err != nil {
-		itemWidth = 0
-	}
-
-	itemWeightUnit := parseWeightUnit(formData("measurements.itemWeightUnit"))
-	itemDimensionUnit := parseDimensionUnit(formData("measurements.itemDimensionUnit"))
-	listing.Measurements = models.ListingMeasurement{
-		ItemWeight:        itemWeight,
-		ItemWeightUnit:    itemWeightUnit,
-		ItemLength:        itemLength,
-		ItemDimensionUnit: itemDimensionUnit,
-		ItemHeight:        itemHeight,
-		ItemWidth:         itemWidth,
-	}
-
-	var tags []string
-	if formData("details.tags") != "" {
-		tags = strings.Split(formData("details.tags"), ",")
-	}
-
-	personalization := formData("details.personalization") == "on"
-	var personalizationTextChars int
-	if formData("details.personalizationTextChars") != "" {
-		personalizationTextChars, _ = strconv.Atoi(formData("details.personalizationTextChars"))
-	}
-
-	title := strings.TrimSpace(formData("details.title"))
-	if err := validateTitle(title); err != nil {
-		return nil, err
-	}
-
-	description := strings.TrimSpace(formData("details.description"))
-	if err := validateDescription(description); err != nil {
-		return nil, err
-	}
-
-	listing.ListingDetails = models.NewListingDetails{
-		Title: title,
-		Category: models.ListingCategory{
-			CategoryId:   formData("details.category.categoryId"),
-			CategoryName: formData("details.category.categoryName"),
-			CategoryPath: formData("details.category.categoryPath"),
-		},
-		Condition:                getFormValue(formData, "details.condition", "new"),
-		Sustainability:           getFormValue(formData, "details.sustainability", "eco-friendly"),
-		Description:              description,
-		Tags:                     tags,
-		WhoMade:                  formData("details.whoMade"),
-		WhenMade:                 formData("details.whenMade"),
-		Type:                     formData("details.type"),
-		Color:                    formData("details.mainColor"),
-		OtherColor:               formData("details.otherColor"),
-		Personalization:          personalization,
-		PersonalizationText:      formData("details.personalizationText"),
-		PersonalizationTextChars: personalizationTextChars,
-	}
-
-	return listing, nil
 }
 
 const (
@@ -312,10 +218,10 @@ func HandleSequentialImages(c *gin.Context) ([]string, []uploader.UploadResult, 
 		for _, err := range errs {
 			errMsg += "\n" + err.Error()
 		}
-		return uploadedImagesUrl, uploadedImagesResult, fmt.Errorf(errMsg)
+		return uploadedImagesUrl, uploadedImagesResult, errors.New(errMsg)
 	}
 
-	var defaultThumbnail = "https://res.cloudinary.com/kh-oo-mi/image/upload/v1705607175/khoomi/mypvl86lihcqvkcqmvbg.jpg"
+	defaultThumbnail := "https://res.cloudinary.com/kh-oo-mi/image/upload/v1705607175/khoomi/mypvl86lihcqvkcqmvbg.jpg"
 	// If no images were uploaded, use default thumbnail
 	if len(uploadedImagesUrl) == 0 {
 		tempImage := uploader.UploadResult{
@@ -392,8 +298,97 @@ func (g *SKUGenerator) GeneratePatternSKU(pattern string) string {
 	return result.String()
 }
 
-// Helper function to generate random integer
+// generate random integer.
 func randInt(max int) int {
 	n, _ := rand2.Int(rand2.Reader, big.NewInt(int64(max)))
 	return int(n.Int64())
+}
+
+func GetListingFilters(c *gin.Context) bson.M {
+	match := bson.M{}
+
+	if minPrice := c.Query("min_price"); minPrice != "" {
+		if price, err := strconv.ParseFloat(minPrice, 64); err == nil {
+			match["inventory.price"] = bson.M{"$gte": price}
+		}
+	}
+	if maxPrice := c.Query("max_price"); maxPrice != "" {
+		if price, err := strconv.ParseFloat(maxPrice, 64); err == nil {
+			if val, ok := match["inventory.price"].(bson.M); ok {
+				val["$lte"] = price
+			} else {
+				match["inventory.price"] = bson.M{"$lte": price}
+			}
+		}
+	}
+	if category := c.Query("category"); category != "" && category != "All" {
+		match["details.category.categoryName"] = category
+	}
+
+	if state := c.Query("state"); state != "" {
+		match["state.state"] = state
+	}
+
+	if userID := c.Query("user_id"); userID != "" {
+		if oid, err := primitive.ObjectIDFromHex(userID); err == nil {
+			match["user_id"] = oid
+		}
+	}
+
+	if shopID := c.Query("shop_id"); shopID != "" {
+		if oid, err := primitive.ObjectIDFromHex(shopID); err == nil {
+			match["shop_id"] = oid
+		}
+	}
+
+	if days := c.Query("recent_days"); days != "" {
+		if d, err := strconv.Atoi(days); err == nil {
+			from := time.Now().AddDate(0, 0, -d)
+			match["date.created_at"] = bson.M{"$gte": from}
+		}
+	}
+
+	if tags := c.QueryArray("tags"); len(tags) > 0 {
+		match["details.tags"] = bson.M{"$in": tags}
+	}
+
+	if color := c.Query("color"); color != "" {
+		match["details.color"] = color
+	}
+
+	if q := c.Query("q"); q != "" {
+		match["$text"] = bson.M{"$search": q}
+	}
+
+	if hp := c.Query("has_personalization"); hp == "true" {
+		match["details.has_personalization"] = true
+	}
+
+	if hv := c.Query("has_variations"); hv == "true" {
+		match["details.has_variations"] = true
+	}
+
+	if wm := c.Query("who_made"); wm != "" {
+		match["details.who_made"] = wm
+	}
+
+	if wm := c.Query("when_made"); wm != "" {
+		match["details.when_made"] = wm
+	}
+
+	if c := c.Query("condition"); c != "" {
+		match["details.condition"] = c
+	}
+
+	if c := c.Query("sustainability"); c != "" {
+		match["details.sustainability"] = c
+	}
+
+	if rating := c.Query("min_rating"); rating != "" {
+		if r, err := strconv.ParseFloat(rating, 64); err == nil {
+			match["rating.rating"] = bson.M{"$gte": r}
+		}
+	}
+
+	return match
 }

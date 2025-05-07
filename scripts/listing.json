@@ -1,0 +1,52 @@
+{
+  "details": {
+    "title": "Deluxe Birthday Gift Box Set",
+    "category": {
+      "categoryId": "gift001",
+      "categoryName": "Birthday Gifts",
+      "categoryPath": "/gifts-and-occasions/birthday/"
+    },
+    "condition": "new",
+    "whenMade": "in2020_2023",
+    "type": "gift_box",
+    "sustainability": "Other",
+    "whoMade": "collective",
+    "shippingProfileId": "662f03ab1c2e88007e3b4112",
+    "otherColor": "custom mix",
+    "color": "blue + gold",
+    "description": "Celebrate birthdays in style with this curated gift box. Includes a scented candle, custom mug, chocolate bar, mini notepad, and a handwritten birthday card. Beautifully packed and ready to delight!",
+    "tags": ["birthday", "gift", "box", "celebration", "ready-to-ship"],
+    "keywords": ["gift box", "birthday gift set", "luxury box", "celebrate", "hamper"],
+    "has_variations": false,
+    "has_personalization": true,
+    "personalization": {
+      "text": "Write a birthday message for the card (max 120 chars)",
+      "characters": 120,
+      "optional": true
+    },
+    "dynamic_type": "gifts-and-occasions",
+    "dynamic": {
+      "items_included": ["Candle", "Card", "Mug", "Notebook", "Chocolate"],
+      "packaging": "Magnetic flap box with ribbon"
+    }
+  },
+  "measurements": {
+    "itemWeightUnit": "kg",
+    "itemDimensionUnit": "cm",
+    "itemWeight": 1.8,
+    "itemLength": 30.0,
+    "itemWidth": 20.0,
+    "itemHeight": 10.0
+  },
+  "variations": [],
+  "inventory": {
+    "sku": "BDAY-BOX-DELUXE",
+    "currencyCode": "NGN",
+    "domesticPrice": 22000,
+    "price": 22000,
+    "initialQuantity": 10,
+    "quantity": 10,
+    "domesticPricing": true,
+    "modifiedAt": "2025-04-16T19:25:00Z"
+  }
+}

@@ -3,10 +3,12 @@ package common
 import (
 	"context"
 	"errors"
+	"fmt"
+	"net/http"
+
 	auth "khoomi-api-io/api/internal/auth"
 	"khoomi-api-io/api/pkg/models"
 	"khoomi-api-io/api/pkg/util"
-	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/bson"
@@ -31,6 +33,7 @@ func MyShopIdAndMyId(c *gin.Context) (primitive.ObjectID, primitive.ObjectID, er
 	nilObjectId := primitive.NilObjectID
 
 	shopId := c.Param("shopid")
+	fmt.Println(shopId)
 	shopOBjectID, err := primitive.ObjectIDFromHex(shopId)
 	if err != nil {
 		return nilObjectId, nilObjectId, err
@@ -41,11 +44,6 @@ func MyShopIdAndMyId(c *gin.Context) (primitive.ObjectID, primitive.ObjectID, er
 		util.HandleError(c, http.StatusUnauthorized, err)
 		return nilObjectId, nilObjectId, err
 	}
-	userId, err := session.GetUserObjectId()
-	if err != nil {
-		util.HandleError(c, http.StatusUnauthorized, err)
-		return nilObjectId, nilObjectId, err
-	}
 
-	return shopOBjectID, userId, nil
+	return shopOBjectID, session.UserId, nil
 }

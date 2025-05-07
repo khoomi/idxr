@@ -37,7 +37,7 @@ func setOtherPaymentsToFalse(ctx context.Context, collection *mongo.Collection, 
 	return err
 }
 
-// / CreateSellerPaymentInformation -> POST /shop/:shopId/payment-information/
+// CreateSellerPaymentInformation -> POST /shop/:shopId/payment-information/
 func CreateSellerPaymentInformation() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
@@ -54,8 +54,9 @@ func CreateSellerPaymentInformation() gin.HandlerFunc {
 			util.HandleError(c, http.StatusInternalServerError, err)
 			return
 		}
+
 		if !res {
-			util.HandleError(c, http.StatusUnauthorized, errors.New("Only sellers can perform this action"))
+			util.HandleError(c, http.StatusUnauthorized, errors.New("only sellers can perform this action"))
 			return
 		}
 
@@ -66,12 +67,12 @@ func CreateSellerPaymentInformation() gin.HandlerFunc {
 		}
 
 		if len(paymentInfo.AccountNumber) != 10 {
-			util.HandleError(c, http.StatusBadRequest, errors.New("Account number must be 10 digits"))
+			util.HandleError(c, http.StatusBadRequest, errors.New("account number must be 10 digits"))
 			return
 		}
 
 		if len(paymentInfo.BankName) < 3 {
-			util.HandleError(c, http.StatusBadRequest, errors.New("Invalid bank name"))
+			util.HandleError(c, http.StatusBadRequest, errors.New("invalid bank name"))
 			return
 		}
 
@@ -104,7 +105,7 @@ func CreateSellerPaymentInformation() gin.HandlerFunc {
 
 		defer session.EndSession(ctx)
 
-		callback := func(ctx mongo.SessionContext) (interface{}, error) {
+		callback := func(ctx mongo.SessionContext) (any, error) {
 			log.Println("Start mongo transaction for new payament information creation")
 			if paymentInfoToUpload.IsDefault {
 				// Set IsDefaultShippingAddress to false for other addresses belonging to the user
@@ -139,7 +140,7 @@ func CreateSellerPaymentInformation() gin.HandlerFunc {
 	}
 }
 
-// / GetSellerPaymentInformations -> GET /shop/:shopId/payment-information/
+// GetSellerPaymentInformations -> GET /shop/:shopId/payment-information/
 func GetSellerPaymentInformations() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
@@ -195,7 +196,7 @@ func GetSellerPaymentInformations() gin.HandlerFunc {
 	}
 }
 
-// / ChangeDefaultSellerPaymentInformation -> PUT /shop/:shopId/payment-information/:paymentInfoId
+// ChangeDefaultSellerPaymentInformation -> PUT /shop/:shopId/payment-information/:paymentInfoId
 func ChangeDefaultSellerPaymentInformation() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
@@ -246,7 +247,7 @@ func ChangeDefaultSellerPaymentInformation() gin.HandlerFunc {
 	}
 }
 
-// / DeleteSellerPaymentInformation -> DELETE /shop/:shopId/payment-information/:paymentInfoId
+// DeleteSellerPaymentInformation -> DELETE /shop/:shopId/payment-information/:paymentInfoId
 func DeleteSellerPaymentInformation() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
@@ -276,7 +277,6 @@ func DeleteSellerPaymentInformation() gin.HandlerFunc {
 		filter := bson.M{"_id": paymentObjectID, "user_id": userId}
 		result, err := common.SellerPaymentInformationCollection.DeleteOne(ctx, filter)
 		if err != nil {
-			log.Printf("Error deleting payment information: %v", err)
 			util.HandleError(c, http.StatusNotFound, err)
 			return
 		}
@@ -405,7 +405,7 @@ func CreatePaymentCard() gin.HandlerFunc {
 
 		defer session.EndSession(ctx)
 
-		callback := func(ctx mongo.SessionContext) (interface{}, error) {
+		callback := func(ctx mongo.SessionContext) (any, error) {
 			log.Println("Starting mongo transaction for new payment card creation")
 			if cardToUpload.IsDefault {
 				// Set IsDefaultShippingAddress to false for other addresses belonging to the user

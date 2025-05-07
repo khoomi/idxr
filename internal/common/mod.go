@@ -18,6 +18,7 @@ var (
 	PasswordResetTokenCollection       = util.GetCollection(util.DB, "UserPasswordResetToken")
 	EmailVerificationTokenCollection   = util.GetCollection(util.DB, "UserEmailVerificationToken")
 	WishListCollection                 = util.GetCollection(util.DB, "UserWishList")
+	UserCartCollection                 = util.GetCollection(util.DB, "UserCart")
 	UserDeletionCollection             = util.GetCollection(util.DB, "UserDeletionRequest")
 	NotificationCollection             = util.GetCollection(util.DB, "UserNotification")
 	ShopAboutCollection                = util.GetCollection(util.DB, "ShopAbout")
@@ -41,6 +42,7 @@ const (
 	REQ_TIMEOUT_SECS                   = 50 * time.Second
 	MongoDuplicateKeyCode              = 11000
 	VERIFICATION_EMAIL_EXPIRATION_TIME = 1 * time.Hour
+	CART_ITEM_EXPIRATION_TIME          = 7 * 24 * time.Hour
 )
 
 func GetPaginationArgs(c *gin.Context) util.PaginationArgs {

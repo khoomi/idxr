@@ -7,13 +7,13 @@ import (
 )
 
 type SuccessResponse struct {
-	Data    interface{} `json:"data,omitempty"`
-	Meta    interface{} `json:"meta,omitempty"`
-	Message string      `json:"message"`
-	Status  int         `json:"status"`
+	Data    any    `json:"data,omitempty"`
+	Meta    any    `json:"meta,omitempty"`
+	Message string `json:"message"`
+	Status  int    `json:"status"`
 }
 
-func HandleSuccess(c *gin.Context, statusCode int, message string, data interface{}) {
+func HandleSuccess(c *gin.Context, statusCode int, message string, data any) {
 	c.JSON(statusCode, SuccessResponse{
 		Status:  statusCode,
 		Message: message,
@@ -22,7 +22,7 @@ func HandleSuccess(c *gin.Context, statusCode int, message string, data interfac
 	})
 }
 
-func HandleSuccessMeta(c *gin.Context, statusCode int, message string, data, meta interface{}) {
+func HandleSuccessMeta(c *gin.Context, statusCode int, message string, data, meta any) {
 	c.JSON(statusCode, SuccessResponse{
 		Status:  statusCode,
 		Message: message,
@@ -45,16 +45,16 @@ func HandleError(c *gin.Context, statusCode int, err error) {
 }
 
 type UserResponse struct {
-	Data    map[string]interface{} `json:"data"`
-	Message string                 `json:"message"`
-	Status  int                    `json:"status"`
+	Data    map[string]any `json:"data"`
+	Message string         `json:"message"`
+	Status  int            `json:"status"`
 }
 
 type UserResponsePagination struct {
-	Data       map[string]interface{} `json:"data"`
-	Message    string                 `json:"message"`
-	Pagination Pagination             `json:"pagination"`
-	Status     int                    `json:"status"`
+	Data       map[string]any `json:"data"`
+	Message    string         `json:"message"`
+	Pagination Pagination     `json:"pagination"`
+	Status     int            `json:"status"`
 }
 
 type PaginationArgs struct {
