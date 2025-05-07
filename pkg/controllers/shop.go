@@ -1295,6 +1295,13 @@ func CreateShopReview() gin.HandlerFunc {
 				return nil, err
 			}
 
+			// attempt updating user reviewCount fields.
+			_, err := common.UserCollection.UpdateOne(ctx, bson.M{"_id": myId}, bson.M{"$inc": bson.M{"review_count": 1}})
+			if err != nil {
+				log.Println("Failed to update review count:", err)
+				return nil, err
+			}
+
 			return result2, nil
 		}
 
@@ -1398,6 +1405,13 @@ func DeleteMyReview() gin.HandlerFunc {
 
 			if result2.ModifiedCount == 0 {
 				return nil, errors.New("no matching documents found")
+			}
+
+			// attempt updating user reviewCount fields.
+			_, err := common.UserCollection.UpdateOne(ctx, bson.M{"_id": myId}, bson.M{"$inc": bson.M{"review_count": -1}})
+			if err != nil {
+				log.Println("Failed to update review count:", err)
+				return nil, err
 			}
 
 			deletedReviewId = result2.UpsertedID

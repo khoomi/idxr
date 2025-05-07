@@ -33,6 +33,7 @@ type User struct {
 	Id                       primitive.ObjectID `bson:"_id" json:"_id" validate:"required"`
 	IsSeller                 bool               `bson:"is_seller" json:"isSeller"`
 	AllowLoginIpNotification bool               `bson:"allow_login_ip_notification" json:"allowLoginIpNotification"`
+	ReviewCount              int                `bson:"review_count" json:reviewCount`
 }
 
 // UserRegistrationBody -> expected data for signup process

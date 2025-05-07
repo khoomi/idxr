@@ -111,6 +111,7 @@ func createUserImpl(c *gin.Context, claim *googleAuthIDTokenVerifier.ClaimSet, j
 		"login_counts":                0,
 		"last_login_ip":               c.ClientIP(),
 		"allow_login_ip_notification": true,
+		"review_count":                0,
 	}
 
 	fmt.Println("HERE2")
