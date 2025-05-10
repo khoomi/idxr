@@ -1043,7 +1043,7 @@ func GetShopFollowers() gin.HandlerFunc {
 	}
 }
 
-// IsfollowingShop - api/shops/:shopid/followers/is-following
+// IsfollowingShop - api/shops/:shopid/followers/following
 func IsFollowingShop() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)

@@ -43,9 +43,9 @@ func userRoutes(api *gin.RouterGroup) {
 	// Ping endpoint
 	api.GET("/ping", controllers.Ping)
 	user := api.Group("/users")
+	// Endpoint to get user by ID or email
+	user.GET("/:userid", controllers.GetUser())
 	{
-		// Endpoint to get user by ID or email
-		user.GET("/:userid", controllers.GetUser())
 		// Endpoint to get shops by owner user ID
 		user.GET("/:userid/shops", controllers.GetShopByOwnerUserId())
 

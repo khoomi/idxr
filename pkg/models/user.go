@@ -118,7 +118,6 @@ type Country string
 
 const (
 	CountryNigeria Country = "Nigeria"
-	// add more countries as needed
 )
 
 type UserBirthdate struct {
