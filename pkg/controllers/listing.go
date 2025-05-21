@@ -189,7 +189,6 @@ func CreateListing() gin.HandlerFunc {
 			FavorersCount:        0,
 		}
 
-		fmt.Println(listing.Details.Type)
 		res, err := common.ListingCollection.InsertOne(ctx, listing)
 		if err != nil {
 			// delete images
@@ -259,15 +258,7 @@ func GetListing() gin.HandlerFunc {
 					"as":           "shipping",
 				},
 			},
-			{
-				"$lookup": bson.M{
-					"from":         "ShopShippingProfile",
-					"localField":   "shipping_profile_id",
-					"foreignField": "_id",
-					"as":           "shipping",
-				},
-			},
-			{"$unwind": "$shipping"},
+			{"$unwind": bson.M{"path": "$shipping", "preserveNullAndEmptyArrays": true}},
 			{
 				"$project": bson.M{
 					"_id":                 1,
@@ -333,7 +324,6 @@ func GetListing() gin.HandlerFunc {
 
 		cursor, err := common.ListingCollection.Aggregate(ctx, pipeline)
 		if err != nil {
-			println(err)
 			util.HandleError(c, http.StatusInternalServerError, err)
 			return
 		}
@@ -503,7 +493,6 @@ func GetMyListingsSummary() gin.HandlerFunc {
 			return
 		}
 
-		fmt.Println(listings)
 		util.HandleSuccessMeta(c, http.StatusOK, "success", listings, gin.H{
 			"pagination": util.Pagination{
 				Limit: paginationArgs.Limit,
@@ -570,14 +559,12 @@ func HasUserCreatedListingOnboarding() gin.HandlerFunc {
 
 		shopId, userId, err := common.MyShopIdAndMyId(c)
 		if err != nil {
-			fmt.Println(err)
 			util.HandleError(c, http.StatusBadRequest, err)
 			return
 		}
 
 		err = common.VerifyShopOwnership(c, userId, shopId)
 		if err != nil {
-			fmt.Println(err)
 			util.HandleError(c, http.StatusUnauthorized, errors.New("Only sellers can perform this action"))
 			return
 		}
@@ -659,7 +646,6 @@ func DeactivateListings() gin.HandlerFunc {
 			return
 		}
 		listingIDs := c.PostFormArray("id")
-		fmt.Println(listingIDs)
 		if len(listingIDs) < 1 {
 			util.HandleError(c, http.StatusBadRequest, errors.New("no listing IDs provided"))
 			return
