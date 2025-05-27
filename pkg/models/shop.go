@@ -40,6 +40,20 @@ type Shop struct {
 	IsLive                 bool               `bson:"is_live" json:"isLive"`
 }
 
+type ShopExcerpt struct {
+	ID                 primitive.ObjectID `bson:"_id"                   json:"id"`
+	Name               string             `bson:"name"                  json:"name"`
+	Slug               string             `bson:"slug"                  json:"slug"`
+	Username           string             `bson:"username"              json:"username"`
+	LogoURL            string             `bson:"logo_url"              json:"logoUrl"`
+	BannerURL          string             `bson:"banner_url"            json:"bannerUrl"`
+	Status             ShopStatus         `bson:"status"                json:"status"`
+	CreatedAt          time.Time          `bson:"created_at"            json:"createdAt"`
+	ListingActiveCount int                `bson:"listing_active_count"  json:"listingActiveCount"`
+	FollowerCount      int                `bson:"follower_count"        json:"followerCount"`
+	ReviewsCount       int                `bson:"reviews_count"         json:"reviewsCount"`
+}
+
 type ShopCategory struct {
 	Name          string `bson:"name" json:"name"`
 	Path          string `bson:"path" json:"path"`

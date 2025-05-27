@@ -718,10 +718,78 @@ func GetUser() gin.HandlerFunc {
 		}
 
 		// Query the database to find the user based on the specified field and value
+		userPipeline := []bson.M{
+			{"$match": filter},
+			{"$lookup": bson.M{
+				"from":         "Shop",
+				"localField":   "shop_id",
+				"foreignField": "_id",
+				"as":           "shopDoc",
+			}},
+			{"$unwind": bson.M{
+				"path":                       "$shopDoc",
+				"preserveNullAndEmptyArrays": true,
+			}},
+
+			{"$project": bson.M{
+				"_id":                         1,
+				"last_login":                  1,
+				"modified_at":                 1,
+				"created_at":                  1,
+				"auth":                        1,
+				"thumbnail":                   1,
+				"login_name":                  1,
+				"bio":                         1,
+				"phone":                       1,
+				"last_name":                   1,
+				"primary_email":               1,
+				"first_name":                  1,
+				"status":                      1,
+				"referred_by_user":            1,
+				"role":                        1,
+				"favorite_shops":              1,
+				"birthdate":                   1,
+				"transaction_buy_count":       1,
+				"transaction_sold_count":      1,
+				"shop_id":                     1,
+				"is_seller":                   1,
+				"allow_login_ip_notification": 1,
+				"review_count":                1,
+				"shop": bson.M{
+					"id":                 "$shopDoc._id",
+					"name":               "$shopDoc.name",
+					"slug":               "$shopDoc.slug",
+					"username":           "$shopDoc.username",
+					"logoUrl":            "$shopDoc.logo_url",
+					"bannerUrl":          "$shopDoc.banner_url",
+					"status":             "$shopDoc.status",
+					"createdAt":          "$shopDoc.created_at",
+					"listingActiveCount": "$shopDoc.listing_active_count",
+					"followerCount":      "$shopDoc.follower_count",
+					"reviewsCount":       "$shopDoc.reviews_count",
+				},
+			}},
+		}
+		cursor, err := common.UserCollection.Aggregate(ctx, userPipeline)
+
 		var user models.User
-		err := common.UserCollection.FindOne(ctx, filter).Decode(&user)
 		if err != nil {
-			util.HandleError(c, http.StatusNotFound, err)
+			if err == mongo.ErrNoDocuments {
+				util.HandleError(c, http.StatusNotFound, err)
+				return
+			}
+
+			util.HandleError(c, http.StatusInternalServerError, err)
+			return
+		}
+		if cursor.Next(ctx) {
+			if err := cursor.Decode(&user); err != nil {
+				util.HandleError(c, http.StatusInternalServerError, err)
+				return
+			}
+		} else {
+			log.Printf("NotFound, %v %v", userID, err)
+			util.HandleError(c, http.StatusNotFound, errors.New("no user found"))
 			return
 		}
 
