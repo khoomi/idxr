@@ -92,7 +92,7 @@ type ListingDiscountsPromotions struct {
 
 type Inventory struct {
 	ModifiedAt      time.Time `bson:"modified_at" json:"modifiedAt"`
-	SKU             string    `bson:"sku" json:"sku" validate:"required"`
+	SKU             string    `bson:"sku" json:"sku"`
 	CurrencyCode    string    `bson:"currency_code" json:"currencyCode"`
 	DomesticPrice   float64   `bson:"domestic_price" json:"domesticPrice"`
 	Price           float64   `bson:"price" json:"price" validate:"required"`
