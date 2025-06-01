@@ -15,8 +15,9 @@ import (
 	"khoomi-api-io/api/pkg/models"
 	"khoomi-api-io/api/pkg/util"
 
-	"github.com/futurenda/google-auth-id-token-verifier"
 	auth "khoomi-api-io/api/internal/auth"
+
+	googleAuthIDTokenVerifier "github.com/futurenda/google-auth-id-token-verifier"
 
 	email "khoomi-api-io/api/web/email"
 
@@ -341,7 +342,6 @@ func HandleUserGoogleAuthentication() gin.HandlerFunc {
 		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
 		defer cancel()
 
-		fmt.Println("HERE3")
 		var body struct {
 			IDToken string `json:"idToken"`
 		}
