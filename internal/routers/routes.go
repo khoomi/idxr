@@ -12,11 +12,11 @@ func InitRoute() *gin.Engine {
 	// Create a new Gin router
 	router := gin.Default()
 
-	// Apply the CORS middleware
+	// Apply CORS middleware
 	router.Use(middleware.CorsMiddleware())
 
-	// Create the "/api" group for API endpoints
-	api := router.Group("/api", middleware.KhoomiRateLimiter())
+	// Create "/" group for API endpoints
+	api := router.Group("/", middleware.KhoomiRateLimiter())
 	{
 		// Public endpoints
 		api.POST("/signup", controllers.CreateUser())
