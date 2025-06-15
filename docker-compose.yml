@@ -2,8 +2,7 @@ services:
   khoomi-server:
     depends_on:
       - redis
-    build:
-      context: .
+    image: borngraced/khoomi-api:main
     container_name: khoomi-api
     hostname: khoomi-api
     networks:
