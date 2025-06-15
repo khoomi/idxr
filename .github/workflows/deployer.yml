@@ -51,3 +51,21 @@ jobs:
       #     subject-name: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME}}
       #     subject-digest: ${{ steps.push.outputs.digest }}
       #     push-to-registry: true
+
+  deploy:
+    name: Deploy to DigitalOcean
+    needs: push_to_registry
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' 
+    steps:
+      - name: Deploy to server
+        uses: appleboy/ssh-action@v0.1.5
+        with:
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.USERNAME }}
+          key: ${{ secrets.SSH_KEY }}
+          script: |
+            cd /var/www/khoomi-api-go
+            docker pull borngraced/khoomi-api:main
+            docker-compose down
+            docker-compose up -d
