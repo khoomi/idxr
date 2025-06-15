@@ -1,9 +1,9 @@
 FROM golang:latest
 WORKDIR /app
-COPY go.mod go.sum /app
+COPY go.mod go.sum /app/
 RUN go mod download
-COPY . /app
-COPY .env /app
+COPY . /app/
+COPY .env /app/
 
 ENV GIN_MODE=release
 ENV GOOS=linux

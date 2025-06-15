@@ -15,6 +15,7 @@ services:
   redis:
     image: redis:latest
     container_name: khoomi-redis
+    command: redis-server --requirepass Bsto0403.!
     networks:
       - khoomi-net
     ports:
