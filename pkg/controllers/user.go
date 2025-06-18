@@ -314,7 +314,7 @@ func HandleUserAuthentication() gin.HandlerFunc {
 
 		sessionId, err := auth.SetSession(c, validUser.Id, validUser.PrimaryEmail, validUser.LoginName)
 		if err != nil {
-			util.HandleError(c, http.StatusInternalServerError, errors.New("failed to set session"))
+			util.HandleError(c, http.StatusInternalServerError, err)
 			return
 		}
 

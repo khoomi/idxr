@@ -38,6 +38,7 @@ func (s UserSession) Expired() bool {
 
 // Set new user login session
 func SetSession(ctx *gin.Context, userId primitive.ObjectID, email, loginName string) (string, error) {
+	fmt.Println("setting cookie")
 	key := GenerateSecureToken(20)
 	ttl := time.Hour * (24 * 7)
 	sessExpTime := time.Now().Add(ttl)
@@ -47,9 +48,52 @@ func SetSession(ctx *gin.Context, userId primitive.ObjectID, email, loginName st
 		LoginName: loginName,
 		ExpiresAt: sessExpTime,
 	}
-	ctx.SetCookie(SESSION_NAME, key, int(ttl.Seconds()), "/", "localhost", false, true)
 
+	domain := getDomainFromRequest(ctx)
+	secure := isHTTPS(ctx)
+
+	fmt.Println(domain, secure)
+
+	ctx.SetCookie(SESSION_NAME, key, int(ttl.Seconds()), "/", domain, secure, true)
 	return key, util.REDIS.Set(ctx, key, value, ttl).Err()
+}
+
+func getDomainFromRequest(ctx *gin.Context) string {
+	host := ctx.Request.Host
+
+	// Remove port
+	if colonIndex := strings.LastIndex(host, ":"); colonIndex != -1 {
+		host = host[:colonIndex]
+	}
+
+	if host == "localhost" || host == "127.0.0.1" {
+		return "localhost"
+	}
+
+	// For production domains (khoomi.com, api.khoomi.com, etc.)
+	// Extract the main domain for cookie sharing across subdomains
+	parts := strings.Split(host, ".")
+	if len(parts) >= 2 {
+		return "." + strings.Join(parts[len(parts)-2:], ".")
+	}
+
+	return host
+}
+
+func isHTTPS(ctx *gin.Context) bool {
+	if ctx.Request.TLS != nil {
+		return true
+	}
+
+	if ctx.GetHeader("X-Forwarded-Proto") == "https" {
+		return true
+	}
+
+	if ctx.GetHeader("X-Forwarded-Ssl") == "on" {
+		return true
+	}
+
+	return false
 }
 
 // Get new user login session
