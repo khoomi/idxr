@@ -61,8 +61,9 @@ func GetCollection(client *mongo.Client, name string) (collection *mongo.Collect
 // Initialize redis connection
 func ConnectRedis() *redis.Client {
 	// Connect to Redis
-	log.Println("starting redis connection..")
-	addr, err := redis.ParseURL(LoadEnvFor("REDIS_URL"))
+	redisUrl := LoadEnvFor("REDIS_URL")
+	log.Println("starting redis connection..%v", redisUrl)
+	addr, err := redis.ParseURL(redisUrl)
 	if err != nil {
 		log.Fatal(err)
 	}
