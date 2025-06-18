@@ -28,9 +28,6 @@ WORKDIR /app
 # Copy the static binary from builder stage
 COPY --from=builder /app/khoomi .
 
-# Copy .env file if needed
-COPY .env .
-
 # Make binary executable
 RUN chmod +x khoomi
 
