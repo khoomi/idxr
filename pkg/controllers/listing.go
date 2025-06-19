@@ -663,7 +663,7 @@ func DeactivateListings() gin.HandlerFunc {
 				continue
 			}
 
-			_, err = common.ListingCollection.UpdateOne(ctx, bson.M{"_id": idObjectID, "user_id": session.UserId}, bson.M{"state.state": models.ListingStateDeactivated, "state.state_updated_at": now, "date.modified_at": now})
+			_, err = common.ListingCollection.UpdateOne(ctx, bson.M{"_id": idObjectID, "user_id": session.UserId}, bson.M{"$set": bson.M{"state.state": models.ListingStateDeactivated, "state.state_updated_at": now, "date.modified_at": now}})
 			if err != nil {
 				notDeletedObjectIDs = append(notDeletedObjectIDs, idObjectID)
 				continue

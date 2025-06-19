@@ -760,7 +760,7 @@ func UpdateShopLogo() gin.HandlerFunc {
 
 		now := time.Now()
 		filter := bson.M{"_id": shopId, "user_id": myId}
-		update := bson.M{"logo_url": logoUploadResult.SecureURL, "modified_at": now}
+		update := bson.M{"$set": bson.M{"logo_url": logoUploadResult.SecureURL, "modified_at": now}}
 		res, err := common.ShopCollection.UpdateOne(ctx, filter, update)
 		if err != nil || res.ModifiedCount == 0 {
 			// delete media
@@ -1161,8 +1161,8 @@ func RemoveOtherFollower() gin.HandlerFunc {
 			return
 		}
 
-		if shopId == userToBeRemovedId {
-			util.HandleError(c, http.StatusBadRequest, err)
+		if myId == userToBeRemovedId {
+			util.HandleError(c, http.StatusBadRequest, errors.New("cannot remove yourself"))
 			return
 		}
 
@@ -1476,7 +1476,7 @@ func DeleteOtherReview() gin.HandlerFunc {
 		callback := func(ctx mongo.SessionContext) (any, error) {
 			// Attempt to remove review from review collection table
 			filter := bson.M{"shop_id": shopId, "owner_id": myId, "user_id": userToBeRemovedId}
-			_, err = common.ShopFollowerCollection.DeleteOne(ctx, filter)
+			_, err = common.ShopReviewCollection.DeleteOne(ctx, filter)
 			if err != nil {
 				return nil, err
 			}

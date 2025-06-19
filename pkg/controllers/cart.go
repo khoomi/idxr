@@ -145,15 +145,6 @@ func DeleteCartItem() gin.HandlerFunc {
 			return
 		}
 
-		res, err := common.IsSeller(c, myId)
-		if err != nil {
-			util.HandleError(c, http.StatusInternalServerError, err)
-			return
-		}
-		if !res {
-			util.HandleError(c, http.StatusUnauthorized, errors.New("Can't perform this action"))
-			return
-		}
 		filter := bson.M{"_id": cartItemObjectID, "userId": myId}
 		result, err := common.UserCartCollection.DeleteOne(ctx, filter)
 		if err != nil {
@@ -189,15 +180,6 @@ func DeleteCartItems() gin.HandlerFunc {
 			return
 		}
 
-		isSeller, err := common.IsSeller(c, myId)
-		if err != nil {
-			util.HandleError(c, http.StatusInternalServerError, err)
-			return
-		}
-		if !isSeller {
-			util.HandleError(c, http.StatusUnauthorized, errors.New("unauthorized"))
-			return
-		}
 
 		var objectIDs []primitive.ObjectID
 		for _, idStr := range idStrings {
@@ -241,15 +223,6 @@ func ClearCartItems() gin.HandlerFunc {
 			return
 		}
 
-		isSeller, err := common.IsSeller(c, myId)
-		if err != nil {
-			util.HandleError(c, http.StatusInternalServerError, err)
-			return
-		}
-		if !isSeller {
-			util.HandleError(c, http.StatusUnauthorized, errors.New("unauthorized"))
-			return
-		}
 
 		filter := bson.M{"userId": myId}
 		result, err := common.UserCartCollection.DeleteMany(ctx, filter)

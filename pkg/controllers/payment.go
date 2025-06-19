@@ -37,6 +37,22 @@ func setOtherPaymentsToFalse(ctx context.Context, collection *mongo.Collection, 
 	return err
 }
 
+// setOtherUserPaymentCardsToFalse sets is_default to false for other user payment cards
+func setOtherUserPaymentCardsToFalse(ctx context.Context, collection *mongo.Collection, userId primitive.ObjectID, paymentId primitive.ObjectID) error {
+	filter := bson.M{
+		"userId":     userId,
+		"_id":        bson.M{"$ne": paymentId},
+		"is_default": true,
+	}
+
+	update := bson.M{
+		"$set": bson.M{"is_default": false},
+	}
+
+	_, err := collection.UpdateMany(ctx, filter, update)
+	return err
+}
+
 // CreateSellerPaymentInformation -> POST /shop/:shopId/payment-information/
 func CreateSellerPaymentInformation() gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -409,7 +425,7 @@ func CreatePaymentCard() gin.HandlerFunc {
 			log.Println("Starting mongo transaction for new payment card creation")
 			if cardToUpload.IsDefault {
 				// Set IsDefaultShippingAddress to false for other addresses belonging to the user
-				err = setOtherPaymentsToFalse(ctx, common.UserPaymentCardsTable, userId, cardToUpload.ID)
+				err = setOtherUserPaymentCardsToFalse(ctx, common.UserPaymentCardsTable, userId, cardToUpload.ID)
 				if err != nil {
 					return nil, err
 				}
@@ -512,14 +528,14 @@ func ChangeDefaultPaymentCard() gin.HandlerFunc {
 		}
 
 		// Set all other payment information records to is_default=false
-		_, err = common.SellerPaymentInformationCollection.UpdateMany(ctx, bson.M{"user_id": userId, "_id": bson.M{"$ne": paymentObjectID}}, bson.M{"$set": bson.M{"is_default": false}})
+		_, err = common.UserPaymentCardsTable.UpdateMany(ctx, bson.M{"userId": userId, "_id": bson.M{"$ne": paymentObjectID}}, bson.M{"$set": bson.M{"is_default": false}})
 		if err != nil {
 			util.HandleError(c, http.StatusInternalServerError, err)
 			return
 		}
 
-		filter := bson.M{"user_id": userId, "_id": paymentObjectID}
-		insertRes, insertErr := common.SellerPaymentInformationCollection.UpdateOne(ctx, filter, bson.M{"$set": bson.M{"is_default": true}})
+		filter := bson.M{"userId": userId, "_id": paymentObjectID}
+		insertRes, insertErr := common.UserPaymentCardsTable.UpdateOne(ctx, filter, bson.M{"$set": bson.M{"is_default": true}})
 		if insertErr != nil {
 			util.HandleError(c, http.StatusNotModified, err)
 			return
