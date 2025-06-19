@@ -1090,7 +1090,8 @@ func UnfollowShop() gin.HandlerFunc {
 
 		session, err := util.DB.StartSession()
 		if err != nil {
-			panic(err)
+			util.HandleError(c, http.StatusInternalServerError, fmt.Errorf("failed to start session: %v", err))
+			return
 		}
 		defer session.EndSession(ctx)
 
@@ -1171,7 +1172,8 @@ func RemoveOtherFollower() gin.HandlerFunc {
 
 		session, err := util.DB.StartSession()
 		if err != nil {
-			panic(err)
+			util.HandleError(c, http.StatusInternalServerError, fmt.Errorf("failed to start session: %v", err))
+			return
 		}
 		defer session.EndSession(ctx)
 
@@ -1382,7 +1384,8 @@ func DeleteMyReview() gin.HandlerFunc {
 
 		session, err := util.DB.StartSession()
 		if err != nil {
-			panic(err)
+			util.HandleError(c, http.StatusInternalServerError, fmt.Errorf("failed to start session: %v", err))
+			return
 		}
 		defer session.EndSession(ctx)
 
@@ -1465,7 +1468,8 @@ func DeleteOtherReview() gin.HandlerFunc {
 		txnOptions := options.Transaction().SetWriteConcern(wc)
 		session, err := util.DB.StartSession()
 		if err != nil {
-			panic(err)
+			util.HandleError(c, http.StatusInternalServerError, fmt.Errorf("failed to start session: %v", err))
+			return
 		}
 		defer session.EndSession(ctx)
 

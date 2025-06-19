@@ -33,6 +33,7 @@ func InitRoute() *gin.Engine {
 		shopRoutes(api)
 		listingRoutes(api)
 		categoryRoutes(api)
+		cartRoutes(api)
 	}
 
 	return router

@@ -195,7 +195,9 @@ func CreateListing() gin.HandlerFunc {
 			_, err := util.DestroyMedia(mainImageUploadUrl.PublicID)
 			for _, file := range uploadedImagesResult {
 				_, err := util.DestroyMedia(file.PublicID)
-				println(err)
+				if err != nil {
+					log.Println("Failed to destroy media:", err)
+				}
 			}
 			// return error
 			util.HandleError(c, http.StatusInternalServerError, fmt.Errorf("failed to create listing — %v", err))
