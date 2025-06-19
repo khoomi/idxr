@@ -6,22 +6,22 @@ services:
     container_name: khoomi-api
     hostname: khoomi-api
     environment:
-      - REDIS_URL=redis://khoomi-redis:6379
-      - PORT=8080
-      - MONGO_URI=mongodb+srv://boyinrust:Bsto0403@khoomi.yh21j.mongodb.net/khoomi
-      - GIN_MODE=release
-      - SECRET=Philippians4:13Icandoallthingsthroughhimwhostrengthensme
-      - REFRESH_SECRET=Luke11:SoIsaytoyouaskanditwillbegiventoyou
-      - MAIL_ENDPOINT=https://api.brevo.com/v3/smtp/email
-      - MAIL_API_KEY=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
-      - ACCESS_KEY_ID=AKIA3CHOOJIOTQNC4NDT
-      - SECRET_ACCESS_KEY=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
-      - DOCKER_REGISTRY=khoomiapi.azurecr.io
-      - CLOUDINARY_CLOUDNAME=kh-oo-mi
-      - CLOUDINARY_API_KEY=687982156539888
-      - CLOUDINARY_API_SECRET=UCuy4YhFhyCvo3-jeXhNjR4yIeQ
-      - CLOUDINARY_UPLOAD_FOLDER=UCuy4YhFhyCvo3-jeXhNjR4yIeQ
-      - GOOGLE_CLIENT_ID=730040820913-0aai89vh3gc667rnv28bji22pnhdqidf.apps.googleusercontent.com
+      REDIS_URL: redis://khoomi-redis:6379
+      PORT: 8080
+      DATABASE_URL: mongodb+srv://boyinrust:Bsto0403@khoomi.yh21j.mongodb.net/khoomi
+      GIN_MODE: release
+      SECRET: Philippians4:13Icandoallthingsthroughhimwhostrengthensme
+      REFRESH_SECRET: Luke11:SoIsaytoyouaskanditwillbegiventoyou
+      MAIL_ENDPOINT: https://api.brevo.com/v3/smtp/email
+      MAIL_API_KEY: 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
+      ACCESS_KEY_ID: AKIA3CHOOJIOTQNC4NDT
+      SECRET_ACCESS_KEY: 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
+      DOCKER_REGISTRY: khoomiapi.azurecr.io
+      CLOUDINARY_CLOUDNAME: kh-oo-mi
+      CLOUDINARY_API_KEY: 687982156539888
+      CLOUDINARY_API_SECRET: UCuy4YhFhyCvo3-jeXhNjR4yIeQ
+      CLOUDINARY_UPLOAD_FOLDER: UCuy4YhFhyCvo3-jeXhNjR4yIeQ
+      GOOGLE_CLIENT_ID: 730040820913-0aai89vh3gc667rnv28bji22pnhdqidf.apps.googleusercontent.com
 
     networks:
       - khoomi-net
