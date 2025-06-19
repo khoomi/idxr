@@ -5,6 +5,7 @@ services:
     image: borngraced/khoomi-api:main
     container_name: khoomi-api
     hostname: khoomi-api
+    # TODO: use secret for sensitive data.
     environment:
       REDIS_URL: redis://:Bsto0403.!@khoomi-redis:6379
       PORT: 8080
