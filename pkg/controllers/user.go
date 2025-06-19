@@ -72,7 +72,6 @@ func createUserImpl(c *gin.Context, claim *googleAuthIDTokenVerifier.ClaimSet, j
 			PasswordDigest: hashedPassword,
 		}
 	} else {
-		fmt.Println("HERE")
 		firstName = claim.Name
 		lastName = claim.FamilyName
 		userEmail = claim.Email
@@ -345,8 +344,8 @@ func HandleUserGoogleAuthentication() gin.HandlerFunc {
 		var body struct {
 			IDToken string `json:"idToken"`
 		}
+		var token string
 
-		fmt.Println("HERE4")
 		clientIP := c.ClientIP()
 		now := time.Now()
 
@@ -361,9 +360,9 @@ func HandleUserGoogleAuthentication() gin.HandlerFunc {
 		}
 
 		v := googleAuthIDTokenVerifier.Verifier{}
-		token := util.LoadEnvFor("GOOGLE_CLIENT_ID")
+		googleClientID := util.LoadEnvFor("GOOGLE_CLIENT_ID")
 		err := v.VerifyIDToken(body.IDToken, []string{
-			token,
+			googleClientID,
 		})
 		if err != nil {
 			util.HandleError(c, http.StatusBadRequest, err)
@@ -449,7 +448,7 @@ func HandleUserGoogleAuthentication() gin.HandlerFunc {
 
 		// Send verify email
 		// Generate secure and unique token
-		// token := auth.GenerateSecureToken(8)
+		token = auth.GenerateSecureToken(8)
 
 		expirationTime := now.Add(common.VERIFICATION_EMAIL_EXPIRATION_TIME)
 		verifyEmail := models.UserVerifyEmailToken{
@@ -517,7 +516,7 @@ func GetMyActiveSession() gin.HandlerFunc {
 // RefreshToken handles auth token refreshments
 func RefreshToken() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		_, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
+		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
 		defer cancel()
 
 		session, err := auth.GetSessionAuto(c)
@@ -534,18 +533,26 @@ func RefreshToken() gin.HandlerFunc {
 			return
 		}
 
+		// Get user data for new session
+		var user models.User
+		err = common.UserCollection.FindOne(ctx, bson.M{"_id": session.UserId}).Decode(&user)
+		if err != nil {
+			auth.DeleteSession(c)
+			util.HandleError(c, http.StatusUnauthorized, errors.New("user not found"))
+			return
+		}
+
 		// Delete old session
 		auth.DeleteSession(c)
 
-		// Set new session
-		// TODO: request for user data e.g email and login_name to refresh session
-		// err = auth.SetSession(c, session.UserId)
-		// if err != nil {
-		// 	util.HandleError(c, http.StatusUnauthorized, err, "Internal server error occurred")
-		// 	return
-		// }
+		// Set new session with current user data
+		newSessionId, err := auth.SetSession(c, session.UserId, user.PrimaryEmail, user.LoginName)
+		if err != nil {
+			util.HandleError(c, http.StatusInternalServerError, errors.New("failed to create new session"))
+			return
+		}
 
-		util.HandleSuccess(c, http.StatusOK, "success", gin.H{})
+		util.HandleSuccess(c, http.StatusOK, "token refreshed successfully", gin.H{"sessionId": newSessionId})
 	}
 }
 
@@ -645,7 +652,7 @@ func ChangePassword() gin.HandlerFunc {
 			util.HandleError(c, http.StatusInternalServerError, err)
 			return
 		}
-		log.Printf("%v", newPasswordFromRequest)
+		log.Printf("Password change request for user: %v", userId.Hex())
 		var validUser models.User
 		if err := common.UserCollection.FindOne(ctx, bson.M{"_id": userId}).Decode(&validUser); err != nil {
 			util.HandleError(c, http.StatusUnauthorized, err)
@@ -928,7 +935,11 @@ func UpdateMyProfile() gin.HandlerFunc {
 		}
 
 		if email := c.Request.FormValue("email"); email != "" {
-			updateData["primary_email"] = email
+			if err := util.ValidateEmailAddress(email); err != nil {
+				util.HandleError(c, http.StatusBadRequest, err)
+				return
+			}
+			updateData["primary_email"] = strings.ToLower(email)
 		}
 
 		var uploadResult uploader.UploadResult
@@ -1137,6 +1148,12 @@ func PasswordReset() gin.HandlerFunc {
 		var passwordResetData models.UserPasswordResetToken
 		var user models.User
 
+		// Validate required parameters
+		if currentId == "" || currentToken == "" || newPassword == "" {
+			util.HandleError(c, http.StatusBadRequest, errors.New("id, token, and newpassword are required"))
+			return
+		}
+
 		userId, err := primitive.ObjectIDFromHex(currentId)
 		if err != nil {
 			util.HandleError(c, http.StatusBadRequest, err)
@@ -1216,18 +1233,13 @@ func UploadThumbnail() gin.HandlerFunc {
 
 			update = bson.M{"$set": bson.M{"thumbnail": uploadResult.SecureURL, "modified_at": now}}
 		} else {
-			form, err := c.MultipartForm()
+			_, err := c.MultipartForm()
 			if err != nil {
-				fmt.Printf("MultipartForm error: %v\n", err)
-			} else {
-				fmt.Printf("Form fields: %v\n", form.Value)
-				fmt.Printf("Form files: %v\n", form.File)
+				log.Printf("MultipartForm error: %v\n", err)
 			}
 
 			file, err := c.FormFile("thumbnail")
 			if err != nil {
-				fmt.Printf("Form error: %v\n", err)                                // Debug log
-				fmt.Printf("Available form fields: %v\n", c.Request.MultipartForm) // Debug log
 				util.HandleError(c, http.StatusBadRequest, err)
 				return
 			}
@@ -1409,11 +1421,24 @@ func GetUserAddresses() gin.HandlerFunc {
 		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
 		defer cancel()
 
-		// Validate user id
+		// Validate authenticated user
+		authenticatedUserId, err := auth.ValidateUserID(c)
+		if err != nil {
+			util.HandleError(c, http.StatusUnauthorized, err)
+			return
+		}
+
+		// Validate user id from path
 		userIdStr := c.Param("userid")
 		userId, err := primitive.ObjectIDFromHex(userIdStr)
 		if err != nil {
-			util.HandleError(c, http.StatusUnauthorized, err)
+			util.HandleError(c, http.StatusBadRequest, err)
+			return
+		}
+
+		// Authorization check: ensure authenticated user can only access their own addresses
+		if authenticatedUserId != userId {
+			util.HandleError(c, http.StatusForbidden, errors.New("unauthorized to access other user's addresses"))
 			return
 		}
 
@@ -1462,7 +1487,6 @@ func UpdateUserAddress() gin.HandlerFunc {
 			util.HandleError(c, http.StatusBadRequest, err)
 			return
 		}
-		fmt.Println(addressObjectId)
 		// Extract current user token
 		myId, err := auth.ValidateUserID(c)
 		if err != nil {
