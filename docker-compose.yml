@@ -6,7 +6,7 @@ services:
     container_name: khoomi-api
     hostname: khoomi-api
     environment:
-      REDIS_URL: redis://khoomi-redis:6379
+      REDIS_URL: redis://:Bsto0403.!@khoomi-redis:6379
       PORT: 8080
       DATABASE_URL: mongodb+srv://boyinrust:Bsto0403@khoomi.yh21j.mongodb.net/khoomi
       GIN_MODE: release

@@ -20,13 +20,6 @@ func LoadEnvFor(v string) (x string) {
 		log.Println("No .env file found, using environment variables")
 	}
 
-	log.Println("=== ENVIRONMENT VARIABLES DEBUG ===")
-	log.Printf("MONGO_URI: '%s'", os.Getenv("MONGO_URI"))
-	log.Printf("REDIS_URL: '%s'", os.Getenv("REDIS_URL"))
-	log.Printf("SECRET: '%s'", os.Getenv("SECRET"))
-	log.Printf("PORT: '%s'", os.Getenv("PORT"))
-	log.Printf("GIN_MODE: '%s'", os.Getenv("GIN_MODE"))
-
 	x = os.Getenv(v)
 
 	return
