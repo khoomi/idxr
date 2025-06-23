@@ -12,7 +12,6 @@ import (
 	"khoomi-api-io/api/pkg/util"
 
 	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/mongo/options"
 
 	"github.com/gin-gonic/gin"
 	"github.com/pkg/errors"
@@ -43,11 +42,31 @@ func SaveCartItem() gin.HandlerFunc {
 			return
 		}
 
-		// Fetch listing snapshot (e.g. title, price, image, dynamic_type)
+		// Fetch listing data
 		var listing models.Listing
 		err = common.ListingCollection.FindOne(ctx, bson.M{"_id": cartReq.ListingId}).Decode(&listing)
 		if err != nil {
 			util.HandleError(c, http.StatusNotFound, fmt.Errorf("listing not found"))
+			return
+		}
+
+		// Validate listing is active
+		if listing.State.State != models.ListingStateActive {
+			util.HandleError(c, http.StatusBadRequest, fmt.Errorf("listing is not available"))
+			return
+		}
+
+		// Validate sufficient inventory
+		if listing.Inventory.Quantity < cartReq.Quantity {
+			util.HandleError(c, http.StatusBadRequest, fmt.Errorf("insufficient inventory. Available: %d, Requested: %d", listing.Inventory.Quantity, cartReq.Quantity))
+			return
+		}
+
+		// Fetch shop data separately using the shop_id from the request
+		var shop models.Shop
+		err = common.ShopCollection.FindOne(ctx, bson.M{"_id": cartReq.ShopId}).Decode(&shop)
+		if err != nil {
+			util.HandleError(c, http.StatusNotFound, fmt.Errorf("shop not found"))
 			return
 		}
 
@@ -57,6 +76,7 @@ func SaveCartItem() gin.HandlerFunc {
 		cartDoc := models.CartItem{
 			UserId:          myId,
 			ListingId:       cartReq.ListingId,
+			ShopId:          cartReq.ShopId,
 			Title:           listing.Details.Title,
 			Thumbnail:       listing.MainImage,
 			Quantity:        cartReq.Quantity,
@@ -65,8 +85,22 @@ func SaveCartItem() gin.HandlerFunc {
 			Variant:         cartReq.Variant,
 			DynamicType:     listing.Details.DynamicType,
 			Personalization: cartReq.Personalization,
-			ModifiedAt:      now,
-			ExpiresAt:       now.Add(common.CART_ITEM_EXPIRATION_TIME),
+
+			ShopName:     shop.Name,
+			ShopUsername: shop.Username,
+			ShopSlug:     shop.Slug,
+
+			AvailableQuantity: listing.Inventory.Quantity,
+			ListingState:      listing.State,
+
+			OriginalPrice:  unitPrice,
+			PriceUpdatedAt: now,
+
+			ShippingProfileId: listing.ShippingProfileId,
+
+			AddedAt:    now,
+			ModifiedAt: now,
+			ExpiresAt:  now.Add(common.CART_ITEM_EXPIRATION_TIME),
 		}
 
 		// You can also Upsert instead of InsertOne if you want to overwrite
@@ -93,25 +127,103 @@ func GetCartItems() gin.HandlerFunc {
 		}
 
 		paginationArgs := common.GetPaginationArgs(c)
-		filter := bson.M{"userId": myId}
-		findOptions := options.Find().
-			SetLimit(int64(paginationArgs.Limit)).
-			SetSkip(int64(paginationArgs.Skip)).
-			SetSort(util.GetLoginHistorySortBson(paginationArgs.Sort))
-		cursor, err := common.UserCartCollection.Find(ctx, filter, findOptions)
+
+		// Use aggregation to join with current listing data for validation
+		pipeline := []bson.M{
+			{"$match": bson.M{"userId": myId}},
+			{
+				"$lookup": bson.M{
+					"from":         "Listing",
+					"localField":   "listing_id",
+					"foreignField": "_id",
+					"as":           "current_listing",
+				},
+			},
+			{"$unwind": bson.M{"path": "$current_listing", "preserveNullAndEmptyArrays": true}},
+			{
+				"$addFields": bson.M{
+					"is_listing_available": bson.M{
+						"$cond": bson.M{
+							"if":   bson.M{"$eq": []interface{}{"$current_listing.state", "active"}},
+							"then": true,
+							"else": false,
+						},
+					},
+					"current_price":    "$current_listing.inventory.price",
+					"current_quantity": "$current_listing.inventory.quantity",
+					"price_changed": bson.M{
+						"$ne": []interface{}{"$unit_price", "$current_listing.inventory.price"},
+					},
+					"insufficient_stock": bson.M{
+						"$gt": []interface{}{"$quantity", "$current_listing.inventory.quantity"},
+					},
+				},
+			},
+			{"$sort": util.GetLoginHistorySortBson(paginationArgs.Sort)},
+			{"$skip": int64(paginationArgs.Skip)},
+			{"$limit": int64(paginationArgs.Limit)},
+		}
+
+		cursor, err := common.UserCartCollection.Aggregate(ctx, pipeline)
 		if err != nil {
-			util.HandleError(c, http.StatusNotFound, err)
+			util.HandleError(c, http.StatusInternalServerError, err)
 			return
 		}
 		defer cursor.Close(ctx)
 
-		var cartItems []models.CartItem
-		if err = cursor.All(ctx, &cartItems); err != nil {
-			util.HandleError(c, http.StatusNotFound, err)
+		var cartItemsWithValidation []struct {
+			models.CartItem    `bson:",inline"`
+			IsListingAvailable bool    `bson:"is_listing_available"`
+			CurrentPrice       float64 `bson:"current_price"`
+			CurrentQuantity    int     `bson:"current_quantity"`
+			PriceChanged       bool    `bson:"price_changed"`
+			InsufficientStock  bool    `bson:"insufficient_stock"`
+		}
+
+		if err = cursor.All(ctx, &cartItemsWithValidation); err != nil {
+			util.HandleError(c, http.StatusInternalServerError, err)
 			return
 		}
 
-		count, err := common.UserCartCollection.CountDocuments(ctx, filter)
+		// Convert back to regular cart items and add validation flags
+		var cartItems []interface{}
+		for _, item := range cartItemsWithValidation {
+			cartItemResponse := map[string]interface{}{
+				"_id":                 item.Id,
+				"listing_id":          item.ListingId,
+				"shopId":              item.ShopId,
+				"userId":              item.UserId,
+				"title":               item.Title,
+				"thumbnail":           item.Thumbnail,
+				"quantity":            item.Quantity,
+				"unit_price":          item.UnitPrice,
+				"total_price":         item.TotalPrice,
+				"variant":             item.Variant,
+				"dynamic_type":        item.DynamicType,
+				"personalization":     item.Personalization,
+				"shop_name":           item.ShopName,
+				"shop_username":       item.ShopUsername,
+				"shop_slug":           item.ShopSlug,
+				"available_quantity":  item.AvailableQuantity,
+				"listing_state":       item.ListingState,
+				"original_price":      item.OriginalPrice,
+				"price_updated_at":    item.PriceUpdatedAt,
+				"shipping_profile_id": item.ShippingProfileId,
+				"expires_at":          item.ExpiresAt,
+				"added_at":            item.AddedAt,
+				"modified_at":         item.ModifiedAt,
+
+				// Validation flags
+				"is_available":       item.IsListingAvailable,
+				"price_changed":      item.PriceChanged,
+				"current_price":      item.CurrentPrice,
+				"insufficient_stock": item.InsufficientStock,
+				"current_quantity":   item.CurrentQuantity,
+			}
+			cartItems = append(cartItems, cartItemResponse)
+		}
+
+		count, err := common.UserCartCollection.CountDocuments(ctx, bson.M{"userId": myId})
 		if err != nil {
 			util.HandleError(c, http.StatusInternalServerError, err)
 			return
@@ -180,7 +292,6 @@ func DeleteCartItems() gin.HandlerFunc {
 			return
 		}
 
-
 		var objectIDs []primitive.ObjectID
 		for _, idStr := range idStrings {
 			objectID, err := primitive.ObjectIDFromHex(idStr)
@@ -222,7 +333,6 @@ func ClearCartItems() gin.HandlerFunc {
 			util.HandleError(c, http.StatusUnauthorized, err)
 			return
 		}
-
 
 		filter := bson.M{"userId": myId}
 		result, err := common.UserCartCollection.DeleteMany(ctx, filter)

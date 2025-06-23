@@ -26,6 +26,22 @@ type CartItem struct {
 	DynamicType     DynamicType        `bson:"dynamic_type" json:"dynamic_type"`
 	Personalization *Personalization   `bson:"personalization,omitempty" json:"personalization,omitempty"`
 
+	// Shop information
+	ShopName     string `bson:"shop_name" json:"shop_name"`
+	ShopUsername string `bson:"shop_username" json:"shop_username"`
+	ShopSlug     string `bson:"shop_slug" json:"shop_slug"`
+
+	// Inventory and availability
+	AvailableQuantity int          `bson:"available_quantity" json:"available_quantity"`
+	ListingState      ListingState `bson:"listing_state" json:"listing_state"`
+
+	// Pricing validation
+	OriginalPrice  float64   `bson:"original_price" json:"original_price"`
+	PriceUpdatedAt time.Time `bson:"price_updated_at" json:"price_updated_at"`
+
+	// Shipping
+	ShippingProfileId primitive.ObjectID `bson:"shipping_profile_id" json:"shipping_profile_id"`
+
 	ExpiresAt  time.Time `bson:"expires_at" json:"expiresAt"`
 	AddedAt    time.Time `bson:"added_at" json:"addedAt"`
 	ModifiedAt time.Time `bson:"modified_at" json:"modifiedAt"`
