@@ -151,30 +151,32 @@ type InventorySummary struct {
 }
 
 type ListingExtra struct {
-	Date                 ListingDateMeta      `bson:"date" json:"date"`
-	User                 ListingUserExcept    `bson:"user" json:"user"`
-	State                ListingState         `bson:"state" json:"state"`
-	MainImage            string               `bson:"main_image" json:"mainImage"`
-	Slug                 string               `bson:"slug" json:"slug"`
-	Shop                 ListingShopExcept    `bson:"shop" json:"shop"`
-	Images               []string             `bson:"images" json:"images"`
-	RecentReviews        []Review             `bson:"recent_reviews" json:"recentReviews"`
-	Variations           []Variation          `bson:"variations" json:"variations"`
-	Details              Details              `bson:"details" json:"details"`
-	Measurements         Measurement          `bson:"measurements" json:"measurements"`
-	Inventory            Inventory            `bson:"inventory" json:"inventory"`
-	FinancialInformation FinancialInformation `bson:"financial_information" json:"financialInformation"`
-	Rating               ListingRating        `bson:"rating" json:"rating"`
-	TotalOrders          int                  `bson:"total_orders" json:"totalOrders"`
-	Sales                float64              `bson:"sales" json:"sales"`
-	FavorersCount        int                  `bson:"favorers_count" json:"favorersCount"`
-	Views                int                  `bson:"views" json:"views"`
-	ShippingProfileId    primitive.ObjectID   `bson:"shipping_profile_id" json:"shippingProfileId"`
-	ID                   primitive.ObjectID   `bson:"_id" json:"_id"`
-	ShopId               primitive.ObjectID   `bson:"shop_id" json:"shopId"`
-	UserId               primitive.ObjectID   `bson:"user_id" json:"userId"`
-	ShouldAutoRenew      bool                 `bson:"should_auto_renew" json:"shouldAutoRenew"`
-	NonTaxable           bool                 `bson:"non_taxable" json:"nonTaxable"`
+	Date                 ListingDateMeta           `bson:"date" json:"date"`
+	User                 ListingUserExcept         `bson:"user" json:"user"`
+	State                ListingState              `bson:"state" json:"state"`
+	MainImage            string                    `bson:"main_image" json:"mainImage"`
+	Slug                 string                    `bson:"slug" json:"slug"`
+	Shop                 ListingShopExcept         `bson:"shop" json:"shop"`
+	Images               []string                  `bson:"images" json:"images"`
+	RecentReviews        []Review                  `bson:"recent_reviews" json:"recentReviews"`
+	Variations           []Variation               `bson:"variations" json:"variations"`
+	Details              Details                   `bson:"details" json:"details"`
+	Measurements         Measurement               `bson:"measurements" json:"measurements"`
+	Inventory            Inventory                 `bson:"inventory" json:"inventory"`
+	FinancialInformation FinancialInformation      `bson:"financial_information" json:"financialInformation"`
+	Rating               ListingRating             `bson:"rating" json:"rating"`
+	TotalOrders          int                       `bson:"total_orders" json:"totalOrders"`
+	Sales                float64                   `bson:"sales" json:"sales"`
+	FavorersCount        int                       `bson:"favorers_count" json:"favorersCount"`
+	Views                int                       `bson:"views" json:"views"`
+	ShippingProfileId    primitive.ObjectID        `bson:"shipping_profile_id" json:"shippingProfileId"`
+	ID                   primitive.ObjectID        `bson:"_id" json:"_id"`
+	ShopId               primitive.ObjectID        `bson:"shop_id" json:"shopId"`
+	UserId               primitive.ObjectID        `bson:"user_id" json:"userId"`
+	ShouldAutoRenew      bool                      `bson:"should_auto_renew" json:"shouldAutoRenew"`
+	NonTaxable           bool                      `bson:"non_taxable" json:"nonTaxable"`
+	Shipping             ShippingProfileForListing `bson:"shipping" json:"shipping"`
+	Siblings             []Listing                 `json:"siblings"`
 }
 
 type ListingUserExcept struct {
@@ -203,11 +205,11 @@ type NewListing struct {
 
 type NewListingDetails struct {
 	Dynamic            map[string]any  `json:"dynamic"`
-	DynamicType        DynamicType     `json:"dynamic_type"`
+	DynamicType        DynamicType     `json:"dynamicType"`
 	Category           Category        `json:"category" validate:"required"`
 	Condition          string          `json:"condition" validate:"oneof=new used refurbished"`
 	Title              string          `json:"title" validate:"required,min=10,max=50"`
-	WhenMade           string          `json:"whenMade"  validate:"oneof=in2020_2023 in2010_2019 in2003_2009 before_2003 in2000_2002 in1990s in1980s in1970s in1960s in1950s in1940s in1930s in1920s in1910s in1900s in1800s in1700s before_1700"`
+	WhenMade           string          `json:"whenMade"`
 	Type               string          `json:"type" validate:"required"`
 	Sustainability     string          `json:"sustainability"`
 	WhoMade            string          `json:"whoMade" validate:"oneof=i_did collective someone_else"`
@@ -217,8 +219,8 @@ type NewListingDetails struct {
 	Description        string          `json:"description" validate:"required,min=50,max=500"`
 	Tags               []string        `json:"tags"`
 	Keywords           []string        `json:"keywords"`
-	HasVariations      bool            `json:"has_variations"`
-	HasPersonalization bool            `bson:"has_personalization" json:"has_personalization"`
+	HasVariations      bool            `json:"hasVariations"`
+	HasPersonalization bool            `json:"hasPersonalization"`
 	Personalization    Personalization `json:"personalization"`
 
 	AceessoriesAndJewelryData *AceessoriesAndJewelry `json:"-" bson:"accessories_and_jewelry_data,omitempty"`

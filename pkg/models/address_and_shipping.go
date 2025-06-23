@@ -101,8 +101,8 @@ type ShippingPolicy struct {
 }
 
 type ShippingProcessing struct {
-	MinUnit string `bson:"processing_min_unit" json:"minUnit"`
-	MaxUnit string `bson:"processing_max_unit" json:"maxUnit"`
-	Min     int    `bson:"processing_min" json:"min"`
-	Max     int    `bson:"processing_max" json:"max"`
+	MinUnit string `bson:"processing_min_unit" json:"processingMinUnit"`
+	MaxUnit string `bson:"processing_max_unit" json:"processingMaxUnit"`
+	Min     int    `bson:"processing_min" json:"processingMin"`
+	Max     int    `bson:"processing_max" json:"processingMax"`
 }

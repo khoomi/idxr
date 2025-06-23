@@ -191,7 +191,6 @@ func HandleSequentialImages(c *gin.Context) ([]string, []uploader.UploadResult, 
 			}
 			defer file.Close()
 
-			// Upload the file
 			imageUpload, err := util.FileUpload(models.File{File: file})
 			if err != nil {
 				mu.Lock()
@@ -200,7 +199,6 @@ func HandleSequentialImages(c *gin.Context) ([]string, []uploader.UploadResult, 
 				return
 			}
 
-			// Append results in a thread-safe manner
 			mu.Lock()
 			uploadedImagesUrl = append(uploadedImagesUrl, imageUpload.SecureURL)
 			uploadedImagesResult = append(uploadedImagesResult, imageUpload)

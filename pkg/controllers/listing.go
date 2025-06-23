@@ -231,9 +231,19 @@ func GetListing() gin.HandlerFunc {
 		} else {
 			listingIdentifier = bson.M{"slug": listingId}
 		}
-
 		pipeline := []bson.M{
 			{"$match": listingIdentifier},
+			{
+				"$lookup": bson.M{
+					"from":         "Listing",
+					"localField":   "shop_id",
+					"foreignField": "shop_id",
+					"as":           "siblings",
+					"pipeline": []bson.M{
+						{"$limit": 6},
+					},
+				},
+			},
 			{
 				"$lookup": bson.M{
 					"from":         "Shop",
@@ -303,8 +313,6 @@ func GetListing() gin.HandlerFunc {
 					},
 					"shipping": bson.M{
 						"title":                "$shipping.title",
-						"min_processing_time":  "$shipping.min_processing_time",
-						"max_processing_time":  "$shipping.max_processing_time",
 						"destination_by":       "$shipping.destination_by",
 						"destinations":         "$shipping.destinations",
 						"min_delivery_days":    "$shipping.min_delivery_days",
@@ -317,9 +325,11 @@ func GetListing() gin.HandlerFunc {
 						"shipping_methods":     "$shipping.shipping_methods",
 						"is_default_profile":   "$shipping.is_default_profile",
 						"offers_free_shipping": "$shipping.offers_free_shipping",
+						"processing":           "$shipping.processing",
 						"service":              "$shop.service",
 						"policy":               "$shipping.policy",
 					},
+					"siblings": 1,
 				},
 			},
 		}

@@ -3,6 +3,7 @@ package models
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 )
 
 // Validate if submitted listing is a dynamic type.
@@ -29,6 +30,7 @@ func (n *NewListingDetails) ParseDynamicData() (any, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal dynamic map: %w", err)
 	}
+	log.Println(n.DynamicType)
 
 	switch n.DynamicType {
 	case FurnitureType:
