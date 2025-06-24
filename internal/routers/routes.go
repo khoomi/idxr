@@ -227,7 +227,7 @@ func listingRoutes(api *gin.RouterGroup) {
 }
 
 func cartRoutes(api *gin.RouterGroup) {
-	cart := api.Group("/carts")
+	cart := api.Group("/:userid/carts")
 	// Secured endpoints that require authentication
 	secured := cart.Group("").Use(auth.Auth())
 	{

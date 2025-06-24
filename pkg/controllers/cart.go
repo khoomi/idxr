@@ -186,39 +186,39 @@ func GetCartItems() gin.HandlerFunc {
 		}
 
 		// Convert back to regular cart items and add validation flags
-		var cartItems []interface{}
+		var cartItems []models.CartItemJson
 		for _, item := range cartItemsWithValidation {
-			cartItemResponse := map[string]interface{}{
-				"_id":                 item.Id,
-				"listing_id":          item.ListingId,
-				"shopId":              item.ShopId,
-				"userId":              item.UserId,
-				"title":               item.Title,
-				"thumbnail":           item.Thumbnail,
-				"quantity":            item.Quantity,
-				"unit_price":          item.UnitPrice,
-				"total_price":         item.TotalPrice,
-				"variant":             item.Variant,
-				"dynamic_type":        item.DynamicType,
-				"personalization":     item.Personalization,
-				"shop_name":           item.ShopName,
-				"shop_username":       item.ShopUsername,
-				"shop_slug":           item.ShopSlug,
-				"available_quantity":  item.AvailableQuantity,
-				"listing_state":       item.ListingState,
-				"original_price":      item.OriginalPrice,
-				"price_updated_at":    item.PriceUpdatedAt,
-				"shipping_profile_id": item.ShippingProfileId,
-				"expires_at":          item.ExpiresAt,
-				"added_at":            item.AddedAt,
-				"modified_at":         item.ModifiedAt,
+			cartItemResponse := models.CartItemJson{
+				Id:                item.Id,
+				ListingId:         item.ListingId,
+				ShopId:            item.ShopId,
+				UserId:            item.UserId,
+				Title:             item.Title,
+				Thumbnail:         item.Thumbnail,
+				Quantity:          item.Quantity,
+				UnitPrice:         item.UnitPrice,
+				TotalPrice:        item.TotalPrice,
+				Variant:           item.Variant,
+				DynamicType:       item.DynamicType,
+				Personalization:   item.Personalization,
+				ShopName:          item.ShopName,
+				ShopUsername:      item.ShopUsername,
+				ShopSlug:          item.ShopSlug,
+				AvailableQuantity: item.AvailableQuantity,
+				ListingState:      item.ListingState,
+				OriginalPrice:     item.OriginalPrice,
+				PriceUpdatedAt:    item.PriceUpdatedAt,
+				ShippingProfileId: item.ShippingProfileId,
+				ExpiresAt:         item.ExpiresAt,
+				AddedAt:           item.AddedAt,
+				ModifiedAt:        item.ModifiedAt,
 
 				// Validation flags
-				"is_available":       item.IsListingAvailable,
-				"price_changed":      item.PriceChanged,
-				"current_price":      item.CurrentPrice,
-				"insufficient_stock": item.InsufficientStock,
-				"current_quantity":   item.CurrentQuantity,
+				IsAvailable:       item.IsListingAvailable,
+				PriceChanged:      item.PriceChanged,
+				CurrentPrice:      item.CurrentPrice,
+				InsufficientStock: item.InsufficientStock,
+				CurrentQuantity:   item.CurrentQuantity,
 			}
 			cartItems = append(cartItems, cartItemResponse)
 		}
