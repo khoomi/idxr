@@ -239,6 +239,174 @@ func GetCartItems() gin.HandlerFunc {
 	}
 }
 
+// IncreaseCartItemQuantity
+func IncreaseCartItemQuantity() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		now := time.Now()
+		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
+		defer cancel()
+
+		cartItemId := c.Param("cartId")
+		cartItemObjectID, err := primitive.ObjectIDFromHex(cartItemId)
+		if err != nil {
+			util.HandleError(c, http.StatusBadRequest, errors.New("invalid cart item id"))
+			return
+		}
+		myId, err := auth.ValidateUserID(c)
+		if err != nil {
+			util.HandleError(c, http.StatusBadRequest, err)
+			return
+		}
+
+		// Find existing cart item
+		var cartItem models.CartItem
+		filter := bson.M{"_id": cartItemObjectID, "userId": myId}
+		err = common.UserCartCollection.FindOne(ctx, filter).Decode(&cartItem)
+		if err != nil {
+			util.HandleError(c, http.StatusNotFound, fmt.Errorf("cart item not found"))
+			return
+		}
+
+		// Fetch current listing data to validate inventory
+		var listing models.Listing
+		err = common.ListingCollection.FindOne(ctx, bson.M{"_id": cartItem.ListingId}).Decode(&listing)
+		if err != nil {
+			util.HandleError(c, http.StatusNotFound, fmt.Errorf("listing not found"))
+			return
+		}
+
+		// Validate listing is still active
+		if listing.State.State != models.ListingStateActive {
+			util.HandleError(c, http.StatusBadRequest, fmt.Errorf("listing is not available"))
+			return
+		}
+
+		// Validate sufficient inventory for increase
+		if listing.Inventory.Quantity <= cartItem.Quantity {
+			util.HandleError(c, http.StatusBadRequest, fmt.Errorf("insufficient inventory. Available: %d, Current: %d", listing.Inventory.Quantity, cartItem.Quantity))
+			return
+		}
+
+		unitPrice := listing.Inventory.Price
+
+		// For time-series collections, use delete and insert pattern
+		newQuantity := cartItem.Quantity + 1
+		newTotalPrice := float64(newQuantity) * unitPrice
+
+		// Update the cart item fields
+		cartItem.Quantity = newQuantity
+		cartItem.UnitPrice = unitPrice
+		cartItem.TotalPrice = newTotalPrice
+		cartItem.AvailableQuantity = listing.Inventory.Quantity
+		cartItem.ListingState = listing.State
+		cartItem.OriginalPrice = unitPrice
+		cartItem.PriceUpdatedAt = now
+		cartItem.ModifiedAt = now
+		cartItem.ExpiresAt = now.Add(common.CART_ITEM_EXPIRATION_TIME)
+
+		// Delete the old document
+		_, err = common.UserCartCollection.DeleteOne(ctx, filter)
+		if err != nil {
+			util.HandleError(c, http.StatusInternalServerError, err)
+			return
+		}
+
+		// Insert the updated document
+		_, err = common.UserCartCollection.InsertOne(ctx, cartItem)
+		if err != nil {
+			util.HandleError(c, http.StatusInternalServerError, err)
+			return
+		}
+
+		util.HandleSuccess(c, http.StatusOK, "Cart item quantity increased", gin.H{
+			"quantity":   newQuantity,
+			"unitPrice":  unitPrice,
+			"totalPrice": newTotalPrice,
+		})
+	}
+}
+
+// DecreaseCartItemQuantity
+func DecreaseCartItemQuantity() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		now := time.Now()
+		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
+		defer cancel()
+
+		cartItemId := c.Param("cartId")
+		cartItemObjectID, err := primitive.ObjectIDFromHex(cartItemId)
+		if err != nil {
+			util.HandleError(c, http.StatusBadRequest, errors.New("invalid cart item id"))
+			return
+		}
+		myId, err := auth.ValidateUserID(c)
+		if err != nil {
+			util.HandleError(c, http.StatusBadRequest, err)
+			return
+		}
+
+		// Find existing cart item
+		var cartItem models.CartItem
+		filter := bson.M{"_id": cartItemObjectID, "userId": myId}
+		err = common.UserCartCollection.FindOne(ctx, filter).Decode(&cartItem)
+		if err != nil {
+			util.HandleError(c, http.StatusNotFound, fmt.Errorf("cart item not found"))
+			return
+		}
+
+		// Validate minimum quantity
+		if cartItem.Quantity <= 1 {
+			util.HandleError(c, http.StatusBadRequest, fmt.Errorf("cannot decrease quantity below 1. Use delete endpoint to remove item"))
+			return
+		}
+
+		// Fetch current listing data for price validation
+		var listing models.Listing
+		err = common.ListingCollection.FindOne(ctx, bson.M{"_id": cartItem.ListingId}).Decode(&listing)
+		if err != nil {
+			util.HandleError(c, http.StatusNotFound, fmt.Errorf("listing not found"))
+			return
+		}
+
+		unitPrice := listing.Inventory.Price
+
+		// For time-series collections, use delete and insert pattern
+		newQuantity := cartItem.Quantity - 1
+		newTotalPrice := float64(newQuantity) * unitPrice
+
+		// Update the cart item fields
+		cartItem.Quantity = newQuantity
+		cartItem.UnitPrice = unitPrice
+		cartItem.TotalPrice = newTotalPrice
+		cartItem.AvailableQuantity = listing.Inventory.Quantity
+		cartItem.ListingState = listing.State
+		cartItem.OriginalPrice = unitPrice
+		cartItem.PriceUpdatedAt = now
+		cartItem.ModifiedAt = now
+		cartItem.ExpiresAt = now.Add(common.CART_ITEM_EXPIRATION_TIME)
+
+		// Delete the old document
+		_, err = common.UserCartCollection.DeleteOne(ctx, filter)
+		if err != nil {
+			util.HandleError(c, http.StatusInternalServerError, err)
+			return
+		}
+
+		// Insert the updated document
+		_, err = common.UserCartCollection.InsertOne(ctx, cartItem)
+		if err != nil {
+			util.HandleError(c, http.StatusInternalServerError, err)
+			return
+		}
+
+		util.HandleSuccess(c, http.StatusOK, "Cart item quantity decreased", gin.H{
+			"quantity":   newQuantity,
+			"unitPrice":  unitPrice,
+			"totalPrice": newTotalPrice,
+		})
+	}
+}
+
 // DeleteCartItem(): get all cart listing.
 func DeleteCartItem() gin.HandlerFunc {
 	return func(c *gin.Context) {

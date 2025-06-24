@@ -235,7 +235,9 @@ func cartRoutes(api *gin.RouterGroup) {
 		secured.POST("/", controllers.SaveCartItem())
 		secured.DELETE("/:cartId", controllers.DeleteCartItem())
 		secured.DELETE("/many", controllers.DeleteCartItems())
-		secured.DELETE("/clear", controllers.DeleteCartItems())
+		secured.DELETE("/clear", controllers.ClearCartItems())
+		secured.PUT("/:cartId/quantity/inc", controllers.IncreaseCartItemQuantity())
+		secured.PUT("/:cartId/quantity/dec", controllers.DecreaseCartItemQuantity())
 	}
 }
 

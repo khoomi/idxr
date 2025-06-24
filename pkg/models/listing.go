@@ -47,7 +47,6 @@ type Details struct {
 	WhenMade       string         `bson:"when_made" json:"whenMade"  validate:"oneof=in2020_2023 in2010_2019 in2003_2009 before_2003 in2000_2002 in1990s in1980s in1970s in1960s in1950s in1940s in1930s in1920s in1910s in1900s in1800s in1700s before_1700"`
 	Type           string         `bson:"type" json:"type"`
 	Title          string         `bson:"title" json:"title"`
-	Color          string         `bson:"color" json:"color"`
 	Tags           []string       `bson:"tags" json:"tags"`
 	Keywords       []string       `bson:"keywords" json:"keywords"`
 	HasVariations  bool           `bson:"has_variations" json:"hasVariations"`

@@ -108,7 +108,6 @@ func CreateListing() gin.HandlerFunc {
 			Type:               newListing.Details.Type,
 			Tags:               newListing.Details.Tags,
 			Title:              newListing.Details.Title,
-			Color:              newListing.Details.Color,
 			Dynamic:            newListing.Details.Dynamic,
 			DynamicType:        newListing.Details.DynamicType,
 			WhoMade:            newListing.Details.WhoMade,
