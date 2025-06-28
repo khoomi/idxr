@@ -1239,13 +1239,11 @@ func CreateShopReview() gin.HandlerFunc {
 			return
 		}
 
-		// validate request body
 		if validationErr := common.Validate.Struct(&shopReviewJson); validationErr != nil {
 			util.HandleError(c, http.StatusUnprocessableEntity, validationErr)
 			return
 		}
 
-		// Shop Member session
 		wc := writeconcern.New(writeconcern.WMajority())
 		txnOptions := options.Transaction().SetWriteConcern(wc)
 
@@ -1271,6 +1269,7 @@ func CreateShopReview() gin.HandlerFunc {
 				UserId:       myId,
 				ShopId:       shopId,
 				Review:       shopReviewJson.Review,
+				Rating:       shopReviewJson.Rating,
 				ReviewAuthor: loginName,
 				Thumbnail:    userProfile.Thumbnail,
 				CreatedAt:    now,
@@ -1282,11 +1281,11 @@ func CreateShopReview() gin.HandlerFunc {
 				return nil, err
 			}
 
-			// attempt to add member to review field in shop
 			embedded := models.EmbeddedShopReview{
 				UserId:       myId,
 				ShopId:       shopId,
 				Review:       shopReviewJson.Review,
+				Rating:       shopReviewJson.Rating,
 				ReviewAuthor: loginName,
 				Thumbnail:    userProfile.Thumbnail,
 			}
@@ -1297,10 +1296,21 @@ func CreateShopReview() gin.HandlerFunc {
 				return nil, err
 			}
 
-			// attempt updating user reviewCount fields.
 			_, err = common.UserCollection.UpdateOne(ctx, bson.M{"_id": myId}, bson.M{"$inc": bson.M{"review_count": 1}})
 			if err != nil {
 				log.Println("Failed to update review count:", err)
+				return nil, err
+			}
+
+			shopRating, err := calculateShopRating(ctx, shopId)
+			if err != nil {
+				log.Println("Failed to calculate shop rating:", err)
+				return nil, err
+			}
+
+			_, err = common.ShopCollection.UpdateOne(ctx, bson.M{"_id": shopId}, bson.M{"$set": bson.M{"rating": shopRating}})
+			if err != nil {
+				log.Println("Failed to update shop rating:", err)
 				return nil, err
 			}
 
@@ -1417,6 +1427,20 @@ func DeleteMyReview() gin.HandlerFunc {
 				return nil, err
 			}
 
+			// recalculate and update shop rating
+			shopRating, err := calculateShopRating(ctx, shopId)
+			if err != nil {
+				log.Println("Failed to calculate shop rating:", err)
+				return nil, err
+			}
+
+			// update shop with new rating
+			_, err = common.ShopCollection.UpdateOne(ctx, bson.M{"_id": shopId}, bson.M{"$set": bson.M{"rating": shopRating}})
+			if err != nil {
+				log.Println("Failed to update shop rating:", err)
+				return nil, err
+			}
+
 			deletedReviewId = result2.UpsertedID
 			return result2, nil
 		}
@@ -1491,6 +1515,20 @@ func DeleteOtherReview() gin.HandlerFunc {
 
 			if result2.ModifiedCount == 0 {
 				return nil, errors.New("no matching documents found")
+			}
+
+			// recalculate and update shop rating
+			shopRating, err := calculateShopRating(ctx, shopId)
+			if err != nil {
+				log.Println("Failed to calculate shop rating:", err)
+				return nil, err
+			}
+
+			// update shop with new rating
+			_, err = common.ShopCollection.UpdateOne(ctx, bson.M{"_id": shopId}, bson.M{"$set": bson.M{"rating": shopRating}})
+			if err != nil {
+				log.Println("Failed to update shop rating:", err)
+				return nil, err
 			}
 
 			deletedReviewId = result2.UpsertedID
@@ -1951,4 +1989,77 @@ func GetShopComplianceInformation() gin.HandlerFunc {
 
 		util.HandleSuccess(c, http.StatusOK, "Shop compliance information created successfully", gin.H{"compliance_information": complianceInformation})
 	}
+}
+
+// calculateShopRating recalculates the shop's average rating and star distribution
+func calculateShopRating(ctx context.Context, shopId primitive.ObjectID) (models.ShopRating, error) {
+	pipeline := []bson.M{
+		{"$match": bson.M{"shop_id": shopId, "status": models.ShopReviewStatusApproved}},
+		{
+			"$group": bson.M{
+				"_id":           nil,
+				"averageRating": bson.M{"$avg": "$rating"},
+				"reviewCount":   bson.M{"$sum": 1},
+				"fiveStarCount": bson.M{
+					"$sum": bson.M{
+						"$cond": bson.A{bson.M{"$eq": bson.A{"$rating", 5}}, 1, 0},
+					},
+				},
+				"fourStarCount": bson.M{
+					"$sum": bson.M{
+						"$cond": bson.A{bson.M{"$eq": bson.A{"$rating", 4}}, 1, 0},
+					},
+				},
+				"threeStarCount": bson.M{
+					"$sum": bson.M{
+						"$cond": bson.A{bson.M{"$eq": bson.A{"$rating", 3}}, 1, 0},
+					},
+				},
+				"twoStarCount": bson.M{
+					"$sum": bson.M{
+						"$cond": bson.A{bson.M{"$eq": bson.A{"$rating", 2}}, 1, 0},
+					},
+				},
+				"oneStarCount": bson.M{
+					"$sum": bson.M{
+						"$cond": bson.A{bson.M{"$eq": bson.A{"$rating", 1}}, 1, 0},
+					},
+				},
+			},
+		},
+	}
+
+	cursor, err := common.ShopReviewCollection.Aggregate(ctx, pipeline)
+	if err != nil {
+		return models.ShopRating{}, err
+	}
+	defer cursor.Close(ctx)
+
+	var result struct {
+		AverageRating  float64 `bson:"averageRating"`
+		ReviewCount    int     `bson:"reviewCount"`
+		FiveStarCount  int     `bson:"fiveStarCount"`
+		FourStarCount  int     `bson:"fourStarCount"`
+		ThreeStarCount int     `bson:"threeStarCount"`
+		TwoStarCount   int     `bson:"twoStarCount"`
+		OneStarCount   int     `bson:"oneStarCount"`
+	}
+
+	if cursor.Next(ctx) {
+		if err := cursor.Decode(&result); err != nil {
+			return models.ShopRating{}, err
+		}
+	}
+
+	averageRating := float64(int(result.AverageRating*100)) / 100
+
+	return models.ShopRating{
+		AverageRating:  averageRating,
+		ReviewCount:    result.ReviewCount,
+		FiveStarCount:  result.FiveStarCount,
+		FourStarCount:  result.FourStarCount,
+		ThreeStarCount: result.ThreeStarCount,
+		TwoStarCount:   result.TwoStarCount,
+		OneStarCount:   result.OneStarCount,
+	}, nil
 }

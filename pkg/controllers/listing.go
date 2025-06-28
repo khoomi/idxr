@@ -116,7 +116,6 @@ func CreateListing() gin.HandlerFunc {
 			Category:           newListing.Details.Category,
 			Condition:          newListing.Details.Condition,
 			Description:        newListing.Details.Description,
-			HasVariations:      newListing.Details.HasVariations,
 			Sustainability:     newListing.Details.Sustainability,
 			HasPersonalization: newListing.Details.HasPersonalization,
 			Personalization:    newListing.Details.Personalization,
@@ -424,9 +423,9 @@ func GetListings() gin.HandlerFunc {
 					},
 				},
 			},
+			{"$sort": sort},
 			{"$skip": int64(paginationArgs.Skip)},
 			{"$limit": int64(paginationArgs.Limit)},
-			{"$sort": sort},
 		}
 
 		cursor, err := common.ListingCollection.Aggregate(ctx, pipeline)

@@ -49,7 +49,6 @@ type Details struct {
 	Title          string         `bson:"title" json:"title"`
 	Tags           []string       `bson:"tags" json:"tags"`
 	Keywords       []string       `bson:"keywords" json:"keywords"`
-	HasVariations  bool           `bson:"has_variations" json:"hasVariations"`
 
 	HasPersonalization bool            `bson:"has_personalization" json:"has_personalization"`
 	Personalization    Personalization `json:"personalization"`
@@ -77,7 +76,6 @@ type Variation struct {
 	VariationType string `json:"type"`
 	Value         string `json:"value"`
 	Price         string `json:"price"`
-	SKU           string `json:"sku"`
 	Unit          string `json:"unit"`
 	Quantity      int    `json:"quantity"`
 }
@@ -218,7 +216,6 @@ type NewListingDetails struct {
 	Description        string          `json:"description" validate:"required,min=50,max=500"`
 	Tags               []string        `json:"tags"`
 	Keywords           []string        `json:"keywords"`
-	HasVariations      bool            `json:"hasVariations"`
 	HasPersonalization bool            `json:"hasPersonalization"`
 	Personalization    Personalization `json:"personalization"`
 

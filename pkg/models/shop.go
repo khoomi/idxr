@@ -29,6 +29,7 @@ type Shop struct {
 	Gallery                []string           `bson:"gallery" json:"gallery"`
 	About                  ShopAbout          `bson:"about" json:"about"`
 	Address                UserAddress        `bson:"address" json:"address"`
+	Rating                 ShopRating         `bson:"rating" json:"rating"`
 	ReviewsCount           int                `bson:"reviews_count" json:"reviewsCount"`
 	ListingActiveCount     int                `bson:"listing_active_count" json:"listing_active_count" validate:"required"`
 	FollowerCount          int                `bson:"follower_count" json:"followerCount" validate:"required"`
@@ -51,6 +52,7 @@ type ShopExcerpt struct {
 	CreatedAt          time.Time          `bson:"created_at"            json:"createdAt"`
 	ListingActiveCount int                `bson:"listing_active_count"  json:"listingActiveCount"`
 	FollowerCount      int                `bson:"follower_count"        json:"followerCount"`
+	Rating             ShopRating         `bson:"rating"                json:"rating"`
 	ReviewsCount       int                `bson:"reviews_count"         json:"reviewsCount"`
 }
 
@@ -121,6 +123,7 @@ type EmbeddedShopReview struct {
 	Review       string             `bson:"review" json:"review"`
 	ReviewAuthor string             `bson:"review_author" json:"reviewAuthor"`
 	Thumbnail    string             `bson:"thumbnail" json:"thumbnail"`
+	Rating       int                `bson:"rating" json:"rating"`
 	UserId       primitive.ObjectID `bson:"user_id" json:"userId"`
 	ShopId       primitive.ObjectID `bson:"shop_id" json:"shopId"`
 }
@@ -130,14 +133,26 @@ type ShopReview struct {
 	Review       string             `bson:"review" json:"review"`
 	ReviewAuthor string             `bson:"review_author" json:"reviewAuthor"`
 	Thumbnail    string             `bson:"thumbnail" json:"thumbnail"`
+	Rating       int                `bson:"rating" json:"rating" validate:"required,min=1,max=5"`
 	Status       ShopReviewStatus   `bson:"status" json:"status" validate:"required,oneof=approved pending spam"`
 	Id           primitive.ObjectID `bson:"_id" json:"_id"`
 	UserId       primitive.ObjectID `bson:"user_id" json:"userId"`
 	ShopId       primitive.ObjectID `bson:"shop_id" json:"shopId"`
 }
 
+type ShopRating struct {
+	AverageRating  float64 `bson:"average_rating" json:"averageRating"`
+	ReviewCount    int     `bson:"review_count" json:"reviewCount"`
+	FiveStarCount  int     `bson:"five_star_count" json:"fiveStarCount"`
+	FourStarCount  int     `bson:"four_star_count" json:"fourStarCount"`
+	ThreeStarCount int     `bson:"three_star_count" json:"threeStarCount"`
+	TwoStarCount   int     `bson:"two_star_count" json:"twoStarCount"`
+	OneStarCount   int     `bson:"one_star_count" json:"oneStarCount"`
+}
+
 type ShopReviewRequest struct {
 	Review string `bson:"review" json:"review" validate:"required"`
+	Rating int    `bson:"rating" json:"rating" validate:"required,min=1,max=5"`
 }
 
 type ShopAbout struct {
