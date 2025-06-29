@@ -75,7 +75,7 @@ func CreateSellerVerificationProfile() gin.HandlerFunc {
 		}
 		res, err := common.SellerVerificationCollection.InsertOne(ctx, ShippingProfile)
 		if err != nil {
-			util.HandleError(c, http.StatusUnauthorized, err)
+			util.HandleError(c, http.StatusFound, err)
 			return
 		}
 
