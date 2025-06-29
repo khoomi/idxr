@@ -184,13 +184,15 @@ type ListingUserExcept struct {
 }
 
 type ListingShopExcept struct {
-	Name         string `bson:"name" json:"name" validate:"required"`
-	Description  string `bson:"description" json:"description" validate:"required"`
-	Username     string `bson:"username" json:"username" validate:"required"`
-	Location     string `bson:"location" json:"location"`
-	Slug         string `bson:"slug" json:"slug" validate:"required"`
-	LogoURL      string `bson:"logo_url" json:"logoUrl"`
-	ReviewsCount int    `bson:"reviews_count" json:"reviewsCount"`
+	Name         string     `bson:"name" json:"name" validate:"required"`
+	Description  string     `bson:"description" json:"description" validate:"required"`
+	Username     string     `bson:"username" json:"username" validate:"required"`
+	Location     string     `bson:"location" json:"location"`
+	Slug         string     `bson:"slug" json:"slug" validate:"required"`
+	LogoURL      string     `bson:"logo_url" json:"logoUrl"`
+	Rating       ShopRating `bson:"rating" json:"rating"`
+	ReviewsCount int        `bson:"reviews_count" json:"reviewsCount"`
+	CreatedAt    time.Time  `bson:"created_at" json:"createdAt" validate:"required"`
 }
 
 type NewListing struct {

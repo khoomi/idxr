@@ -307,7 +307,9 @@ func GetListing() gin.HandlerFunc {
 						"location":      "$shop.location",
 						"description":   "$shop.description",
 						"reviews_count": "$shop.reviews_count",
+						"rating":        "$shop.rating",
 						"is_live":       "$shop.is_live",
+						"created_at":    "$shop.created_at",
 					},
 					"shipping": bson.M{
 						"title":                "$shipping.title",
