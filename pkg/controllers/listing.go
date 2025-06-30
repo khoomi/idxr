@@ -724,7 +724,7 @@ func DeactivateListings() gin.HandlerFunc {
 	}
 }
 
-// CreateShopReview - api/shops/:shopid/reviews
+// CreateListingReview - api/listing/:listingid/reviews
 func CreateListingReview() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
