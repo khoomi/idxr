@@ -202,6 +202,14 @@ func CreateListing() gin.HandlerFunc {
 			return
 		}
 
+		// update shop listing active count
+		filter := bson.M{"_id": shopId}
+		update := bson.M{"$inc": bson.M{"listing_active_count": 1}}
+		_, err = common.ShopCollection.UpdateOne(ctx, filter, update)
+		if err != nil {
+			log.Printf("Failed to update shop listing count: %v", err)
+		}
+
 		// send new listing email notification to user
 		email.SendNewListingEmail(loginEmail, loginName, newListing.Details.Title)
 

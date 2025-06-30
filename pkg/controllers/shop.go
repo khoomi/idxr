@@ -1992,7 +1992,7 @@ func GetShopComplianceInformation() gin.HandlerFunc {
 }
 
 // calculateShopRating recalculates the shop's average rating and star distribution
-func calculateShopRating(ctx context.Context, shopId primitive.ObjectID) (models.ShopRating, error) {
+func calculateShopRating(ctx context.Context, shopId primitive.ObjectID) (models.Rating, error) {
 	pipeline := []bson.M{
 		{"$match": bson.M{"shop_id": shopId, "status": models.ShopReviewStatusApproved}},
 		{
@@ -2031,7 +2031,7 @@ func calculateShopRating(ctx context.Context, shopId primitive.ObjectID) (models
 
 	cursor, err := common.ShopReviewCollection.Aggregate(ctx, pipeline)
 	if err != nil {
-		return models.ShopRating{}, err
+		return models.Rating{}, err
 	}
 	defer cursor.Close(ctx)
 
@@ -2047,13 +2047,13 @@ func calculateShopRating(ctx context.Context, shopId primitive.ObjectID) (models
 
 	if cursor.Next(ctx) {
 		if err := cursor.Decode(&result); err != nil {
-			return models.ShopRating{}, err
+			return models.Rating{}, err
 		}
 	}
 
 	averageRating := float64(int(result.AverageRating*100)) / 100
 
-	return models.ShopRating{
+	return models.Rating{
 		AverageRating:  averageRating,
 		ReviewCount:    result.ReviewCount,
 		FiveStarCount:  result.FiveStarCount,

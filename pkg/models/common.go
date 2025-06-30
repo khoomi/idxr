@@ -31,6 +31,21 @@ type UserSession struct {
 	CreatedAt    bool               `bson:"created_at" json:"createdAt"`
 }
 
+type Rating struct {
+	AverageRating  float64 `bson:"average_rating" json:"averageRating"`
+	ReviewCount    int     `bson:"review_count" json:"reviewCount"`
+	FiveStarCount  int     `bson:"five_star_count" json:"fiveStarCount"`
+	FourStarCount  int     `bson:"four_star_count" json:"fourStarCount"`
+	ThreeStarCount int     `bson:"three_star_count" json:"threeStarCount"`
+	TwoStarCount   int     `bson:"two_star_count" json:"twoStarCount"`
+	OneStarCount   int     `bson:"one_star_count" json:"oneStarCount"`
+}
+
+type ReviewRequest struct {
+	Review string `bson:"review" json:"review" validate:"required"`
+	Rating int    `bson:"rating" json:"rating" validate:"required,min=1,max=5"`
+}
+
 func GenLink(rel, href string) Link {
 	return Link{Href: href, Rel: rel}
 }

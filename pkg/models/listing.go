@@ -19,7 +19,7 @@ type Listing struct {
 	Measurements         Measurement          `bson:"measurements" json:"measurements"`
 	Inventory            Inventory            `bson:"inventory" json:"inventory"`
 	FinancialInformation FinancialInformation `bson:"financial_information" json:"financialInformation"`
-	Rating               ListingRating        `bson:"rating" json:"rating"`
+	Rating               Rating               `bson:"rating" json:"rating"`
 	Views                int                  `bson:"views" json:"views"`
 	FavorersCount        int                  `bson:"favorers_count" json:"favorersCount"`
 	ShippingProfileId    primitive.ObjectID   `bson:"shipping_profile_id" json:"shippingProfileId"`
@@ -98,13 +98,6 @@ type Inventory struct {
 	DomesticPricing bool      `bson:"domestic_pricing" json:"domesticPricing"`
 }
 
-type ListingRating struct {
-	Rating          float64 `json:"rating"`
-	ReviewCount     int     `json:"review_count"`
-	PositiveReviews int     `bson:"positive_reviews" json:"positiveReviews"`
-	NegativeReviews int     `bson:"negative_reviews" json:"negativeReviews"`
-}
-
 type FinancialInformation struct {
 	TotalOrders     int     `bson:"total_orders" json:"totalOrders"`
 	Sales           float64 `bson:"sales" json:"sales"`
@@ -161,7 +154,7 @@ type ListingExtra struct {
 	Measurements         Measurement               `bson:"measurements" json:"measurements"`
 	Inventory            Inventory                 `bson:"inventory" json:"inventory"`
 	FinancialInformation FinancialInformation      `bson:"financial_information" json:"financialInformation"`
-	Rating               ListingRating             `bson:"rating" json:"rating"`
+	Rating               Rating                    `bson:"rating" json:"rating"`
 	TotalOrders          int                       `bson:"total_orders" json:"totalOrders"`
 	Sales                float64                   `bson:"sales" json:"sales"`
 	FavorersCount        int                       `bson:"favorers_count" json:"favorersCount"`
@@ -184,15 +177,15 @@ type ListingUserExcept struct {
 }
 
 type ListingShopExcept struct {
-	Name         string     `bson:"name" json:"name" validate:"required"`
-	Description  string     `bson:"description" json:"description" validate:"required"`
-	Username     string     `bson:"username" json:"username" validate:"required"`
-	Location     string     `bson:"location" json:"location"`
-	Slug         string     `bson:"slug" json:"slug" validate:"required"`
-	LogoURL      string     `bson:"logo_url" json:"logoUrl"`
-	Rating       ShopRating `bson:"rating" json:"rating"`
-	ReviewsCount int        `bson:"reviews_count" json:"reviewsCount"`
-	CreatedAt    time.Time  `bson:"created_at" json:"createdAt" validate:"required"`
+	Name         string    `bson:"name" json:"name" validate:"required"`
+	Description  string    `bson:"description" json:"description" validate:"required"`
+	Username     string    `bson:"username" json:"username" validate:"required"`
+	Location     string    `bson:"location" json:"location"`
+	Slug         string    `bson:"slug" json:"slug" validate:"required"`
+	LogoURL      string    `bson:"logo_url" json:"logoUrl"`
+	Rating       Rating    `bson:"rating" json:"rating"`
+	ReviewsCount int       `bson:"reviews_count" json:"reviewsCount"`
+	CreatedAt    time.Time `bson:"created_at" json:"createdAt" validate:"required"`
 }
 
 type NewListing struct {

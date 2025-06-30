@@ -7,38 +7,39 @@ import (
 )
 
 type Shop struct {
-	AnnouncementModifiedAt time.Time          `bson:"announcement_modified_at" json:"announcementModifiedAt" validate:"omitempty"`
-	ModifiedAt             time.Time          `bson:"modified_at" json:"modifiedAt" validate:"required"`
-	CreatedAt              time.Time          `bson:"created_at" json:"createdAt" validate:"required"`
-	User                   ListingUserExcept  `bson:"user" json:"user"`
-	Policy                 ShopPolicy         `bson:"policy" json:"policy" validate:"required"`
-	BannerURL              string             `bson:"banner_url" json:"bannerUrl"`
-	Status                 ShopStatus         `bson:"status" json:"status" validate:"required,oneof=inactive active banned suspended warning pendingreview"`
-	Name                   string             `bson:"name" json:"name" validate:"required"`
-	Announcement           string             `bson:"announcement" json:"announcement" validate:"omitempty"`
-	SalesMessage           string             `bson:"sales_message" json:"salesMessage"`
-	Description            string             `bson:"description" json:"description" validate:"required"`
-	VacationMessage        string             `bson:"vacation_message" json:"vacationMessage" validate:"omitempty"`
-	Slug                   string             `bson:"slug" json:"slug" validate:"required"`
-	LogoURL                string             `bson:"logo_url" json:"logoUrl"`
-	Username               string             `bson:"username" json:"username" validate:"required"`
-	RecentReviews          []ShopReview       `bson:"recent_reviews" json:"recentReviews"`
-	Categories             []ShopCategory     `bson:"-" json:"categories"`
-	Followers              []ShopFollower     `bson:"followers" json:"followers"`
-	Links                  []Link             `bson:"-" json:"links"`
-	Gallery                []string           `bson:"gallery" json:"gallery"`
-	About                  ShopAbout          `bson:"about" json:"about"`
-	Address                UserAddress        `bson:"address" json:"address"`
-	Rating                 ShopRating         `bson:"rating" json:"rating"`
-	ReviewsCount           int                `bson:"reviews_count" json:"reviewsCount"`
-	ListingActiveCount     int                `bson:"listing_active_count" json:"listing_active_count" validate:"required"`
-	FollowerCount          int                `bson:"follower_count" json:"followerCount" validate:"required"`
-	ID                     primitive.ObjectID `bson:"_id" json:"_id" validate:"required"`
-	UserID                 primitive.ObjectID `bson:"user_id" json:"userId"`
-	UserAddressId          primitive.ObjectID `bson:"user_address_id" json:"userAddressId"`
-	Location               primitive.ObjectID `bson:"location" json:"location"`
-	IsVacation             bool               `bson:"is_vacation" json:"is_vacation"`
-	IsLive                 bool               `bson:"is_live" json:"isLive"`
+	AnnouncementModifiedAt time.Time            `bson:"announcement_modified_at" json:"announcementModifiedAt" validate:"omitempty"`
+	ModifiedAt             time.Time            `bson:"modified_at" json:"modifiedAt" validate:"required"`
+	CreatedAt              time.Time            `bson:"created_at" json:"createdAt" validate:"required"`
+	User                   ListingUserExcept    `bson:"user" json:"user"`
+	Policy                 ShopPolicy           `bson:"policy" json:"policy" validate:"required"`
+	BannerURL              string               `bson:"banner_url" json:"bannerUrl"`
+	Status                 ShopStatus           `bson:"status" json:"status" validate:"required,oneof=inactive active banned suspended warning pendingreview"`
+	Name                   string               `bson:"name" json:"name" validate:"required"`
+	Announcement           string               `bson:"announcement" json:"announcement" validate:"omitempty"`
+	SalesMessage           string               `bson:"sales_message" json:"salesMessage"`
+	Description            string               `bson:"description" json:"description" validate:"required"`
+	VacationMessage        string               `bson:"vacation_message" json:"vacationMessage" validate:"omitempty"`
+	Slug                   string               `bson:"slug" json:"slug" validate:"required"`
+	LogoURL                string               `bson:"logo_url" json:"logoUrl"`
+	Username               string               `bson:"username" json:"username" validate:"required"`
+	RecentReviews          []ShopReview         `bson:"recent_reviews" json:"recentReviews"`
+	Categories             []ShopCategory       `bson:"-" json:"categories"`
+	Followers              []ShopFollower       `bson:"followers" json:"followers"`
+	Links                  []Link               `bson:"-" json:"links"`
+	Gallery                []string             `bson:"gallery" json:"gallery"`
+	About                  ShopAbout            `bson:"about" json:"about"`
+	Address                UserAddress          `bson:"address" json:"address"`
+	Rating                 Rating               `bson:"rating" json:"rating"`
+	ReviewsCount           int                  `bson:"reviews_count" json:"reviewsCount"`
+	FinancialInformation   FinancialInformation `bson:"financial_information" json:"financialInformation"`
+	ListingActiveCount     int                  `bson:"listing_active_count" json:"listing_active_count" validate:"required"`
+	FollowerCount          int                  `bson:"follower_count" json:"followerCount" validate:"required"`
+	ID                     primitive.ObjectID   `bson:"_id" json:"_id" validate:"required"`
+	UserID                 primitive.ObjectID   `bson:"user_id" json:"userId"`
+	UserAddressId          primitive.ObjectID   `bson:"user_address_id" json:"userAddressId"`
+	Location               primitive.ObjectID   `bson:"location" json:"location"`
+	IsVacation             bool                 `bson:"is_vacation" json:"is_vacation"`
+	IsLive                 bool                 `bson:"is_live" json:"isLive"`
 }
 
 type ShopExcerpt struct {
@@ -52,7 +53,7 @@ type ShopExcerpt struct {
 	CreatedAt          time.Time          `bson:"created_at"            json:"createdAt"`
 	ListingActiveCount int                `bson:"listing_active_count"  json:"listingActiveCount"`
 	FollowerCount      int                `bson:"follower_count"        json:"followerCount"`
-	Rating             ShopRating         `bson:"rating"                json:"rating"`
+	Rating             Rating             `bson:"rating"                json:"rating"`
 	ReviewsCount       int                `bson:"reviews_count"         json:"reviewsCount"`
 }
 
@@ -123,7 +124,6 @@ type EmbeddedShopReview struct {
 	Review       string             `bson:"review" json:"review"`
 	ReviewAuthor string             `bson:"review_author" json:"reviewAuthor"`
 	Thumbnail    string             `bson:"thumbnail" json:"thumbnail"`
-	Rating       int                `bson:"rating" json:"rating"`
 	UserId       primitive.ObjectID `bson:"user_id" json:"userId"`
 	ShopId       primitive.ObjectID `bson:"shop_id" json:"shopId"`
 }
@@ -133,26 +133,10 @@ type ShopReview struct {
 	Review       string             `bson:"review" json:"review"`
 	ReviewAuthor string             `bson:"review_author" json:"reviewAuthor"`
 	Thumbnail    string             `bson:"thumbnail" json:"thumbnail"`
-	Rating       int                `bson:"rating" json:"rating" validate:"required,min=1,max=5"`
 	Status       ShopReviewStatus   `bson:"status" json:"status" validate:"required,oneof=approved pending spam"`
 	Id           primitive.ObjectID `bson:"_id" json:"_id"`
 	UserId       primitive.ObjectID `bson:"user_id" json:"userId"`
 	ShopId       primitive.ObjectID `bson:"shop_id" json:"shopId"`
-}
-
-type ShopRating struct {
-	AverageRating  float64 `bson:"average_rating" json:"averageRating"`
-	ReviewCount    int     `bson:"review_count" json:"reviewCount"`
-	FiveStarCount  int     `bson:"five_star_count" json:"fiveStarCount"`
-	FourStarCount  int     `bson:"four_star_count" json:"fourStarCount"`
-	ThreeStarCount int     `bson:"three_star_count" json:"threeStarCount"`
-	TwoStarCount   int     `bson:"two_star_count" json:"twoStarCount"`
-	OneStarCount   int     `bson:"one_star_count" json:"oneStarCount"`
-}
-
-type ShopReviewRequest struct {
-	Review string `bson:"review" json:"review" validate:"required"`
-	Rating int    `bson:"rating" json:"rating" validate:"required,min=1,max=5"`
 }
 
 type ShopAbout struct {
