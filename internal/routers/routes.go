@@ -224,7 +224,6 @@ func listingRoutes(api *gin.RouterGroup) {
 	reviews := listing.Group("/reviews").Use(auth.Auth())
 	{
 		reviews.POST("/", controllers.CreateListingReview())
-		reviews.DELETE("/", controllers.CreateListingReview())
 		reviews.DELETE("/", controllers.DeleteMyListingReview())
 		reviews.DELETE("/other", controllers.DeleteOtherListingReview())
 	}
