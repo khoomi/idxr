@@ -61,17 +61,6 @@ type Details struct {
 	HomeAndLivingData         *HomeAndLiving         `json:"-" bson:"home_and_living_data,omitempty"`
 }
 
-type Review struct {
-	CreatedAt    time.Time          `bson:"created_at" json:"createdAt"`
-	Review       string             `bson:"review" json:"review"`
-	ReviewAuthor string             `bson:"review_author" json:"reviewAuthor"`
-	Thumbnail    string             `bson:"thumbnail" json:"thumbnail"`
-	Status       ShopReviewStatus   `bson:"status" json:"status" validate:"required,oneof=approved pending spam"`
-	Id           primitive.ObjectID `bson:"_id" json:"_id"`
-	UserId       primitive.ObjectID `bson:"user_id" json:"userId"`
-	ShopId       primitive.ObjectID `bson:"shop_id" json:"shopId"`
-}
-
 type Variation struct {
 	VariationType string `json:"type"`
 	Value         string `json:"value"`

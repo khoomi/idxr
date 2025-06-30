@@ -3,6 +3,7 @@ package models
 import (
 	"fmt"
 	"mime/multipart"
+	"time"
 
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
@@ -44,6 +45,35 @@ type Rating struct {
 type ReviewRequest struct {
 	Review string `bson:"review" json:"review" validate:"required"`
 	Rating int    `bson:"rating" json:"rating" validate:"required,min=1,max=5"`
+}
+
+type ReviewStatus string
+
+const (
+	ReviewStatusApproved ReviewStatus = "approved"
+	ReviewStatusPending  ReviewStatus = "pending"
+	ReviewStatusSpam     ReviewStatus = "spam"
+)
+
+type EmbeddedReview struct {
+	Review       string             `bson:"review" json:"review"`
+	ReviewAuthor string             `bson:"review_author" json:"reviewAuthor"`
+	Thumbnail    string             `bson:"thumbnail" json:"thumbnail"`
+	Rating       int                `bson:"rating" json:"rating" validate:"required,min=1,max=5"`
+	UserId       primitive.ObjectID `bson:"user_id" json:"userId"`
+	DataId       primitive.ObjectID `bson:"shop_id" json:"dataId"`
+}
+
+type Review struct {
+	CreatedAt    time.Time          `bson:"created_at" json:"createdAt"`
+	Review       string             `bson:"review" json:"review"`
+	ReviewAuthor string             `bson:"review_author" json:"reviewAuthor"`
+	Thumbnail    string             `bson:"thumbnail" json:"thumbnail"`
+	Status       ReviewStatus       `bson:"status" json:"status" validate:"required,oneof=approved pending spam"`
+	Rating       int                `bson:"rating" json:"rating" validate:"required,min=1,max=5"`
+	Id           primitive.ObjectID `bson:"_id" json:"_id"`
+	UserId       primitive.ObjectID `bson:"user_id" json:"userId"`
+	DataId       primitive.ObjectID `bson:"data_id" json:"dataId"`
 }
 
 func GenLink(rel, href string) Link {

@@ -29,6 +29,7 @@ var (
 	ShippingProfileCollection          = util.GetCollection(util.DB, "ShopShippingProfile")
 	SellerVerificationCollection       = util.GetCollection(util.DB, "SellerVerification")
 	ListingCollection                  = util.GetCollection(util.DB, "Listing")
+	ListingReviewCollection            = util.GetCollection(util.DB, "ListingReview")
 	SellerPaymentInformationCollection = util.GetCollection(util.DB, "SellerSellerPaymentInformation")
 	UserPaymentCardsTable              = util.GetCollection(util.DB, "UserPaymentCards")
 	UserNotificationCollection         = util.GetCollection(util.DB, "UserNotification")

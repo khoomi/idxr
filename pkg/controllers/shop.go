@@ -99,6 +99,7 @@ func CreateShop() gin.HandlerFunc {
 			}
 			logoUploadUrl = logoUploadResult.SecureURL
 		} else {
+
 			logoUploadUrl = common.DefaultLogo
 			logoUploadResult = uploader.UploadResult{}
 		}
@@ -139,6 +140,16 @@ func CreateShop() gin.HandlerFunc {
 				RefundPolicy:   "",
 				AdditionalInfo: "",
 			}
+
+			shopRating := models.Rating{
+				AverageRating:  0.0,
+				ReviewCount:    0,
+				FiveStarCount:  0,
+				FourStarCount:  0,
+				ThreeStarCount: 0,
+				TwoStarCount:   0,
+				OneStarCount:   0,
+			}
 			shop := models.Shop{
 				ID:                 shopID,
 				Name:               shopName,
@@ -160,8 +171,9 @@ func CreateShop() gin.HandlerFunc {
 				CreatedAt:          now,
 				ModifiedAt:         now,
 				Policy:             policy,
-				RecentReviews:      []models.ShopReview{},
+				RecentReviews:      []models.Review{},
 				ReviewsCount:       0,
+				Rating:             shopRating,
 			}
 			_, err := common.ShopCollection.InsertOne(ctx, shop)
 			if err != nil {
@@ -1217,7 +1229,8 @@ func RemoveOtherFollower() gin.HandlerFunc {
 func CreateShopReview() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-		var shopReviewJson models.ShopReviewRequest
+
+		var shopReviewJson models.ReviewRequest
 		now := time.Now()
 		defer cancel()
 
@@ -1259,21 +1272,20 @@ func CreateShopReview() gin.HandlerFunc {
 			var userProfile models.User
 			err := common.UserCollection.FindOne(ctx, bson.M{"_id": myId}).Decode(&userProfile)
 			if err != nil {
-				log.Println(err)
 				return nil, err
 			}
 
 			// attempt to add review to review collection
-			shopReviewData := models.ShopReview{
+			shopReviewData := models.Review{
 				Id:           reviewId,
 				UserId:       myId,
-				ShopId:       shopId,
+				DataId:       shopId,
 				Review:       shopReviewJson.Review,
-				Rating:       shopReviewJson.Rating,
 				ReviewAuthor: loginName,
 				Thumbnail:    userProfile.Thumbnail,
+				Rating:       shopReviewJson.Rating,
 				CreatedAt:    now,
-				Status:       models.ShopReviewStatusApproved,
+				Status:       models.ReviewStatusApproved,
 			}
 			_, err = common.ShopReviewCollection.InsertOne(ctx, shopReviewData)
 			if err != nil {
@@ -1281,13 +1293,13 @@ func CreateShopReview() gin.HandlerFunc {
 				return nil, err
 			}
 
-			embedded := models.EmbeddedShopReview{
+			embedded := models.EmbeddedReview{
 				UserId:       myId,
-				ShopId:       shopId,
+				DataId:       shopId,
 				Review:       shopReviewJson.Review,
-				Rating:       shopReviewJson.Rating,
 				ReviewAuthor: loginName,
 				Thumbnail:    userProfile.Thumbnail,
+				Rating:       shopReviewJson.Rating,
 			}
 			filter := bson.M{"_id": shopId, "recent_reviews": bson.M{"$not": bson.M{"$elemMatch": bson.M{"user_id": myId}}}}
 			update := bson.M{"$push": bson.M{"recent_reviews": bson.M{"$each": bson.A{embedded}, "$sort": -1, "$slice": -5}}, "$set": bson.M{"modified_at": now}, "$inc": bson.M{"review_counts": 1}}
@@ -1346,7 +1358,7 @@ func GetShopReviews() gin.HandlerFunc {
 		}
 
 		paginationArgs := common.GetPaginationArgs(c)
-		filter := bson.M{"shop_id": shopObjectID}
+		filter := bson.M{"data_id": shopObjectID}
 		find := options.Find().SetLimit(int64(paginationArgs.Limit)).SetSkip(int64(paginationArgs.Skip))
 		result, err := common.ShopReviewCollection.Find(ctx, filter, find)
 		if err != nil {
@@ -1354,7 +1366,7 @@ func GetShopReviews() gin.HandlerFunc {
 			return
 		}
 
-		var shopReviews []models.ShopReview
+		var shopReviews []models.Review
 		if err = result.All(ctx, &shopReviews); err != nil {
 			util.HandleError(c, http.StatusNotFound, err)
 			return
@@ -1994,7 +2006,7 @@ func GetShopComplianceInformation() gin.HandlerFunc {
 // calculateShopRating recalculates the shop's average rating and star distribution
 func calculateShopRating(ctx context.Context, shopId primitive.ObjectID) (models.Rating, error) {
 	pipeline := []bson.M{
-		{"$match": bson.M{"shop_id": shopId, "status": models.ShopReviewStatusApproved}},
+		{"$match": bson.M{"shop_id": shopId, "status": models.ReviewStatusApproved}},
 		{
 			"$group": bson.M{
 				"_id":           nil,
@@ -2035,16 +2047,7 @@ func calculateShopRating(ctx context.Context, shopId primitive.ObjectID) (models
 	}
 	defer cursor.Close(ctx)
 
-	var result struct {
-		AverageRating  float64 `bson:"averageRating"`
-		ReviewCount    int     `bson:"reviewCount"`
-		FiveStarCount  int     `bson:"fiveStarCount"`
-		FourStarCount  int     `bson:"fourStarCount"`
-		ThreeStarCount int     `bson:"threeStarCount"`
-		TwoStarCount   int     `bson:"twoStarCount"`
-		OneStarCount   int     `bson:"oneStarCount"`
-	}
-
+	var result models.Rating
 	if cursor.Next(ctx) {
 		if err := cursor.Decode(&result); err != nil {
 			return models.Rating{}, err
@@ -2052,14 +2055,7 @@ func calculateShopRating(ctx context.Context, shopId primitive.ObjectID) (models
 	}
 
 	averageRating := float64(int(result.AverageRating*100)) / 100
+	result.AverageRating = averageRating
 
-	return models.Rating{
-		AverageRating:  averageRating,
-		ReviewCount:    result.ReviewCount,
-		FiveStarCount:  result.FiveStarCount,
-		FourStarCount:  result.FourStarCount,
-		ThreeStarCount: result.ThreeStarCount,
-		TwoStarCount:   result.TwoStarCount,
-		OneStarCount:   result.OneStarCount,
-	}, nil
+	return result, nil
 }

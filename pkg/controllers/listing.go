@@ -20,7 +20,9 @@ import (
 	"github.com/pkg/errors"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
+	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
+	"go.mongodb.org/mongo-driver/mongo/writeconcern"
 )
 
 func CreateListing() gin.HandlerFunc {
@@ -33,6 +35,14 @@ func CreateListing() gin.HandlerFunc {
 			util.HandleError(c, http.StatusBadRequest, err)
 			return
 		}
+
+		// Verify shop ownership before allowing listing creation
+		err = common.VerifyListingOwnership(ctx, myId, shopId)
+		if err != nil {
+			util.HandleError(c, http.StatusUnauthorized, errors.New("only listing owners can create listings"))
+			return
+		}
+
 		session, err := auth.GetSessionAuto(c)
 		if err != nil {
 			util.HandleError(c, http.StatusUnauthorized, err)
@@ -93,9 +103,16 @@ func CreateListing() gin.HandlerFunc {
 		shippingObj, err := primitive.ObjectIDFromHex(newListing.Details.ShippingProfileId)
 		if err != nil {
 			var shipping models.ShopShippingProfile
-			err := common.ShippingProfileCollection.FindOne(ctx, bson.M{"shop_id": shopId, "is_default_profile": true}).Decode(shipping)
+			err := common.ShippingProfileCollection.FindOne(ctx, bson.M{"shop_id": shopId, "is_default_profile": true}).Decode(&shipping)
 			if err != nil {
-				shippingId = primitive.NilObjectID
+				if err == mongo.ErrNoDocuments {
+					// No default shipping profile found, set to nil
+					shippingId = primitive.NilObjectID
+				} else {
+					// Database error, return early
+					util.HandleError(c, http.StatusInternalServerError, fmt.Errorf("failed to fetch default shipping profile: %v", err))
+					return
+				}
 			} else {
 				shippingId = shipping.ID
 			}
@@ -145,11 +162,14 @@ func CreateListing() gin.HandlerFunc {
 			ModifiedAt: now,
 		}
 
-		listingRating := models.ListingRating{
-			Rating:          0,
-			ReviewCount:     0,
-			PositiveReviews: 0,
-			NegativeReviews: 0,
+		listingRating := models.Rating{
+			AverageRating:  0.0,
+			ReviewCount:    0,
+			FiveStarCount:  0,
+			FourStarCount:  0,
+			ThreeStarCount: 0,
+			TwoStarCount:   0,
+			OneStarCount:   0,
 		}
 
 		listingFinancialInformation := models.FinancialInformation{
@@ -189,25 +209,35 @@ func CreateListing() gin.HandlerFunc {
 
 		res, err := common.ListingCollection.InsertOne(ctx, listing)
 		if err != nil {
-			// delete images
-			_, err := util.DestroyMedia(mainImageUploadUrl.PublicID)
-			for _, file := range uploadedImagesResult {
-				_, err := util.DestroyMedia(file.PublicID)
-				if err != nil {
-					log.Println("Failed to destroy media:", err)
+			// Cleanup uploaded images on listing creation failure
+			if mainImageUploadUrl.PublicID != "" {
+				if _, destroyErr := util.DestroyMedia(mainImageUploadUrl.PublicID); destroyErr != nil {
+					log.Printf("Failed to cleanup main image %s: %v", mainImageUploadUrl.PublicID, destroyErr)
 				}
 			}
-			// return error
-			util.HandleError(c, http.StatusInternalServerError, fmt.Errorf("failed to create listing — %v", err))
+			for _, file := range uploadedImagesResult {
+				if _, destroyErr := util.DestroyMedia(file.PublicID); destroyErr != nil {
+					log.Printf("Failed to cleanup image %s: %v", file.PublicID, destroyErr)
+				}
+			}
+
+			// Return specific error based on MongoDB error type
+			if mongo.IsDuplicateKeyError(err) {
+				util.HandleError(c, http.StatusConflict, errors.New("listing with similar data already exists"))
+			} else {
+				util.HandleError(c, http.StatusInternalServerError, fmt.Errorf("database error while creating listing: %v", err))
+			}
 			return
 		}
 
 		// update shop listing active count
 		filter := bson.M{"_id": shopId}
 		update := bson.M{"$inc": bson.M{"listing_active_count": 1}}
-		_, err = common.ShopCollection.UpdateOne(ctx, filter, update)
+		updateResult, err := common.ShopCollection.UpdateOne(ctx, filter, update)
 		if err != nil {
-			log.Printf("Failed to update shop listing count: %v", err)
+			log.Printf("Failed to update shop listing count for shop %s: %v", shopId.Hex(), err)
+		} else if updateResult.MatchedCount == 0 {
+			log.Printf("Warning: Shop %s not found when updating listing count", shopId.Hex())
 		}
 
 		// send new listing email notification to user
@@ -583,9 +613,9 @@ func HasUserCreatedListingOnboarding() gin.HandlerFunc {
 			return
 		}
 
-		err = common.VerifyShopOwnership(c, userId, shopId)
+		err = common.VerifyListingOwnership(c, userId, shopId)
 		if err != nil {
-			util.HandleError(c, http.StatusUnauthorized, errors.New("Only sellers can perform this action"))
+			util.HandleError(c, http.StatusUnauthorized, errors.New("Only listing owner can perform this action"))
 			return
 		}
 
@@ -692,4 +722,413 @@ func DeactivateListings() gin.HandlerFunc {
 
 		util.HandleSuccess(c, http.StatusOK, "Listing(s) deleted", gin.H{"deactivated": deletedObjectIDs, "not_deactivated": notDeletedObjectIDs})
 	}
+}
+
+// CreateShopReview - api/shops/:shopid/reviews
+func CreateListingReview() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+
+		var listingReviewJson models.ReviewRequest
+		now := time.Now()
+		defer cancel()
+
+		listingId := c.Param("listingid")
+		listingObjectID, e := primitive.ObjectIDFromHex(listingId)
+		if e != nil {
+			util.HandleError(c, http.StatusBadRequest, e)
+			return
+		}
+
+		shopId, myId, err := common.MyShopIdAndMyId(c)
+		if err != nil {
+			util.HandleError(c, http.StatusBadRequest, err)
+			return
+		}
+		session_, err := auth.GetSessionAuto(c)
+		if err != nil {
+			util.HandleError(c, http.StatusBadRequest, err)
+			return
+		}
+		loginName := session_.LoginName
+
+		err = c.BindJSON(&listingReviewJson)
+		if err != nil {
+			util.HandleError(c, http.StatusBadRequest, err)
+			return
+		}
+
+		if validationErr := common.Validate.Struct(&listingReviewJson); validationErr != nil {
+			util.HandleError(c, http.StatusUnprocessableEntity, validationErr)
+			return
+		}
+
+		wc := writeconcern.New(writeconcern.WMajority())
+		txnOptions := options.Transaction().SetWriteConcern(wc)
+
+		session, err := util.DB.StartSession()
+		if err != nil {
+			util.HandleError(c, http.StatusUnprocessableEntity, err)
+			return
+		}
+		defer session.EndSession(ctx)
+
+		reviewId := primitive.NewObjectID()
+		callback := func(ctx mongo.SessionContext) (any, error) {
+			var userProfile models.User
+			err := common.UserCollection.FindOne(ctx, bson.M{"_id": myId}).Decode(&userProfile)
+			if err != nil {
+				return nil, err
+			}
+
+			// attempt to add review to listing review collection
+			shopReviewData := models.Review{
+				Id:           reviewId,
+				UserId:       myId,
+				DataId:       listingObjectID,
+				Review:       listingReviewJson.Review,
+				ReviewAuthor: loginName,
+				Thumbnail:    userProfile.Thumbnail,
+				Rating:       listingReviewJson.Rating,
+				CreatedAt:    now,
+				Status:       models.ReviewStatusApproved,
+			}
+			_, err = common.ShopReviewCollection.InsertOne(ctx, shopReviewData)
+			if err != nil {
+				log.Println(err)
+				return nil, err
+			}
+
+			embedded := models.EmbeddedReview{
+				UserId:       myId,
+				DataId:       listingObjectID,
+				Review:       listingReviewJson.Review,
+				ReviewAuthor: loginName,
+				Thumbnail:    userProfile.Thumbnail,
+				Rating:       listingReviewJson.Rating,
+			}
+			filter := bson.M{"_id": shopId, "recent_reviews": bson.M{"$not": bson.M{"$elemMatch": bson.M{"user_id": myId}}}}
+			update := bson.M{"$push": bson.M{"recent_reviews": bson.M{"$each": bson.A{embedded}, "$sort": -1, "$slice": -5}}, "$set": bson.M{"modified_at": now}, "$inc": bson.M{"review_counts": 1}}
+			result2, err := common.ShopCollection.UpdateOne(ctx, filter, update)
+			if err != nil {
+				return nil, err
+			}
+
+			shopRating, err := calculateListingRating(ctx, shopId)
+			if err != nil {
+				log.Println("Failed to calculate listing rating:", err)
+				return nil, err
+			}
+
+			_, err = common.ListingCollection.UpdateOne(ctx, bson.M{"_id": shopId}, bson.M{"$set": bson.M{"rating": shopRating}})
+			if err != nil {
+				log.Println("Failed to update listing rating:", err)
+				return nil, err
+			}
+
+			return result2, nil
+		}
+
+		_, err = session.WithTransaction(context.Background(), callback, txnOptions)
+		if err != nil {
+			util.HandleError(c, http.StatusBadRequest, err)
+			return
+		}
+		if err := session.CommitTransaction(context.Background()); err != nil {
+			util.HandleError(c, http.StatusInternalServerError, err)
+			return
+		}
+		session.EndSession(context.Background())
+
+		util.HandleSuccess(c, http.StatusOK, "Shop creation successfuls", reviewId.Hex())
+	}
+}
+
+// GetShopReviews - api/listing/:listingid/reviews?limit=50&skip=0
+func GetListingReviews() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+
+		listingId := c.Param("listingid")
+		listingObjectID, err := primitive.ObjectIDFromHex(listingId)
+		if err != nil {
+			util.HandleError(c, http.StatusBadRequest, err)
+			return
+		}
+
+		paginationArgs := common.GetPaginationArgs(c)
+		filter := bson.M{"data_id": listingObjectID}
+		find := options.Find().SetLimit(int64(paginationArgs.Limit)).SetSkip(int64(paginationArgs.Skip))
+		result, err := common.ListingReviewCollection.Find(ctx, filter, find)
+		if err != nil {
+			util.HandleError(c, http.StatusNotFound, err)
+			return
+		}
+
+		var reviews []models.Review
+		if err = result.All(ctx, &reviews); err != nil {
+			util.HandleError(c, http.StatusNotFound, err)
+			return
+		}
+
+		count, err := common.ListingReviewCollection.CountDocuments(ctx, bson.M{"listing_id": listingObjectID})
+		if err != nil {
+			util.HandleError(c, http.StatusInternalServerError, err)
+			return
+		}
+
+		util.HandleSuccessMeta(c, http.StatusOK, "success", reviews, gin.H{
+			"pagination": util.Pagination{
+				Limit: paginationArgs.Limit,
+				Skip:  paginationArgs.Skip,
+				Count: count,
+			},
+		})
+	}
+}
+
+// DeleteMyReview - api/listing/:listingid/reviews
+func DeleteMyListingReview() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+
+		shopId, myId, err := common.MyShopIdAndMyId(c)
+		if err != nil {
+			util.HandleError(c, http.StatusBadRequest, err)
+			return
+		}
+
+		listingId := c.Param("listingid")
+		listingObjectID, err := primitive.ObjectIDFromHex(listingId)
+		if err != nil {
+			util.HandleError(c, http.StatusBadRequest, err)
+			return
+		}
+
+		// Shop Member session
+		wc := writeconcern.New(writeconcern.WMajority())
+		txnOptions := options.Transaction().SetWriteConcern(wc)
+
+		session, err := util.DB.StartSession()
+		if err != nil {
+			util.HandleError(c, http.StatusInternalServerError, fmt.Errorf("failed to start session: %v", err))
+			return
+		}
+		defer session.EndSession(ctx)
+
+		var deletedReviewId any
+		callback := func(ctx mongo.SessionContext) (any, error) {
+			// Attempt to remove review from review collection table
+			filter := bson.M{"data_id": listingObjectID, "user_id": myId}
+			_, err := common.ListingReviewCollection.DeleteOne(ctx, filter)
+			if err != nil {
+				return nil, err
+			}
+
+			// Attempt to remove member from embedded field in shop
+			filter = bson.M{"_id": shopId}
+			update := bson.M{"$pull": bson.M{"recent_reviews": bson.M{"user_id": myId}}, "$inc": bson.M{"review_counts": -1}}
+			result2, err := common.ListingCollection.UpdateOne(ctx, filter, update)
+			if err != nil {
+				return nil, err
+			}
+
+			if result2.ModifiedCount == 0 {
+				return nil, errors.New("no matching documents found")
+			}
+
+			// attempt updating user reviewCount fields.
+			_, err = common.ListingCollection.UpdateOne(ctx, bson.M{"_id": myId}, bson.M{"$inc": bson.M{"review_count": -1}})
+			if err != nil {
+				log.Println("Failed to update review count:", err)
+				return nil, err
+			}
+
+			// recalculate and update shop rating
+			shopRating, err := calculateShopRating(ctx, shopId)
+			if err != nil {
+				log.Println("Failed to calculate listing rating:", err)
+				return nil, err
+			}
+
+			// update listing with new rating
+			_, err = common.ListingCollection.UpdateOne(ctx, bson.M{"_id": shopId}, bson.M{"$set": bson.M{"rating": shopRating}})
+			if err != nil {
+				log.Println("Failed to update shop rating:", err)
+				return nil, err
+			}
+
+			deletedReviewId = result2.UpsertedID
+			return result2, nil
+		}
+
+		_, err = session.WithTransaction(context.Background(), callback, txnOptions)
+		if err != nil {
+			util.HandleError(c, http.StatusBadRequest, err)
+			return
+		}
+		if err := session.CommitTransaction(context.Background()); err != nil {
+			util.HandleError(c, http.StatusInternalServerError, err)
+			return
+		}
+		session.EndSession(context.Background())
+
+		util.HandleSuccess(c, http.StatusOK, "My review was deleted successfully", deletedReviewId)
+	}
+}
+
+// DeleteOtherReview - api/listing/:listingid/reviews/other?userid={user_id to remove}
+func DeleteOtherListingReview() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+
+		userToBeRemoved := c.Query("userid")
+		userToBeRemovedId, err := primitive.ObjectIDFromHex(userToBeRemoved)
+		if err != nil {
+			util.HandleError(c, http.StatusBadRequest, err)
+			return
+		}
+
+		shopId, myId, err := common.MyShopIdAndMyId(c)
+		if err != nil {
+			util.HandleError(c, http.StatusBadRequest, err)
+			return
+		}
+
+		listingId := c.Param("listingid")
+		listingObjectID, e := primitive.ObjectIDFromHex(listingId)
+		if e != nil {
+			util.HandleError(c, http.StatusBadRequest, e)
+			return
+		}
+
+		err = common.VerifyListingOwnership(c, myId, listingObjectID)
+		if err != nil {
+			log.Printf("You don't have write access to this listing: %v", err.Error())
+			util.HandleError(c, http.StatusUnauthorized, err)
+			return
+		}
+
+		var deletedReviewId any
+		// Shop review session
+		wc := writeconcern.New(writeconcern.WMajority())
+		txnOptions := options.Transaction().SetWriteConcern(wc)
+		session, err := util.DB.StartSession()
+		if err != nil {
+			util.HandleError(c, http.StatusInternalServerError, fmt.Errorf("failed to start session: %v", err))
+			return
+		}
+		defer session.EndSession(ctx)
+
+		callback := func(ctx mongo.SessionContext) (any, error) {
+			// Attempt to remove review from review collection table
+			filter := bson.M{"data_id": listingObjectID, "user_id": userToBeRemovedId}
+			_, err = common.ListingReviewCollection.DeleteOne(ctx, filter)
+			if err != nil {
+				return nil, err
+			}
+
+			// Attempt to remove review from recent review field in shop
+			filter = bson.M{"_id": shopId}
+			update := bson.M{"$pull": bson.M{"recent_reviews": bson.M{"user_id": userToBeRemovedId}}}
+			result2, err := common.ShopCollection.UpdateOne(ctx, filter, update)
+			if err != nil {
+				return nil, err
+			}
+
+			if result2.ModifiedCount == 0 {
+				return nil, errors.New("no matching documents found")
+			}
+
+			// recalculate and update shop rating
+			shopRating, err := calculateShopRating(ctx, shopId)
+			if err != nil {
+				log.Println("Failed to calculate shop rating:", err)
+				return nil, err
+			}
+
+			// update shop with new rating
+			_, err = common.ListingCollection.UpdateOne(ctx, bson.M{"_id": shopId}, bson.M{"$set": bson.M{"rating": shopRating}})
+			if err != nil {
+				log.Println("Failed to update shop rating:", err)
+				return nil, err
+			}
+
+			deletedReviewId = result2.UpsertedID
+			return result2, nil
+		}
+
+		_, err = session.WithTransaction(context.Background(), callback, txnOptions)
+		if err != nil {
+			util.HandleError(c, http.StatusNotFound, err)
+			return
+		}
+		if err := session.CommitTransaction(context.Background()); err != nil {
+			util.HandleError(c, http.StatusInternalServerError, err)
+			return
+		}
+		session.EndSession(context.Background())
+
+		util.HandleSuccess(c, http.StatusOK, "Other user review deleted successfully", deletedReviewId)
+	}
+}
+
+// calculateListingRating recalculates the listing's average rating and star distribution
+func calculateListingRating(ctx context.Context, listingId primitive.ObjectID) (models.Rating, error) {
+	pipeline := []bson.M{
+		{"$match": bson.M{"data_id": listingId, "status": models.ReviewStatusApproved}},
+		{
+			"$group": bson.M{
+				"_id":           nil,
+				"averageRating": bson.M{"$avg": "$rating"},
+				"reviewCount":   bson.M{"$sum": 1},
+				"fiveStarCount": bson.M{
+					"$sum": bson.M{
+						"$cond": bson.A{bson.M{"$eq": bson.A{"$rating", 5}}, 1, 0},
+					},
+				},
+				"fourStarCount": bson.M{
+					"$sum": bson.M{
+						"$cond": bson.A{bson.M{"$eq": bson.A{"$rating", 4}}, 1, 0},
+					},
+				},
+				"threeStarCount": bson.M{
+					"$sum": bson.M{
+						"$cond": bson.A{bson.M{"$eq": bson.A{"$rating", 3}}, 1, 0},
+					},
+				},
+				"twoStarCount": bson.M{
+					"$sum": bson.M{
+						"$cond": bson.A{bson.M{"$eq": bson.A{"$rating", 2}}, 1, 0},
+					},
+				},
+				"oneStarCount": bson.M{
+					"$sum": bson.M{
+						"$cond": bson.A{bson.M{"$eq": bson.A{"$rating", 1}}, 1, 0},
+					},
+				},
+			},
+		},
+	}
+
+	cursor, err := common.ListingReviewCollection.Aggregate(ctx, pipeline)
+	if err != nil {
+		return models.Rating{}, err
+	}
+	defer cursor.Close(ctx)
+
+	var result models.Rating
+	if cursor.Next(ctx) {
+		if err := cursor.Decode(&result); err != nil {
+			return models.Rating{}, err
+		}
+	}
+
+	averageRating := float64(int(result.AverageRating*100)) / 100
+	result.AverageRating = averageRating
+
+	return result, nil
 }

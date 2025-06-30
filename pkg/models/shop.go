@@ -22,7 +22,7 @@ type Shop struct {
 	Slug                   string               `bson:"slug" json:"slug" validate:"required"`
 	LogoURL                string               `bson:"logo_url" json:"logoUrl"`
 	Username               string               `bson:"username" json:"username" validate:"required"`
-	RecentReviews          []ShopReview         `bson:"recent_reviews" json:"recentReviews"`
+	RecentReviews          []Review             `bson:"recent_reviews" json:"recentReviews"`
 	Categories             []ShopCategory       `bson:"-" json:"categories"`
 	Followers              []ShopFollower       `bson:"followers" json:"followers"`
 	Links                  []Link               `bson:"-" json:"links"`
@@ -110,33 +110,6 @@ type ShopAnnouncementRequest struct {
 type ShopVacationRequest struct {
 	Message    string `bson:"message" json:"message"`
 	IsVacation bool   `bson:"is_vacation" json:"isVacation"`
-}
-
-type ShopReviewStatus string
-
-const (
-	ShopReviewStatusApproved ShopReviewStatus = "approved"
-	ShopReviewStatusPending  ShopReviewStatus = "pending"
-	ShopReviewStatusSpam     ShopReviewStatus = "spam"
-)
-
-type EmbeddedShopReview struct {
-	Review       string             `bson:"review" json:"review"`
-	ReviewAuthor string             `bson:"review_author" json:"reviewAuthor"`
-	Thumbnail    string             `bson:"thumbnail" json:"thumbnail"`
-	UserId       primitive.ObjectID `bson:"user_id" json:"userId"`
-	ShopId       primitive.ObjectID `bson:"shop_id" json:"shopId"`
-}
-
-type ShopReview struct {
-	CreatedAt    time.Time          `bson:"created_at" json:"createdAt"`
-	Review       string             `bson:"review" json:"review"`
-	ReviewAuthor string             `bson:"review_author" json:"reviewAuthor"`
-	Thumbnail    string             `bson:"thumbnail" json:"thumbnail"`
-	Status       ShopReviewStatus   `bson:"status" json:"status" validate:"required,oneof=approved pending spam"`
-	Id           primitive.ObjectID `bson:"_id" json:"_id"`
-	UserId       primitive.ObjectID `bson:"user_id" json:"userId"`
-	ShopId       primitive.ObjectID `bson:"shop_id" json:"shopId"`
 }
 
 type ShopAbout struct {
