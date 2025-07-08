@@ -38,7 +38,7 @@ func (s UserSession) Expired() bool {
 
 // Set new user login session
 func SetSession(ctx *gin.Context, userId primitive.ObjectID, email, loginName string) (string, error) {
-	fmt.Println("setting cookie")
+	log.Println("setting cookie")
 	key := GenerateSecureToken(20)
 	ttl := time.Hour * (24 * 7)
 	sessExpTime := time.Now().Add(ttl)
@@ -52,7 +52,7 @@ func SetSession(ctx *gin.Context, userId primitive.ObjectID, email, loginName st
 	domain := getDomainFromRequest(ctx)
 	secure := isHTTPS(ctx)
 
-	fmt.Println(domain, secure)
+	log.Println(domain, secure)
 
 	ctx.SetCookie(SESSION_NAME, key, int(ttl.Seconds()), "/", domain, secure, true)
 	return key, util.REDIS.Set(ctx, key, value, ttl).Err()
@@ -71,7 +71,6 @@ func getDomainFromRequest(ctx *gin.Context) string {
 	}
 
 	// For production domains (khoomi.com, api.khoomi.com, etc.)
-	// Extract the main domain for cookie sharing across subdomains
 	parts := strings.Split(host, ".")
 	if len(parts) >= 2 {
 		return "." + strings.Join(parts[len(parts)-2:], ".")
