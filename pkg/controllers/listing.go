@@ -607,15 +607,9 @@ func HasUserCreatedListingOnboarding() gin.HandlerFunc {
 		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
 		defer cancel()
 
-		shopId, userId, err := common.MyShopIdAndMyId(c)
+		_, userId, err := common.MyShopIdAndMyId(c)
 		if err != nil {
 			util.HandleError(c, http.StatusBadRequest, err)
-			return
-		}
-
-		err = common.VerifyListingOwnership(c, userId, shopId)
-		if err != nil {
-			util.HandleError(c, http.StatusUnauthorized, errors.New("Only listing owner can perform this action"))
 			return
 		}
 
