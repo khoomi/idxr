@@ -232,6 +232,7 @@ func listingRoutes(api *gin.RouterGroup) {
 	{
 		secured.DELETE("/", controllers.DeleteListings())
 		secured.PUT("/deactivate", controllers.DeactivateListings())
+		secured.GET("/favorite", controllers.IsListingFavorited())
 		secured.POST("/favorite", controllers.ToggleFavoriteListing())
 	}
 }

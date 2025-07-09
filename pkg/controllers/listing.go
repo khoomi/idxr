@@ -1070,14 +1070,14 @@ func DeleteOtherListingReview() gin.HandlerFunc {
 	}
 }
 
-// AddRemoveFavoriteShop - update user single field like Phone, Bio
-// api/user/update?shopid=phone&value=8084051523
+// ToggleFavoriteListing
 func ToggleFavoriteListing() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
 		defer cancel()
 
-		listingIdStr := c.Query("listingid")
+		listingIdStr := c.Param("listingid")
+		fmt.Println(listingIdStr)
 		listingId, err := primitive.ObjectIDFromHex(listingIdStr)
 		if err != nil {
 			util.HandleError(c, http.StatusBadRequest, err)
@@ -1103,20 +1103,21 @@ func ToggleFavoriteListing() gin.HandlerFunc {
 		callback := func(ctx mongo.SessionContext) (any, error) {
 			filter := bson.M{"_id": myObjectId}
 			// update user favorite listings field
-			if action == "add" {
-				update := bson.M{"$push": bson.M{"favorite_listings": listingId}}
+			switch action {
+			case "add":
+				update := bson.M{"$push": bson.M{"favorite_listings": listingIdStr}}
 				_, err := common.UserCollection.UpdateOne(ctx, filter, update)
 				if err != nil {
 					return nil, err
 				}
-			}
-
-			if action == "remove" {
-				update := bson.M{"$pull": bson.M{"favorite_listings": listingId}}
+			case "remove":
+				update := bson.M{"$pull": bson.M{"favorite_listings": listingIdStr}}
 				_, err := common.UserCollection.UpdateOne(ctx, filter, update)
 				if err != nil {
 					return nil, err
 				}
+			default:
+				return nil, errors.New("action query is missing from url")
 			}
 
 			result, err := common.UserFavoriteListingCollection.InsertOne(ctx, bson.M{"listingId": listingId, "userId": myObjectId})
@@ -1139,6 +1140,36 @@ func ToggleFavoriteListing() gin.HandlerFunc {
 		session.EndSession(context.Background())
 
 		util.HandleSuccess(c, http.StatusOK, "Favorite listings updated!", gin.H{})
+
+	}
+}
+
+// IsListingFavorited
+func IsListingFavorited() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
+		defer cancel()
+		listingIdStr := c.Param("listingid")
+		listingId, err := primitive.ObjectIDFromHex(listingIdStr)
+		if err != nil {
+			util.HandleError(c, http.StatusBadRequest, err)
+			return
+		}
+
+		myObjectId, err := auth.GetSessionUserID(c)
+		if err != nil {
+			util.HandleError(c, http.StatusBadRequest, err)
+			return
+		}
+
+		filter := bson.M{"userId": myObjectId, "listingId": listingId}
+		mongoErr := common.UserFavoriteListingCollection.FindOne(ctx, filter)
+		if mongoErr != nil {
+			util.HandleError(c, http.StatusNotFound, err)
+			return
+		}
+
+		util.HandleSuccess(c, http.StatusOK, "found one match", gin.H{"favorite": true})
 
 	}
 }
