@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"strings"
 	"time"
 
 	auth "khoomi-api-io/api/internal/auth"
@@ -1089,7 +1088,7 @@ func ToggleFavoriteListing() gin.HandlerFunc {
 
 		myObjectId, err := auth.GetSessionUserID(c)
 		if err != nil {
-			util.HandleError(c, http.StatusBadRequest, err)
+			util.HandleError(c, http.StatusUnauthorized, err)
 			return
 		}
 
@@ -1165,13 +1164,8 @@ func IsListingFavorited() gin.HandlerFunc {
 
 		filter := bson.M{"userId": myObjectId, "listingId": listingId}
 		result := common.UserFavoriteListingCollection.FindOne(ctx, filter)
-		if strings.Contains(result.Err().Error(), "no documents") {
-			util.HandleSuccess(c, http.StatusOK, "not found", gin.H{"favorited": false})
-			return
-		}
-
 		if result.Err() != nil {
-			util.HandleError(c, http.StatusNotFound, result.Err())
+			util.HandleSuccess(c, http.StatusOK, "not found", gin.H{"favorited": false})
 			return
 		}
 
