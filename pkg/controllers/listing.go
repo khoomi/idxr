@@ -1110,22 +1110,29 @@ func ToggleFavoriteListing() gin.HandlerFunc {
 				if err != nil {
 					return nil, err
 				}
+
+				result, err := common.UserFavoriteListingCollection.InsertOne(ctx, bson.M{"listingId": listingId, "userId": myObjectId})
+				if err != nil {
+					return nil, err
+				}
+				return result, nil
 			case "remove":
 				update := bson.M{"$pull": bson.M{"favorite_listings": listingIdStr}}
 				_, err := common.UserCollection.UpdateOne(ctx, filter, update)
 				if err != nil {
 					return nil, err
 				}
+
+				result, err := common.UserFavoriteListingCollection.DeleteOne(ctx, bson.M{"listingId": listingId, "userId": myObjectId})
+				if err != nil {
+					return nil, err
+				}
+				return result, nil
+
 			default:
 				return nil, errors.New("action query is missing from url")
 			}
 
-			result, err := common.UserFavoriteListingCollection.InsertOne(ctx, bson.M{"listingId": listingId, "userId": myObjectId})
-			if err != nil {
-				return nil, err
-			}
-
-			return result, nil
 		}
 
 		_, err = session.WithTransaction(ctx, callback, txnOptions)
