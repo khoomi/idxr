@@ -76,3 +76,17 @@ func ValidateUserID(c *gin.Context) (primitive.ObjectID, error) {
 
 	return res, nil
 }
+
+func GetSessionUserID(c *gin.Context) (primitive.ObjectID, error) {
+	key, err := ExtractSessionKey(c)
+	if err != nil {
+		return primitive.NilObjectID, err
+	}
+
+	session, err := GetSession(c, key)
+	if err != nil {
+		return primitive.NilObjectID, err
+	}
+
+	return session.UserId, nil
+}

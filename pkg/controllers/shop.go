@@ -1130,7 +1130,7 @@ func UnfollowShop() gin.HandlerFunc {
 			return result2, nil
 		}
 
-		_, err = session.WithTransaction(context.Background(), callback, txnOptions)
+		_, err = session.WithTransaction(ctx, callback, txnOptions)
 		if err != nil {
 			util.HandleError(c, http.StatusBadRequest, err)
 			return

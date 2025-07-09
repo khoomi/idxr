@@ -228,10 +228,11 @@ func listingRoutes(api *gin.RouterGroup) {
 		reviews.DELETE("/other", controllers.DeleteOtherListingReview())
 	}
 	// Secured endpoints that require authentication
-	secured := listing.Group("").Use(auth.Auth())
+	secured := listing.Group("/:listingid").Use(auth.Auth())
 	{
 		secured.DELETE("/", controllers.DeleteListings())
 		secured.PUT("/deactivate", controllers.DeactivateListings())
+		secured.POST("/favorite", controllers.ToggleFavoriteListing())
 	}
 }
 

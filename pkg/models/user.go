@@ -24,6 +24,7 @@ type User struct {
 	ReferredByUser           string             `bson:"referred_by_user" json:"referredByUser"`
 	Role                     UserRole           `bson:"role" json:"role"`
 	FavoriteShops            []string           `bson:"favorite_shops" json:"favoriteShops"`
+	FavoriteListings         []string           `bson:"favorite_listings" json:"favoriteListings"`
 	Links                    []Link             `bson:"-" json:"links"`
 	Birthdate                UserBirthdate      `bson:"birthdate" json:"birthdate"`
 	TransactionSoldCount     int                `bson:"transaction_sold_count" json:"transactionSoldCount"`

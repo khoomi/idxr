@@ -33,6 +33,7 @@ var (
 	SellerPaymentInformationCollection = util.GetCollection(util.DB, "SellerSellerPaymentInformation")
 	UserPaymentCardsTable              = util.GetCollection(util.DB, "UserPaymentCards")
 	UserNotificationCollection         = util.GetCollection(util.DB, "UserNotification")
+	UserFavoriteListingCollection      = util.GetCollection(util.DB, "UserFavoriteListing")
 	Validate                           = validator.New()
 	DefaultUserThumbnail               = "https://res.cloudinary.com/kh-oo-mi/image/upload/v1705607383/khoomi/xp78ywxq8ggvo6muf4ry.png"
 	DefaultThumbnail                   = "https://res.cloudinary.com/kh-oo-mi/image/upload/v1705607175/khoomi/mypvl86lihcqvkcqmvbg.jpg"

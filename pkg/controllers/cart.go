@@ -74,6 +74,7 @@ func SaveCartItem() gin.HandlerFunc {
 		totalPrice := float64(cartReq.Quantity) * unitPrice
 
 		cartDoc := models.CartItem{
+			Id:              primitive.NewObjectID(),
 			UserId:          myId,
 			ListingId:       cartReq.ListingId,
 			ShopId:          cartReq.ShopId,

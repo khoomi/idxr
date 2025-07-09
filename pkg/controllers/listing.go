@@ -1070,6 +1070,79 @@ func DeleteOtherListingReview() gin.HandlerFunc {
 	}
 }
 
+// AddRemoveFavoriteShop - update user single field like Phone, Bio
+// api/user/update?shopid=phone&value=8084051523
+func ToggleFavoriteListing() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
+		defer cancel()
+
+		listingIdStr := c.Query("listingid")
+		listingId, err := primitive.ObjectIDFromHex(listingIdStr)
+		if err != nil {
+			util.HandleError(c, http.StatusBadRequest, err)
+			return
+		}
+
+		action := c.Query("action")
+
+		myObjectId, err := auth.GetSessionUserID(c)
+		if err != nil {
+			util.HandleError(c, http.StatusBadRequest, err)
+			return
+		}
+
+		// Favorite listing session.
+		wc := writeconcern.New(writeconcern.WMajority())
+		txnOptions := options.Transaction().SetWriteConcern(wc)
+		session, err := util.DB.StartSession()
+		if err != nil {
+			util.HandleError(c, http.StatusInternalServerError, fmt.Errorf("failed to start session: %v", err))
+			return
+		}
+		callback := func(ctx mongo.SessionContext) (any, error) {
+			filter := bson.M{"_id": myObjectId}
+			// update user favorite listings field
+			if action == "add" {
+				update := bson.M{"$push": bson.M{"favorite_listings": listingId}}
+				_, err := common.UserCollection.UpdateOne(ctx, filter, update)
+				if err != nil {
+					return nil, err
+				}
+			}
+
+			if action == "remove" {
+				update := bson.M{"$pull": bson.M{"favorite_listings": listingId}}
+				_, err := common.UserCollection.UpdateOne(ctx, filter, update)
+				if err != nil {
+					return nil, err
+				}
+			}
+
+			result, err := common.UserFavoriteListingCollection.InsertOne(ctx, bson.M{"listingId": listingId, "userId": myObjectId})
+			if err != nil {
+				return nil, err
+			}
+
+			return result, nil
+		}
+
+		_, err = session.WithTransaction(ctx, callback, txnOptions)
+		if err != nil {
+			util.HandleError(c, http.StatusNotFound, err)
+			return
+		}
+		if err := session.CommitTransaction(context.Background()); err != nil {
+			util.HandleError(c, http.StatusInternalServerError, err)
+			return
+		}
+		session.EndSession(context.Background())
+
+		util.HandleSuccess(c, http.StatusOK, "Favorite listings updated!", gin.H{})
+
+	}
+}
+
 // calculateListingRating recalculates the listing's average rating and star distribution
 func calculateListingRating(ctx context.Context, listingId primitive.ObjectID) (models.Rating, error) {
 	pipeline := []bson.M{
