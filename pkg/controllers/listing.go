@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strings"
 	"time"
 
 	auth "khoomi-api-io/api/internal/auth"
@@ -1163,13 +1164,18 @@ func IsListingFavorited() gin.HandlerFunc {
 		}
 
 		filter := bson.M{"userId": myObjectId, "listingId": listingId}
-		mongoErr := common.UserFavoriteListingCollection.FindOne(ctx, filter)
-		if mongoErr != nil {
-			util.HandleError(c, http.StatusNotFound, err)
+		result := common.UserFavoriteListingCollection.FindOne(ctx, filter)
+		if strings.Contains(result.Err().Error(), "no documents") {
+			util.HandleSuccess(c, http.StatusOK, "not found", gin.H{"favorited": false})
 			return
 		}
 
-		util.HandleSuccess(c, http.StatusOK, "found one match", gin.H{"favorite": true})
+		if result.Err() != nil {
+			util.HandleError(c, http.StatusNotFound, result.Err())
+			return
+		}
+
+		util.HandleSuccess(c, http.StatusOK, "found one match", gin.H{"favorited": true})
 
 	}
 }
