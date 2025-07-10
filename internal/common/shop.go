@@ -3,7 +3,7 @@ package common
 import (
 	"context"
 	"errors"
-	"fmt"
+	"log"
 	"net/http"
 
 	auth "khoomi-api-io/api/internal/auth"
@@ -46,11 +46,11 @@ func VerifyListingOwnership(ctx context.Context, userId, listingId primitive.Obj
 	}
 	return nil
 }
+
 func MyShopIdAndMyId(c *gin.Context) (primitive.ObjectID, primitive.ObjectID, error) {
 	nilObjectId := primitive.NilObjectID
 
 	shopId := c.Param("shopid")
-	fmt.Println(shopId)
 	shopOBjectID, err := primitive.ObjectIDFromHex(shopId)
 	if err != nil {
 		return nilObjectId, nilObjectId, err
@@ -63,4 +63,23 @@ func MyShopIdAndMyId(c *gin.Context) (primitive.ObjectID, primitive.ObjectID, er
 	}
 
 	return shopOBjectID, session.UserId, nil
+}
+
+func ListingIdAndMyId(c *gin.Context) (primitive.ObjectID, primitive.ObjectID, error) {
+	nilObjectId := primitive.NilObjectID
+
+	listingIdStr := c.Param("listingid")
+	listingId, err := primitive.ObjectIDFromHex(listingIdStr)
+	if err != nil {
+		return nilObjectId, nilObjectId, err
+	}
+	log.Println(listingId)
+
+	session, err := auth.GetSessionAuto(c)
+	if err != nil {
+		util.HandleError(c, http.StatusUnauthorized, err)
+		return nilObjectId, nilObjectId, err
+	}
+
+	return listingId, session.UserId, nil
 }

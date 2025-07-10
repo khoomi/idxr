@@ -25,7 +25,7 @@ type UserSession struct {
 	RefreshToken string             `bson:"refreshToken" json:"refreshToken"`
 	UserAgent    string             `bson:"useragent" json:"userAgent"`
 	UserIP       string             `bson:"userip" json:"userip"`
-	ExpiresAt    primitive.DateTime `bson:"expires_at" json:"expiresAt"`
+	ExpiresAt    time.Time          `bson:"expires_at" json:"expiresAt"`
 	ID           primitive.ObjectID `bson:"_id" json:"_id"`
 	UserID       primitive.ObjectID `bson:"user_id" json:"userId"`
 	IsBlocked    bool               `bson:"is_blocked" json:"isBlocked"`
@@ -33,18 +33,19 @@ type UserSession struct {
 }
 
 type Rating struct {
-	AverageRating  float64 `bson:"average_rating" json:"averageRating"`
-	ReviewCount    int     `bson:"review_count" json:"reviewCount"`
-	FiveStarCount  int     `bson:"five_star_count" json:"fiveStarCount"`
-	FourStarCount  int     `bson:"four_star_count" json:"fourStarCount"`
-	ThreeStarCount int     `bson:"three_star_count" json:"threeStarCount"`
-	TwoStarCount   int     `bson:"two_star_count" json:"twoStarCount"`
-	OneStarCount   int     `bson:"one_star_count" json:"oneStarCount"`
+	AverageRating  float64 `bson:"averageRating" json:"averageRating"`
+	ReviewCount    int     `bson:"reviewCount" json:"reviewCount"`
+	FiveStarCount  int     `bson:"fiveStarCount" json:"fiveStarCount"`
+	FourStarCount  int     `bson:"fourStarCount" json:"fourStarCount"`
+	ThreeStarCount int     `bson:"threeStarCount" json:"threeStarCount"`
+	TwoStarCount   int     `bson:"twoStarCount" json:"twoStarCount"`
+	OneStarCount   int     `bson:"oneStarCount" json:"oneStarCount"`
 }
 
 type ReviewRequest struct {
-	Review string `bson:"review" json:"review" validate:"required"`
-	Rating int    `bson:"rating" json:"rating" validate:"required,min=1,max=5"`
+	Review string             `json:"review" validate:"required"`
+	Rating int                `json:"rating" validate:"required,min=1,max=5"`
+	ShopId primitive.ObjectID `json:"shopId" validate:"required"`
 }
 
 type ReviewStatus string
@@ -54,16 +55,6 @@ const (
 	ReviewStatusPending  ReviewStatus = "pending"
 	ReviewStatusSpam     ReviewStatus = "spam"
 )
-
-type EmbeddedReview struct {
-	Id           primitive.ObjectID `json:"Id"`
-	Review       string             `json:"review"`
-	ReviewAuthor string             `json:"reviewAuthor"`
-	Thumbnail    string             `json:"thumbnail"`
-	Rating       int                `json:"rating"`
-	UserId       primitive.ObjectID `json:"userId"`
-	DataId       primitive.ObjectID `json:"dataId"`
-}
 
 type ListingReview struct {
 	CreatedAt    time.Time          `bson:"created_at" json:"createdAt"`
@@ -75,6 +66,7 @@ type ListingReview struct {
 	Id           primitive.ObjectID `bson:"_id" json:"_id"`
 	UserId       primitive.ObjectID `bson:"user_id" json:"userId"`
 	ListingId    primitive.ObjectID `bson:"listing_id" json:"listingId"`
+	ShopId       primitive.ObjectID `bson:"shop_id" json:"shopId"`
 }
 
 type ShopReview struct {

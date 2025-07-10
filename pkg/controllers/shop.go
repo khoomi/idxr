@@ -171,7 +171,6 @@ func CreateShop() gin.HandlerFunc {
 				CreatedAt:          now,
 				ModifiedAt:         now,
 				Policy:             policy,
-				RecentReviews:      []models.ShopReview{},
 				ReviewsCount:       0,
 				Rating:             shopRating,
 			}
@@ -1293,22 +1292,6 @@ func CreateShopReview() gin.HandlerFunc {
 				return nil, err
 			}
 
-			embedded := models.EmbeddedReview{
-				Id:           reviewId,
-				UserId:       myId,
-				DataId:       shopId,
-				Review:       shopReviewJson.Review,
-				ReviewAuthor: loginName,
-				Thumbnail:    userProfile.Thumbnail,
-				Rating:       shopReviewJson.Rating,
-			}
-			filter := bson.M{"_id": shopId, "recent_reviews": bson.M{"$not": bson.M{"$elemMatch": bson.M{"user_id": myId}}}}
-			update := bson.M{"$push": bson.M{"recent_reviews": bson.M{"$each": bson.A{embedded}, "$sort": -1, "$slice": -5}}, "$set": bson.M{"modified_at": now}, "$inc": bson.M{"review_counts": 1}}
-			result2, err := common.ShopCollection.UpdateOne(ctx, filter, update)
-			if err != nil {
-				return nil, err
-			}
-
 			// _, err = common.UserCollection.UpdateOne(ctx, bson.M{"_id": myId}, bson.M{"$inc": bson.M{"review_count": 1}})
 			// if err != nil {
 			// 	log.Println("Failed to update review count:", err)
@@ -1321,13 +1304,13 @@ func CreateShopReview() gin.HandlerFunc {
 				return nil, err
 			}
 
-			_, err = common.ShopCollection.UpdateOne(ctx, bson.M{"_id": shopId}, bson.M{"$set": bson.M{"rating": shopRating}})
+			result, err := common.ShopCollection.UpdateOne(ctx, bson.M{"_id": shopId}, bson.M{"$set": bson.M{"rating": shopRating}})
 			if err != nil {
 				log.Println("Failed to update shop rating:", err)
 				return nil, err
 			}
 
-			return result2, nil
+			return result, nil
 		}
 
 		_, err = session.WithTransaction(context.Background(), callback, txnOptions)

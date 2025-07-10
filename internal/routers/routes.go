@@ -218,14 +218,14 @@ func listingRoutes(api *gin.RouterGroup) {
 	listing.GET("/", controllers.GetListings())
 	// Get single listing by listingid -> /api/listings/{listingId}
 	listing.GET("/:listingid", controllers.GetListing())
+	listing.GET("/:listingid/reviews", controllers.GetListingReviews())
 
 	// Secured endpoints for managing listing reviews
-	listing.GET("/reviews", controllers.GetListingReviews())
-	reviews := listing.Group("/reviews").Use(auth.Auth())
+	reviews := listing.Group("/:listingid/reviews").Use(auth.Auth())
 	{
 		reviews.POST("/", controllers.CreateListingReview())
 		reviews.DELETE("/", controllers.DeleteMyListingReview())
-		reviews.DELETE("/other", controllers.DeleteOtherListingReview())
+		reviews.DELETE("/:reviewid", controllers.DeleteOtherListingReview())
 	}
 	// Secured endpoints that require authentication
 	secured := listing.Group("/:listingid").Use(auth.Auth())

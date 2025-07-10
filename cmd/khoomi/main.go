@@ -8,6 +8,7 @@ import (
 
 func main() {
 	// Initialize routes
+	log.SetFlags(log.Lshortfile)
 	router := routers.InitRoute()
 	err := router.Run("0.0.0.0:8080")
 	if err != nil {

@@ -14,7 +14,6 @@ type Listing struct {
 	Slug                 string               `bson:"slug" json:"slug"`
 	Images               []string             `bson:"images" json:"images"`
 	Variations           []Variation          `bson:"variations" json:"variations"`
-	RecentReviews        []ListingReview      `bson:"recent_reviews" json:"recentReviews"`
 	Details              Details              `bson:"details" json:"details"`
 	Measurements         Measurement          `bson:"measurements" json:"measurements"`
 	Inventory            Inventory            `bson:"inventory" json:"inventory"`
@@ -37,19 +36,18 @@ type Personalization struct {
 }
 
 type Details struct {
-	Dynamic        map[string]any `bson:"dynamic" json:"dynamic"`
-	DynamicType    DynamicType    `bson:"dynamic_type" json:"dynamicType" validate:"oneof=accessories-and-jewelry art clothing furniture gifts home general"`
-	Category       Category       `bson:"category" json:"category"`
-	Sustainability string         `bson:"sustainability" json:"sustainability"`
-	Description    string         `bson:"description" json:"description"`
-	Condition      string         `bson:"condition" json:"condition" validate:"oneof=new used refurbished"`
-	WhoMade        string         `bson:"who_made" json:"whoMade" validate:"oneof=i_did collective someone_else"`
-	WhenMade       string         `bson:"when_made" json:"whenMade"  validate:"oneof=made_to_order in2020_2023 in2010_2019 in2003_2009 before_2003 in2000_2002 in1990s in1980s in1970s in1960s in1950s in1940s in1930s in1920s in1910s in1900s in1800s in1700s before_1700"`
-	Type           string         `bson:"type" json:"type"`
-	Title          string         `bson:"title" json:"title"`
-	Tags           []string       `bson:"tags" json:"tags"`
-	Keywords       []string       `bson:"keywords" json:"keywords"`
-
+	Dynamic            map[string]any  `bson:"dynamic" json:"dynamic"`
+	DynamicType        DynamicType     `bson:"dynamic_type" json:"dynamicType" validate:"oneof=accessories-and-jewelry art clothing furniture gifts home general"`
+	Category           Category        `bson:"category" json:"category"`
+	Sustainability     string          `bson:"sustainability" json:"sustainability"`
+	Description        string          `bson:"description" json:"description"`
+	Condition          string          `bson:"condition" json:"condition" validate:"oneof=new used refurbished"`
+	WhoMade            string          `bson:"who_made" json:"whoMade" validate:"oneof=i_did collective someone_else"`
+	WhenMade           string          `bson:"when_made" json:"whenMade"  validate:"oneof=made_to_order in2020_2023 in2010_2019 in2003_2009 before_2003 in2000_2002 in1990s in1980s in1970s in1960s in1950s in1940s in1930s in1920s in1910s in1900s in1800s in1700s before_1700"`
+	Type               string          `bson:"type" json:"type"`
+	Title              string          `bson:"title" json:"title"`
+	Tags               []string        `bson:"tags" json:"tags"`
+	Keywords           []string        `bson:"keywords" json:"keywords"`
 	HasPersonalization bool            `bson:"has_personalization" json:"has_personalization"`
 	Personalization    Personalization `json:"personalization"`
 
@@ -137,7 +135,6 @@ type ListingExtra struct {
 	Slug                 string                    `bson:"slug" json:"slug"`
 	Shop                 ListingShopExcept         `bson:"shop" json:"shop"`
 	Images               []string                  `bson:"images" json:"images"`
-	RecentReviews        []ListingReview           `bson:"recent_reviews" json:"recentReviews"`
 	Variations           []Variation               `bson:"variations" json:"variations"`
 	Details              Details                   `bson:"details" json:"details"`
 	Measurements         Measurement               `bson:"measurements" json:"measurements"`
