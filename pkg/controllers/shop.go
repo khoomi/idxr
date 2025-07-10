@@ -171,7 +171,7 @@ func CreateShop() gin.HandlerFunc {
 				CreatedAt:          now,
 				ModifiedAt:         now,
 				Policy:             policy,
-				RecentReviews:      []models.Review{},
+				RecentReviews:      []models.ShopReview{},
 				ReviewsCount:       0,
 				Rating:             shopRating,
 			}
@@ -1276,10 +1276,10 @@ func CreateShopReview() gin.HandlerFunc {
 			}
 
 			// attempt to add review to review collection
-			shopReviewData := models.Review{
+			shopReviewData := models.ShopReview{
 				Id:           reviewId,
 				UserId:       myId,
-				DataId:       shopId,
+				ShopId:       shopId,
 				Review:       shopReviewJson.Review,
 				ReviewAuthor: loginName,
 				Thumbnail:    userProfile.Thumbnail,
@@ -1358,7 +1358,7 @@ func GetShopReviews() gin.HandlerFunc {
 		}
 
 		paginationArgs := common.GetPaginationArgs(c)
-		filter := bson.M{"data_id": shopObjectID}
+		filter := bson.M{"shop_id": shopObjectID}
 		find := options.Find().SetLimit(int64(paginationArgs.Limit)).SetSkip(int64(paginationArgs.Skip))
 		result, err := common.ShopReviewCollection.Find(ctx, filter, find)
 		if err != nil {

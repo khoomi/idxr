@@ -56,15 +56,16 @@ const (
 )
 
 type EmbeddedReview struct {
+	Id           primitive.ObjectID `bson:"id" json:"Id"`
 	Review       string             `bson:"review" json:"review"`
 	ReviewAuthor string             `bson:"review_author" json:"reviewAuthor"`
 	Thumbnail    string             `bson:"thumbnail" json:"thumbnail"`
 	Rating       int                `bson:"rating" json:"rating" validate:"required,min=1,max=5"`
 	UserId       primitive.ObjectID `bson:"user_id" json:"userId"`
-	DataId       primitive.ObjectID `bson:"shop_id" json:"dataId"`
+	DataId       primitive.ObjectID `bson:"id" json:"dataId"`
 }
 
-type Review struct {
+type ListingReview struct {
 	CreatedAt    time.Time          `bson:"created_at" json:"createdAt"`
 	Review       string             `bson:"review" json:"review"`
 	ReviewAuthor string             `bson:"review_author" json:"reviewAuthor"`
@@ -73,7 +74,19 @@ type Review struct {
 	Rating       int                `bson:"rating" json:"rating" validate:"required,min=1,max=5"`
 	Id           primitive.ObjectID `bson:"_id" json:"_id"`
 	UserId       primitive.ObjectID `bson:"user_id" json:"userId"`
-	DataId       primitive.ObjectID `bson:"data_id" json:"dataId"`
+	ListingId    primitive.ObjectID `bson:"listing_id" json:"listingId"`
+}
+
+type ShopReview struct {
+	CreatedAt    time.Time          `bson:"created_at" json:"createdAt"`
+	Review       string             `bson:"review" json:"review"`
+	ReviewAuthor string             `bson:"review_author" json:"reviewAuthor"`
+	Thumbnail    string             `bson:"thumbnail" json:"thumbnail"`
+	Status       ReviewStatus       `bson:"status" json:"status" validate:"required,oneof=approved pending spam"`
+	Rating       int                `bson:"rating" json:"rating" validate:"required,min=1,max=5"`
+	Id           primitive.ObjectID `bson:"_id" json:"_id"`
+	UserId       primitive.ObjectID `bson:"user_id" json:"userId"`
+	ShopId       primitive.ObjectID `bson:"shop_id" json:"shopId"`
 }
 
 func GenLink(rel, href string) Link {

@@ -776,10 +776,10 @@ func CreateListingReview() gin.HandlerFunc {
 			}
 
 			// attempt to add review to listing review collection
-			shopReviewData := models.Review{
+			shopReviewData := models.ListingReview{
 				Id:           reviewId,
 				UserId:       myId,
-				DataId:       listingObjectID,
+				ListingId:    listingObjectID,
 				Review:       listingReviewJson.Review,
 				ReviewAuthor: loginName,
 				Thumbnail:    userProfile.Thumbnail,
@@ -794,6 +794,7 @@ func CreateListingReview() gin.HandlerFunc {
 			}
 
 			embedded := models.EmbeddedReview{
+				Id:           reviewId,
 				UserId:       myId,
 				DataId:       listingObjectID,
 				Review:       listingReviewJson.Review,
@@ -852,7 +853,7 @@ func GetListingReviews() gin.HandlerFunc {
 		}
 
 		paginationArgs := common.GetPaginationArgs(c)
-		filter := bson.M{"data_id": listingObjectID}
+		filter := bson.M{"listing_id": listingObjectID}
 		find := options.Find().SetLimit(int64(paginationArgs.Limit)).SetSkip(int64(paginationArgs.Skip))
 		result, err := common.ListingReviewCollection.Find(ctx, filter, find)
 		if err != nil {
@@ -860,7 +861,7 @@ func GetListingReviews() gin.HandlerFunc {
 			return
 		}
 
-		var reviews []models.Review
+		var reviews []models.ListingReview
 		if err = result.All(ctx, &reviews); err != nil {
 			util.HandleError(c, http.StatusNotFound, err)
 			return
@@ -915,7 +916,7 @@ func DeleteMyListingReview() gin.HandlerFunc {
 		var deletedReviewId any
 		callback := func(ctx mongo.SessionContext) (any, error) {
 			// Attempt to remove review from review collection table
-			filter := bson.M{"data_id": listingObjectID, "user_id": myId}
+			filter := bson.M{"listing_id": listingObjectID, "user_id": myId}
 			_, err := common.ListingReviewCollection.DeleteOne(ctx, filter)
 			if err != nil {
 				return nil, err
@@ -1019,7 +1020,7 @@ func DeleteOtherListingReview() gin.HandlerFunc {
 
 		callback := func(ctx mongo.SessionContext) (any, error) {
 			// Attempt to remove review from review collection table
-			filter := bson.M{"data_id": listingObjectID, "user_id": userToBeRemovedId}
+			filter := bson.M{"listing_id": listingObjectID, "user_id": userToBeRemovedId}
 			_, err = common.ListingReviewCollection.DeleteOne(ctx, filter)
 			if err != nil {
 				return nil, err
@@ -1184,7 +1185,7 @@ func IsListingFavorited() gin.HandlerFunc {
 // calculateListingRating recalculates the listing's average rating and star distribution
 func calculateListingRating(ctx context.Context, listingId primitive.ObjectID) (models.Rating, error) {
 	pipeline := []bson.M{
-		{"$match": bson.M{"data_id": listingId, "status": models.ReviewStatusApproved}},
+		{"$match": bson.M{"listing_id": listingId, "status": models.ReviewStatusApproved}},
 		{
 			"$group": bson.M{
 				"_id":           nil,
