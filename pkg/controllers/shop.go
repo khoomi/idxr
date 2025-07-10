@@ -1294,6 +1294,7 @@ func CreateShopReview() gin.HandlerFunc {
 			}
 
 			embedded := models.EmbeddedReview{
+				Id:           reviewId,
 				UserId:       myId,
 				DataId:       shopId,
 				Review:       shopReviewJson.Review,
@@ -1366,7 +1367,7 @@ func GetShopReviews() gin.HandlerFunc {
 			return
 		}
 
-		var shopReviews []models.Review
+		var shopReviews []models.ShopReview
 		if err = result.All(ctx, &shopReviews); err != nil {
 			util.HandleError(c, http.StatusNotFound, err)
 			return
