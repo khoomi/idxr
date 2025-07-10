@@ -56,13 +56,13 @@ const (
 )
 
 type EmbeddedReview struct {
-	Id           primitive.ObjectID `bson:"id" json:"Id"`
-	Review       string             `bson:"review" json:"review"`
-	ReviewAuthor string             `bson:"review_author" json:"reviewAuthor"`
-	Thumbnail    string             `bson:"thumbnail" json:"thumbnail"`
-	Rating       int                `bson:"rating" json:"rating" validate:"required,min=1,max=5"`
-	UserId       primitive.ObjectID `bson:"user_id" json:"userId"`
-	DataId       primitive.ObjectID `bson:"id" json:"dataId"`
+	Id           primitive.ObjectID `json:"Id"`
+	Review       string             `json:"review"`
+	ReviewAuthor string             `json:"reviewAuthor"`
+	Thumbnail    string             `json:"thumbnail"`
+	Rating       int                `json:"rating"`
+	UserId       primitive.ObjectID `json:"userId"`
+	DataId       primitive.ObjectID `json:"dataId"`
 }
 
 type ListingReview struct {

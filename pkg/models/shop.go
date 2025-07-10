@@ -22,7 +22,7 @@ type Shop struct {
 	Slug                   string               `bson:"slug" json:"slug" validate:"required"`
 	LogoURL                string               `bson:"logo_url" json:"logoUrl"`
 	Username               string               `bson:"username" json:"username" validate:"required"`
-	RecentReviews          []Review             `bson:"recent_reviews" json:"recentReviews"`
+	RecentReviews          []ShopReview         `bson:"recent_reviews" json:"recentReviews"`
 	Categories             []ShopCategory       `bson:"-" json:"categories"`
 	Followers              []ShopFollower       `bson:"followers" json:"followers"`
 	Links                  []Link               `bson:"-" json:"links"`

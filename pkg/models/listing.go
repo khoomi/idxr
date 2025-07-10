@@ -14,7 +14,7 @@ type Listing struct {
 	Slug                 string               `bson:"slug" json:"slug"`
 	Images               []string             `bson:"images" json:"images"`
 	Variations           []Variation          `bson:"variations" json:"variations"`
-	RecentReviews        []Review             `bson:"recent_reviews" json:"recentReviews"`
+	RecentReviews        []ListingReview      `bson:"recent_reviews" json:"recentReviews"`
 	Details              Details              `bson:"details" json:"details"`
 	Measurements         Measurement          `bson:"measurements" json:"measurements"`
 	Inventory            Inventory            `bson:"inventory" json:"inventory"`
@@ -137,7 +137,7 @@ type ListingExtra struct {
 	Slug                 string                    `bson:"slug" json:"slug"`
 	Shop                 ListingShopExcept         `bson:"shop" json:"shop"`
 	Images               []string                  `bson:"images" json:"images"`
-	RecentReviews        []Review                  `bson:"recent_reviews" json:"recentReviews"`
+	RecentReviews        []ListingReview           `bson:"recent_reviews" json:"recentReviews"`
 	Variations           []Variation               `bson:"variations" json:"variations"`
 	Details              Details                   `bson:"details" json:"details"`
 	Measurements         Measurement               `bson:"measurements" json:"measurements"`
