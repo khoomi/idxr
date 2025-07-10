@@ -787,7 +787,7 @@ func CreateListingReview() gin.HandlerFunc {
 				CreatedAt:    now,
 				Status:       models.ReviewStatusApproved,
 			}
-			_, err = common.ShopReviewCollection.InsertOne(ctx, shopReviewData)
+			_, err = common.ListingReviewCollection.InsertOne(ctx, shopReviewData)
 			if err != nil {
 				log.Println(err)
 				return nil, err
