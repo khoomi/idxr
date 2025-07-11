@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"khoomi-api-io/api/internal"
 	auth "khoomi-api-io/api/internal/auth"
 	"khoomi-api-io/api/internal/common"
 	"khoomi-api-io/api/pkg/models"
@@ -1091,6 +1092,8 @@ func ToggleFavoriteListing() gin.HandlerFunc {
 			return
 		}
 		session.EndSession(context.Background())
+
+		internal.PublishCacheMessage(c, internal.CacheRevalidateFavoriteListingToggle, listingId.Hex())
 
 		util.HandleSuccess(c, http.StatusOK, "Favorite listings updated!", gin.H{})
 
