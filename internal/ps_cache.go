@@ -27,6 +27,10 @@ const (
 	CacheRevalidateShopAbout        CacheMessageType = "revalidateShopAbout"
 	CacheRevalidateShopCompliance   CacheMessageType = "revalidateShopReturnPolicy"
 	CacheRevalidateShopReturnPolicy CacheMessageType = "revalidateShopReturnPolicy"
+
+	CacheRevalidateCart CacheMessageType = "revalidateCart"
+
+	CacheRevalidatePayment CacheMessageType = "revalidatePayment"
 )
 
 type CacheMessage struct {
