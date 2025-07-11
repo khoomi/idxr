@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"khoomi-api-io/api/internal"
 	auth "khoomi-api-io/api/internal/auth"
 	"khoomi-api-io/api/internal/common"
 	"khoomi-api-io/api/pkg/models"
@@ -228,6 +229,7 @@ func CreateShop() gin.HandlerFunc {
 		// send success shop creation notification
 		email.SendNewShopEmail(userEmail, loginName, shopName)
 
+		internal.PublishCacheMessage(c, internal.CacheRevalidateShop, shopID.Hex())
 		util.HandleSuccess(c, http.StatusOK, shopID.Hex(), shopID.Hex())
 	}
 }
@@ -337,6 +339,8 @@ func UpdateShopInformation() gin.HandlerFunc {
 			return
 		}
 
+		internal.PublishCacheMessage(c, internal.CacheRevalidateShop, shopId.Hex())
+
 		util.HandleSuccess(c, http.StatusOK, "Shop information updated successfully", shopId.Hex())
 	}
 }
@@ -370,6 +374,8 @@ func UpdateMyShopStatus() gin.HandlerFunc {
 			util.HandleError(c, http.StatusNotFound, errors.New("no matching documents found"))
 			return
 		}
+
+		internal.PublishCacheMessage(c, internal.CacheRevalidateShop, shopId.Hex())
 
 		util.HandleSuccess(c, http.StatusOK, "Shop status was updated successful", shopId.Hex())
 	}
@@ -707,6 +713,8 @@ func UpdateShopAnnouncement() gin.HandlerFunc {
 			return
 		}
 
+		internal.PublishCacheMessage(c, internal.CacheRevalidateShop, shopId.Hex())
+
 		util.HandleSuccess(c, http.StatusOK, "Shop announcement updated successfully", res.UpsertedID)
 	}
 }
@@ -740,6 +748,8 @@ func UpdateShopVacation() gin.HandlerFunc {
 			util.HandleError(c, http.StatusNotFound, errors.New("no matching documents found"))
 			return
 		}
+
+		internal.PublishCacheMessage(c, internal.CacheRevalidateShop, shopId.Hex())
 
 		util.HandleSuccess(c, http.StatusOK, "Shop vacation updated successfully", res.UpsertedID)
 	}
@@ -782,6 +792,8 @@ func UpdateShopLogo() gin.HandlerFunc {
 			return
 		}
 
+		internal.PublishCacheMessage(c, internal.CacheRevalidateShop, shopId.Hex())
+
 		util.HandleSuccess(c, http.StatusOK, "Shop logo updated successfully", res.UpsertedID)
 	}
 }
@@ -822,6 +834,8 @@ func UpdateShopBanner() gin.HandlerFunc {
 			util.HandleError(c, http.StatusNotModified, err)
 			return
 		}
+
+		internal.PublishCacheMessage(c, internal.CacheRevalidateShop, shopId.Hex())
 
 		util.HandleSuccess(c, http.StatusOK, "Shop banner updated successfully", res.UpsertedID)
 	}
@@ -864,6 +878,8 @@ func UpdateShopGallery() gin.HandlerFunc {
 			return
 		}
 
+		internal.PublishCacheMessage(c, internal.CacheRevalidateShop, shopId.Hex())
+
 		util.HandleSuccess(c, http.StatusOK, "Image added to shop gallery successfully", res.UpsertedCount)
 	}
 }
@@ -894,6 +910,8 @@ func DeleteFromShopGallery() gin.HandlerFunc {
 			util.HandleError(c, http.StatusNotFound, errors.New("no matching documents found"))
 			return
 		}
+
+		internal.PublishCacheMessage(c, internal.CacheRevalidateShop, shopID.Hex())
 
 		util.HandleSuccess(c, http.StatusOK, "Image removed from shop gallery successfully", res.UpsertedID)
 	}
@@ -1002,6 +1020,8 @@ func FollowShop() gin.HandlerFunc {
 			util.HandleError(c, http.StatusInternalServerError, err)
 			return
 		}
+
+		internal.PublishCacheMessage(c, internal.CacheRevalidateShop, shopId.Hex())
 
 		util.HandleSuccess(c, http.StatusOK, "You're now a follower of this shop", followerId.Hex())
 	}
@@ -1142,6 +1162,8 @@ func UnfollowShop() gin.HandlerFunc {
 
 		session.EndSession(context.Background())
 
+		internal.PublishCacheMessage(c, internal.CacheRevalidateShop, shopId.Hex())
+
 		util.HandleSuccess(c, http.StatusOK, "Left shop successfully", shopId.Hex())
 	}
 }
@@ -1219,6 +1241,8 @@ func RemoveOtherFollower() gin.HandlerFunc {
 		}
 
 		session.EndSession(context.Background())
+
+		internal.PublishCacheMessage(c, internal.CacheRevalidateShop, shopId.Hex())
 
 		util.HandleSuccess(c, http.StatusOK, "Follower removed successfully", userToBeRemovedId.Hex())
 	}
@@ -1323,6 +1347,8 @@ func CreateShopReview() gin.HandlerFunc {
 			return
 		}
 		session.EndSession(context.Background())
+
+		internal.PublishCacheMessage(c, internal.CacheRevalidateShopReview, shopId.Hex())
 
 		util.HandleSuccess(c, http.StatusOK, "Shop creation successfuls", reviewId.Hex())
 	}
@@ -1452,6 +1478,8 @@ func DeleteMyReview() gin.HandlerFunc {
 		}
 		session.EndSession(context.Background())
 
+		internal.PublishCacheMessage(c, internal.CacheRevalidateShopReview, shopId.Hex())
+
 		util.HandleSuccess(c, http.StatusOK, "My review was deleted successfully", deletedReviewId)
 	}
 }
@@ -1542,6 +1570,8 @@ func DeleteOtherReview() gin.HandlerFunc {
 		}
 		session.EndSession(context.Background())
 
+		internal.PublishCacheMessage(c, internal.CacheRevalidateShopReview, shopId.Hex())
+
 		util.HandleSuccess(c, http.StatusOK, "Other user review deleted successfully", deletedReviewId)
 	}
 }
@@ -1583,6 +1613,8 @@ func CreateShopAbout() gin.HandlerFunc {
 			util.HandleError(c, http.StatusInternalServerError, err)
 			return
 		}
+
+		internal.PublishCacheMessage(c, internal.CacheRevalidateShopAbout, shopId.Hex())
 
 		util.HandleSuccess(c, http.StatusOK, "Shop about created successfully", shopAboutData.ID.Hex())
 	}
@@ -1673,6 +1705,8 @@ func UpdateShopAbout() gin.HandlerFunc {
 			return
 		}
 
+		internal.PublishCacheMessage(c, internal.CacheRevalidateShopAbout, shopId.Hex())
+
 		util.HandleSuccess(c, http.StatusOK, "Shop about updated successfully", res.UpsertedID)
 	}
 }
@@ -1713,6 +1747,8 @@ func UpdateShopAboutStatus() gin.HandlerFunc {
 			util.HandleSuccess(c, http.StatusNotFound, "success", "No matching documents found")
 			return
 		}
+
+		internal.PublishCacheMessage(c, internal.CacheRevalidateShopAbout, shopId.Hex())
 
 		util.HandleSuccess(c, http.StatusOK, "Shop about status updated successfully", res.UpsertedID)
 	}
@@ -1756,6 +1792,8 @@ func CreateShopReturnPolicy() gin.HandlerFunc {
 			util.HandleError(c, http.StatusInternalServerError, err)
 			return
 		}
+
+		internal.PublishCacheMessage(c, internal.CacheRevalidateShopReturnPolicy, shopId.Hex())
 
 		util.HandleSuccess(c, http.StatusOK, "Shop policy created successfully", shopReturnPolicyJson.ID.Hex())
 	}
@@ -1804,6 +1842,8 @@ func UpdateShopReturnPolicy() gin.HandlerFunc {
 			return
 		}
 
+		internal.PublishCacheMessage(c, internal.CacheRevalidateShopReturnPolicy, shopId.Hex())
+
 		util.HandleSuccess(c, http.StatusOK, "Shop policy updated successfully", res.UpsertedID)
 	}
 }
@@ -1841,6 +1881,7 @@ func DeleteShopReturnPolicy() gin.HandlerFunc {
 			return
 		}
 
+		internal.PublishCacheMessage(c, internal.CacheRevalidateShopReturnPolicy, shopId.Hex())
 		util.HandleSuccess(c, http.StatusOK, "Shop policy deleted successfully", res.DeletedCount)
 	}
 }
@@ -1954,6 +1995,8 @@ func CreateShopComplianceInformation() gin.HandlerFunc {
 			util.HandleError(c, http.StatusInternalServerError, err)
 			return
 		}
+
+		internal.PublishCacheMessage(c, internal.CacheRevalidateShopCompliance, shopId.Hex())
 
 		util.HandleSuccess(c, http.StatusOK, "Shop compliance policy created successfully", nil)
 	}

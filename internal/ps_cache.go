@@ -21,9 +21,12 @@ const (
 	CacheRevalidateListingReviews        CacheMessageType = "revalidateSingleListing"
 	CacheRevalidateFavoriteListingToggle CacheMessageType = "revalidateToggleFavoriteListing"
 
-	CacheRevalidateShop       CacheMessageType = "revalidateShop"
-	CacheRevalidateSingleShop CacheMessageType = "revalidateSingleShop"
-	CacheRevalidateShopReview CacheMessageType = "revalidateShopReviews"
+	CacheRevalidateShop             CacheMessageType = "revalidateShop"
+	CacheRevalidateSingleShop       CacheMessageType = "revalidateSingleShop"
+	CacheRevalidateShopReview       CacheMessageType = "revalidateShopReviews"
+	CacheRevalidateShopAbout        CacheMessageType = "revalidateShopAbout"
+	CacheRevalidateShopCompliance   CacheMessageType = "revalidateShopReturnPolicy"
+	CacheRevalidateShopReturnPolicy CacheMessageType = "revalidateShopReturnPolicy"
 )
 
 type CacheMessage struct {
