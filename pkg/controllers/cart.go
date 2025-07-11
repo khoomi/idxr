@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"time"
 
+	"khoomi-api-io/api/internal"
 	"khoomi-api-io/api/internal/auth"
 	"khoomi-api-io/api/internal/common"
 	"khoomi-api-io/api/pkg/models"
@@ -110,6 +111,8 @@ func SaveCartItem() gin.HandlerFunc {
 			util.HandleError(c, http.StatusInternalServerError, err)
 			return
 		}
+
+		internal.PublishCacheMessage(c, internal.CacheRevalidateCart, myId.Hex())
 
 		util.HandleSuccess(c, http.StatusOK, "Item added to cart", res.InsertedID)
 	}
@@ -319,6 +322,8 @@ func IncreaseCartItemQuantity() gin.HandlerFunc {
 			return
 		}
 
+		internal.PublishCacheMessage(c, internal.CacheRevalidateCart, myId.Hex())
+
 		util.HandleSuccess(c, http.StatusOK, "Cart item quantity increased", gin.H{
 			"quantity":   newQuantity,
 			"unitPrice":  unitPrice,
@@ -400,6 +405,8 @@ func DecreaseCartItemQuantity() gin.HandlerFunc {
 			return
 		}
 
+		internal.PublishCacheMessage(c, internal.CacheRevalidateCart, myId.Hex())
+
 		util.HandleSuccess(c, http.StatusOK, "Cart item quantity decreased", gin.H{
 			"quantity":   newQuantity,
 			"unitPrice":  unitPrice,
@@ -437,6 +444,8 @@ func DeleteCartItem() gin.HandlerFunc {
 			util.HandleError(c, http.StatusNotFound, errors.New("No records deleted."))
 			return
 		}
+
+		internal.PublishCacheMessage(c, internal.CacheRevalidateCart, myId.Hex())
 
 		util.HandleSuccess(c, http.StatusOK, "Cart item deleted successfully", result.DeletedCount)
 	}
@@ -487,6 +496,8 @@ func DeleteCartItems() gin.HandlerFunc {
 			return
 		}
 
+		internal.PublishCacheMessage(c, internal.CacheRevalidateCart, myId.Hex())
+
 		util.HandleSuccess(c, http.StatusOK, "Cart items deleted successfully", result.DeletedCount)
 	}
 }
@@ -514,6 +525,8 @@ func ClearCartItems() gin.HandlerFunc {
 			util.HandleSuccess(c, http.StatusOK, "Cart is already empty", result.DeletedCount)
 			return
 		}
+
+		internal.PublishCacheMessage(c, internal.CacheRevalidateCart, myId.Hex())
 
 		util.HandleSuccess(c, http.StatusOK, "Cart cleared successfully", result.DeletedCount)
 	}
