@@ -16,6 +16,8 @@ const (
 
 	CacheRevalidateListing               CacheMessageType = "revalidateListing"
 	CacheRevalidateSingleListing         CacheMessageType = "revalidateSingleListing"
+	CacheRevalidateShopListings          CacheMessageType = "revalidateSingleShopListings"
+	CacheRevalidateDeactivateListing     CacheMessageType = "revalidateDeactivatedListing"
 	CacheRevalidateSingleListingReviews  CacheMessageType = "revalidateSingleListing"
 	CacheRevalidateFavoriteListingToggle CacheMessageType = "revalidateToggleFavoriteListing"
 
