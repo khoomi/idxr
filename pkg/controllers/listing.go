@@ -667,6 +667,7 @@ func DeleteListings() gin.HandlerFunc {
 				continue
 			}
 
+			internal.PublishCacheMessage(c, internal.CacheRevalidateDeactivateListing, idObjectID.Hex())
 			deletedObjectIDs = append(deletedObjectIDs, idObjectID)
 		}
 
@@ -811,7 +812,7 @@ func CreateListingReview() gin.HandlerFunc {
 		}
 		dbSession.EndSession(ctx)
 
-		internal.PublishCacheMessage(c, internal.CacheRevalidateSingleListingReviews, listingId.Hex())
+		internal.PublishCacheMessage(c, internal.CacheRevalidateListingReviews, listingId.Hex())
 		util.HandleSuccess(c, http.StatusOK, "Review Added Successfully", result)
 	}
 }
@@ -934,7 +935,7 @@ func DeleteMyListingReview() gin.HandlerFunc {
 			return
 		}
 
-		internal.PublishCacheMessage(c, internal.CacheRevalidateSingleListingReviews, listingId.Hex())
+		internal.PublishCacheMessage(c, internal.CacheRevalidateListingReviews, listingId.Hex())
 
 		util.HandleSuccess(c, http.StatusOK, "My review was deleted successfully", deletedReviewId)
 	}
@@ -1020,7 +1021,7 @@ func DeleteOtherListingReview() gin.HandlerFunc {
 			return
 		}
 
-		internal.PublishCacheMessage(c, internal.CacheRevalidateSingleListingReviews, listingId.Hex())
+		internal.PublishCacheMessage(c, internal.CacheRevalidateListingReviews, listingId.Hex())
 
 		util.HandleSuccess(c, http.StatusOK, "Other user review deleted successfully", deletedReviewId)
 	}
