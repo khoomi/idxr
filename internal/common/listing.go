@@ -32,6 +32,22 @@ const (
 	MaxDescriptionLength = 2000
 )
 
+// build bson.M from listingid param
+func GenListingIdBson(listingId string) (bson.M, error) {
+
+	if primitive.IsValidObjectID(listingId) {
+		// If listingid is a valid object ID string
+		listingObjectID, e := primitive.ObjectIDFromHex(listingId)
+		if e != nil {
+			return nil, e
+		}
+
+		return bson.M{"_id": listingObjectID}, nil
+	} else {
+		return bson.M{"slug": listingId}, nil
+	}
+}
+
 // getFormValue returns the value from formData or default if empty/missing
 func getFormValue(formData func(key string) (value string), key, defaultValue string) string {
 	if value := formData(key); value != "" {

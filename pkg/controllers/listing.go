@@ -252,21 +252,13 @@ func GetListing() gin.HandlerFunc {
 		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
 		defer cancel()
 
-		var listingIdentifier bson.M
-
 		listingId := c.Param("listingid")
-		if primitive.IsValidObjectID(listingId) {
-			// If listingid is a valid object ID string
-			listingObjectID, e := primitive.ObjectIDFromHex(listingId)
-			if e != nil {
-				util.HandleError(c, http.StatusBadRequest, e)
-				return
-			}
-
-			listingIdentifier = bson.M{"_id": listingObjectID}
-		} else {
-			listingIdentifier = bson.M{"slug": listingId}
+		listingIdentifier, e := common.GenListingIdBson(listingId)
+		if e != nil {
+			util.HandleError(c, http.StatusBadRequest, e)
+			return
 		}
+		log.Println(listingIdentifier)
 		pipeline := []bson.M{
 			{"$match": listingIdentifier},
 			{
@@ -825,16 +817,15 @@ func GetListingReviews() gin.HandlerFunc {
 		defer cancel()
 
 		listingId := c.Param("listingid")
-		listingObjectID, err := primitive.ObjectIDFromHex(listingId)
-		if err != nil {
-			util.HandleError(c, http.StatusBadRequest, err)
+		listingIdentifier, e := common.GenListingIdBson(listingId)
+		if e != nil {
+			util.HandleError(c, http.StatusBadRequest, e)
 			return
 		}
 
 		paginationArgs := common.GetPaginationArgs(c)
-		filter := bson.M{"listing_id": listingObjectID}
 		find := options.Find().SetLimit(int64(paginationArgs.Limit)).SetSkip(int64(paginationArgs.Skip))
-		result, err := common.ListingReviewCollection.Find(ctx, filter, find)
+		result, err := common.ListingReviewCollection.Find(ctx, listingIdentifier, find)
 		if err != nil {
 			util.HandleError(c, http.StatusNotFound, err)
 			return
@@ -846,7 +837,7 @@ func GetListingReviews() gin.HandlerFunc {
 			return
 		}
 
-		count, err := common.ListingReviewCollection.CountDocuments(ctx, bson.M{"listing_id": listingObjectID})
+		count, err := common.ListingReviewCollection.CountDocuments(ctx, listingIdentifier)
 		if err != nil {
 			util.HandleError(c, http.StatusInternalServerError, err)
 			return
@@ -1111,12 +1102,6 @@ func IsListingFavorited() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
 		defer cancel()
-		listingIdStr := c.Param("listingid")
-		listingId, err := primitive.ObjectIDFromHex(listingIdStr)
-		if err != nil {
-			util.HandleError(c, http.StatusBadRequest, err)
-			return
-		}
 
 		myObjectId, err := auth.GetSessionUserID(c)
 		if err != nil {
@@ -1124,8 +1109,15 @@ func IsListingFavorited() gin.HandlerFunc {
 			return
 		}
 
-		filter := bson.M{"userId": myObjectId, "listingId": listingId}
-		result := common.UserFavoriteListingCollection.FindOne(ctx, filter)
+		listingId := c.Param("listingid")
+		filterBson, e := common.GenListingIdBson(listingId)
+		if e != nil {
+			util.HandleError(c, http.StatusBadRequest, e)
+			return
+		}
+		filterBson["userId"] = myObjectId
+
+		result := common.UserFavoriteListingCollection.FindOne(ctx, filterBson)
 		if result.Err() != nil {
 			util.HandleSuccess(c, http.StatusOK, "not found", gin.H{"favorited": false})
 			return
