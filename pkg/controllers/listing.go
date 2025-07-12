@@ -820,19 +820,20 @@ func CreateListingReview() gin.HandlerFunc {
 // GetShopReviews - api/listing/:listingid/reviews?limit=50&skip=0
 func GetListingReviews() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
 		defer cancel()
 
-		listingId := c.Param("listingid")
-		listingIdentifier, e := common.GenListingIdBson(listingId)
-		if e != nil {
-			util.HandleError(c, http.StatusBadRequest, e)
+		listingIdStr := c.Param("listingid")
+		listingId, err := primitive.ObjectIDFromHex(listingIdStr)
+		if err != nil {
+			util.HandleError(c, http.StatusBadRequest, err)
 			return
 		}
 
+		filter := bson.M{"listing_id": listingId}
 		paginationArgs := common.GetPaginationArgs(c)
 		find := options.Find().SetLimit(int64(paginationArgs.Limit)).SetSkip(int64(paginationArgs.Skip))
-		result, err := common.ListingReviewCollection.Find(ctx, listingIdentifier, find)
+		result, err := common.ListingReviewCollection.Find(ctx, filter, find)
 		if err != nil {
 			util.HandleError(c, http.StatusNotFound, err)
 			return
@@ -844,7 +845,7 @@ func GetListingReviews() gin.HandlerFunc {
 			return
 		}
 
-		count, err := common.ListingReviewCollection.CountDocuments(ctx, listingIdentifier)
+		count, err := common.ListingReviewCollection.CountDocuments(ctx, filter)
 		if err != nil {
 			util.HandleError(c, http.StatusInternalServerError, err)
 			return
@@ -1122,15 +1123,14 @@ func IsListingFavorited() gin.HandlerFunc {
 			return
 		}
 
-		listingId := c.Param("listingid")
-		filterBson, e := common.GenListingIdBson(listingId)
-		if e != nil {
-			util.HandleError(c, http.StatusBadRequest, e)
+		listingIdStr := c.Param("listingid")
+		listingId, err := primitive.ObjectIDFromHex(listingIdStr)
+		if err != nil {
+			util.HandleError(c, http.StatusBadRequest, err)
 			return
 		}
-		filterBson["userId"] = myObjectId
 
-		result := common.UserFavoriteListingCollection.FindOne(ctx, filterBson)
+		result := common.UserFavoriteListingCollection.FindOne(ctx, bson.M{"listingId": listingId, "userId": myObjectId})
 		if result.Err() != nil {
 			util.HandleSuccess(c, http.StatusOK, "not found", gin.H{"favorited": false})
 			return
