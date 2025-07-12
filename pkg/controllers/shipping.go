@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"time"
 
+	"khoomi-api-io/api/internal"
 	auth "khoomi-api-io/api/internal/auth"
 	"khoomi-api-io/api/internal/common"
 	"khoomi-api-io/api/pkg/models"
@@ -93,6 +94,8 @@ func CreateShopShippingProfile() gin.HandlerFunc {
 			util.HandleError(c, http.StatusInternalServerError, err)
 			return
 		}
+
+		internal.PublishCacheMessage(c, internal.CacheInvalidateShopShipping, shopId)
 
 		util.HandleSuccess(c, http.StatusOK, "document inserted", res.InsertedID)
 	}

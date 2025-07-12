@@ -229,7 +229,7 @@ func CreateShop() gin.HandlerFunc {
 		// send success shop creation notification
 		email.SendNewShopEmail(userEmail, loginName, shopName)
 
-		internal.PublishCacheMessage(c, internal.CacheRevalidateShop, shopID.Hex())
+		internal.PublishCacheMessage(c, internal.CacheInvalidateShop, shopID.Hex())
 		util.HandleSuccess(c, http.StatusOK, shopID.Hex(), shopID.Hex())
 	}
 }
@@ -339,7 +339,7 @@ func UpdateShopInformation() gin.HandlerFunc {
 			return
 		}
 
-		internal.PublishCacheMessage(c, internal.CacheRevalidateShop, shopId.Hex())
+		internal.PublishCacheMessage(c, internal.CacheInvalidateShop, shopId.Hex())
 
 		util.HandleSuccess(c, http.StatusOK, "Shop information updated successfully", shopId.Hex())
 	}
@@ -375,7 +375,7 @@ func UpdateMyShopStatus() gin.HandlerFunc {
 			return
 		}
 
-		internal.PublishCacheMessage(c, internal.CacheRevalidateShop, shopId.Hex())
+		internal.PublishCacheMessage(c, internal.CacheInvalidateShop, shopId.Hex())
 
 		util.HandleSuccess(c, http.StatusOK, "Shop status was updated successful", shopId.Hex())
 	}
@@ -713,7 +713,7 @@ func UpdateShopAnnouncement() gin.HandlerFunc {
 			return
 		}
 
-		internal.PublishCacheMessage(c, internal.CacheRevalidateShop, shopId.Hex())
+		internal.PublishCacheMessage(c, internal.CacheInvalidateShop, shopId.Hex())
 
 		util.HandleSuccess(c, http.StatusOK, "Shop announcement updated successfully", res.UpsertedID)
 	}
@@ -749,7 +749,7 @@ func UpdateShopVacation() gin.HandlerFunc {
 			return
 		}
 
-		internal.PublishCacheMessage(c, internal.CacheRevalidateShop, shopId.Hex())
+		internal.PublishCacheMessage(c, internal.CacheInvalidateShop, shopId.Hex())
 
 		util.HandleSuccess(c, http.StatusOK, "Shop vacation updated successfully", res.UpsertedID)
 	}
@@ -792,7 +792,7 @@ func UpdateShopLogo() gin.HandlerFunc {
 			return
 		}
 
-		internal.PublishCacheMessage(c, internal.CacheRevalidateShop, shopId.Hex())
+		internal.PublishCacheMessage(c, internal.CacheInvalidateShop, shopId.Hex())
 
 		util.HandleSuccess(c, http.StatusOK, "Shop logo updated successfully", res.UpsertedID)
 	}
@@ -835,7 +835,7 @@ func UpdateShopBanner() gin.HandlerFunc {
 			return
 		}
 
-		internal.PublishCacheMessage(c, internal.CacheRevalidateShop, shopId.Hex())
+		internal.PublishCacheMessage(c, internal.CacheInvalidateShop, shopId.Hex())
 
 		util.HandleSuccess(c, http.StatusOK, "Shop banner updated successfully", res.UpsertedID)
 	}
@@ -878,7 +878,7 @@ func UpdateShopGallery() gin.HandlerFunc {
 			return
 		}
 
-		internal.PublishCacheMessage(c, internal.CacheRevalidateShop, shopId.Hex())
+		internal.PublishCacheMessage(c, internal.CacheInvalidateShop, shopId.Hex())
 
 		util.HandleSuccess(c, http.StatusOK, "Image added to shop gallery successfully", res.UpsertedCount)
 	}
@@ -911,7 +911,7 @@ func DeleteFromShopGallery() gin.HandlerFunc {
 			return
 		}
 
-		internal.PublishCacheMessage(c, internal.CacheRevalidateShop, shopID.Hex())
+		internal.PublishCacheMessage(c, internal.CacheInvalidateShop, shopID.Hex())
 
 		util.HandleSuccess(c, http.StatusOK, "Image removed from shop gallery successfully", res.UpsertedID)
 	}
@@ -1021,7 +1021,7 @@ func FollowShop() gin.HandlerFunc {
 			return
 		}
 
-		internal.PublishCacheMessage(c, internal.CacheRevalidateShop, shopId.Hex())
+		internal.PublishCacheMessage(c, internal.CacheInvalidateShop, shopId.Hex())
 
 		util.HandleSuccess(c, http.StatusOK, "You're now a follower of this shop", followerId.Hex())
 	}
@@ -1162,7 +1162,7 @@ func UnfollowShop() gin.HandlerFunc {
 
 		session.EndSession(context.Background())
 
-		internal.PublishCacheMessage(c, internal.CacheRevalidateShop, shopId.Hex())
+		internal.PublishCacheMessage(c, internal.CacheInvalidateShop, shopId.Hex())
 
 		util.HandleSuccess(c, http.StatusOK, "Left shop successfully", shopId.Hex())
 	}
@@ -1242,7 +1242,7 @@ func RemoveOtherFollower() gin.HandlerFunc {
 
 		session.EndSession(context.Background())
 
-		internal.PublishCacheMessage(c, internal.CacheRevalidateShop, shopId.Hex())
+		internal.PublishCacheMessage(c, internal.CacheInvalidateShop, shopId.Hex())
 
 		util.HandleSuccess(c, http.StatusOK, "Follower removed successfully", userToBeRemovedId.Hex())
 	}
@@ -1348,7 +1348,7 @@ func CreateShopReview() gin.HandlerFunc {
 		}
 		session.EndSession(context.Background())
 
-		internal.PublishCacheMessage(c, internal.CacheRevalidateShopReview, shopId.Hex())
+		internal.PublishCacheMessage(c, internal.CacheInvalidateShopReviews, shopId.Hex())
 
 		util.HandleSuccess(c, http.StatusOK, "Shop creation successfuls", reviewId.Hex())
 	}
@@ -1478,7 +1478,7 @@ func DeleteMyReview() gin.HandlerFunc {
 		}
 		session.EndSession(context.Background())
 
-		internal.PublishCacheMessage(c, internal.CacheRevalidateShopReview, shopId.Hex())
+		internal.PublishCacheMessage(c, internal.CacheInvalidateListingReviews, shopId.Hex())
 
 		util.HandleSuccess(c, http.StatusOK, "My review was deleted successfully", deletedReviewId)
 	}
@@ -1570,7 +1570,7 @@ func DeleteOtherReview() gin.HandlerFunc {
 		}
 		session.EndSession(context.Background())
 
-		internal.PublishCacheMessage(c, internal.CacheRevalidateShopReview, shopId.Hex())
+		internal.PublishCacheMessage(c, internal.CacheInvalidateListingReviews, shopId.Hex())
 
 		util.HandleSuccess(c, http.StatusOK, "Other user review deleted successfully", deletedReviewId)
 	}
@@ -1614,7 +1614,7 @@ func CreateShopAbout() gin.HandlerFunc {
 			return
 		}
 
-		internal.PublishCacheMessage(c, internal.CacheRevalidateShopAbout, shopId.Hex())
+		internal.PublishCacheMessage(c, internal.CacheInvalidateShopAbout, shopId.Hex())
 
 		util.HandleSuccess(c, http.StatusOK, "Shop about created successfully", shopAboutData.ID.Hex())
 	}
@@ -1705,7 +1705,7 @@ func UpdateShopAbout() gin.HandlerFunc {
 			return
 		}
 
-		internal.PublishCacheMessage(c, internal.CacheRevalidateShopAbout, shopId.Hex())
+		internal.PublishCacheMessage(c, internal.CacheInvalidateShopAbout, shopId.Hex())
 
 		util.HandleSuccess(c, http.StatusOK, "Shop about updated successfully", res.UpsertedID)
 	}
@@ -1748,7 +1748,7 @@ func UpdateShopAboutStatus() gin.HandlerFunc {
 			return
 		}
 
-		internal.PublishCacheMessage(c, internal.CacheRevalidateShopAbout, shopId.Hex())
+		internal.PublishCacheMessage(c, internal.CacheInvalidateShopAbout, shopId.Hex())
 
 		util.HandleSuccess(c, http.StatusOK, "Shop about status updated successfully", res.UpsertedID)
 	}
@@ -1793,7 +1793,7 @@ func CreateShopReturnPolicy() gin.HandlerFunc {
 			return
 		}
 
-		internal.PublishCacheMessage(c, internal.CacheRevalidateShopReturnPolicy, shopId.Hex())
+		internal.PublishCacheMessage(c, internal.CacheInvalidateShopPolicy, shopId.Hex())
 
 		util.HandleSuccess(c, http.StatusOK, "Shop policy created successfully", shopReturnPolicyJson.ID.Hex())
 	}
@@ -1842,7 +1842,7 @@ func UpdateShopReturnPolicy() gin.HandlerFunc {
 			return
 		}
 
-		internal.PublishCacheMessage(c, internal.CacheRevalidateShopReturnPolicy, shopId.Hex())
+		internal.PublishCacheMessage(c, internal.CacheInvalidateShopPolicy, shopId.Hex())
 
 		util.HandleSuccess(c, http.StatusOK, "Shop policy updated successfully", res.UpsertedID)
 	}
@@ -1881,7 +1881,7 @@ func DeleteShopReturnPolicy() gin.HandlerFunc {
 			return
 		}
 
-		internal.PublishCacheMessage(c, internal.CacheRevalidateShopReturnPolicy, shopId.Hex())
+		internal.PublishCacheMessage(c, internal.CacheInvalidateShopPolicy, shopId.Hex())
 		util.HandleSuccess(c, http.StatusOK, "Shop policy deleted successfully", res.DeletedCount)
 	}
 }
@@ -1996,7 +1996,7 @@ func CreateShopComplianceInformation() gin.HandlerFunc {
 			return
 		}
 
-		internal.PublishCacheMessage(c, internal.CacheRevalidateShopCompliance, shopId.Hex())
+		internal.PublishCacheMessage(c, internal.CacheInvalidateShopCompliance, shopId.Hex())
 
 		util.HandleSuccess(c, http.StatusOK, "Shop compliance policy created successfully", nil)
 	}

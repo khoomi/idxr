@@ -12,7 +12,7 @@ import (
 	"khoomi-api-io/api/pkg/models"
 	"khoomi-api-io/api/pkg/util"
 
-	"github.com/durango/go-credit-card"
+	creditcard "github.com/durango/go-credit-card"
 	"github.com/gin-gonic/gin"
 	"github.com/pkg/errors"
 	"go.mongodb.org/mongo-driver/bson"
@@ -154,7 +154,7 @@ func CreateSellerPaymentInformation() gin.HandlerFunc {
 
 		log.Printf("User %v added their payment account information", userId)
 
-		internal.PublishCacheMessage(c, internal.CacheRevalidatePayment, userId.Hex())
+		internal.PublishCacheMessage(c, internal.CacheInvalidatePayment, userId.Hex())
 
 		util.HandleSuccess(c, http.StatusOK, "Payment account information created successfully", paymentInfoToUpload.ID.Hex())
 	}
@@ -263,7 +263,7 @@ func ChangeDefaultSellerPaymentInformation() gin.HandlerFunc {
 			return
 		}
 
-		internal.PublishCacheMessage(c, internal.CacheRevalidatePayment, userId.Hex())
+		internal.PublishCacheMessage(c, internal.CacheInvalidatePayment, userId.Hex())
 
 		util.HandleSuccess(c, http.StatusOK, "Default payment has been succesfuly changed.", insertRes.ModifiedCount)
 	}
@@ -308,7 +308,7 @@ func DeleteSellerPaymentInformation() gin.HandlerFunc {
 			return
 		}
 
-		internal.PublishCacheMessage(c, internal.CacheRevalidatePayment, userId.Hex())
+		internal.PublishCacheMessage(c, internal.CacheInvalidatePayment, userId.Hex())
 
 		util.HandleSuccess(c, http.StatusOK, "Payment information deleted successfully", result.DeletedCount)
 	}
@@ -461,7 +461,7 @@ func CreatePaymentCard() gin.HandlerFunc {
 
 		log.Printf("User %v added a card", userId)
 
-		internal.PublishCacheMessage(c, internal.CacheRevalidatePayment, userId.Hex())
+		internal.PublishCacheMessage(c, internal.CacheInvalidatePayment, userId.Hex())
 		util.HandleSuccess(c, http.StatusOK, "new Card created successfully", cardToUpload.ID.Hex())
 	}
 }
@@ -551,7 +551,7 @@ func ChangeDefaultPaymentCard() gin.HandlerFunc {
 			return
 		}
 
-		internal.PublishCacheMessage(c, internal.CacheRevalidatePayment, userId.Hex())
+		internal.PublishCacheMessage(c, internal.CacheInvalidatePayment, userId.Hex())
 		util.HandleSuccess(c, http.StatusOK, "Default card has been succesfuly changed.", insertRes.ModifiedCount)
 	}
 }
@@ -586,7 +586,7 @@ func DeletePaymentCard() gin.HandlerFunc {
 			return
 		}
 
-		internal.PublishCacheMessage(c, internal.CacheRevalidatePayment, userId.Hex())
+		internal.PublishCacheMessage(c, internal.CacheInvalidatePayment, userId.Hex())
 
 		util.HandleSuccess(c, http.StatusOK, "card deleted successfully", result.DeletedCount)
 	}

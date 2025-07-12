@@ -112,7 +112,7 @@ func SaveCartItem() gin.HandlerFunc {
 			return
 		}
 
-		internal.PublishCacheMessage(c, internal.CacheRevalidateCart, myId.Hex())
+		internal.PublishCacheMessage(c, internal.CacheInvalidateCart, myId.Hex())
 
 		util.HandleSuccess(c, http.StatusOK, "Item added to cart", res.InsertedID)
 	}
@@ -322,7 +322,7 @@ func IncreaseCartItemQuantity() gin.HandlerFunc {
 			return
 		}
 
-		internal.PublishCacheMessage(c, internal.CacheRevalidateCart, myId.Hex())
+		internal.PublishCacheMessage(c, internal.CacheInvalidateCart, myId.Hex())
 
 		util.HandleSuccess(c, http.StatusOK, "Cart item quantity increased", gin.H{
 			"quantity":   newQuantity,
@@ -405,7 +405,7 @@ func DecreaseCartItemQuantity() gin.HandlerFunc {
 			return
 		}
 
-		internal.PublishCacheMessage(c, internal.CacheRevalidateCart, myId.Hex())
+		internal.PublishCacheMessage(c, internal.CacheInvalidateCart, myId.Hex())
 
 		util.HandleSuccess(c, http.StatusOK, "Cart item quantity decreased", gin.H{
 			"quantity":   newQuantity,
@@ -445,7 +445,7 @@ func DeleteCartItem() gin.HandlerFunc {
 			return
 		}
 
-		internal.PublishCacheMessage(c, internal.CacheRevalidateCart, myId.Hex())
+		internal.PublishCacheMessage(c, internal.CacheInvalidateCart, myId.Hex())
 
 		util.HandleSuccess(c, http.StatusOK, "Cart item deleted successfully", result.DeletedCount)
 	}
@@ -496,7 +496,7 @@ func DeleteCartItems() gin.HandlerFunc {
 			return
 		}
 
-		internal.PublishCacheMessage(c, internal.CacheRevalidateCart, myId.Hex())
+		internal.PublishCacheMessage(c, internal.CacheInvalidateCart, myId.Hex())
 
 		util.HandleSuccess(c, http.StatusOK, "Cart items deleted successfully", result.DeletedCount)
 	}
@@ -526,7 +526,7 @@ func ClearCartItems() gin.HandlerFunc {
 			return
 		}
 
-		internal.PublishCacheMessage(c, internal.CacheRevalidateCart, myId.Hex())
+		internal.PublishCacheMessage(c, internal.CacheInvalidateCart, myId.Hex())
 
 		util.HandleSuccess(c, http.StatusOK, "Cart cleared successfully", result.DeletedCount)
 	}

@@ -2,9 +2,10 @@ package internal
 
 import (
 	"context"
-	"fmt"
+	"encoding/json"
 	"khoomi-api-io/api/pkg/util"
 	"log"
+	"time"
 )
 
 var CHANNEL_GLOBAL_CACHE = "GLOBAL_CACHE"
@@ -12,45 +13,57 @@ var CHANNEL_GLOBAL_CACHE = "GLOBAL_CACHE"
 type CacheMessageType string
 
 const (
-	CacheRevalidateUser CacheMessageType = "revalidateUser"
+	CacheInvalidateUser            CacheMessageType = "user.invalidate"
+	CacheInvalidateUserAddress     CacheMessageType = "user.addresses.invalidate"
+	CacheInvalidateUserDeletion    CacheMessageType = "user.deletion.invalidate"
+	CacheInvalidateUserPaymentCard CacheMessageType = "user.payment.cards.invalidate"
 
-	CacheRevalidateListing               CacheMessageType = "revalidateListing"
-	CacheRevalidateSingleListing         CacheMessageType = "revalidateSingleListing"
-	CacheRevalidateShopListings          CacheMessageType = "revalidateSingleShopListings"
-	CacheRevalidateDeactivateListing     CacheMessageType = "revalidateDeactivatedListing"
-	CacheRevalidateListingReviews        CacheMessageType = "revalidateSingleListing"
-	CacheRevalidateFavoriteListingToggle CacheMessageType = "revalidateToggleFavoriteListing"
+	CacheInvalidateListing               CacheMessageType = "listing.invalidate"
+	CacheInvalidateListings              CacheMessageType = "listings.invalidate"
+	CacheInvalidateShopListings          CacheMessageType = "shop.listings.invalidate"
+	CacheInvalidateListingReviews        CacheMessageType = "listing.reviews.invalidate"
+	CacheInvalidateListingDeactivated    CacheMessageType = "listing.deactivated"
+	CacheInvalidateListingFavoriteToggle CacheMessageType = "listing.favorite.toggle"
 
-	CacheRevalidateShop             CacheMessageType = "revalidateShop"
-	CacheRevalidateSingleShop       CacheMessageType = "revalidateSingleShop"
-	CacheRevalidateShopReview       CacheMessageType = "revalidateShopReviews"
-	CacheRevalidateShopAbout        CacheMessageType = "revalidateShopAbout"
-	CacheRevalidateShopCompliance   CacheMessageType = "revalidateShopReturnPolicy"
-	CacheRevalidateShopReturnPolicy CacheMessageType = "revalidateShopReturnPolicy"
+	CacheInvalidateShop           CacheMessageType = "shop.invalidate"
+	CacheInvalidateShops          CacheMessageType = "shops.invalidate"
+	CacheInvalidateShopAbout      CacheMessageType = "shop.about.invalidate"
+	CacheInvalidateShopPolicy     CacheMessageType = "shop.policy.invalidate"
+	CacheInvalidateShopShipping   CacheMessageType = "shop.shipping.invalidate"
+	CacheInvalidateShopReviews    CacheMessageType = "shop.reviews.invalidate"
+	CacheInvalidateShopCompliance CacheMessageType = "shop.compliance.invalidate"
 
-	CacheRevalidateCart CacheMessageType = "revalidateCart"
+	CacheInvalidateCart CacheMessageType = "cart.invalidate"
 
-	CacheRevalidatePayment CacheMessageType = "revalidatePayment"
+	CacheInvalidatePayment CacheMessageType = "payment.invalidate"
 )
 
 type CacheMessage struct {
-	Message CacheMessageType
-	Payload string
+	Type      CacheMessageType `json:"type"`
+	Payload   string           `json:"payload"`
+	Timestamp int64            `json:"timestamp"`
 }
 
-// Helper functions to publish a message to pub sub.
-func PublishCacheMessage(ctx context.Context, message CacheMessageType, payload string) error {
+// PublishCacheMessage publishes a cache invalidation message to Redis pub/sub as JSON
+func PublishCacheMessage(ctx context.Context, messageType CacheMessageType, payload string) error {
 	cacheMessage := CacheMessage{
-		Message: message,
-		Payload: payload,
+		Type:      messageType,
+		Payload:   payload,
+		Timestamp: time.Now().Unix(),
 	}
-	err := util.REDIS.Publish(ctx, CHANNEL_GLOBAL_CACHE, fmt.Sprintf("%v", cacheMessage)).Err()
+
+	messageJSON, err := json.Marshal(cacheMessage)
 	if err != nil {
-		log.Println(err)
+		log.Printf("Failed to marshal cache message: %v", err)
 		return err
 	}
 
-	log.Println("Published cache message")
+	err = util.REDIS.Publish(ctx, CHANNEL_GLOBAL_CACHE, string(messageJSON)).Err()
+	if err != nil {
+		log.Printf("Failed to publish cache message: %v", err)
+		return err
+	}
 
+	log.Printf("Published cache message: %s", messageJSON)
 	return nil
 }
