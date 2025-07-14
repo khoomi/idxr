@@ -52,6 +52,62 @@ func CheckShopNameAvailability() gin.HandlerFunc {
 	}
 }
 
+// calculateShopRating recalculates the shop's average rating and star distribution
+func calculateShopRating(ctx context.Context, shopId primitive.ObjectID) (models.Rating, error) {
+	pipeline := []bson.M{
+		{"$match": bson.M{"shop_id": shopId, "status": models.ReviewStatusApproved}},
+		{
+			"$group": bson.M{
+				"_id":           nil,
+				"averageRating": bson.M{"$avg": "$rating"},
+				"reviewCount":   bson.M{"$sum": 1},
+				"fiveStarCount": bson.M{
+					"$sum": bson.M{
+						"$cond": bson.A{bson.M{"$eq": bson.A{"$rating", 5}}, 1, 0},
+					},
+				},
+				"fourStarCount": bson.M{
+					"$sum": bson.M{
+						"$cond": bson.A{bson.M{"$eq": bson.A{"$rating", 4}}, 1, 0},
+					},
+				},
+				"threeStarCount": bson.M{
+					"$sum": bson.M{
+						"$cond": bson.A{bson.M{"$eq": bson.A{"$rating", 3}}, 1, 0},
+					},
+				},
+				"twoStarCount": bson.M{
+					"$sum": bson.M{
+						"$cond": bson.A{bson.M{"$eq": bson.A{"$rating", 2}}, 1, 0},
+					},
+				},
+				"oneStarCount": bson.M{
+					"$sum": bson.M{
+						"$cond": bson.A{bson.M{"$eq": bson.A{"$rating", 1}}, 1, 0},
+					},
+				},
+			},
+		},
+	}
+
+	cursor, err := common.ShopReviewCollection.Aggregate(ctx, pipeline)
+	if err != nil {
+		return models.Rating{}, err
+	}
+	defer cursor.Close(ctx)
+
+	var result models.Rating
+	if cursor.Next(ctx) {
+		if err := cursor.Decode(&result); err != nil {
+			return models.Rating{}, err
+		}
+	}
+
+	averageRating := float64(int(result.AverageRating*100)) / 100
+	result.AverageRating = averageRating
+
+	return result, nil
+}
 func CreateShop() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		now := time.Now()
@@ -2028,61 +2084,4 @@ func GetShopComplianceInformation() gin.HandlerFunc {
 
 		util.HandleSuccess(c, http.StatusOK, "Shop compliance information created successfully", gin.H{"compliance_information": complianceInformation})
 	}
-}
-
-// calculateShopRating recalculates the shop's average rating and star distribution
-func calculateShopRating(ctx context.Context, shopId primitive.ObjectID) (models.Rating, error) {
-	pipeline := []bson.M{
-		{"$match": bson.M{"shop_id": shopId, "status": models.ReviewStatusApproved}},
-		{
-			"$group": bson.M{
-				"_id":           nil,
-				"averageRating": bson.M{"$avg": "$rating"},
-				"reviewCount":   bson.M{"$sum": 1},
-				"fiveStarCount": bson.M{
-					"$sum": bson.M{
-						"$cond": bson.A{bson.M{"$eq": bson.A{"$rating", 5}}, 1, 0},
-					},
-				},
-				"fourStarCount": bson.M{
-					"$sum": bson.M{
-						"$cond": bson.A{bson.M{"$eq": bson.A{"$rating", 4}}, 1, 0},
-					},
-				},
-				"threeStarCount": bson.M{
-					"$sum": bson.M{
-						"$cond": bson.A{bson.M{"$eq": bson.A{"$rating", 3}}, 1, 0},
-					},
-				},
-				"twoStarCount": bson.M{
-					"$sum": bson.M{
-						"$cond": bson.A{bson.M{"$eq": bson.A{"$rating", 2}}, 1, 0},
-					},
-				},
-				"oneStarCount": bson.M{
-					"$sum": bson.M{
-						"$cond": bson.A{bson.M{"$eq": bson.A{"$rating", 1}}, 1, 0},
-					},
-				},
-			},
-		},
-	}
-
-	cursor, err := common.ShopReviewCollection.Aggregate(ctx, pipeline)
-	if err != nil {
-		return models.Rating{}, err
-	}
-	defer cursor.Close(ctx)
-
-	var result models.Rating
-	if cursor.Next(ctx) {
-		if err := cursor.Decode(&result); err != nil {
-			return models.Rating{}, err
-		}
-	}
-
-	averageRating := float64(int(result.AverageRating*100)) / 100
-	result.AverageRating = averageRating
-
-	return result, nil
 }

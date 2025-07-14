@@ -1,6 +1,9 @@
 package common
 
 import (
+	"fmt"
+	"net/url"
+	"path/filepath"
 	"strconv"
 	"time"
 
@@ -21,23 +24,25 @@ var (
 	UserCartCollection                 = util.GetCollection(util.DB, "UserCart")
 	UserDeletionCollection             = util.GetCollection(util.DB, "UserDeletionRequest")
 	NotificationCollection             = util.GetCollection(util.DB, "UserNotification")
-	ShopAboutCollection                = util.GetCollection(util.DB, "ShopAbout")
-	ShopFollowerCollection             = util.GetCollection(util.DB, "ShopFollower")
-	ShopReviewCollection               = util.GetCollection(util.DB, "ShopReview")
-	ShopReturnPolicyCollection         = util.GetCollection(util.DB, "ShopReturnPolicies")
-	ShopCompliancePolicyCollection     = util.GetCollection(util.DB, "ShopCompliancePolicy")
-	ShippingProfileCollection          = util.GetCollection(util.DB, "ShopShippingProfile")
-	SellerVerificationCollection       = util.GetCollection(util.DB, "SellerVerification")
-	ListingCollection                  = util.GetCollection(util.DB, "Listing")
-	ListingReviewCollection            = util.GetCollection(util.DB, "ListingReview")
 	SellerPaymentInformationCollection = util.GetCollection(util.DB, "SellerSellerPaymentInformation")
 	UserPaymentCardsTable              = util.GetCollection(util.DB, "UserPaymentCards")
 	UserNotificationCollection         = util.GetCollection(util.DB, "UserNotification")
 	UserFavoriteListingCollection      = util.GetCollection(util.DB, "UserFavoriteListing")
-	Validate                           = validator.New()
-	DefaultUserThumbnail               = "https://res.cloudinary.com/kh-oo-mi/image/upload/v1705607383/khoomi/xp78ywxq8ggvo6muf4ry.png"
-	DefaultThumbnail                   = "https://res.cloudinary.com/kh-oo-mi/image/upload/v1705607175/khoomi/mypvl86lihcqvkcqmvbg.jpg"
-	DefaultLogo                        = "https://res.cloudinary.com/kh-oo-mi/image/upload/v1703704749/UCuy4YhFhyCvo3-jeXhNjR4yIeQ/zvzr1l17hz2c3yhqhf89.png"
+	UserFavoriteShopCollection         = util.GetCollection(util.DB, "UserFavoriteShop")
+
+	ShopAboutCollection            = util.GetCollection(util.DB, "ShopAbout")
+	ShopFollowerCollection         = util.GetCollection(util.DB, "ShopFollower")
+	ShopReviewCollection           = util.GetCollection(util.DB, "ShopReview")
+	ShopReturnPolicyCollection     = util.GetCollection(util.DB, "ShopReturnPolicies")
+	ShopCompliancePolicyCollection = util.GetCollection(util.DB, "ShopCompliancePolicy")
+	ShippingProfileCollection      = util.GetCollection(util.DB, "ShopShippingProfile")
+	SellerVerificationCollection   = util.GetCollection(util.DB, "SellerVerification")
+	ListingCollection              = util.GetCollection(util.DB, "Listing")
+	ListingReviewCollection        = util.GetCollection(util.DB, "ListingReview")
+	Validate                       = validator.New()
+	DefaultUserThumbnail           = "https://res.cloudinary.com/kh-oo-mi/image/upload/v1705607383/khoomi/xp78ywxq8ggvo6muf4ry.png"
+	DefaultThumbnail               = "https://res.cloudinary.com/kh-oo-mi/image/upload/v1705607175/khoomi/mypvl86lihcqvkcqmvbg.jpg"
+	DefaultLogo                    = "https://res.cloudinary.com/kh-oo-mi/image/upload/v1703704749/UCuy4YhFhyCvo3-jeXhNjR4yIeQ/zvzr1l17hz2c3yhqhf89.png"
 )
 
 const (
@@ -57,4 +62,21 @@ func GetPaginationArgs(c *gin.Context) util.PaginationArgs {
 		Skip:  skip,
 		Sort:  sort,
 	}
+}
+
+func ExtractFilenameAndExtension(urlString string) (filename, extension string, err error) {
+	// Parse the URL
+	parsedURL, err := url.Parse(urlString)
+	if err != nil {
+		return "", "", fmt.Errorf("failed to parse URL: %w", err)
+	}
+
+	// Extract the filename from the URL path
+	filenameWithExtension := filepath.Base(parsedURL.Path)
+
+	// Split the filename and extension
+	name := filenameWithExtension[:len(filenameWithExtension)-len(filepath.Ext(filenameWithExtension))]
+	ext := filepath.Ext(filenameWithExtension)
+
+	return name, ext, nil
 }

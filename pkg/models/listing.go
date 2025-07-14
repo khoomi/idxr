@@ -48,8 +48,8 @@ type Details struct {
 	Title              string          `bson:"title" json:"title"`
 	Tags               []string        `bson:"tags" json:"tags"`
 	Keywords           []string        `bson:"keywords" json:"keywords"`
-	HasPersonalization bool            `bson:"has_personalization" json:"has_personalization"`
-	Personalization    Personalization `json:"personalization"`
+	HasPersonalization bool            `bson:"has_personalization" json:"hasPersonalization"`
+	Personalization    Personalization `bson:"personalization" json:"personalization"`
 
 	AceessoriesAndJewelryData *AceessoriesAndJewelry `json:"-" bson:"accessories_and_jewelry_data,omitempty"`
 	ClothingData              *Clothing              `json:"-" bson:"clothing_data,omitempty"`

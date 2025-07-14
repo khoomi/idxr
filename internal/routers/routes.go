@@ -98,9 +98,6 @@ func userRoutes(api *gin.RouterGroup) {
 			secured.PUT("/:userid/login-notification", controllers.UpdateSecurityNotificationSetting())
 			secured.GET("/:userid/login-notification", controllers.GetSecurityNotificationSetting())
 
-			// Favorite shop endpoints
-			secured.POST("/:userid/favorite-shop", controllers.AddRemoveFavoriteShop())
-
 			// Wishlist endpoints
 			secured.GET("/:userid/wishlist", controllers.GetUserWishlist())
 			secured.POST("/:userid/wishlist", controllers.AddWishListItem())
@@ -119,6 +116,13 @@ func userRoutes(api *gin.RouterGroup) {
 			secured.GET("/:userid/payment-information", controllers.GetSellerPaymentInformations())
 			secured.PUT("/:userid/payment-information/:paymentInfoId/default", controllers.ChangeDefaultSellerPaymentInformation())
 			secured.DELETE("/:userid/payment-information/:paymentInfoId", controllers.DeleteSellerPaymentInformation())
+
+			// User Favorite shops
+			secured.GET("/favorite/shops", controllers.IsShopFavorited())
+			secured.POST("/favorite/shops", controllers.ToggleFavoriteShop())
+			// User Favorite listings
+			secured.GET("/favorite/listings", controllers.IsListingFavorited())
+			secured.POST("/favorite/listings", controllers.ToggleFavoriteListing())
 
 		}
 	}
@@ -232,8 +236,6 @@ func listingRoutes(api *gin.RouterGroup) {
 	{
 		secured.DELETE("/", controllers.DeleteListings())
 		secured.PUT("/deactivate", controllers.DeactivateListings())
-		secured.GET("/favorite", controllers.IsListingFavorited())
-		secured.POST("/favorite", controllers.ToggleFavoriteListing())
 	}
 }
 
