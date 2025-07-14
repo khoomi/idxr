@@ -11,7 +11,6 @@ import (
 	"strings"
 	"sync"
 	"time"
-	"unicode/utf8"
 
 	"khoomi-api-io/api/pkg/models"
 	"khoomi-api-io/api/pkg/util"
@@ -23,11 +22,9 @@ import (
 )
 
 const (
-	// Title constraints
 	MinTitleLength = 5
 	MaxTitleLength = 140
 
-	// Description constraints
 	MinDescriptionLength = 25
 	MaxDescriptionLength = 2000
 )
@@ -46,37 +43,6 @@ func GenListingIdBson(listingId string) (bson.M, error) {
 	} else {
 		return bson.M{"slug": listingId}, nil
 	}
-}
-
-// getFormValue returns the value from formData or default if empty/missing
-func getFormValue(formData func(key string) (value string), key, defaultValue string) string {
-	if value := formData(key); value != "" {
-		return value
-	}
-	return defaultValue
-}
-
-func validateTitle(title string) error {
-	length := utf8.RuneCountInString(strings.TrimSpace(title))
-	if length < MinTitleLength {
-		return fmt.Errorf("title is too short: minimum length is %d characters", MinTitleLength)
-	}
-	if length > MaxTitleLength {
-		return fmt.Errorf("title is too long: maximum length is %d characters", MaxTitleLength)
-	}
-	return nil
-}
-
-// validateDescription checks if the description meets the length requirements
-func validateDescription(description string) error {
-	length := utf8.RuneCountInString(strings.TrimSpace(description))
-	if length < MinDescriptionLength {
-		return fmt.Errorf("description is too short: minimum length is %d characters", MinDescriptionLength)
-	}
-	if length > MaxDescriptionLength {
-		return fmt.Errorf("description is too long: maximum length is %d characters", MaxDescriptionLength)
-	}
-	return nil
 }
 
 func GenerateListingCode() string {

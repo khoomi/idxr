@@ -41,23 +41,18 @@ func GetUserByEmail(ctx context.Context, email string) (models.User, error) {
 func IsSeller(c *gin.Context, userId primitive.ObjectID) (bool, error) {
 	err := UserCollection.FindOne(c, bson.M{"_id": userId, "is_seller": true}).Err()
 	if err == mongo.ErrNoDocuments {
-		// User not found or not a seller
 		return false, nil
 	} else if err != nil {
-		// Other error occurred
 		return false, err
 	}
 
-	// User is a seller
 	return true, nil
 }
 
 func GenerateRandomUsername() string {
-	// Create a private random generator with a seeded source
 	source := rand.NewSource(time.Now().UnixNano())
 	r := rand.New(source)
 
-	// List of adjectives and nouns
 	adjectives := []string{
 		"fluffy", "sunny", "breezy", "whisper", "dazzle", "sparkle", "mystic", "shimmer",
 		"twinkle", "dreamy", "enchant", "radiant", "brave", "vibrant", "gloomy", "chilly",
@@ -72,14 +67,11 @@ func GenerateRandomUsername() string {
 		"wonder", "delight", "treasure", "triumph", "inspiration", "smile", "laughter",
 	}
 
-	// Randomly select an adjective and noun
 	adjective := adjectives[r.Intn(len(adjectives))]
 	noun := nouns[r.Intn(len(nouns))]
 
-	// Generate a random number between 100 and 999
 	number := r.Intn(900) + 100
 
-	// Combine the adjective, noun, and number to form the username
 	username := fmt.Sprintf("%s%s%d", adjective, noun, number)
 
 	return username
