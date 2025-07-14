@@ -139,7 +139,7 @@ func shopRoutes(api *gin.RouterGroup) {
 		shop.GET("/:shopid", controllers.GetShop())
 		// Endpoint to get shop about information
 		shop.GET("/:shopid/about", controllers.GetShopAbout())
-		// Endpoint to get shop reviews
+		// Endpoint to get shop listing reviews
 		shop.GET("/:shopid/reviews", controllers.GetShopReviews())
 		// Endpoint to get shop followers
 		shop.GET("/:shopid/followers", controllers.GetShopFollowers())
@@ -180,10 +180,6 @@ func shopRoutes(api *gin.RouterGroup) {
 			secured.DELETE("/:shopid/followers", controllers.UnfollowShop())
 			secured.DELETE("/:shopid/followers/other", controllers.RemoveOtherFollower())
 			secured.GET("/:shopid/followers/following", controllers.IsFollowingShop())
-			// Endpoint to create/delete shop reviews
-			shop.POST("/:shopid/reviews", controllers.CreateShopReview())
-			secured.DELETE("/:shopid/reviews", controllers.DeleteMyReview())
-			secured.DELETE("/:shopid/reviews/other", controllers.DeleteOtherReview())
 			// Endpoint to create/update/delete shop return policies
 			secured.POST("/:shopid/policies", controllers.CreateShopReturnPolicy())
 			secured.PUT("/:shopid/policies", controllers.UpdateShopReturnPolicy())

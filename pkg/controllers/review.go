@@ -78,6 +78,71 @@ func calculateListingRating(ctx context.Context, listingId primitive.ObjectID) (
 	return result, nil
 }
 
+// calculateShopRating recalculates the shop's average rating based on listing reviews from the past 12 months
+func calculateShopRating(ctx context.Context, shopId primitive.ObjectID) (models.Rating, error) {
+	// Calculate the date 12 months ago
+	twelveMonthsAgo := time.Now().AddDate(0, -12, 0)
+
+	pipeline := []bson.M{
+		{
+			"$match": bson.M{
+				"shop_id":    shopId,
+				"created_at": bson.M{"$gte": twelveMonthsAgo},
+			},
+		},
+		{
+			"$group": bson.M{
+				"_id":           nil,
+				"averageRating": bson.M{"$avg": "$rating"},
+				"reviewCount":   bson.M{"$sum": 1},
+				"fiveStarCount": bson.M{
+					"$sum": bson.M{
+						"$cond": bson.A{bson.M{"$eq": bson.A{"$rating", 5}}, 1, 0},
+					},
+				},
+				"fourStarCount": bson.M{
+					"$sum": bson.M{
+						"$cond": bson.A{bson.M{"$eq": bson.A{"$rating", 4}}, 1, 0},
+					},
+				},
+				"threeStarCount": bson.M{
+					"$sum": bson.M{
+						"$cond": bson.A{bson.M{"$eq": bson.A{"$rating", 3}}, 1, 0},
+					},
+				},
+				"twoStarCount": bson.M{
+					"$sum": bson.M{
+						"$cond": bson.A{bson.M{"$eq": bson.A{"$rating", 2}}, 1, 0},
+					},
+				},
+				"oneStarCount": bson.M{
+					"$sum": bson.M{
+						"$cond": bson.A{bson.M{"$eq": bson.A{"$rating", 1}}, 1, 0},
+					},
+				},
+			},
+		},
+	}
+
+	cursor, err := common.ListingReviewCollection.Aggregate(ctx, pipeline)
+	if err != nil {
+		return models.Rating{}, err
+	}
+	defer cursor.Close(ctx)
+
+	var result models.Rating
+	if cursor.Next(ctx) {
+		if err := cursor.Decode(&result); err != nil {
+			return models.Rating{}, err
+		}
+	}
+
+	averageRating := float64(int(result.AverageRating*100)) / 100
+	result.AverageRating = averageRating
+
+	return result, nil
+}
+
 // CreateListingReview - api/listing/:listingid/reviews
 func CreateListingReview() gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -143,7 +208,7 @@ func CreateListingReview() gin.HandlerFunc {
 				return nil, err
 			}
 
-			// Calculate and update the listing's rating, not the shop's.
+			// Calculate and update the listing's rating
 			listingRating, err := calculateListingRating(sessionContext, listingId)
 			if err != nil {
 				log.Println("Failed to calculate listing rating:", err)
@@ -156,6 +221,20 @@ func CreateListingReview() gin.HandlerFunc {
 				return nil, err
 			}
 			log.Printf("Listing update result: %+v\n", updateResult)
+
+			// Calculate and update the shop's rating based on listing reviews from past 12 months
+			shopRating, err := calculateShopRating(sessionContext, listingReviewData.ShopId)
+			if err != nil {
+				log.Println("Failed to calculate shop rating:", err)
+				return nil, err
+			}
+
+			log.Println(shopRating)
+			_, err = common.ShopCollection.UpdateOne(sessionContext, bson.M{"_id": listingReviewData.ShopId}, bson.M{"$set": bson.M{"rating": shopRating, "modified_at": now}})
+			if err != nil {
+				log.Println("Failed to update shop rating:", err)
+				return nil, err
+			}
 
 			return updateResult, nil
 		}
@@ -175,6 +254,115 @@ func CreateListingReview() gin.HandlerFunc {
 
 		internal.PublishCacheMessage(c, internal.CacheInvalidateListingReviews, listingId.Hex())
 		util.HandleSuccess(c, http.StatusOK, "Review Added Successfully", result)
+	}
+}
+
+// GetShopReviews - api/shops/:shopid/reviews?limit=50&skip=0
+func GetShopReviews() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
+		defer cancel()
+
+		shopIdStr := c.Param("shopid")
+		shopId, err := primitive.ObjectIDFromHex(shopIdStr)
+		if err != nil {
+			util.HandleError(c, http.StatusBadRequest, err)
+			return
+		}
+
+		paginationArgs := common.GetPaginationArgs(c)
+
+		// Build aggregation pipeline to get listing reviews with listing info
+		pipeline := []bson.M{
+			{"$match": bson.M{"shop_id": shopId, "status": models.ReviewStatusApproved}},
+			{
+				"$lookup": bson.M{
+					"from":         "Listing",
+					"localField":   "listing_id",
+					"foreignField": "_id",
+					"as":           "listing",
+				},
+			},
+			{
+				"$unwind": bson.M{
+					"path":                       "$listing",
+					"preserveNullAndEmptyArrays": true,
+				},
+			},
+			{
+				"$project": bson.M{
+					"_id":           1,
+					"user_id":       1,
+					"listing_id":    1,
+					"shop_id":       1,
+					"review":        1,
+					"review_author": 1,
+					"thumbnail":     1,
+					"rating":        1,
+					"created_at":    1,
+					"status":        1,
+					"listing": bson.M{
+						"_id":        "$listing._id",
+						"title":      "$listing.details.title",
+						"slug":       "$listing.slug",
+						"main_image": "$listing.main_image",
+						"images": bson.M{
+							"$arrayElemAt": bson.A{"$listing.images", 0},
+						},
+					},
+				},
+			},
+			{"$sort": bson.M{"created_at": -1}},
+			{"$skip": int64(paginationArgs.Skip)},
+			{"$limit": int64(paginationArgs.Limit)},
+		}
+
+		cursor, err := common.ListingReviewCollection.Aggregate(ctx, pipeline)
+		if err != nil {
+			util.HandleError(c, http.StatusNotFound, err)
+			return
+		}
+		defer cursor.Close(ctx)
+
+		var reviews []bson.M
+		if err = cursor.All(ctx, &reviews); err != nil {
+			util.HandleError(c, http.StatusNotFound, err)
+			return
+		}
+
+		// Get total count for pagination
+		countPipeline := []bson.M{
+			{"$match": bson.M{"shop_id": shopId, "status": models.ReviewStatusApproved}},
+			{"$count": "total"},
+		}
+
+		countCursor, err := common.ListingReviewCollection.Aggregate(ctx, countPipeline)
+		if err != nil {
+			util.HandleError(c, http.StatusInternalServerError, err)
+			return
+		}
+		defer countCursor.Close(ctx)
+
+		var countResult []bson.M
+		if err = countCursor.All(ctx, &countResult); err != nil {
+			util.HandleError(c, http.StatusInternalServerError, err)
+			return
+		}
+
+		var totalCount int64 = 0
+		if len(countResult) > 0 {
+			if count, ok := countResult[0]["total"].(int32); ok {
+				totalCount = int64(count)
+			}
+		}
+
+		util.HandleSuccessMeta(c, http.StatusOK, "success", reviews, gin.H{
+			"pagination": util.Pagination{
+				Limit: paginationArgs.Limit,
+				Skip:  paginationArgs.Skip,
+				Count: totalCount,
+			},
+		})
 	}
 }
 
@@ -246,10 +434,19 @@ func DeleteMyListingReview() gin.HandlerFunc {
 		defer session.EndSession(ctx)
 
 		var deletedReviewId any
+		var shopId primitive.ObjectID
 		callback := func(ctx mongo.SessionContext) (any, error) {
-			// Attempt to remove review from review collection table
+			// Get the review first to obtain the shop ID
 			filter := bson.M{"listing_id": listingId, "user_id": myId}
-			_, err := common.ListingReviewCollection.DeleteOne(ctx, filter)
+			var reviewToDelete models.ListingReview
+			err := common.ListingReviewCollection.FindOne(ctx, filter).Decode(&reviewToDelete)
+			if err != nil {
+				return nil, err
+			}
+			shopId = reviewToDelete.ShopId
+
+			// Attempt to remove review from review collection table
+			_, err = common.ListingReviewCollection.DeleteOne(ctx, filter)
 			if err != nil {
 				return nil, err
 			}
@@ -284,6 +481,19 @@ func DeleteMyListingReview() gin.HandlerFunc {
 			_, err = common.ListingCollection.UpdateOne(ctx, bson.M{"_id": listingId}, bson.M{"$set": bson.M{"rating": listingRating}})
 			if err != nil {
 				log.Println("Failed to update listing rating:", err)
+				return nil, err
+			}
+
+			// recalculate and update shop rating
+			shopRating, err := calculateShopRating(ctx, shopId)
+			if err != nil {
+				log.Println("Failed to calculate shop rating:", err)
+				return nil, err
+			}
+
+			_, err = common.ShopCollection.UpdateOne(ctx, bson.M{"_id": shopId}, bson.M{"$set": bson.M{"rating": shopRating}})
+			if err != nil {
+				log.Println("Failed to update shop rating:", err)
 				return nil, err
 			}
 
@@ -329,6 +539,7 @@ func DeleteOtherListingReview() gin.HandlerFunc {
 		}
 
 		var deletedReviewId any
+		var shopId primitive.ObjectID
 		// Shop review session
 		wc := writeconcern.New(writeconcern.WMajority())
 		txnOptions := options.Transaction().SetWriteConcern(wc)
@@ -340,8 +551,16 @@ func DeleteOtherListingReview() gin.HandlerFunc {
 		defer session.EndSession(ctx)
 
 		callback := func(ctx mongo.SessionContext) (any, error) {
-			// Attempt to remove review from review collection table
+			// Get the review first to obtain the shop ID
 			filter := bson.M{"listing_id": listingId, "user_id": userToBeRemovedId}
+			var reviewToDelete models.ListingReview
+			err = common.ListingReviewCollection.FindOne(ctx, filter).Decode(&reviewToDelete)
+			if err != nil {
+				return nil, err
+			}
+			shopId = reviewToDelete.ShopId
+
+			// Attempt to remove review from review collection table
 			_, err = common.ListingReviewCollection.DeleteOne(ctx, filter)
 			if err != nil {
 				return nil, err
@@ -370,6 +589,19 @@ func DeleteOtherListingReview() gin.HandlerFunc {
 			_, err = common.ListingCollection.UpdateOne(ctx, bson.M{"_id": listingId}, bson.M{"$set": bson.M{"rating": listingRating}})
 			if err != nil {
 				log.Println("Failed to update listing rating:", err)
+				return nil, err
+			}
+
+			// recalculate and update shop rating
+			shopRating, err := calculateShopRating(ctx, shopId)
+			if err != nil {
+				log.Println("Failed to calculate shop rating:", err)
+				return nil, err
+			}
+
+			_, err = common.ShopCollection.UpdateOne(ctx, bson.M{"_id": shopId}, bson.M{"$set": bson.M{"rating": shopRating}})
+			if err != nil {
+				log.Println("Failed to update shop rating:", err)
 				return nil, err
 			}
 
