@@ -80,7 +80,7 @@ const (
 func GetPaginationArgs(c *gin.Context) util.PaginationArgs {
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
 	skip, _ := strconv.Atoi(c.DefaultQuery("skip", "0"))
-	sort := c.DefaultQuery("sort", "created_at_asc")
+	sort := c.DefaultQuery("sort", "created_at_desc")
 
 	return util.PaginationArgs{
 		Limit: limit,
@@ -90,7 +90,6 @@ func GetPaginationArgs(c *gin.Context) util.PaginationArgs {
 }
 
 func ExtractFilenameAndExtension(urlString string) (filename, extension string, err error) {
-	// Parse the URL
 	parsedURL, err := url.Parse(urlString)
 	if err != nil {
 		return "", "", fmt.Errorf("failed to parse URL: %w", err)
