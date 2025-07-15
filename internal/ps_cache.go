@@ -32,7 +32,6 @@ const (
 	CacheInvalidateShopAbout          CacheMessageType = "shop.about.invalidate"
 	CacheInvalidateShopPolicy         CacheMessageType = "shop.policy.invalidate"
 	CacheInvalidateShopShipping       CacheMessageType = "shop.shipping.invalidate"
-	CacheInvalidateShopReviews        CacheMessageType = "shop.reviews.invalidate"
 	CacheInvalidateShopCompliance     CacheMessageType = "shop.compliance.invalidate"
 	CacheInvalidateShopFavoriteToggle CacheMessageType = "shop.favorite.toggle"
 
