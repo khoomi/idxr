@@ -260,7 +260,7 @@ func CreateListingReview() gin.HandlerFunc {
 // GetShopReviews - api/shops/:shopid/reviews?limit=50&skip=0
 func GetShopReviews() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
+		ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
 		defer cancel()
 
 		shopIdStr := c.Param("shopid")
@@ -369,7 +369,7 @@ func GetShopReviews() gin.HandlerFunc {
 // GetShopReviews - api/listing/:listingid/reviews?limit=50&skip=0
 func GetListingReviews() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
+		ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
 		defer cancel()
 
 		listingIdStr := c.Param("listingid")

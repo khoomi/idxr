@@ -32,14 +32,14 @@ import (
 )
 
 func createUserImpl(c *gin.Context, claim *googleAuthIDTokenVerifier.ClaimSet, jsonUser models.UserRegistrationBody) *mongo.InsertOneResult {
-	ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
+	ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
 	defer cancel()
 	now := time.Now()
 
 	firstName := ""
 	lastName := ""
 	userEmail := ""
-	thumbnail := common.DefaultUserThumbnail
+	thumbnail := common.DEFAULT_USER_THUMBNAIL
 	userAuth := models.UserAuthData{}
 
 	if claim == nil {
@@ -118,7 +118,7 @@ func createUserImpl(c *gin.Context, claim *googleAuthIDTokenVerifier.ClaimSet, j
 		writeException, ok := err.(mongo.WriteException)
 		if ok {
 			for _, writeError := range writeException.WriteErrors {
-				if writeError.Code == common.MongoDuplicateKeyCode {
+				if writeError.Code == common.MONGO_DUPLICATE_KEY_CODE {
 					log.Printf("User with email already exists: %s\n", writeError.Message)
 					util.HandleError(c, http.StatusBadRequest, writeError)
 					return nil
@@ -154,7 +154,7 @@ func createUserImpl(c *gin.Context, claim *googleAuthIDTokenVerifier.ClaimSet, j
 
 // CurrentUser get current user using userId from request headers.
 func ActiveSessionUser(c *gin.Context) {
-	ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
+	ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
 	defer cancel()
 
 	var user models.User
@@ -202,7 +202,7 @@ func CreateUser() gin.HandlerFunc {
 // HandleUserAuthentication authenticates new user session while sending necessary notifications depending on the cases. e.g new IP
 func HandleUserAuthentication() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
+		ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
 		defer cancel()
 
 		clientIP := c.ClientIP()
@@ -337,7 +337,7 @@ func HandleUserAuthentication() gin.HandlerFunc {
 
 func HandleUserGoogleAuthentication() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
+		ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
 		defer cancel()
 
 		var body struct {
@@ -497,7 +497,7 @@ func HandleUserGoogleAuthentication() gin.HandlerFunc {
 // GetMyActiveSession returns current active sesison given a session id
 func GetMyActiveSession() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		_, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
+		_, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
 		defer cancel()
 
 		session, err := auth.GetSessionAuto(c)
@@ -515,7 +515,7 @@ func GetMyActiveSession() gin.HandlerFunc {
 // RefreshToken handles auth token refreshments
 func RefreshToken() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
+		ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
 		defer cancel()
 
 		session, err := auth.GetSessionAuto(c)
@@ -566,7 +566,7 @@ func Logout() gin.HandlerFunc {
 // SendDeleteUserAccount -> Delete current user account
 func SendDeleteUserAccount() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
+		ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
 		defer cancel()
 
 		session_, err := auth.GetSessionAuto(c)
@@ -589,7 +589,7 @@ func SendDeleteUserAccount() gin.HandlerFunc {
 // IsAccountPendingDeletion checks if current user account is pending deletion
 func IsAccountPendingDeletion() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
+		ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
 		defer cancel()
 
 		userId, err := auth.ValidateUserID(c)
@@ -616,7 +616,7 @@ func IsAccountPendingDeletion() gin.HandlerFunc {
 // CancelDeleteUserAccount cancels delete user account request.
 func CancelDeleteUserAccount() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
+		ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
 		defer cancel()
 
 		userId, err := auth.ValidateUserID(c)
@@ -640,7 +640,7 @@ func CancelDeleteUserAccount() gin.HandlerFunc {
 // ChangePassword changes active user's password.
 func ChangePassword() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
+		ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
 		defer cancel()
 
 		// Verify current user session
@@ -710,7 +710,7 @@ func ChangePassword() gin.HandlerFunc {
 // ObjectID. If the user ID is not a valid ObjectID, it attempts to find the user by username.
 func GetUser() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
+		ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
 		defer cancel()
 
 		var filter bson.M
@@ -814,7 +814,7 @@ func GetUser() gin.HandlerFunc {
 func SendVerifyEmail() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		now := time.Now()
-		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
+		ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
 		defer cancel()
 
 		emailCurrent := c.Query("email")
@@ -861,7 +861,7 @@ func SendVerifyEmail() gin.HandlerFunc {
 // VerifyEmail - api/send-verify-email?email=...&name=user_login_name
 func VerifyEmail() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
+		ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
 		defer cancel()
 
 		currentId := c.Query("id")
@@ -912,7 +912,7 @@ func VerifyEmail() gin.HandlerFunc {
 // UpdateMyProfile updates the email, thumbnail, first and last name for the current user.
 func UpdateMyProfile() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
+		ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
 		defer cancel()
 
 		session_, err := auth.GetSessionAuto(c)
@@ -996,7 +996,7 @@ func UpdateMyProfile() gin.HandlerFunc {
 // GetLoginHistories - Get user login histories (/api/users/:userId/login-history?limit=50&skip=0)
 func GetLoginHistories() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
+		ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
 		defer cancel()
 
 		userId, err := auth.ValidateUserID(c)
@@ -1043,7 +1043,7 @@ func GetLoginHistories() gin.HandlerFunc {
 // DeleteLoginHistories - Get user login histories (/api/users/:userId/login-history?limit=50&skip=0)
 func DeleteLoginHistories() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
+		ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
 		defer cancel()
 
 		userId, err := auth.ValidateUserID(c)
@@ -1105,7 +1105,7 @@ func DeleteLoginHistories() gin.HandlerFunc {
 // PasswordResetEmail - api/send-password-reset?email=borngracedd@gmail.com
 func PasswordResetEmail() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
+		ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
 		defer cancel()
 
 		currentEmail := strings.ToLower(c.Query("email"))
@@ -1145,7 +1145,7 @@ func PasswordResetEmail() gin.HandlerFunc {
 // PasswordReset - api/password-reset/userid?token=..&newpassword=..&id=user_uid
 func PasswordReset() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
+		ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
 		defer cancel()
 
 		currentId := c.Query("id")
@@ -1215,7 +1215,7 @@ func PasswordReset() gin.HandlerFunc {
 // api/user/thumbnail?remote_addr=..
 func UploadThumbnail() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
+		ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
 		defer cancel()
 
 		currentId, err := auth.ValidateUserID(c)
@@ -1285,7 +1285,7 @@ func UploadThumbnail() gin.HandlerFunc {
 // api/user/thumbnail
 func DeleteThumbnail() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
+		ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
 		defer cancel()
 
 		myId, err := auth.ValidateUserID(c)
@@ -1338,7 +1338,7 @@ func DeleteThumbnail() gin.HandlerFunc {
 // UpdateUserBirthdate - update user birthdate
 func UpdateUserBirthdate() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
+		ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
 		var birthDate models.UserBirthdate
 		defer cancel()
 
@@ -1377,7 +1377,7 @@ func UpdateUserBirthdate() gin.HandlerFunc {
 // api/user/update?field=phone&value=8084051523
 func UpdateUserSingleField() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
+		ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
 		field := c.Query("field")
 		value := c.Query("value")
 		defer cancel()
@@ -1421,7 +1421,7 @@ func UpdateUserSingleField() gin.HandlerFunc {
 // api/user/:userId/wishlist?listing_id=8084051523
 func AddWishListItem() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
+		ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
 		defer cancel()
 
 		listingId := c.Query("listing_id")
@@ -1460,7 +1460,7 @@ func AddWishListItem() gin.HandlerFunc {
 // api/user/:userId/wishlist?listing_id=8084051523
 func RemoveWishListItem() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
+		ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
 		defer cancel()
 
 		listingId := c.Query("listing_id")
@@ -1492,7 +1492,7 @@ func RemoveWishListItem() gin.HandlerFunc {
 // GetUserWishlist - Get all wishlist items  api/user/:userId/wishlist?limit=10&skip=0
 func GetUserWishlist() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
+		ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
 		defer cancel()
 
 		MyId, err := auth.ValidateUserID(c)
@@ -1535,7 +1535,7 @@ func GetUserWishlist() gin.HandlerFunc {
 // UpdateSecurityNotificationSetting - GET api/user/:userId/login-notification?set=true
 func UpdateSecurityNotificationSetting() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
+		ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
 		defer cancel()
 
 		myID, err := auth.ValidateUserID(c)
@@ -1580,7 +1580,7 @@ func UpdateSecurityNotificationSetting() gin.HandlerFunc {
 // GetSecurityNotificationSetting - GET api/user/:userId/login-notification
 func GetSecurityNotificationSetting() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
+		ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
 		defer cancel()
 
 		MyId, err := auth.ValidateUserID(c)

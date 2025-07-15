@@ -21,7 +21,7 @@ import (
 // CreateUserAddress - create new user address
 func CreateUserAddress() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
+		ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
 		defer cancel()
 
 		var userAddress models.UserAddressExcerpt
@@ -95,7 +95,7 @@ func CreateUserAddress() gin.HandlerFunc {
 // GetUserAddresses - get user address
 func GetUserAddresses() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
+		ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
 		defer cancel()
 
 		// Validate authenticated user
@@ -140,7 +140,7 @@ func GetUserAddresses() gin.HandlerFunc {
 // UpdateUserAddress - update user address
 func UpdateUserAddress() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
+		ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
 		defer cancel()
 
 		var userAddress models.UserAddressExcerpt
@@ -207,7 +207,7 @@ func UpdateUserAddress() gin.HandlerFunc {
 // / ChangeDefaultAddress -> PUT /:userId/address/:addressId/default
 func ChangeDefaultAddress() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
+		ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
 		defer cancel()
 
 		userId, err := auth.ValidateUserID(c)
@@ -251,7 +251,7 @@ func ChangeDefaultAddress() gin.HandlerFunc {
 // UpdateUserAddress - update user address
 func DeleteUserAddress() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
+		ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
 		defer cancel()
 
 		// Extract current address Id

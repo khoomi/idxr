@@ -20,7 +20,7 @@ import (
 func CreateSellerVerificationProfile() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		now := time.Now()
-		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
+		ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
 		defer cancel()
 
 		shopId := c.Param("shopid")
@@ -85,7 +85,7 @@ func CreateSellerVerificationProfile() gin.HandlerFunc {
 
 func GetSellerVerificationProfile() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
+		ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
 		defer cancel()
 
 		shopId := c.Param("shopid")

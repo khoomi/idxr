@@ -57,7 +57,7 @@ func setOtherUserPaymentCardsToFalse(ctx context.Context, collection *mongo.Coll
 // CreateSellerPaymentInformation -> POST /shop/:shopId/payment-information/
 func CreateSellerPaymentInformation() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
+		ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
 		defer cancel()
 
 		userId, err := auth.ValidateUserID(c)
@@ -163,7 +163,7 @@ func CreateSellerPaymentInformation() gin.HandlerFunc {
 // GetSellerPaymentInformations -> GET /shop/:shopId/payment-information/
 func GetSellerPaymentInformations() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
+		ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
 		defer cancel()
 
 		userId, err := auth.ValidateUserID(c)
@@ -219,7 +219,7 @@ func GetSellerPaymentInformations() gin.HandlerFunc {
 // ChangeDefaultSellerPaymentInformation -> PUT /shop/:shopId/payment-information/:paymentInfoId
 func ChangeDefaultSellerPaymentInformation() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
+		ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
 		defer cancel()
 
 		userId, err := auth.ValidateUserID(c)
@@ -272,7 +272,7 @@ func ChangeDefaultSellerPaymentInformation() gin.HandlerFunc {
 // DeleteSellerPaymentInformation -> DELETE /shop/:shopId/payment-information/:paymentInfoId
 func DeleteSellerPaymentInformation() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
+		ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
 		defer cancel()
 
 		paymentInfoID := c.Param("paymentInfoId")
@@ -316,7 +316,7 @@ func DeleteSellerPaymentInformation() gin.HandlerFunc {
 
 func CompletedPaymentOnboarding() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
+		ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
 		defer cancel()
 
 		userId, err := auth.ValidateUserID(c)
@@ -356,7 +356,7 @@ func CompletedPaymentOnboarding() gin.HandlerFunc {
 func CreatePaymentCard() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		now := time.Now()
-		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
+		ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
 		defer cancel()
 
 		userId, err := auth.ValidateUserID(c)
@@ -469,7 +469,7 @@ func CreatePaymentCard() gin.HandlerFunc {
 // / GetPaymentCards-> GET /:userId/payment/cards
 func GetPaymentCards() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
+		ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
 		defer cancel()
 
 		userId, err := auth.ValidateUserID(c)
@@ -516,7 +516,7 @@ func GetPaymentCards() gin.HandlerFunc {
 // / ChangeDefaulterPaymentCard-> PUT /:userId/payment/cards/:id
 func ChangeDefaultPaymentCard() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
+		ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
 		defer cancel()
 
 		userId, err := auth.ValidateUserID(c)
@@ -559,7 +559,7 @@ func ChangeDefaultPaymentCard() gin.HandlerFunc {
 // / DeletePaymentCard-> DELETE /user/:userId/payment/card/:id
 func DeletePaymentCard() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
+		ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
 		defer cancel()
 
 		paymentInfoID := c.Param("id")

@@ -23,7 +23,7 @@ import (
 func SaveCartItem() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		now := time.Now()
-		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
+		ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
 		defer cancel()
 
 		myId, err := auth.ValidateUserID(c)
@@ -121,7 +121,7 @@ func SaveCartItem() gin.HandlerFunc {
 // GetCartItems(): get all cart listing.
 func GetCartItems() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
+		ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
 		defer cancel()
 
 		myId, err := auth.ValidateUserID(c)
@@ -247,7 +247,7 @@ func GetCartItems() gin.HandlerFunc {
 func IncreaseCartItemQuantity() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		now := time.Now()
-		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
+		ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
 		defer cancel()
 
 		cartItemId := c.Param("cartId")
@@ -336,7 +336,7 @@ func IncreaseCartItemQuantity() gin.HandlerFunc {
 func DecreaseCartItemQuantity() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		now := time.Now()
-		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
+		ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
 		defer cancel()
 
 		cartItemId := c.Param("cartId")
@@ -418,7 +418,7 @@ func DecreaseCartItemQuantity() gin.HandlerFunc {
 // DeleteCartItem(): get all cart listing.
 func DeleteCartItem() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
+		ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
 		defer cancel()
 
 		cartItemId := c.Param("cartId")
@@ -454,7 +454,7 @@ func DeleteCartItem() gin.HandlerFunc {
 // deleteManyCartItems: delete multiple cart items by their IDs
 func DeleteCartItems() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
+		ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
 		defer cancel()
 
 		idStrings := c.QueryArray("id")
@@ -505,7 +505,7 @@ func DeleteCartItems() gin.HandlerFunc {
 // ClearCartItems: clear all cart items
 func ClearCartItems() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
+		ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
 		defer cancel()
 
 		myId, err := auth.ValidateUserID(c)

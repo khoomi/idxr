@@ -20,7 +20,7 @@ import (
 
 func CreateShopShippingProfile() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
+		ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
 		defer cancel()
 
 		shopId := c.Param("shopid")
@@ -103,7 +103,7 @@ func CreateShopShippingProfile() gin.HandlerFunc {
 
 func GetShopShippingProfileInfo() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
+		ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
 		defer cancel()
 
 		profileIdString := c.Param("id")
@@ -126,7 +126,7 @@ func GetShopShippingProfileInfo() gin.HandlerFunc {
 
 func GetShopShippingProfileInfos() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
+		ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
 		defer cancel()
 
 		shopIDStr := c.Param("shopid")
@@ -172,7 +172,7 @@ func GetShopShippingProfileInfos() gin.HandlerFunc {
 
 // func UpdateShopShippingProfileInfo() gin.HandlerFunc {
 // 	return func(c *gin.Context) {
-// 		ctx, cancel := context.WithTimeout(context.Background(), REQ_TIMEOUT_SECS)
+// 		ctx, cancel := context.WithTimeout(context.Background(), REQUEST_TIMEOUT_SECS)
 // 		var shippingJson models.ShopShippingProfileRequest
 // 		defer cancel()
 

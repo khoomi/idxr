@@ -20,7 +20,7 @@ import (
 
 func ToggleFavoriteShop() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
+		ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
 		defer cancel()
 
 		shopIdStr := c.Query("shopid")
@@ -102,7 +102,7 @@ func ToggleFavoriteShop() gin.HandlerFunc {
 // IsShopFavorited
 func IsShopFavorited() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
+		ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
 		defer cancel()
 
 		myObjectId, err := auth.GetSessionUserID(c)
@@ -132,7 +132,7 @@ func IsShopFavorited() gin.HandlerFunc {
 // ToggleFavoriteListing
 func ToggleFavoriteListing() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
+		ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
 		defer cancel()
 
 		listingIdStr := c.Query("listingid")
@@ -215,7 +215,7 @@ func ToggleFavoriteListing() gin.HandlerFunc {
 // IsListingFavorited
 func IsListingFavorited() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
+		ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
 		defer cancel()
 
 		myObjectId, err := auth.GetSessionUserID(c)

@@ -88,20 +88,17 @@ func CreateShop() gin.HandlerFunc {
 
 		// Logo file handling
 		logoFile, _, err := c.Request.FormFile("logo")
-		var logoUploadUrl string
+		logoUploadUrl := common.DEFAULT_LOGO
 		var logoUploadResult uploader.UploadResult
 		if err == nil {
 			logoUploadResult, err = util.FileUpload(models.File{File: logoFile})
 			if err != nil {
 				errMsg := fmt.Sprintf("Logo failed to upload - %v", err.Error())
-				log.Print(errMsg)
-				util.HandleError(c, http.StatusInternalServerError, err)
+				util.HandleError(c, http.StatusInternalServerError, errors.New(errMsg))
 				return
 			}
 			logoUploadUrl = logoUploadResult.SecureURL
 		} else {
-
-			logoUploadUrl = common.DefaultLogo
 			logoUploadResult = uploader.UploadResult{}
 		}
 
@@ -114,13 +111,12 @@ func CreateShop() gin.HandlerFunc {
 			bannerUploadResult, err = util.FileUpload(models.File{File: bannerFile})
 			if err != nil {
 				errMsg := fmt.Sprintf("Banner failed to upload - %v", err.Error())
-				log.Print(errMsg)
-				util.HandleError(c, http.StatusInternalServerError, err)
+				util.HandleError(c, http.StatusInternalServerError, errors.New(errMsg))
 				return
 			}
 			bannerUploadUrl = bannerUploadResult.SecureURL
 		} else {
-			bannerUploadUrl = common.DefaultThumbnail
+			bannerUploadUrl = common.DEFAULT_THUMBNAIL
 			bannerUploadResult = uploader.UploadResult{}
 		}
 

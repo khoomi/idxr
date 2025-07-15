@@ -27,7 +27,7 @@ import (
 
 func CreateListing() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
+		ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
 		defer cancel()
 
 		shopId, myId, err := common.MyShopIdAndMyId(c)
@@ -84,7 +84,7 @@ func CreateListing() gin.HandlerFunc {
 			}
 		} else {
 			mainImageUploadUrl = uploader.UploadResult{}
-			mainImageUploadUrl.SecureURL = common.DefaultThumbnail
+			mainImageUploadUrl.SecureURL = common.DEFAULT_THUMBNAIL
 		}
 
 		if err := c.Request.ParseMultipartForm(10 << 20); err != nil {
@@ -250,7 +250,7 @@ func CreateListing() gin.HandlerFunc {
 
 func GetListing() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
+		ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
 		defer cancel()
 
 		listingId := c.Param("listingid")
@@ -390,7 +390,7 @@ func GetListing() gin.HandlerFunc {
 
 func GetListings() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
+		ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
 		defer cancel()
 
 		paginationArgs := common.GetPaginationArgs(c)
@@ -506,7 +506,7 @@ func GetListings() gin.HandlerFunc {
 
 func GetMyListingsSummary() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
+		ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
 		defer cancel()
 
 		shopId, myId, err := common.MyShopIdAndMyId(c)
@@ -551,7 +551,7 @@ func GetMyListingsSummary() gin.HandlerFunc {
 // GetShopListings - Get single shop listings.
 func GetShopListings() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
+		ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
 		defer cancel()
 
 		shopId := c.Param("shopid")
@@ -599,7 +599,7 @@ func GetShopListings() gin.HandlerFunc {
 
 func HasUserCreatedListingOnboarding() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
+		ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
 		defer cancel()
 
 		_, userId, err := common.MyShopIdAndMyId(c)
@@ -635,7 +635,7 @@ func HasUserCreatedListingOnboarding() gin.HandlerFunc {
 
 func DeleteListings() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
+		ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
 		defer cancel()
 
 		myId, err := auth.ValidateUserID(c)
@@ -677,7 +677,7 @@ func DeleteListings() gin.HandlerFunc {
 func DeactivateListings() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		now := time.Now()
-		ctx, cancel := context.WithTimeout(context.Background(), common.REQ_TIMEOUT_SECS)
+		ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
 		defer cancel()
 
 		session, err := auth.GetSessionAuto(c)
