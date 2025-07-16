@@ -699,7 +699,7 @@ func UpdateShopField() gin.HandlerFunc {
 
 		field := c.Query("field")
 		if common.IsEmptyString(field) {
-			util.HandleError(c, http.StatusBadRequest, errors.New("field not specified"))
+			util.HandleError(c, http.StatusBadRequest, errors.New("field query parameter is required"))
 			return
 		}
 
@@ -710,15 +710,36 @@ func UpdateShopField() gin.HandlerFunc {
 			{
 				action := c.Query("action")
 				if common.IsEmptyString(action) {
-					util.HandleError(c, http.StatusBadRequest, errors.New("action not specified"))
+					util.HandleError(c, http.StatusBadRequest, errors.New("action query parameter is required"))
 					return
 				}
 				switch action {
 				case "update":
 					{
+						// Debug: Check content type
+						contentType := c.GetHeader("Content-Type")
+						log.Printf("Content-Type: %s", contentType)
+						
+						// Check if it's actually multipart
+						if !strings.HasPrefix(contentType, "multipart/form-data") {
+							util.HandleError(c, http.StatusBadRequest, errors.New("request must be multipart/form-data"))
+							return
+						}
+						
+						// Debug: Check for available form files
+						form, err := c.MultipartForm()
+						if err != nil {
+							log.Printf("Failed to parse multipart form: %v", err)
+							util.HandleError(c, http.StatusBadRequest, fmt.Errorf("failed to parse multipart form: %v", err))
+							return
+						}
+						
+						log.Printf("Available form files: %+v", form.File)
+						
 						bannerFile, _, err := c.Request.FormFile("banner")
 						if err != nil {
-							util.HandleError(c, http.StatusInternalServerError, err)
+							log.Printf("FormFile error for 'banner': %v", err)
+							util.HandleError(c, http.StatusBadRequest, fmt.Errorf("failed to get banner file: %v", err))
 							return
 						}
 
@@ -732,7 +753,6 @@ func UpdateShopField() gin.HandlerFunc {
 						update := bson.M{"banner_url": bannerUploadResult.SecureURL, "modified_at": now}
 						res, err := common.ShopCollection.UpdateOne(ctx, filter, update)
 						if err != nil || res.ModifiedCount == 0 {
-							// delete media
 							_, err = util.DestroyMedia(bannerUploadResult.PublicID)
 							util.HandleError(c, http.StatusNotModified, err)
 							return
@@ -741,7 +761,7 @@ func UpdateShopField() gin.HandlerFunc {
 						internal.PublishCacheMessage(c, internal.CacheInvalidateShop, shopId.Hex())
 
 						util.HandleSuccess(c, http.StatusOK, "Shop banner updated successfully", res.UpsertedID)
-
+						return
 					}
 				case "delete":
 					{
@@ -755,7 +775,7 @@ func UpdateShopField() gin.HandlerFunc {
 						internal.PublishCacheMessage(c, internal.CacheInvalidateShop, shopId.Hex())
 
 						util.HandleSuccess(c, http.StatusOK, "Shop logo updated successfully", res.UpsertedID)
-
+						return
 					}
 				}
 			}
@@ -763,15 +783,36 @@ func UpdateShopField() gin.HandlerFunc {
 			{
 				action := c.Query("action")
 				if common.IsEmptyString(action) {
-					util.HandleError(c, http.StatusBadRequest, errors.New("action not specified"))
+					util.HandleError(c, http.StatusBadRequest, errors.New("action query parameter is required"))
 					return
 				}
 				switch action {
 				case "update":
 					{
+						// Debug: Check content type
+						contentType := c.GetHeader("Content-Type")
+						log.Printf("Content-Type: %s", contentType)
+						
+						// Check if it's actually multipart
+						if !strings.HasPrefix(contentType, "multipart/form-data") {
+							util.HandleError(c, http.StatusBadRequest, errors.New("request must be multipart/form-data"))
+							return
+						}
+						
+						// Debug: Check for available form files
+						form, err := c.MultipartForm()
+						if err != nil {
+							log.Printf("Failed to parse multipart form: %v", err)
+							util.HandleError(c, http.StatusBadRequest, fmt.Errorf("failed to parse multipart form: %v", err))
+							return
+						}
+						
+						log.Printf("Available form files: %+v", form.File)
+						
 						logoFile, _, err := c.Request.FormFile("logo")
 						if err != nil {
-							util.HandleError(c, http.StatusInternalServerError, err)
+							log.Printf("FormFile error for 'logo': %v", err)
+							util.HandleError(c, http.StatusBadRequest, fmt.Errorf("failed to get logo file: %v", err))
 							return
 						}
 
@@ -785,7 +826,6 @@ func UpdateShopField() gin.HandlerFunc {
 						update := bson.M{"$set": bson.M{"logo_url": logoUploadResult.SecureURL, "modified_at": now}}
 						res, err := common.ShopCollection.UpdateOne(ctx, filter, update)
 						if err != nil || res.ModifiedCount == 0 {
-							// delete media
 							_, err = util.DestroyMedia(logoUploadResult.PublicID)
 							util.HandleError(c, http.StatusNotModified, err)
 							return
@@ -794,7 +834,7 @@ func UpdateShopField() gin.HandlerFunc {
 						internal.PublishCacheMessage(c, internal.CacheInvalidateShop, shopId.Hex())
 
 						util.HandleSuccess(c, http.StatusOK, "Shop logo updated successfully", res.UpsertedID)
-
+						return
 					}
 				case "delete":
 					{
@@ -808,7 +848,7 @@ func UpdateShopField() gin.HandlerFunc {
 						internal.PublishCacheMessage(c, internal.CacheInvalidateShop, shopId.Hex())
 
 						util.HandleSuccess(c, http.StatusOK, "Shop logo updated successfully", res.UpsertedID)
-
+						return
 					}
 				}
 			}
@@ -816,11 +856,19 @@ func UpdateShopField() gin.HandlerFunc {
 			{
 				var payload models.ShopAddress
 				if err := c.BindJSON(&payload); err != nil {
+					log.Println(err)
+					util.HandleError(c, http.StatusBadRequest, err)
+					return
+				}
+
+				shopId, myId, err := common.MyShopIdAndMyId(c)
+				if err != nil {
 					util.HandleError(c, http.StatusBadRequest, err)
 					return
 				}
 
 				payload.ModifiedAt = now
+				filter := bson.M{"_id": shopId, "user_id": myId}
 				update := bson.M{"$set": bson.M{"address": payload, "modified_at": now}}
 				res, err := common.ShopCollection.UpdateOne(ctx, filter, update)
 				if err != nil {
@@ -835,16 +883,24 @@ func UpdateShopField() gin.HandlerFunc {
 				internal.PublishCacheMessage(c, internal.CacheInvalidateShop, shopId.Hex())
 
 				util.HandleSuccess(c, http.StatusOK, "Shop address was updated successful", shopId.Hex())
-
+				return
 			}
 		case "vacation":
 			{
 				var vacation models.ShopVacationRequest
+				now := time.Now()
 				if err := c.BindJSON(&vacation); err != nil {
 					util.HandleError(c, http.StatusBadRequest, err)
 					return
 				}
 
+				shopId, myId, err := common.MyShopIdAndMyId(c)
+				if err != nil {
+					util.HandleError(c, http.StatusBadRequest, err)
+					return
+				}
+
+				filter := bson.M{"_id": shopId, "user_id": myId}
 				update := bson.M{"$set": bson.M{"vacation_message": vacation.Message, "is_vacation": vacation.IsVacation, "modified_at": now}}
 				res, err := common.ShopCollection.UpdateOne(ctx, filter, update)
 				if err != nil {
@@ -859,8 +915,11 @@ func UpdateShopField() gin.HandlerFunc {
 				internal.PublishCacheMessage(c, internal.CacheInvalidateShop, shopId.Hex())
 
 				util.HandleSuccess(c, http.StatusOK, "Shop vacation updated successfully", res.UpsertedID)
-
+				return
 			}
+		default:
+			util.HandleError(c, http.StatusBadRequest, errors.New("unsupported field. supported fields: banner, logo, address, vacation"))
+			return
 		}
 	}
 }

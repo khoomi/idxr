@@ -58,7 +58,7 @@ var (
 )
 
 const (
-	REQUEST_TIMEOUT_SECS               = 50 * time.Second
+	REQUEST_TIMEOUT_SECS               = 60 * time.Second
 	MONGO_DUPLICATE_KEY_CODE           = 11000
 	VERIFICATION_EMAIL_EXPIRATION_TIME = 1 * time.Hour
 	CART_ITEM_EXPIRATION_TIME          = 7 * 24 * time.Hour
