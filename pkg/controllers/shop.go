@@ -377,6 +377,44 @@ func UpdateMyShopStatus() gin.HandlerFunc {
 	}
 }
 
+func UpdateShopAddress() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		now := time.Now()
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+
+		var payload models.ShopAddress
+		if err := c.BindJSON(&payload); err != nil {
+			log.Println(err)
+			util.HandleError(c, http.StatusBadRequest, err)
+			return
+		}
+
+		shopId, myId, err := common.MyShopIdAndMyId(c)
+		if err != nil {
+			util.HandleError(c, http.StatusBadRequest, err)
+			return
+		}
+
+		payload.ModifiedAt = now
+		filter := bson.M{"_id": shopId, "user_id": myId}
+		update := bson.M{"$set": bson.M{"address": payload, "modified_at": now}}
+		res, err := common.ShopCollection.UpdateOne(ctx, filter, update)
+		if err != nil {
+			util.HandleError(c, http.StatusInternalServerError, err)
+			return
+		}
+		if res.ModifiedCount == 0 {
+			util.HandleError(c, http.StatusNotModified, errors.New("unknown error while trying to update shop"))
+			return
+		}
+
+		internal.PublishCacheMessage(c, internal.CacheInvalidateShop, shopId.Hex())
+
+		util.HandleSuccess(c, http.StatusOK, "Shop address was updated successful", shopId.Hex())
+	}
+}
+
 // GetShop - api/shops/:shopid
 func GetShop() gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -402,20 +440,6 @@ func GetShop() gin.HandlerFunc {
 
 		shopPipeline := []bson.M{
 			{"$match": shopIdentifier},
-			{
-				"$lookup": bson.M{
-					"from":         "UserAddress",
-					"localField":   "user_id",
-					"foreignField": "user_id",
-					"as":           "address",
-				},
-			},
-			{
-				"$unwind": bson.M{
-					"path":                       "$address",
-					"preserveNullAndEmptyArrays": true,
-				},
-			},
 			{
 				"$lookup": bson.M{
 					"from":         "User",
@@ -479,14 +503,6 @@ func GetShop() gin.HandlerFunc {
 						"thumbnail":              "$user.thumbnail",
 						"transaction_buy_count":  "$user.transaction_buy_count",
 						"transaction_sold_count": "$user.transaction_sold_count",
-					},
-					"address": bson.M{
-						"city":                        "$address.city",
-						"state":                       "$address.state",
-						"street":                      "$address.street",
-						"postal_code":                 "$address.postal_code",
-						"country":                     "$address.country",
-						"is_default_shipping_address": "$address.is_default_shipping_address",
 					},
 					"about": bson.M{
 						"_d":        "$about._d",
@@ -669,10 +685,190 @@ func SearchShops() gin.HandlerFunc {
 	}
 }
 
+func UpdateShopField() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
+		defer cancel()
+		now := time.Now()
+
+		shopId, myId, err := common.MyShopIdAndMyId(c)
+		if err != nil {
+			util.HandleError(c, http.StatusBadRequest, err)
+			return
+		}
+
+		field := c.Query("field")
+		if common.IsEmptyString(field) {
+			util.HandleError(c, http.StatusBadRequest, errors.New("field not specified"))
+			return
+		}
+
+		filter := bson.M{"_id": shopId, "user_id": myId}
+
+		switch field {
+		case "banner":
+			{
+				action := c.Query("action")
+				if common.IsEmptyString(action) {
+					util.HandleError(c, http.StatusBadRequest, errors.New("action not specified"))
+					return
+				}
+				switch action {
+				case "update":
+					{
+						bannerFile, _, err := c.Request.FormFile("banner")
+						if err != nil {
+							util.HandleError(c, http.StatusInternalServerError, err)
+							return
+						}
+
+						bannerUploadResult, err := util.FileUpload(models.File{File: bannerFile})
+						if err != nil {
+							errMsg := fmt.Sprintf("Banner failed to upload - %v", err.Error())
+							util.HandleError(c, http.StatusInternalServerError, errors.New(errMsg))
+							return
+						}
+
+						update := bson.M{"banner_url": bannerUploadResult.SecureURL, "modified_at": now}
+						res, err := common.ShopCollection.UpdateOne(ctx, filter, update)
+						if err != nil || res.ModifiedCount == 0 {
+							// delete media
+							_, err = util.DestroyMedia(bannerUploadResult.PublicID)
+							util.HandleError(c, http.StatusNotModified, err)
+							return
+						}
+
+						internal.PublishCacheMessage(c, internal.CacheInvalidateShop, shopId.Hex())
+
+						util.HandleSuccess(c, http.StatusOK, "Shop banner updated successfully", res.UpsertedID)
+
+					}
+				case "delete":
+					{
+						update := bson.M{"$set": bson.M{"banner_url": common.DEFAULT_THUMBNAIL, "modified_at": now}}
+						res, err := common.ShopCollection.UpdateOne(ctx, filter, update)
+						if err != nil || res.ModifiedCount == 0 {
+							util.HandleError(c, http.StatusNotModified, err)
+							return
+						}
+
+						internal.PublishCacheMessage(c, internal.CacheInvalidateShop, shopId.Hex())
+
+						util.HandleSuccess(c, http.StatusOK, "Shop logo updated successfully", res.UpsertedID)
+
+					}
+				}
+			}
+		case "logo":
+			{
+				action := c.Query("action")
+				if common.IsEmptyString(action) {
+					util.HandleError(c, http.StatusBadRequest, errors.New("action not specified"))
+					return
+				}
+				switch action {
+				case "update":
+					{
+						logoFile, _, err := c.Request.FormFile("logo")
+						if err != nil {
+							util.HandleError(c, http.StatusInternalServerError, err)
+							return
+						}
+
+						logoUploadResult, err := util.FileUpload(models.File{File: logoFile})
+						if err != nil {
+							errMsg := fmt.Sprintf("Logo failed to upload - %v", err.Error())
+							util.HandleError(c, http.StatusInternalServerError, errors.New(errMsg))
+							return
+						}
+
+						update := bson.M{"$set": bson.M{"logo_url": logoUploadResult.SecureURL, "modified_at": now}}
+						res, err := common.ShopCollection.UpdateOne(ctx, filter, update)
+						if err != nil || res.ModifiedCount == 0 {
+							// delete media
+							_, err = util.DestroyMedia(logoUploadResult.PublicID)
+							util.HandleError(c, http.StatusNotModified, err)
+							return
+						}
+
+						internal.PublishCacheMessage(c, internal.CacheInvalidateShop, shopId.Hex())
+
+						util.HandleSuccess(c, http.StatusOK, "Shop logo updated successfully", res.UpsertedID)
+
+					}
+				case "delete":
+					{
+						update := bson.M{"$set": bson.M{"logo_url": common.DEFAULT_LOGO, "modified_at": now}}
+						res, err := common.ShopCollection.UpdateOne(ctx, filter, update)
+						if err != nil || res.ModifiedCount == 0 {
+							util.HandleError(c, http.StatusNotModified, err)
+							return
+						}
+
+						internal.PublishCacheMessage(c, internal.CacheInvalidateShop, shopId.Hex())
+
+						util.HandleSuccess(c, http.StatusOK, "Shop logo updated successfully", res.UpsertedID)
+
+					}
+				}
+			}
+		case "address":
+			{
+				var payload models.ShopAddress
+				if err := c.BindJSON(&payload); err != nil {
+					util.HandleError(c, http.StatusBadRequest, err)
+					return
+				}
+
+				payload.ModifiedAt = now
+				update := bson.M{"$set": bson.M{"address": payload, "modified_at": now}}
+				res, err := common.ShopCollection.UpdateOne(ctx, filter, update)
+				if err != nil {
+					util.HandleError(c, http.StatusInternalServerError, err)
+					return
+				}
+				if res.ModifiedCount == 0 {
+					util.HandleError(c, http.StatusNotModified, errors.New("unknown error while trying to update shop"))
+					return
+				}
+
+				internal.PublishCacheMessage(c, internal.CacheInvalidateShop, shopId.Hex())
+
+				util.HandleSuccess(c, http.StatusOK, "Shop address was updated successful", shopId.Hex())
+
+			}
+		case "vacation":
+			{
+				var vacation models.ShopVacationRequest
+				if err := c.BindJSON(&vacation); err != nil {
+					util.HandleError(c, http.StatusBadRequest, err)
+					return
+				}
+
+				update := bson.M{"$set": bson.M{"vacation_message": vacation.Message, "is_vacation": vacation.IsVacation, "modified_at": now}}
+				res, err := common.ShopCollection.UpdateOne(ctx, filter, update)
+				if err != nil {
+					util.HandleError(c, http.StatusInternalServerError, err)
+					return
+				}
+				if res.ModifiedCount == 0 {
+					util.HandleError(c, http.StatusNotFound, errors.New("no matching documents found"))
+					return
+				}
+
+				internal.PublishCacheMessage(c, internal.CacheInvalidateShop, shopId.Hex())
+
+				util.HandleSuccess(c, http.StatusOK, "Shop vacation updated successfully", res.UpsertedID)
+
+			}
+		}
+	}
+}
+
 // UpdateShopAnnouncement - api/shops/:shopid/announcement
 func UpdateShopAnnouncement() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
 		defer cancel()
 
 		now := time.Now()

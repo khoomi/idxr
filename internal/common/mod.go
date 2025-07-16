@@ -77,6 +77,14 @@ const (
 	DEFAULT_LOGO           = "https://res.cloudinary.com/kh-oo-mi/image/upload/v1703704749/UCuy4YhFhyCvo3-jeXhNjR4yIeQ/zvzr1l17hz2c3yhqhf89.png"
 )
 
+func IsEmptyString(s string) bool {
+	println(s)
+	if strings.Compare(s, "") == 0 {
+		return true
+	}
+	return false
+}
+
 func GetPaginationArgs(c *gin.Context) util.PaginationArgs {
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
 	skip, _ := strconv.Atoi(c.DefaultQuery("skip", "0"))

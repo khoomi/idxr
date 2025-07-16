@@ -27,7 +27,7 @@ type Shop struct {
 	Links                  []Link               `bson:"-" json:"links"`
 	Gallery                []string             `bson:"gallery" json:"gallery"`
 	About                  ShopAbout            `bson:"about" json:"about"`
-	Address                UserAddress          `bson:"address" json:"address"`
+	Address                ShopAddress          `bson:"address" json:"address"`
 	Rating                 Rating               `bson:"rating" json:"rating"`
 	ReviewsCount           int                  `bson:"reviews_count" json:"reviewsCount"`
 	FinancialInformation   FinancialInformation `bson:"financial_information" json:"financialInformation"`
@@ -35,10 +35,17 @@ type Shop struct {
 	FollowerCount          int                  `bson:"follower_count" json:"followerCount" validate:"required"`
 	ID                     primitive.ObjectID   `bson:"_id" json:"_id" validate:"required"`
 	UserID                 primitive.ObjectID   `bson:"user_id" json:"userId"`
-	UserAddressId          primitive.ObjectID   `bson:"user_address_id" json:"userAddressId"`
-	Location               primitive.ObjectID   `bson:"location" json:"location"`
 	IsVacation             bool                 `bson:"is_vacation" json:"is_vacation"`
 	IsLive                 bool                 `bson:"is_live" json:"isLive"`
+}
+
+type ShopAddress struct {
+	City       string    `bson:"city" json:"city" validate:"required"`
+	State      string    `bson:"state" json:"state" validate:"required"`
+	Street     string    `bson:"street" json:"street" validate:"required"`
+	PostalCode string    `bson:"postal_code" json:"postalCode" validate:"required"`
+	Country    Country   `bson:"country" json:"country"`
+	ModifiedAt time.Time `bson:"modified_at" json:"modifiedAt" validate:"required"`
 }
 
 type ShopExcerpt struct {

@@ -154,6 +154,9 @@ func shopRoutes(api *gin.RouterGroup) {
 		{
 			// Endpoint to create a new shop
 			secured.POST("", controllers.CreateShop())
+			secured.POST("/:shopid/any", controllers.UpdateShopField())
+			// Endpoint to update shop address
+			secured.POST("/:shopid/address", controllers.UpdateShopAddress())
 			// Shop status
 			secured.PUT("/:shopid/status", controllers.UpdateMyShopStatus())
 			// update shop information
