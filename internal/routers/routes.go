@@ -137,8 +137,6 @@ func shopRoutes(api *gin.RouterGroup) {
 		shop.GET("/", controllers.GetShops())
 		// Endpoint to get a specific shop by ID
 		shop.GET("/:shopid", controllers.GetShop())
-		// Endpoint to get shop about information
-		shop.GET("/:shopid/about", controllers.GetShopAbout())
 		// Endpoint to get shop listing reviews
 		shop.GET("/:shopid/reviews", controllers.GetShopReviews())
 		// Endpoint to get shop followers
@@ -168,9 +166,7 @@ func shopRoutes(api *gin.RouterGroup) {
 			// Endpoint to update shop banner
 			secured.PUT("/:shopid/banner", controllers.UpdateShopBanner())
 			// Endpoint to create/update shop about information
-			secured.POST("/:shopid/about", controllers.CreateShopAbout())
 			secured.PUT("/:shopid/about", controllers.UpdateShopAbout())
-			secured.PUT("/:shopid/about/status", controllers.UpdateShopAboutStatus())
 			// Endpoint to update shop vacation status
 			secured.PUT("/:shopid/vacation", controllers.UpdateShopVacation())
 			// Endpoint to update shop gallery

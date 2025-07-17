@@ -127,30 +127,11 @@ type ShopBasicInformationRequest struct {
 }
 
 type ShopAbout struct {
-	Status    ShopAboutStatus    `bson:"status" json:"status" validate:"required"`
-	Headline  string             `bson:"headline" json:"headline"`
-	Story     string             `bson:"story" json:"story" validate:"required"`
-	X         string             `bson:"x" json:"x" validate:"required"`
-	Facebook  string             `bson:"facebook" json:"facebook" validate:"required"`
-	Instagram string             `bson:"instagram" json:"instagram" validate:"required"`
-	ID        primitive.ObjectID `bson:"_id" json:"_id" validate:"required"`
-	ShopID    primitive.ObjectID `bson:"shop_id" json:"shopId" validate:"required"`
-}
-
-type ShopAboutStatus string
-
-const (
-	ShopAboutStatusDraft  ShopAboutStatus = "draft"
-	ShopAboutStatusActive ShopAboutStatus = "active"
-)
-
-type ShopAboutRequest struct {
-	Status    ShopAboutStatus `bson:"status" json:"status" validate:"required,oneof=draft active"`
-	Headline  string          `bson:"headline" json:"headline"`
-	Story     string          `bson:"story" json:"story" validate:"required"`
-	X         string          `bson:"x" json:"x" validate:"required"`
-	Facebook  string          `bson:"facebook" json:"facebook" validate:"required"`
-	Instagram string          `bson:"instagram" json:"instagram" validate:"required"`
+	Headline  string `bson:"headline" json:"headline" validate:"required"`
+	Story     string `bson:"story" json:"story" validate:"required"`
+	X         string `bson:"x" json:"x" validate:"required"`
+	Facebook  string `bson:"facebook" json:"facebook" validate:"required"`
+	Instagram string `bson:"instagram" json:"instagram" validate:"required"`
 }
 
 type ShopReturnPolicies struct {

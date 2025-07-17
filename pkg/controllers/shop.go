@@ -147,6 +147,13 @@ func CreateShop() gin.HandlerFunc {
 				TwoStarCount:   0,
 				OneStarCount:   0,
 			}
+			shopAboutData := models.ShopAbout{
+				Headline:  fmt.Sprintf("Welcome to %v!", shopUserName),
+				Story:     fmt.Sprintf("Thank you for visiting our online artisan shop. We are passionate about craftsmanship and dedicated to providing unique, handcrafted items that reflect the creativity and skill of our artisans. Explore our collection and discover the beauty of handmade products that carry a story of craftsmanship and tradition.\n\nAt %v, we believe in the art of creating something special. Each piece in our collection is carefully crafted with attention to detail and a commitment to quality. We aim to connect artisans with appreciative buyers, creating a community that values and supports the artistry behind every creation.\n\nJoin us on this journey of celebrating craftsmanship and supporting talented artisans from around the world. Your purchase not only adds a unique piece to your life but also contributes to the livelihood of skilled individuals who pour their heart and soul into their work.\n\nThank you for being a part of our community. Happy shopping!", shopUserName),
+				Instagram: fmt.Sprintf("@%v", shopUserName),
+				Facebook:  fmt.Sprintf("@%v", shopUserName),
+				X:         fmt.Sprintf("@%v", shopUserName),
+			}
 			shop := models.Shop{
 				ID:                 shopID,
 				Name:               shopName,
@@ -170,6 +177,7 @@ func CreateShop() gin.HandlerFunc {
 				Policy:             policy,
 				ReviewsCount:       0,
 				Rating:             shopRating,
+				About:              shopAboutData,
 			}
 			_, err := common.ShopCollection.InsertOne(ctx, shop)
 			if err != nil {
@@ -181,24 +189,6 @@ func CreateShop() gin.HandlerFunc {
 			update := bson.M{"$set": bson.M{"shop_id": shopID, "is_seller": true, "modified_at": now}}
 			result, err := common.UserCollection.UpdateOne(ctx, filter, update)
 			if err != nil {
-				return nil, err
-			}
-
-			// Create shop about profile.
-			shopAboutData := models.ShopAbout{
-				ID:        primitive.NewObjectID(),
-				ShopID:    shopID,
-				Status:    models.ShopAboutStatusDraft,
-				Headline:  fmt.Sprintf("Welcome to %v!", shop.Username),
-				Story:     fmt.Sprintf("Thank you for visiting our online artisan shop. We are passionate about craftsmanship and dedicated to providing unique, handcrafted items that reflect the creativity and skill of our artisans. Explore our collection and discover the beauty of handmade products that carry a story of craftsmanship and tradition.\n\nAt %v, we believe in the art of creating something special. Each piece in our collection is carefully crafted with attention to detail and a commitment to quality. We aim to connect artisans with appreciative buyers, creating a community that values and supports the artistry behind every creation.\n\nJoin us on this journey of celebrating craftsmanship and supporting talented artisans from around the world. Your purchase not only adds a unique piece to your life but also contributes to the livelihood of skilled individuals who pour their heart and soul into their work.\n\nThank you for being a part of our community. Happy shopping!", shop.Username),
-				Instagram: fmt.Sprintf("@%v", shop.Username),
-				Facebook:  fmt.Sprintf("@%v", shop.Username),
-				X:         fmt.Sprintf("@%v", shop.Username),
-			}
-
-			_, err = common.ShopAboutCollection.InsertOne(ctx, shopAboutData)
-			if err != nil {
-				util.HandleError(c, http.StatusInternalServerError, err)
 				return nil, err
 			}
 
@@ -455,20 +445,6 @@ func GetShop() gin.HandlerFunc {
 				},
 			},
 			{
-				"$lookup": bson.M{
-					"from":         "ShopAbout",
-					"localField":   "_id",
-					"foreignField": "shop_id",
-					"as":           "about",
-				},
-			},
-			{
-				"$unwind": bson.M{
-					"path":                       "$about",
-					"preserveNullAndEmptyArrays": true,
-				},
-			},
-			{
 				"$project": bson.M{
 					"_id":                      1,
 					"name":                     1,
@@ -497,6 +473,7 @@ func GetShop() gin.HandlerFunc {
 					"sales_message":            1,
 					"rating":                   1,
 					"address":                  1,
+					"about":                    1,
 					"user": bson.M{
 						"login_name":             "$user.login_name",
 						"first_name":             "$user.first_name",
@@ -504,16 +481,6 @@ func GetShop() gin.HandlerFunc {
 						"thumbnail":              "$user.thumbnail",
 						"transaction_buy_count":  "$user.transaction_buy_count",
 						"transaction_sold_count": "$user.transaction_sold_count",
-					},
-					"about": bson.M{
-						"_d":        "$about._d",
-						"shop_id":   "$about.shop_id",
-						"facebook":  "$about.facebook",
-						"headline":  "$about.headline",
-						"instagram": "$about.instagram",
-						"status":    "$about.status",
-						"story":     "$about.story",
-						"x":         "$about.x",
 					},
 				},
 			},
@@ -1533,91 +1500,27 @@ func RemoveOtherFollower() gin.HandlerFunc {
 	}
 }
 
-// CreateShopAbout - api/shops/:shopid/about
-func CreateShopAbout() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-		defer cancel()
-
-		shopId, myId, err := common.MyShopIdAndMyId(c)
-		if err != nil {
-			util.HandleError(c, http.StatusBadRequest, err)
-			return
-		}
-
-		err = common.VerifyShopOwnership(c, myId, shopId)
-		if err != nil {
-			log.Printf("You don't have write access to this shop: %s\n", err.Error())
-			util.HandleError(c, http.StatusUnauthorized, err)
-			return
-		}
-
-		// Create shop about profile.
-		shopAboutData := models.ShopAbout{
-			ID:        primitive.NewObjectID(),
-			ShopID:    shopId,
-			Status:    models.ShopAboutStatusDraft,
-			Headline:  "Welcome to My Shop!",
-			Story:     "Thank you for visiting our online artisan shop. We are passionate about craftsmanship and dedicated to providing unique, handcrafted items that reflect the creativity and skill of our artisans. Explore our collection and discover the beauty of handmade products that carry a story of craftsmanship and tradition.\n\nAt [My Shop], we believe in the art of creating something special. Each piece in our collection is carefully crafted with attention to detail and a commitment to quality. We aim to connect artisans with appreciative buyers, creating a community that values and supports the artistry behind every creation.\n\nJoin us on this journey of celebrating craftsmanship and supporting talented artisans from around the world. Your purchase not only adds a unique piece to your life but also contributes to the livelihood of skilled individuals who pour their heart and soul into their work.\n\nThank you for being a part of our community. Happy shopping!",
-			Instagram: "@MyShop",
-			Facebook:  "@MyShop",
-			X:         "@MyShop",
-		}
-
-		opts := options.Update().SetUpsert(true)
-		_, err = common.ShopAboutCollection.UpdateOne(ctx, bson.M{"shop_id": shopId}, bson.M{"$set": shopAboutData}, opts)
-		if err != nil {
-			util.HandleError(c, http.StatusInternalServerError, err)
-			return
-		}
-
-		internal.PublishCacheMessage(c, internal.CacheInvalidateShopAbout, shopId.Hex())
-
-		util.HandleSuccess(c, http.StatusOK, "Shop about created successfully", shopAboutData.ID.Hex())
-	}
-}
-
-// GetShopAbout - api/shops/:shopid/about
-func GetShopAbout() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-		defer cancel()
-
-		var shopAbout models.ShopAbout
-
-		shopId := c.Param("shopid")
-		shopObjectID, err := primitive.ObjectIDFromHex(shopId)
-		if err != nil {
-			util.HandleError(c, http.StatusBadRequest, err)
-			return
-		}
-
-		err = common.ShopAboutCollection.FindOne(ctx, bson.M{"shop_id": shopObjectID}).Decode(&shopAbout)
-		if err != nil {
-			if err == mongo.ErrNoDocuments {
-				util.HandleError(c, http.StatusNotFound, err)
-				return
-			}
-
-			util.HandleError(c, http.StatusInternalServerError, err)
-			return
-		}
-
-		util.HandleSuccess(c, http.StatusOK, "success", shopAbout)
-	}
-}
-
 // UpdateShopAbout - api/shops/:shopid/about
 func UpdateShopAbout() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
 
-		var shopAboutJson models.ShopAboutRequest
+		var shopAboutJson models.ShopAbout
 
 		shopId, myId, err := common.MyShopIdAndMyId(c)
 		if err != nil {
 			util.HandleError(c, http.StatusBadRequest, err)
+			return
+		}
+
+		if err := c.BindJSON(&shopAboutJson); err != nil {
+			util.HandleError(c, http.StatusBadRequest, err)
+			return
+		}
+
+		if validationErr := common.Validate.Struct(&shopAboutJson); validationErr != nil {
+			util.HandleError(c, http.StatusBadRequest, validationErr)
 			return
 		}
 
@@ -1628,31 +1531,11 @@ func UpdateShopAbout() gin.HandlerFunc {
 			return
 		}
 
-		// bind the request body
-		if err := c.BindJSON(&shopAboutJson); err != nil {
-			util.HandleError(c, http.StatusBadRequest, err)
-			return
-		}
-
-		// validate request body
-		if validationErr := common.Validate.Struct(&shopAboutJson); validationErr != nil {
-			util.HandleError(c, http.StatusUnprocessableEntity, validationErr)
-			return
-		}
-
-		filter := bson.M{"shop_id": shopId}
+		filter := bson.M{"_id": shopId}
 		update := bson.M{
-			"$set": bson.M{
-				"status":    shopAboutJson.Status,
-				"headline":  shopAboutJson.Headline,
-				"story":     shopAboutJson.Story,
-				"instagram": shopAboutJson.Instagram,
-				"facebook":  shopAboutJson.Facebook,
-				"x":         shopAboutJson.X,
-			},
+			"$set": bson.M{"about": shopAboutJson},
 		}
-
-		res, err := common.ShopAboutCollection.UpdateOne(ctx, filter, update)
+		res, err := common.ShopCollection.UpdateOne(ctx, filter, update)
 		if err != nil {
 			util.HandleError(c, http.StatusInternalServerError, err)
 			return
@@ -1665,49 +1548,6 @@ func UpdateShopAbout() gin.HandlerFunc {
 		internal.PublishCacheMessage(c, internal.CacheInvalidateShopAbout, shopId.Hex())
 
 		util.HandleSuccess(c, http.StatusOK, "Shop about updated successfully", res.UpsertedID)
-	}
-}
-
-// UpdateShopAboutStatus - api/shops/:shopid/about/status?status=active
-func UpdateShopAboutStatus() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-		defer cancel()
-
-		status := c.Query("status")
-		shopId, myId, err := common.MyShopIdAndMyId(c)
-		if err != nil {
-			util.HandleError(c, http.StatusBadRequest, err)
-			return
-		}
-
-		err = common.VerifyShopOwnership(c, myId, shopId)
-		if err != nil {
-			log.Printf("You don't have write access to this shop: %s\n", err.Error())
-			util.HandleError(c, http.StatusUnauthorized, err)
-			return
-		}
-
-		if status != "active" && status != "draft" {
-			util.HandleError(c, http.StatusBadRequest, errors.New("status parameter is required and must be either 'active' or 'draft'"))
-			return
-		}
-
-		filter := bson.M{"shop_id": shopId}
-		update := bson.M{"$set": bson.M{"status": status}}
-		res, err := common.ShopAboutCollection.UpdateOne(ctx, filter, update)
-		if err != nil {
-			util.HandleError(c, http.StatusInternalServerError, err)
-			return
-		}
-		if res.ModifiedCount == 0 {
-			util.HandleSuccess(c, http.StatusNotFound, "success", "No matching documents found")
-			return
-		}
-
-		internal.PublishCacheMessage(c, internal.CacheInvalidateShopAbout, shopId.Hex())
-
-		util.HandleSuccess(c, http.StatusOK, "Shop about status updated successfully", res.UpsertedID)
 	}
 }
 

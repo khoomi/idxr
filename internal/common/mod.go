@@ -46,7 +46,6 @@ var (
 	UserFavoriteListingCollection      = util.GetCollection(util.DB, "UserFavoriteListing")
 	UserFavoriteShopCollection         = util.GetCollection(util.DB, "UserFavoriteShop")
 
-	ShopAboutCollection            = util.GetCollection(util.DB, "ShopAbout")
 	ShopFollowerCollection         = util.GetCollection(util.DB, "ShopFollower")
 	ShopReturnPolicyCollection     = util.GetCollection(util.DB, "ShopReturnPolicies")
 	ShopCompliancePolicyCollection = util.GetCollection(util.DB, "ShopCompliancePolicy")
