@@ -496,6 +496,7 @@ func GetShop() gin.HandlerFunc {
 					"reviews_count":            1,
 					"sales_message":            1,
 					"rating":                   1,
+					"address":                  1,
 					"user": bson.M{
 						"login_name":             "$user.login_name",
 						"first_name":             "$user.first_name",
@@ -716,34 +717,36 @@ func UpdateShopField() gin.HandlerFunc {
 				switch action {
 				case "update":
 					{
-						// Debug: Check content type
 						contentType := c.GetHeader("Content-Type")
-						log.Printf("Content-Type: %s", contentType)
-						
-						// Check if it's actually multipart
 						if !strings.HasPrefix(contentType, "multipart/form-data") {
 							util.HandleError(c, http.StatusBadRequest, errors.New("request must be multipart/form-data"))
 							return
 						}
-						
-						// Debug: Check for available form files
+
 						form, err := c.MultipartForm()
 						if err != nil {
 							log.Printf("Failed to parse multipart form: %v", err)
 							util.HandleError(c, http.StatusBadRequest, fmt.Errorf("failed to parse multipart form: %v", err))
 							return
 						}
-						
+
 						log.Printf("Available form files: %+v", form.File)
-						
-						bannerFile, _, err := c.Request.FormFile("banner")
+
+						bannerFile, err := c.FormFile("banner")
 						if err != nil {
 							log.Printf("FormFile error for 'banner': %v", err)
 							util.HandleError(c, http.StatusBadRequest, fmt.Errorf("failed to get banner file: %v", err))
 							return
 						}
 
-						bannerUploadResult, err := util.FileUpload(models.File{File: bannerFile})
+						src, err := bannerFile.Open()
+						if err != nil {
+							util.HandleError(c, http.StatusInternalServerError, err)
+							return
+						}
+						defer src.Close()
+
+						bannerUploadResult, err := util.FileUpload(models.File{File: src})
 						if err != nil {
 							errMsg := fmt.Sprintf("Banner failed to upload - %v", err.Error())
 							util.HandleError(c, http.StatusInternalServerError, errors.New(errMsg))
@@ -789,34 +792,36 @@ func UpdateShopField() gin.HandlerFunc {
 				switch action {
 				case "update":
 					{
-						// Debug: Check content type
 						contentType := c.GetHeader("Content-Type")
-						log.Printf("Content-Type: %s", contentType)
-						
-						// Check if it's actually multipart
 						if !strings.HasPrefix(contentType, "multipart/form-data") {
 							util.HandleError(c, http.StatusBadRequest, errors.New("request must be multipart/form-data"))
 							return
 						}
-						
-						// Debug: Check for available form files
+
 						form, err := c.MultipartForm()
 						if err != nil {
 							log.Printf("Failed to parse multipart form: %v", err)
 							util.HandleError(c, http.StatusBadRequest, fmt.Errorf("failed to parse multipart form: %v", err))
 							return
 						}
-						
+
 						log.Printf("Available form files: %+v", form.File)
-						
-						logoFile, _, err := c.Request.FormFile("logo")
+
+						logoFile, err := c.FormFile("logo")
 						if err != nil {
 							log.Printf("FormFile error for 'logo': %v", err)
 							util.HandleError(c, http.StatusBadRequest, fmt.Errorf("failed to get logo file: %v", err))
 							return
 						}
 
-						logoUploadResult, err := util.FileUpload(models.File{File: logoFile})
+						src, err := logoFile.Open()
+						if err != nil {
+							util.HandleError(c, http.StatusInternalServerError, err)
+							return
+						}
+						defer src.Close()
+
+						logoUploadResult, err := util.FileUpload(models.File{File: src})
 						if err != nil {
 							errMsg := fmt.Sprintf("Logo failed to upload - %v", err.Error())
 							util.HandleError(c, http.StatusInternalServerError, errors.New(errMsg))
@@ -855,7 +860,7 @@ func UpdateShopField() gin.HandlerFunc {
 		case "address":
 			{
 				var payload models.ShopAddress
-				if err := c.BindJSON(&payload); err != nil {
+				if err := c.Bind(&payload); err != nil {
 					log.Println(err)
 					util.HandleError(c, http.StatusBadRequest, err)
 					return
@@ -888,19 +893,11 @@ func UpdateShopField() gin.HandlerFunc {
 		case "vacation":
 			{
 				var vacation models.ShopVacationRequest
-				now := time.Now()
 				if err := c.BindJSON(&vacation); err != nil {
 					util.HandleError(c, http.StatusBadRequest, err)
 					return
 				}
 
-				shopId, myId, err := common.MyShopIdAndMyId(c)
-				if err != nil {
-					util.HandleError(c, http.StatusBadRequest, err)
-					return
-				}
-
-				filter := bson.M{"_id": shopId, "user_id": myId}
 				update := bson.M{"$set": bson.M{"vacation_message": vacation.Message, "is_vacation": vacation.IsVacation, "modified_at": now}}
 				res, err := common.ShopCollection.UpdateOne(ctx, filter, update)
 				if err != nil {
@@ -915,6 +912,42 @@ func UpdateShopField() gin.HandlerFunc {
 				internal.PublishCacheMessage(c, internal.CacheInvalidateShop, shopId.Hex())
 
 				util.HandleSuccess(c, http.StatusOK, "Shop vacation updated successfully", res.UpsertedID)
+				return
+			}
+		case "basic":
+			{
+				var basic models.ShopBasicInformationRequest
+				if err := c.BindJSON(&basic); err != nil {
+					util.HandleError(c, http.StatusBadRequest, err)
+					return
+				}
+
+				err = util.ValidateShopName(basic.Name)
+				if err != nil {
+					util.HandleError(c, http.StatusBadRequest, err)
+					return
+				}
+
+				err = util.ValidateShopDescription(basic.Description)
+				if err != nil {
+					util.HandleError(c, http.StatusBadRequest, err)
+					return
+				}
+
+				update := bson.M{"$set": bson.M{"name": basic.Name, "is_live": basic.IsLive, "description": basic.Description, "sales_message": basic.SalesMessage, "announcement": basic.Announcement, "modified_at": now}}
+				res, err := common.ShopCollection.UpdateOne(ctx, filter, update)
+				if err != nil {
+					util.HandleError(c, http.StatusInternalServerError, err)
+					return
+				}
+				if res.ModifiedCount == 0 {
+					util.HandleError(c, http.StatusNotFound, errors.New("no matching documents found"))
+					return
+				}
+
+				internal.PublishCacheMessage(c, internal.CacheInvalidateShop, shopId.Hex())
+
+				util.HandleSuccess(c, http.StatusOK, "Shop information updated successfully", res.UpsertedID)
 				return
 			}
 		default:

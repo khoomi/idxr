@@ -15,10 +15,10 @@ type Shop struct {
 	BannerURL              string               `bson:"banner_url" json:"bannerUrl"`
 	Status                 ShopStatus           `bson:"status" json:"status" validate:"required,oneof=inactive active banned suspended warning pendingreview"`
 	Name                   string               `bson:"name" json:"name" validate:"required"`
-	Announcement           string               `bson:"announcement" json:"announcement" validate:"omitempty"`
+	Announcement           string               `bson:"announcement" json:"announcement"`
 	SalesMessage           string               `bson:"sales_message" json:"salesMessage"`
 	Description            string               `bson:"description" json:"description" validate:"required"`
-	VacationMessage        string               `bson:"vacation_message" json:"vacationMessage" validate:"omitempty"`
+	VacationMessage        string               `bson:"vacation_message" json:"vacationMessage"`
 	Slug                   string               `bson:"slug" json:"slug" validate:"required"`
 	LogoURL                string               `bson:"logo_url" json:"logoUrl"`
 	Username               string               `bson:"username" json:"username" validate:"required"`
@@ -31,21 +31,21 @@ type Shop struct {
 	Rating                 Rating               `bson:"rating" json:"rating"`
 	ReviewsCount           int                  `bson:"reviews_count" json:"reviewsCount"`
 	FinancialInformation   FinancialInformation `bson:"financial_information" json:"financialInformation"`
-	ListingActiveCount     int                  `bson:"listing_active_count" json:"listing_active_count" validate:"required"`
+	ListingActiveCount     int                  `bson:"listing_active_count" json:"listingActiveCount" validate:"required"`
 	FollowerCount          int                  `bson:"follower_count" json:"followerCount" validate:"required"`
 	ID                     primitive.ObjectID   `bson:"_id" json:"_id" validate:"required"`
 	UserID                 primitive.ObjectID   `bson:"user_id" json:"userId"`
-	IsVacation             bool                 `bson:"is_vacation" json:"is_vacation"`
+	IsVacation             bool                 `bson:"is_vacation" json:"isVacation"`
 	IsLive                 bool                 `bson:"is_live" json:"isLive"`
 }
 
 type ShopAddress struct {
-	City       string    `bson:"city" json:"city" validate:"required"`
-	State      string    `bson:"state" json:"state" validate:"required"`
-	Street     string    `bson:"street" json:"street" validate:"required"`
-	PostalCode string    `bson:"postal_code" json:"postalCode" validate:"required"`
+	City       string    `bson:"city" json:"city"`
+	State      string    `bson:"state" json:"state"`
+	Street     string    `bson:"street" json:"street"`
+	PostalCode string    `bson:"postal_code" json:"postalCode"`
 	Country    Country   `bson:"country" json:"country"`
-	ModifiedAt time.Time `bson:"modified_at" json:"modifiedAt" validate:"required"`
+	ModifiedAt time.Time `bson:"modified_at" json:"modifiedAt"`
 }
 
 type ShopExcerpt struct {
@@ -114,8 +114,16 @@ type ShopAnnouncementRequest struct {
 }
 
 type ShopVacationRequest struct {
-	Message    string `bson:"message" json:"message"`
-	IsVacation bool   `bson:"is_vacation" json:"isVacation"`
+	Message    string `json:"vacationMessage"`
+	IsVacation bool   `json:"isVacation"`
+}
+
+type ShopBasicInformationRequest struct {
+	Name         string `json:"name"`
+	Description  string `json:"description"`
+	IsLive       bool   `json:"isLive"`
+	Announcement string `json:"announcement"`
+	SalesMessage string `json:"salesMessage"`
 }
 
 type ShopAbout struct {
