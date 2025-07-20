@@ -18,12 +18,12 @@ services:
       ACCESS_KEY_ID: AKIA3CHOOJIOTQNC4NDT
       SECRET_ACCESS_KEY: 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
       DOCKER_REGISTRY: khoomiapi.azurecr.io
+
       CLOUDINARY_CLOUDNAME: kh-oo-mi
       CLOUDINARY_API_KEY: 687982156539888
       CLOUDINARY_API_SECRET: UCuy4YhFhyCvo3-jeXhNjR4yIeQ
       CLOUDINARY_UPLOAD_FOLDER: UCuy4YhFhyCvo3-jeXhNjR4yIeQ
       GOOGLE_CLIENT_ID: 730040820913-0aai89vh3gc667rnv28bji22pnhdqidf.apps.googleusercontent.com
-
     networks:
       - khoomi-net
     ports:
