@@ -1,7 +1,6 @@
 package controllers
 
 import (
-	"context"
 	"khoomi-api-io/api/internal"
 	"khoomi-api-io/api/internal/auth"
 	"khoomi-api-io/api/internal/common"
@@ -34,7 +33,7 @@ func InitUserAddressController(userAddressService services.UserAddressService, n
 // CreateUserAddress - create new user address
 func (uac *UserAddressController) CreateUserAddress() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
+		ctx, cancel := WithTimeout()
 		defer cancel()
 
 		var userAddress models.UserAddressExcerpt
@@ -75,7 +74,7 @@ func (uac *UserAddressController) CreateUserAddress() gin.HandlerFunc {
 // GetUserAddresses - get user address
 func (uac *UserAddressController) GetUserAddresses() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
+		ctx, cancel := WithTimeout()
 		defer cancel()
 
 		// Validate authenticated user
@@ -107,7 +106,7 @@ func (uac *UserAddressController) GetUserAddresses() gin.HandlerFunc {
 // UpdateUserAddress - update user address
 func (uac *UserAddressController) UpdateUserAddress() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
+		ctx, cancel := WithTimeout()
 		defer cancel()
 
 		var userAddress models.UserAddressExcerpt
@@ -154,7 +153,7 @@ func (uac *UserAddressController) UpdateUserAddress() gin.HandlerFunc {
 // ChangeDefaultAddress -> PUT /:userId/address/:addressId/default
 func (uac *UserAddressController) ChangeDefaultAddress() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
+		ctx, cancel := WithTimeout()
 		defer cancel()
 
 		userId, err := auth.ValidateUserID(c)
@@ -191,7 +190,7 @@ func (uac *UserAddressController) ChangeDefaultAddress() gin.HandlerFunc {
 // DeleteUserAddress - delete user address
 func (uac *UserAddressController) DeleteUserAddress() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
+		ctx, cancel := WithTimeout()
 		defer cancel()
 
 		// Extract current address Id
@@ -221,4 +220,3 @@ func (uac *UserAddressController) DeleteUserAddress() gin.HandlerFunc {
 		util.HandleSuccess(c, http.StatusOK, "Address deleted", addressId)
 	}
 }
-

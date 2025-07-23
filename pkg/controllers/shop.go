@@ -42,7 +42,7 @@ func InitShopController(shopService services.ShopService, notificationService se
 // /api/shop/check/:shop_username
 func (sc *ShopController) CheckShopNameAvailability() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		ctx, cancel := WithTimeout()
 		defer cancel()
 
 		shopName := c.Param("username")
@@ -63,7 +63,7 @@ func (sc *ShopController) CheckShopNameAvailability() gin.HandlerFunc {
 
 func (sc *ShopController) CreateShop(emailService services.EmailService) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		ctx, cancel := WithTimeout()
 		defer cancel()
 
 		session_, err := auth.GetSessionAuto(c)
@@ -153,7 +153,7 @@ func (sc *ShopController) CreateShop(emailService services.EmailService) gin.Han
 
 func (sc *ShopController) UpdateShopInformation() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		ctx, cancel := WithTimeout()
 		defer cancel()
 
 		shopId, myId, err := common.MyShopIdAndMyId(c)
@@ -265,7 +265,7 @@ func (sc *ShopController) UpdateShopInformation() gin.HandlerFunc {
 
 func (sc *ShopController) UpdateMyShopStatus() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		ctx, cancel := WithTimeout()
 		defer cancel()
 
 		var payload models.UpdateShopStatusReq
@@ -295,7 +295,7 @@ func (sc *ShopController) UpdateMyShopStatus() gin.HandlerFunc {
 
 func (sc *ShopController) UpdateShopAddress() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		ctx, cancel := WithTimeout()
 		defer cancel()
 
 		var payload models.ShopAddress
@@ -326,7 +326,7 @@ func (sc *ShopController) UpdateShopAddress() gin.HandlerFunc {
 // GetShop - api/shops/:shopid
 func (sc *ShopController) GetShop() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		ctx, cancel := WithTimeout()
 		defer cancel()
 
 		shopID := c.Param("shopid")
@@ -349,7 +349,7 @@ func (sc *ShopController) GetShop() gin.HandlerFunc {
 // GetShopByOwnerUserId - api/users/:userid/shops
 func (sc *ShopController) GetShopByOwnerUserId() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		ctx, cancel := WithTimeout()
 		defer cancel()
 
 		userIDStr := c.Param("userid")
@@ -372,7 +372,7 @@ func (sc *ShopController) GetShopByOwnerUserId() gin.HandlerFunc {
 // GetShops - api/shops/?limit=50&skip=0
 func (sc *ShopController) GetShops() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		ctx, cancel := WithTimeout()
 		defer cancel()
 
 		paginationArgs := common.GetPaginationArgs(c)
@@ -394,7 +394,7 @@ func (sc *ShopController) GetShops() gin.HandlerFunc {
 // SearchShops - api/shops/:shopid/search?q=khoomi&limit=50&skip=0
 func (sc *ShopController) SearchShops() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		ctx, cancel := WithTimeout()
 		defer cancel()
 
 		query := c.Query("q")
@@ -417,7 +417,7 @@ func (sc *ShopController) SearchShops() gin.HandlerFunc {
 
 func (sc *ShopController) UpdateShopField() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
+		ctx, cancel := WithTimeout()
 		defer cancel()
 		now := time.Now()
 
@@ -722,7 +722,7 @@ func (sc *ShopController) UpdateShopField() gin.HandlerFunc {
 // UpdateShopAnnouncement - api/shops/:shopid/announcement
 func (sc *ShopController) UpdateShopAnnouncement() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
+		ctx, cancel := WithTimeout()
 		defer cancel()
 
 		var announcement models.ShopAnnouncementRequest
@@ -765,7 +765,7 @@ func (sc *ShopController) UpdateShopAnnouncement() gin.HandlerFunc {
 
 func (sc *ShopController) UpdateShopVacation() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		ctx, cancel := WithTimeout()
 		defer cancel()
 
 		var vacation models.ShopVacationRequest
@@ -798,7 +798,7 @@ func (sc *ShopController) UpdateShopVacation() gin.HandlerFunc {
 
 func (sc *ShopController) UpdateShopLogo() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		ctx, cancel := WithTimeout()
 		defer cancel()
 
 		shopId, myId, err := common.MyShopIdAndMyId(c)
@@ -836,7 +836,7 @@ func (sc *ShopController) UpdateShopLogo() gin.HandlerFunc {
 
 func (sc *ShopController) UpdateShopBanner() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		ctx, cancel := WithTimeout()
 		defer cancel()
 
 		shopId, myId, err := common.MyShopIdAndMyId(c)
@@ -874,7 +874,7 @@ func (sc *ShopController) UpdateShopBanner() gin.HandlerFunc {
 
 func (sc *ShopController) UpdateShopGallery() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		ctx, cancel := WithTimeout()
 		defer cancel()
 
 		shopId, myId, err := common.MyShopIdAndMyId(c)
@@ -914,7 +914,7 @@ func (sc *ShopController) UpdateShopGallery() gin.HandlerFunc {
 // DeleteFromShopGallery - api/shops/:shopid/favorers?image={image_url}
 func (sc *ShopController) DeleteFromShopGallery() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		ctx, cancel := WithTimeout()
 		defer cancel()
 
 		imageURL := c.Query("image")
@@ -944,7 +944,7 @@ func (sc *ShopController) DeleteFromShopGallery() gin.HandlerFunc {
 // FollowShop - api/shops/:shopid/followers
 func (sc *ShopController) FollowShop() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		ctx, cancel := WithTimeout()
 		defer cancel()
 
 		shopId, myId, err := common.MyShopIdAndMyId(c)
@@ -969,7 +969,7 @@ func (sc *ShopController) FollowShop() gin.HandlerFunc {
 // GetShopFollowers - api/shops/:shopid/followers?limit=50&skip=0
 func (sc *ShopController) GetShopFollowers() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		ctx, cancel := WithTimeout()
 		defer cancel()
 
 		shopId := c.Param("shopid")
@@ -1002,7 +1002,7 @@ func (sc *ShopController) GetShopFollowers() gin.HandlerFunc {
 // IsfollowingShop - api/shops/:shopid/followers/following
 func (sc *ShopController) IsFollowingShop() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		ctx, cancel := WithTimeout()
 		defer cancel()
 
 		shopId, myId, err := common.MyShopIdAndMyId(c)
@@ -1024,7 +1024,7 @@ func (sc *ShopController) IsFollowingShop() gin.HandlerFunc {
 // UnfollowShop - api/shops/:shopid/followers
 func (sc *ShopController) UnfollowShop() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		ctx, cancel := WithTimeout()
 		defer cancel()
 
 		shopId, myId, err := common.MyShopIdAndMyId(c)
@@ -1089,7 +1089,7 @@ func (sc *ShopController) UnfollowShop() gin.HandlerFunc {
 // RemoveOtherFollower - api/shops/:shopid/followers/other?userid={user_id to remove}
 func (sc *ShopController) RemoveOtherFollower() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		ctx, cancel := WithTimeout()
 		userToBeRemoved := c.Query("userid")
 		defer cancel()
 
@@ -1169,7 +1169,7 @@ func (sc *ShopController) RemoveOtherFollower() gin.HandlerFunc {
 // UpdateShopAbout - api/shops/:shopid/about
 func (sc *ShopController) UpdateShopAbout() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		ctx, cancel := WithTimeout()
 		defer cancel()
 
 		var shopAboutJson models.ShopAbout
@@ -1220,7 +1220,7 @@ func (sc *ShopController) UpdateShopAbout() gin.HandlerFunc {
 // CreateShopReturnPolicy - api/shops/:shopid/policies
 func (sc *ShopController) CreateShopReturnPolicy() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		ctx, cancel := WithTimeout()
 		var shopReturnPolicyJson models.ShopReturnPolicies
 		defer cancel()
 
@@ -1265,7 +1265,7 @@ func (sc *ShopController) CreateShopReturnPolicy() gin.HandlerFunc {
 // UpdateShopReturnPolicy - api/shops/:shopid/policies
 func (sc *ShopController) UpdateShopReturnPolicy() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		ctx, cancel := WithTimeout()
 		var shopReturnPolicyJson models.ShopReturnPolicies
 		defer cancel()
 
@@ -1314,7 +1314,7 @@ func (sc *ShopController) UpdateShopReturnPolicy() gin.HandlerFunc {
 // DeleteShopReturnPolicy - api/shops/:shopid/policies?id={policy_id}
 func (sc *ShopController) DeleteShopReturnPolicy() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		ctx, cancel := WithTimeout()
 		defer cancel()
 
 		policyIdStr := c.Param("policyid")
@@ -1352,7 +1352,7 @@ func (sc *ShopController) DeleteShopReturnPolicy() gin.HandlerFunc {
 // GetShopReturnPolicy - api/shops/:shopid/policies?id={policy_id}
 func (sc *ShopController) GetShopReturnPolicy() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		ctx, cancel := WithTimeout()
 		defer cancel()
 
 		policyIdStr := c.Param("policyid")
@@ -1383,7 +1383,7 @@ func (sc *ShopController) GetShopReturnPolicy() gin.HandlerFunc {
 // GetShopReturnPolicies - api/shops/:shopid/policies/all
 func (sc *ShopController) GetShopReturnPolicies() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		ctx, cancel := WithTimeout()
 		defer cancel()
 
 		shopId, _, err := common.MyShopIdAndMyId(c)
@@ -1418,7 +1418,7 @@ func (sc *ShopController) GetShopReturnPolicies() gin.HandlerFunc {
 // CreateShopCompliance - api/shops/:shopid/compliance
 func (sc *ShopController) CreateShopComplianceInformation() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		ctx, cancel := WithTimeout()
 		var complianceJson models.ComplianceInformationRequest
 		defer cancel()
 
@@ -1468,7 +1468,7 @@ func (sc *ShopController) CreateShopComplianceInformation() gin.HandlerFunc {
 // GetShopComplianceInformation - api/shops/:shopid/compliance
 func (sc *ShopController) GetShopComplianceInformation() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		ctx, cancel := WithTimeout()
 		defer cancel()
 
 		shopId, _, err := common.MyShopIdAndMyId(c)

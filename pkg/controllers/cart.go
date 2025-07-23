@@ -29,7 +29,7 @@ func InitCartController(cartService services.CartService, notificationService se
 
 func (cc *CartController) SaveCartItem() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
+		ctx, cancel := WithTimeout()
 		defer cancel()
 
 		userID, err := auth.ValidateUserID(c)
@@ -64,7 +64,7 @@ func (cc *CartController) SaveCartItem() gin.HandlerFunc {
 
 func (cc *CartController) GetCartItems() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
+		ctx, cancel := WithTimeout()
 		defer cancel()
 
 		userID, err := auth.ValidateUserID(c)
@@ -93,7 +93,7 @@ func (cc *CartController) GetCartItems() gin.HandlerFunc {
 // IncreaseCartItemQuantity handles PUT /api/:userid/carts/:cartId/quantity/inc
 func (cc *CartController) IncreaseCartItemQuantity() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
+		ctx, cancel := WithTimeout()
 		defer cancel()
 
 		userID, cartItemID, err := cc.parseCartParameters(c)
@@ -121,7 +121,7 @@ func (cc *CartController) IncreaseCartItemQuantity() gin.HandlerFunc {
 // DecreaseCartItemQuantity handles PUT /api/:userid/carts/:cartId/quantity/dec
 func (cc *CartController) DecreaseCartItemQuantity() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
+		ctx, cancel := WithTimeout()
 		defer cancel()
 
 		userID, cartItemID, err := cc.parseCartParameters(c)
@@ -149,7 +149,7 @@ func (cc *CartController) DecreaseCartItemQuantity() gin.HandlerFunc {
 // DeleteCartItem handles DELETE /api/:userid/carts/:cartId
 func (cc *CartController) DeleteCartItem() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
+		ctx, cancel := WithTimeout()
 		defer cancel()
 
 		userID, cartItemID, err := cc.parseCartParameters(c)
@@ -179,7 +179,7 @@ func (cc *CartController) DeleteCartItem() gin.HandlerFunc {
 // DeleteCartItems handles DELETE /api/:userid/carts/many
 func (cc *CartController) DeleteCartItems() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
+		ctx, cancel := WithTimeout()
 		defer cancel()
 
 		userID, err := auth.ValidateUserID(c)
@@ -225,7 +225,7 @@ func (cc *CartController) DeleteCartItems() gin.HandlerFunc {
 // ClearCartItems handles DELETE /api/:userid/carts/clear
 func (cc *CartController) ClearCartItems() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
+		ctx, cancel := WithTimeout()
 		defer cancel()
 
 		userID, err := auth.ValidateUserID(c)
@@ -260,7 +260,7 @@ func (cc *CartController) ClearCartItems() gin.HandlerFunc {
 // ValidateCartItems handles GET /api/:userid/carts/validate
 func (cc *CartController) ValidateCartItems() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
+		ctx, cancel := WithTimeout()
 		defer cancel()
 
 		userID, err := auth.ValidateUserID(c)

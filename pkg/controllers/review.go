@@ -3,7 +3,6 @@ package controllers
 import (
 	"context"
 	"net/http"
-	"time"
 
 	"khoomi-api-io/api/internal/common"
 	"khoomi-api-io/api/pkg/models"
@@ -30,7 +29,7 @@ func InitReviewController(reviewService services.ReviewService, notificationServ
 // CreateListingReview handles POST /api/listing/:listingid/reviews
 func (rc *ReviewController) CreateListingReview() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		ctx, cancel := WithTimeout()
 		defer cancel()
 
 		var reviewRequest models.ReviewRequest
@@ -78,7 +77,7 @@ func (rc *ReviewController) CreateListingReview() gin.HandlerFunc {
 // GetListingReviews handles GET /api/listing/:listingid/reviews
 func (rc *ReviewController) GetListingReviews() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
+		ctx, cancel := WithTimeout()
 		defer cancel()
 
 		listingIDStr := c.Param("listingid")
@@ -109,7 +108,7 @@ func (rc *ReviewController) GetListingReviews() gin.HandlerFunc {
 // GetShopReviews handles GET /api/shops/:shopid/reviews
 func (rc *ReviewController) GetShopReviews() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
+		ctx, cancel := WithTimeout()
 		defer cancel()
 
 		shopIDStr := c.Param("shopid")
@@ -140,7 +139,7 @@ func (rc *ReviewController) GetShopReviews() gin.HandlerFunc {
 // DeleteMyListingReview handles DELETE /api/listing/:listingid/reviews
 func (rc *ReviewController) DeleteMyListingReview() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		ctx, cancel := WithTimeout()
 		defer cancel()
 
 		listingID, userID, err := common.ListingIdAndMyId(c)
@@ -169,7 +168,7 @@ func (rc *ReviewController) DeleteMyListingReview() gin.HandlerFunc {
 // DeleteOtherListingReview handles DELETE /api/listing/:listingid/reviews/:reviewid
 func (rc *ReviewController) DeleteOtherListingReview() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		ctx, cancel := WithTimeout()
 		defer cancel()
 
 		userToBeRemoved := c.Query("userid")

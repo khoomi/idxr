@@ -1,10 +1,8 @@
 package controllers
 
 import (
-	"context"
 	"khoomi-api-io/api/internal"
 	"khoomi-api-io/api/internal/auth"
-	"khoomi-api-io/api/internal/common"
 	"khoomi-api-io/api/pkg/services"
 	"khoomi-api-io/api/pkg/util"
 	"net/http"
@@ -30,7 +28,7 @@ func InitUserFavoriteController(userFavoriteService services.UserFavoriteService
 // ToggleFavoriteShop handles toggling favorite shop status
 func (ufc *UserFavoriteController) ToggleFavoriteShop() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
+		ctx, cancel := WithTimeout()
 		defer cancel()
 
 		shopIdStr := c.Query("shopid")
@@ -66,7 +64,7 @@ func (ufc *UserFavoriteController) ToggleFavoriteShop() gin.HandlerFunc {
 // IsShopFavorited checks if a shop is favorited by the user
 func (ufc *UserFavoriteController) IsShopFavorited() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
+		ctx, cancel := WithTimeout()
 		defer cancel()
 
 		myObjectId, err := auth.GetSessionUserID(c)
@@ -101,7 +99,7 @@ func (ufc *UserFavoriteController) IsShopFavorited() gin.HandlerFunc {
 // ToggleFavoriteListing handles toggling favorite listing status
 func (ufc *UserFavoriteController) ToggleFavoriteListing() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
+		ctx, cancel := WithTimeout()
 		defer cancel()
 
 		listingIdStr := c.Query("listingid")
@@ -137,7 +135,7 @@ func (ufc *UserFavoriteController) ToggleFavoriteListing() gin.HandlerFunc {
 // IsListingFavorited checks if a listing is favorited by the user
 func (ufc *UserFavoriteController) IsListingFavorited() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
+		ctx, cancel := WithTimeout()
 		defer cancel()
 
 		myObjectId, err := auth.GetSessionUserID(c)

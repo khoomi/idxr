@@ -19,7 +19,7 @@ type MediaUpload interface {
 
 var validate = validator.New()
 
-func init_cloudinary() (*cloudinary.Cloudinary, error) {
+func initCloudinary() (*cloudinary.Cloudinary, error) {
 	cloudName := LoadEnvFor("CLOUDINARY_CLOUDNAME")
 	apiKey := LoadEnvFor("CLOUDINARY_API_KEY")
 	apiSecret := LoadEnvFor("CLOUDINARY_API_SECRET")
@@ -37,7 +37,7 @@ func ImageUploadHelper(input any) (uploader.UploadResult, error) {
 	defer cancel()
 
 	// create cloudinary instance
-	cld, err := init_cloudinary()
+	cld, err := initCloudinary()
 	if err != nil {
 		return uploader.UploadResult{}, err
 	}
@@ -57,7 +57,7 @@ func ImageDeletionHelper(params uploader.DestroyParams) (string, error) {
 	defer cancel()
 
 	// create cloudinary instance
-	cld, err := init_cloudinary()
+	cld, err := initCloudinary()
 	if err != nil {
 		return "", err
 	}

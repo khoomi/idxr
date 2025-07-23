@@ -1,7 +1,6 @@
 package controllers
 
 import (
-	"context"
 	"errors"
 	"io"
 	"net/http"
@@ -31,7 +30,7 @@ func InitUserController(userService services.UserService, notificationService se
 
 // ActiveSessionUser get current user using userId from request headers.
 func (uc *UserController) ActiveSessionUser(c *gin.Context) {
-	ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
+	ctx, cancel := WithTimeout()
 	defer cancel()
 
 	// Extract user id from request header
@@ -52,7 +51,7 @@ func (uc *UserController) ActiveSessionUser(c *gin.Context) {
 
 // CreateUser creates new user account
 func (uc *UserController) CreateUser(c *gin.Context) {
-	ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
+	ctx, cancel := WithTimeout()
 	defer cancel()
 
 	var jsonUser models.UserRegistrationBody
@@ -84,7 +83,7 @@ func (uc *UserController) CreateUser(c *gin.Context) {
 
 // HandleUserAuthentication authenticates user session
 func (uc *UserController) HandleUserAuthentication(c *gin.Context) {
-	ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
+	ctx, cancel := WithTimeout()
 	defer cancel()
 
 	var jsonUser models.UserLoginBody
@@ -128,7 +127,7 @@ func (uc *UserController) HandleUserAuthentication(c *gin.Context) {
 }
 
 func (uc *UserController) HandleUserGoogleAuthentication(c *gin.Context) {
-	ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
+	ctx, cancel := WithTimeout()
 	defer cancel()
 
 	var body struct {
@@ -171,7 +170,7 @@ func (uc *UserController) HandleUserGoogleAuthentication(c *gin.Context) {
 
 // GetMyActiveSession returns current active session given a session id
 func (uc *UserController) GetMyActiveSession(c *gin.Context) {
-	_, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
+	_, cancel := WithTimeout()
 	defer cancel()
 
 	session, err := auth.GetSessionAuto(c)
@@ -187,7 +186,7 @@ func (uc *UserController) GetMyActiveSession(c *gin.Context) {
 
 // RefreshToken handles auth token refreshments
 func (uc *UserController) RefreshToken(c *gin.Context) {
-	ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
+	ctx, cancel := WithTimeout()
 	defer cancel()
 
 	session, err := auth.GetSessionAuto(c)
@@ -229,7 +228,7 @@ func (uc *UserController) Logout(c *gin.Context) {
 
 // SendDeleteUserAccount -> Delete current user account
 func (uc *UserController) SendDeleteUserAccount(c *gin.Context) {
-	ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
+	ctx, cancel := WithTimeout()
 	defer cancel()
 
 	session_, err := auth.GetSessionAuto(c)
@@ -249,7 +248,7 @@ func (uc *UserController) SendDeleteUserAccount(c *gin.Context) {
 
 // IsAccountPendingDeletion checks if current user account is pending deletion
 func (uc *UserController) IsAccountPendingDeletion(c *gin.Context) {
-	ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
+	ctx, cancel := WithTimeout()
 	defer cancel()
 
 	userId, err := auth.ValidateUserID(c)
@@ -269,7 +268,7 @@ func (uc *UserController) IsAccountPendingDeletion(c *gin.Context) {
 
 // CancelDeleteUserAccount cancels delete user account request.
 func (uc *UserController) CancelDeleteUserAccount(c *gin.Context) {
-	ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
+	ctx, cancel := WithTimeout()
 	defer cancel()
 
 	userId, err := auth.ValidateUserID(c)
@@ -289,7 +288,7 @@ func (uc *UserController) CancelDeleteUserAccount(c *gin.Context) {
 
 // ChangePassword changes active user's password.
 func (uc *UserController) ChangePassword(c *gin.Context) {
-	ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
+	ctx, cancel := WithTimeout()
 	defer cancel()
 
 	// Verify current user session
@@ -323,7 +322,7 @@ func (uc *UserController) ChangePassword(c *gin.Context) {
 // It accepts a user ID in the URL path and attempts to retrieve a user with a matching
 // ObjectID. If the user ID is not a valid ObjectID, it attempts to find the user by username.
 func (uc *UserController) GetUser(c *gin.Context) {
-	ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
+	ctx, cancel := WithTimeout()
 	defer cancel()
 
 	userID := c.Param("userid")
@@ -339,7 +338,7 @@ func (uc *UserController) GetUser(c *gin.Context) {
 
 // SendVerifyEmail sends a verification email notification to a given user's email.
 func (uc *UserController) SendVerifyEmail(c *gin.Context) {
-	ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
+	ctx, cancel := WithTimeout()
 	defer cancel()
 
 	emailCurrent := c.Query("email")
@@ -362,7 +361,7 @@ func (uc *UserController) SendVerifyEmail(c *gin.Context) {
 }
 
 func (uc *UserController) VerifyEmail(c *gin.Context) {
-	ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
+	ctx, cancel := WithTimeout()
 	defer cancel()
 
 	currentId := c.Query("id")
@@ -385,7 +384,7 @@ func (uc *UserController) VerifyEmail(c *gin.Context) {
 
 // UpdateMyProfile updates the email, thumbnail, first and last name for the current user.
 func (uc *UserController) UpdateMyProfile(c *gin.Context) {
-	ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
+	ctx, cancel := WithTimeout()
 	defer cancel()
 
 	session_, err := auth.GetSessionAuto(c)
@@ -427,7 +426,7 @@ func (uc *UserController) UpdateMyProfile(c *gin.Context) {
 
 // GetLoginHistories - Get user login histories (/api/users/:userId/login-history?limit=50&skip=0)
 func (uc *UserController) GetLoginHistories(c *gin.Context) {
-	ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
+	ctx, cancel := WithTimeout()
 	defer cancel()
 
 	userId, err := auth.ValidateUserID(c)
@@ -454,7 +453,7 @@ func (uc *UserController) GetLoginHistories(c *gin.Context) {
 
 // DeleteLoginHistories - Delete user login histories
 func (uc *UserController) DeleteLoginHistories(c *gin.Context) {
-	ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
+	ctx, cancel := WithTimeout()
 	defer cancel()
 
 	userId, err := auth.ValidateUserID(c)
@@ -482,7 +481,7 @@ func (uc *UserController) DeleteLoginHistories(c *gin.Context) {
 
 // PasswordResetEmail - api/send-password-reset?email=borngracedd@gmail.com
 func (uc *UserController) PasswordResetEmail(c *gin.Context) {
-	ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
+	ctx, cancel := WithTimeout()
 	defer cancel()
 
 	currentEmail := c.Query("email")
@@ -497,7 +496,7 @@ func (uc *UserController) PasswordResetEmail(c *gin.Context) {
 
 // PasswordReset - api/password-reset/userid?token=..&newpassword=..&id=user_uid
 func (uc *UserController) PasswordReset(c *gin.Context) {
-	ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
+	ctx, cancel := WithTimeout()
 	defer cancel()
 
 	currentId := c.Query("id")
@@ -530,7 +529,7 @@ func (uc *UserController) PasswordReset(c *gin.Context) {
 // UploadThumbnail - Upload user profile picture/thumbnail
 // api/user/thumbnail?remote_addr=..
 func (uc *UserController) UploadThumbnail(c *gin.Context) {
-	ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
+	ctx, cancel := WithTimeout()
 	defer cancel()
 
 	currentId, err := auth.ValidateUserID(c)
@@ -568,7 +567,7 @@ func (uc *UserController) UploadThumbnail(c *gin.Context) {
 // DeleteThumbnail - delete user profile picture/thumbnail
 // api/user/thumbnail
 func (uc *UserController) DeleteThumbnail(c *gin.Context) {
-	ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
+	ctx, cancel := WithTimeout()
 	defer cancel()
 
 	myId, err := auth.ValidateUserID(c)
@@ -595,7 +594,7 @@ func (uc *UserController) DeleteThumbnail(c *gin.Context) {
 // ////////////////////// START USER BIRTHDATE //////////////////////////
 // UpdateUserBirthdate - update user birthdate
 func (uc *UserController) UpdateUserBirthdate(c *gin.Context) {
-	ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
+	ctx, cancel := WithTimeout()
 	var birthDate models.UserBirthdate
 	defer cancel()
 
@@ -623,7 +622,7 @@ func (uc *UserController) UpdateUserBirthdate(c *gin.Context) {
 // UpdateUserSingleField - update user single field like Phone, Bio
 // api/user/update?field=phone&value=8084051523
 func (uc *UserController) UpdateUserSingleField(c *gin.Context) {
-	ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
+	ctx, cancel := WithTimeout()
 	field := c.Query("field")
 	value := c.Query("value")
 	defer cancel()
@@ -646,7 +645,7 @@ func (uc *UserController) UpdateUserSingleField(c *gin.Context) {
 // AddWishListItem - Add to user wish list
 // api/user/:userId/wishlist?listing_id=8084051523
 func (uc *UserController) AddWishListItem(c *gin.Context) {
-	ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
+	ctx, cancel := WithTimeout()
 	defer cancel()
 
 	listingId := c.Query("listing_id")
@@ -674,7 +673,7 @@ func (uc *UserController) AddWishListItem(c *gin.Context) {
 // RemoveWishListItem - Add to user wish list
 // api/user/:userId/wishlist?listing_id=8084051523
 func (uc *UserController) RemoveWishListItem(c *gin.Context) {
-	ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
+	ctx, cancel := WithTimeout()
 	defer cancel()
 
 	listingId := c.Query("listing_id")
@@ -701,7 +700,7 @@ func (uc *UserController) RemoveWishListItem(c *gin.Context) {
 
 // GetUserWishlist - Get all wishlist items  api/user/:userId/wishlist?limit=10&skip=0
 func (uc *UserController) GetUserWishlist(c *gin.Context) {
-	ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
+	ctx, cancel := WithTimeout()
 	defer cancel()
 
 	MyId, err := auth.ValidateUserID(c)
@@ -728,7 +727,7 @@ func (uc *UserController) GetUserWishlist(c *gin.Context) {
 
 // UpdateSecurityNotificationSetting - GET api/user/:userId/login-notification?set=true
 func (uc *UserController) UpdateSecurityNotificationSetting(c *gin.Context) {
-	ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
+	ctx, cancel := WithTimeout()
 	defer cancel()
 
 	myID, err := auth.ValidateUserID(c)
@@ -760,7 +759,7 @@ func (uc *UserController) UpdateSecurityNotificationSetting(c *gin.Context) {
 
 // GetSecurityNotificationSetting - GET api/user/:userId/login-notification
 func (uc *UserController) GetSecurityNotificationSetting(c *gin.Context) {
-	ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
+	ctx, cancel := WithTimeout()
 	defer cancel()
 
 	MyId, err := auth.ValidateUserID(c)

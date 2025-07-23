@@ -23,7 +23,7 @@ var ListingCategoryCollection = util.GetCollection(util.DB, "ListingCategory")
 
 func CreateCategorySingle() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
+		ctx, cancel := WithTimeout()
 		defer cancel()
 
 		var categoryJson models.Category
@@ -52,7 +52,7 @@ func CreateCategorySingle() gin.HandlerFunc {
 
 func CreateCategoryMulti() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
+		ctx, cancel := WithTimeout()
 		defer cancel()
 
 		var categoryJson models.CategoryRequestMulti
@@ -116,7 +116,7 @@ func CreateCategoryMulti() gin.HandlerFunc {
 // GetAllCategories - /api/categories?path=jewelry
 func GetAllCategories() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
+		ctx, cancel := WithTimeout()
 		defer cancel()
 
 		var categories []*models.Category
@@ -144,7 +144,7 @@ func GetAllCategories() gin.HandlerFunc {
 // GetCategoryChildren - /api/categories?path=jewelry
 func GetCategoryChildren() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
+		ctx, cancel := WithTimeout()
 		defer cancel()
 
 		categoryID := c.Param("id")
@@ -171,7 +171,7 @@ func GetCategoryChildren() gin.HandlerFunc {
 // GetCategoryAncestor - /api/categories?path=jewelry
 func GetCategoryAncestor() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
+		ctx, cancel := WithTimeout()
 		defer cancel()
 
 		categoryID := c.Param("id")
@@ -219,7 +219,7 @@ func GetCategoryAncestor() gin.HandlerFunc {
 // SearchCategories - /api/categories?s=jewelry
 func SearchCategories() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
+		ctx, cancel := WithTimeout()
 		defer cancel()
 
 		search := c.Query("s")
@@ -255,7 +255,7 @@ func SearchCategories() gin.HandlerFunc {
 
 func DeleteAllCategories() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
+		ctx, cancel := WithTimeout()
 		defer cancel()
 
 		res, err := ListingCategoryCollection.DeleteMany(ctx, bson.M{})

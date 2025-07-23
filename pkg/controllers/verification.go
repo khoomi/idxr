@@ -1,7 +1,6 @@
 package controllers
 
 import (
-	"context"
 	"net/http"
 
 	"khoomi-api-io/api/internal/auth"
@@ -16,8 +15,8 @@ import (
 
 // VerificationController handles verification-related HTTP requests
 type VerificationController struct {
-	verificationService  services.VerificationService
-	notificationService  services.NotificationService
+	verificationService services.VerificationService
+	notificationService services.NotificationService
 }
 
 // InitVerificationController creates a new VerificationController with dependency injection
@@ -31,7 +30,7 @@ func InitVerificationController(verificationService services.VerificationService
 // CreateSellerVerificationProfile creates a new seller verification profile
 func (vc *VerificationController) CreateSellerVerificationProfile() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
+		ctx, cancel := WithTimeout()
 		defer cancel()
 
 		shopId := c.Param("shopid")
@@ -75,7 +74,7 @@ func (vc *VerificationController) CreateSellerVerificationProfile() gin.HandlerF
 // GetSellerVerificationProfile retrieves a seller verification profile
 func (vc *VerificationController) GetSellerVerificationProfile() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
+		ctx, cancel := WithTimeout()
 		defer cancel()
 
 		shopId := c.Param("shopid")

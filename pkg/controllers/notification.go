@@ -1,7 +1,6 @@
 package controllers
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"log"
@@ -21,7 +20,7 @@ import (
 // USER NOTIFICATIONS
 func CreateUserNotificationSettings() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
+		ctx, cancel := WithTimeout()
 		defer cancel()
 
 		userId, err := auth.ValidateUserID(c)
@@ -59,7 +58,7 @@ func CreateUserNotificationSettings() gin.HandlerFunc {
 
 func GetUserNotificationSettings() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
+		ctx, cancel := WithTimeout()
 		defer cancel()
 
 		userId, err := auth.ValidateUserID(c)
@@ -102,7 +101,7 @@ func GetUserNotificationSettings() gin.HandlerFunc {
 // /api/user/:userid/?name=new_message&value=true
 func UpdateUserNotificationSettings() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
+		ctx, cancel := WithTimeout()
 		defer cancel()
 
 		userId, err := auth.ValidateUserID(c)

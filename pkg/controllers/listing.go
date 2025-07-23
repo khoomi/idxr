@@ -1,7 +1,6 @@
 package controllers
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -12,8 +11,8 @@ import (
 	auth "khoomi-api-io/api/internal/auth"
 	"khoomi-api-io/api/internal/common"
 	"khoomi-api-io/api/pkg/models"
-	"khoomi-api-io/api/pkg/util"
 	"khoomi-api-io/api/pkg/services"
+	"khoomi-api-io/api/pkg/util"
 
 	"github.com/cloudinary/cloudinary-go/api/uploader"
 	"github.com/gin-gonic/gin"
@@ -46,7 +45,7 @@ func CreateListing() gin.HandlerFunc {
 
 func CreateListingWithEmailService(emailService services.EmailService) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
+		ctx, cancel := WithTimeout()
 		defer cancel()
 
 		shopId, myId, err := common.MyShopIdAndMyId(c)
@@ -207,7 +206,7 @@ func CreateListingWithEmailService(emailService services.EmailService) gin.Handl
 
 		// Create temporary listing service instance for code generation
 		tempListingService := services.NewListingService()
-		
+
 		listing := models.Listing{
 			ID:                   primitive.NewObjectID(),
 			Code:                 tempListingService.GenerateListingCode(),
@@ -267,7 +266,7 @@ func CreateListingWithEmailService(emailService services.EmailService) gin.Handl
 		if emailService == nil {
 			emailService = services.NewEmailService()
 		}
-		
+
 		// send new listing email notification to user
 		emailService.SendNewListingEmail(loginEmail, loginName, newListing.Details.Title)
 
@@ -279,7 +278,7 @@ func CreateListingWithEmailService(emailService services.EmailService) gin.Handl
 
 func GetListing() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
+		ctx, cancel := WithTimeout()
 		defer cancel()
 
 		listingId := c.Param("listingid")
@@ -420,7 +419,7 @@ func GetListing() gin.HandlerFunc {
 
 func GetListings() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
+		ctx, cancel := WithTimeout()
 		defer cancel()
 
 		paginationArgs := common.GetPaginationArgs(c)
@@ -537,7 +536,7 @@ func GetListings() gin.HandlerFunc {
 
 func GetMyListingsSummary() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
+		ctx, cancel := WithTimeout()
 		defer cancel()
 
 		shopId, myId, err := common.MyShopIdAndMyId(c)
@@ -583,7 +582,7 @@ func GetMyListingsSummary() gin.HandlerFunc {
 // GetShopListings - Get single shop listings.
 func GetShopListings() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
+		ctx, cancel := WithTimeout()
 		defer cancel()
 
 		shopId := c.Param("shopid")
@@ -632,7 +631,7 @@ func GetShopListings() gin.HandlerFunc {
 
 func HasUserCreatedListingOnboarding() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
+		ctx, cancel := WithTimeout()
 		defer cancel()
 
 		_, userId, err := common.MyShopIdAndMyId(c)
@@ -668,7 +667,7 @@ func HasUserCreatedListingOnboarding() gin.HandlerFunc {
 
 func DeleteListings() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
+		ctx, cancel := WithTimeout()
 		defer cancel()
 
 		myId, err := auth.ValidateUserID(c)
@@ -710,7 +709,7 @@ func DeleteListings() gin.HandlerFunc {
 func DeactivateListings() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		now := time.Now()
-		ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
+		ctx, cancel := WithTimeout()
 		defer cancel()
 
 		session, err := auth.GetSessionAuto(c)
