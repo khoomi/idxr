@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"time"
 
 	"khoomi-api-io/api/pkg/models"
 	"khoomi-api-io/api/pkg/util"
@@ -59,4 +60,16 @@ type NotificationService interface {
 
 	InvalidateReviewCache(ctx context.Context, listingID primitive.ObjectID) error
 	InvalidateCartCache(ctx context.Context, userID primitive.ObjectID) error
+}
+
+// EmailService defines the interface for email operations
+type EmailService interface {
+	SendWelcomeEmail(email, loginName string) error
+	SendVerifyEmailNotification(email, loginName, link string) error
+	SendEmailVerificationSuccessNotification(email, loginName string) error
+	SendPasswordResetEmail(email, loginName, link string) error
+	SendPasswordResetSuccessfulEmail(email, loginName string) error
+	SendNewIpLoginNotification(email, loginName, IP string, loginTime time.Time) error
+	SendNewShopEmail(email, sellerName, shopName string) error
+	SendNewListingEmail(email, sellerName, listingTitle string) error
 }

@@ -13,7 +13,7 @@ import (
 	"khoomi-api-io/api/internal/common"
 	"khoomi-api-io/api/pkg/models"
 	"khoomi-api-io/api/pkg/util"
-	email "khoomi-api-io/api/web/email"
+	"khoomi-api-io/api/pkg/services"
 
 	"github.com/cloudinary/cloudinary-go/api/uploader"
 	"github.com/gin-gonic/gin"
@@ -26,6 +26,10 @@ import (
 )
 
 func CreateListing() gin.HandlerFunc {
+	return CreateListingWithEmailService(nil)
+}
+
+func CreateListingWithEmailService(emailService services.EmailService) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
 		defer cancel()
@@ -239,8 +243,12 @@ func CreateListing() gin.HandlerFunc {
 			log.Printf("Warning: Shop %s not found when updating listing count", shopId.Hex())
 		}
 
+		if emailService == nil {
+			emailService = services.NewEmailService()
+		}
+		
 		// send new listing email notification to user
-		email.SendNewListingEmail(loginEmail, loginName, newListing.Details.Title)
+		emailService.SendNewListingEmail(loginEmail, loginName, newListing.Details.Title)
 
 		internal.PublishCacheMessage(c, internal.CacheInvalidateShopListings, shopId.Hex())
 

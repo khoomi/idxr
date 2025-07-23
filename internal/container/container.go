@@ -9,6 +9,7 @@ type ServiceContainer struct {
 	ReviewService       services.ReviewService
 	CartService         services.CartService
 	NotificationService services.NotificationService
+	EmailService        services.EmailService
 
 	ReviewController *controllers.ReviewController
 	CartController   *controllers.CartController
@@ -18,6 +19,7 @@ func NewServiceContainer() *ServiceContainer {
 	reviewService := services.NewReviewService()
 	cartService := services.NewCartService()
 	notificationService := services.NewNotificationService()
+	emailService := services.NewEmailService()
 
 	reviewController := controllers.InitReviewController(reviewService, notificationService)
 	cartController := controllers.InitCartController(cartService, notificationService)
@@ -26,6 +28,7 @@ func NewServiceContainer() *ServiceContainer {
 		ReviewService:       reviewService,
 		CartService:         cartService,
 		NotificationService: notificationService,
+		EmailService:        emailService,
 
 		ReviewController: reviewController,
 		CartController:   cartController,
@@ -40,6 +43,11 @@ func (sc *ServiceContainer) GetReviewController() *controllers.ReviewController 
 // GetCartController returns the cart controller instance
 func (sc *ServiceContainer) GetCartController() *controllers.CartController {
 	return sc.CartController
+}
+
+// GetEmailService returns the email service instance
+func (sc *ServiceContainer) GetEmailService() services.EmailService {
+	return sc.EmailService
 }
 
 // GetShopController returns the shop controller instance

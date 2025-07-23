@@ -14,7 +14,7 @@ import (
 	"khoomi-api-io/api/internal/common"
 	"khoomi-api-io/api/pkg/models"
 	"khoomi-api-io/api/pkg/util"
-	email "khoomi-api-io/api/web/email"
+	"khoomi-api-io/api/pkg/services"
 
 	"github.com/cloudinary/cloudinary-go/api/uploader"
 	"github.com/gin-gonic/gin"
@@ -53,6 +53,10 @@ func CheckShopNameAvailability() gin.HandlerFunc {
 }
 
 func CreateShop() gin.HandlerFunc {
+	return CreateShopWithEmailService(nil)
+}
+
+func CreateShopWithEmailService(emailService services.EmailService) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		now := time.Now()
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -212,8 +216,12 @@ func CreateShop() gin.HandlerFunc {
 
 		session.EndSession(context.Background())
 
+		if emailService == nil {
+			emailService = services.NewEmailService()
+		}
+		
 		// send success shop creation notification
-		email.SendNewShopEmail(userEmail, loginName, shopName)
+		emailService.SendNewShopEmail(userEmail, loginName, shopName)
 
 		internal.PublishCacheMessage(c, internal.CacheInvalidateShop, shopID.Hex())
 		util.HandleSuccess(c, http.StatusOK, shopID.Hex(), shopID.Hex())

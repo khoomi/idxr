@@ -5,6 +5,7 @@ import (
 	"khoomi-api-io/api/internal/container"
 	"khoomi-api-io/api/internal/middleware"
 	"khoomi-api-io/api/pkg/controllers"
+	"khoomi-api-io/api/pkg/services"
 
 	"github.com/gin-gonic/gin"
 )
@@ -18,10 +19,10 @@ func InitRoute() *gin.Engine {
 	api := router.Group("/v1", middleware.KhoomiRateLimiter())
 	{
 		// Public authentication routes
-		setupAuthRoutes(api)
+		setupAuthRoutes(api, serviceContainer)
 
 		// Protected feature routes
-		userRoutesRefactored(api)
+		userRoutesRefactored(api, serviceContainer)
 		shopRoutesRefactored(api, serviceContainer)
 		listingRoutesRefactored(api, serviceContainer)
 		cartRoutesRefactored(api, serviceContainer)
@@ -32,19 +33,22 @@ func InitRoute() *gin.Engine {
 }
 
 // setupAuthRoutes configures public authentication endpoints
-func setupAuthRoutes(api *gin.RouterGroup) {
-	api.POST("/signup", controllers.CreateUser())
-	api.POST("/auth", controllers.HandleUserAuthentication())
-	api.POST("/auth/google", controllers.HandleUserGoogleAuthentication())
+func setupAuthRoutes(api *gin.RouterGroup, serviceContainer *container.ServiceContainer) {
+	emailService := serviceContainer.GetEmailService()
+
+	api.POST("/signup", controllers.CreateUserWithEmailService(emailService))
+	api.POST("/auth", controllers.HandleUserAuthenticationWithEmailService(emailService))
+	api.POST("/auth/google", controllers.HandleUserGoogleAuthenticationWithEmailService(emailService))
 	api.PUT("/auth/refresh-token", controllers.RefreshToken())
 	api.DELETE("/logout", controllers.Logout())
-	api.GET("/verify-email", controllers.VerifyEmail())
-	api.POST("/send-password-reset", controllers.PasswordResetEmail())
-	api.POST("/password-reset", controllers.PasswordReset())
+	api.GET("/verify-email", controllers.VerifyEmailWithEmailService(emailService))
+	api.POST("/send-password-reset", controllers.PasswordResetEmailWithEmailService(emailService))
+	api.POST("/password-reset", controllers.PasswordResetWithEmailService(emailService))
 }
 
 // userRoutesRefactored configures user-related endpoints
-func userRoutesRefactored(api *gin.RouterGroup) {
+func userRoutesRefactored(api *gin.RouterGroup, serviceContainer *container.ServiceContainer) {
+	emailService := serviceContainer.GetEmailService()
 	api.GET("/ping", controllers.Ping)
 
 	user := api.Group("/users")
@@ -69,7 +73,7 @@ func userRoutesRefactored(api *gin.RouterGroup) {
 		secured.PUT("/:userid/thumbnail", controllers.UploadThumbnail())
 		secured.DELETE("/:userid/thumbnail/:url", controllers.DeleteThumbnail())
 		secured.PUT("/:userid/birthdate", controllers.UpdateUserBirthdate())
-		secured.POST("/:userid/send-verify-email", controllers.SendVerifyEmail())
+		secured.POST("/:userid/send-verify-email", controllers.SendVerifyEmailWithEmailService(emailService))
 
 		// Notification settings
 		secured.POST("/:userid/notification-settings", controllers.CreateUserNotificationSettings())
@@ -128,6 +132,7 @@ func setupUserPaymentRoutes(user *gin.RouterGroup) {
 func shopRoutesRefactored(api *gin.RouterGroup, serviceContainer *container.ServiceContainer) {
 	shop := api.Group("/shops")
 	reviewController := serviceContainer.GetReviewController()
+	emailService := serviceContainer.GetEmailService()
 
 	// Public shop endpoints - use original controllers (they handle complex aggregations)
 	shop.GET("/", controllers.GetShops())
@@ -143,7 +148,7 @@ func shopRoutesRefactored(api *gin.RouterGroup, serviceContainer *container.Serv
 	secured := shop.Group("").Use(auth.Auth())
 	{
 		// Shop creation and basic management
-		secured.POST("", controllers.CreateShop())
+		secured.POST("", controllers.CreateShopWithEmailService(emailService))
 		secured.GET("/check/:username", controllers.CheckShopNameAvailability())
 		secured.PUT("/:shopid/information", controllers.UpdateShopInformation())
 		secured.PUT("/:shopid/status", controllers.UpdateMyShopStatus())
@@ -177,7 +182,7 @@ func shopRoutesRefactored(api *gin.RouterGroup, serviceContainer *container.Serv
 
 	// Shop policies and listings (separate groups for clarity)
 	setupShopPoliciesRoutes(shop)
-	setupShopListingsRoutes(shop)
+	setupShopListingsRoutes(shop, emailService)
 }
 
 // setupShopPoliciesRoutes configures shop policy endpoints
@@ -192,10 +197,10 @@ func setupShopPoliciesRoutes(shop *gin.RouterGroup) {
 }
 
 // setupShopListingsRoutes configures shop listing endpoints
-func setupShopListingsRoutes(shop *gin.RouterGroup) {
+func setupShopListingsRoutes(shop *gin.RouterGroup, emailService services.EmailService) {
 	secured := shop.Group("").Use(auth.Auth())
 
-	secured.POST("/:shopid/listings", controllers.CreateListing())
+	secured.POST("/:shopid/listings", controllers.CreateListingWithEmailService(emailService))
 	secured.GET("/:shopid/listings/summary", controllers.GetMyListingsSummary())
 	secured.GET("/:shopid/check-listing-onboarding", controllers.HasUserCreatedListingOnboarding())
 }

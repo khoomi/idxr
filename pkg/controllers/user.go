@@ -18,7 +18,7 @@ import (
 
 	googleAuthIDTokenVerifier "github.com/futurenda/google-auth-id-token-verifier"
 
-	email "khoomi-api-io/api/web/email"
+	"khoomi-api-io/api/pkg/services"
 
 	"github.com/cloudinary/cloudinary-go/api/uploader"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -31,7 +31,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
-func createUserImpl(c *gin.Context, claim *googleAuthIDTokenVerifier.ClaimSet, jsonUser models.UserRegistrationBody) *mongo.InsertOneResult {
+func createUserImpl(c *gin.Context, claim *googleAuthIDTokenVerifier.ClaimSet, jsonUser models.UserRegistrationBody, emailService services.EmailService) *mongo.InsertOneResult {
 	ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
 	defer cancel()
 	now := time.Now()
@@ -147,7 +147,7 @@ func createUserImpl(c *gin.Context, claim *googleAuthIDTokenVerifier.ClaimSet, j
 	}
 
 	// Send welcome email.
-	email.SendWelcomeEmail(userEmail, jsonUser.FirstName)
+	emailService.SendWelcomeEmail(userEmail, jsonUser.FirstName)
 
 	return result
 }
@@ -178,6 +178,11 @@ func ActiveSessionUser(c *gin.Context) {
 
 // CreateUser creates new user account, and send welcome and verify email notifications.
 func CreateUser() gin.HandlerFunc {
+	return CreateUserWithEmailService(nil)
+}
+
+// CreateUserWithEmailService creates new user account with email service dependency injection
+func CreateUserWithEmailService(emailService services.EmailService) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var jsonUser models.UserRegistrationBody
 		if err := c.BindJSON(&jsonUser); err != nil {
@@ -190,7 +195,11 @@ func CreateUser() gin.HandlerFunc {
 			return
 		}
 
-		result := createUserImpl(c, nil, jsonUser)
+		if emailService == nil {
+			emailService = services.NewEmailService()
+		}
+		
+		result := createUserImpl(c, nil, jsonUser, emailService)
 		if result == nil {
 			return
 		}
@@ -201,7 +210,16 @@ func CreateUser() gin.HandlerFunc {
 
 // HandleUserAuthentication authenticates new user session while sending necessary notifications depending on the cases. e.g new IP
 func HandleUserAuthentication() gin.HandlerFunc {
+	return HandleUserAuthenticationWithEmailService(nil)
+}
+
+// HandleUserAuthenticationWithEmailService authenticates new user session with email service dependency injection
+func HandleUserAuthenticationWithEmailService(emailService services.EmailService) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		if emailService == nil {
+			emailService = services.NewEmailService()
+		}
+		
 		ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
 		defer cancel()
 
@@ -283,7 +301,7 @@ func HandleUserAuthentication() gin.HandlerFunc {
 
 		// Send new login IP notification on condition
 		if validUser.AllowLoginIpNotification && validUser.LastLoginIp != clientIP {
-			email.SendNewIpLoginNotification(validUser.PrimaryEmail, validUser.LoginName, validUser.LastLoginIp, validUser.LastLogin)
+			emailService.SendNewIpLoginNotification(validUser.PrimaryEmail, validUser.LoginName, validUser.LastLoginIp, validUser.LastLogin)
 		}
 
 		// Send verify email
@@ -336,7 +354,15 @@ func HandleUserAuthentication() gin.HandlerFunc {
 }
 
 func HandleUserGoogleAuthentication() gin.HandlerFunc {
+	return HandleUserGoogleAuthenticationWithEmailService(nil)
+}
+
+func HandleUserGoogleAuthenticationWithEmailService(emailService services.EmailService) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		if emailService == nil {
+			emailService = services.NewEmailService()
+		}
+		
 		ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
 		defer cancel()
 
@@ -377,7 +403,7 @@ func HandleUserGoogleAuthentication() gin.HandlerFunc {
 		var validUser models.User
 		// If no user is found with email, create new user
 		if err := common.UserCollection.FindOne(ctx, bson.M{"primary_email": claimSet.Email}).Decode(&validUser); err != nil {
-			result := createUserImpl(c, claimSet, models.UserRegistrationBody{})
+			result := createUserImpl(c, claimSet, models.UserRegistrationBody{}, emailService)
 			if result == nil {
 				util.HandleError(c, http.StatusBadRequest, errors.New("error setting up user"))
 				return
@@ -442,7 +468,7 @@ func HandleUserGoogleAuthentication() gin.HandlerFunc {
 
 		// Send new login IP notification on condition
 		if validUser.AllowLoginIpNotification && validUser.LastLoginIp != clientIP {
-			email.SendNewIpLoginNotification(validUser.PrimaryEmail, validUser.LoginName, validUser.LastLoginIp, validUser.LastLogin)
+			emailService.SendNewIpLoginNotification(validUser.PrimaryEmail, validUser.LoginName, validUser.LastLoginIp, validUser.LastLogin)
 		}
 
 		// Send verify email
@@ -812,6 +838,10 @@ func GetUser() gin.HandlerFunc {
 
 // SendVerifyEmail sends a verification email notication to a given user's email.
 func SendVerifyEmail() gin.HandlerFunc {
+	return SendVerifyEmailWithEmailService(nil)
+}
+
+func SendVerifyEmailWithEmailService(emailService services.EmailService) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		now := time.Now()
 		ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
@@ -851,8 +881,12 @@ func SendVerifyEmail() gin.HandlerFunc {
 			return
 		}
 
+		if emailService == nil {
+			emailService = services.NewEmailService()
+		}
+		
 		link := fmt.Sprintf("https://khoomi.com/verify-email?token=%v&id=%v", token, session.UserId)
-		email.SendVerifyEmailNotification(emailCurrent, firstName, link)
+		emailService.SendVerifyEmailNotification(emailCurrent, firstName, link)
 
 		util.HandleSuccess(c, http.StatusOK, "Verification email successfully sent", gin.H{"_id": session.UserId.Hex()})
 	}
@@ -860,6 +894,10 @@ func SendVerifyEmail() gin.HandlerFunc {
 
 // VerifyEmail - api/send-verify-email?email=...&name=user_login_name
 func VerifyEmail() gin.HandlerFunc {
+	return VerifyEmailWithEmailService(nil)
+}
+
+func VerifyEmailWithEmailService(emailService services.EmailService) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
 		defer cancel()
@@ -904,7 +942,11 @@ func VerifyEmail() gin.HandlerFunc {
 			return
 		}
 
-		email.SendEmailVerificationSuccessNotification(user.PrimaryEmail, user.FirstName)
+		if emailService == nil {
+			emailService = services.NewEmailService()
+		}
+		
+		emailService.SendEmailVerificationSuccessNotification(user.PrimaryEmail, user.FirstName)
 		util.HandleSuccess(c, http.StatusOK, "Your email has been verified successfully.", gin.H{"_id": user.Id})
 	}
 }
@@ -1104,6 +1146,10 @@ func DeleteLoginHistories() gin.HandlerFunc {
 
 // PasswordResetEmail - api/send-password-reset?email=borngracedd@gmail.com
 func PasswordResetEmail() gin.HandlerFunc {
+	return PasswordResetEmailWithEmailService(nil)
+}
+
+func PasswordResetEmailWithEmailService(emailService services.EmailService) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
 		defer cancel()
@@ -1135,8 +1181,12 @@ func PasswordResetEmail() gin.HandlerFunc {
 			return
 		}
 
+		if emailService == nil {
+			emailService = services.NewEmailService()
+		}
+		
 		link := fmt.Sprintf("https://khoomi.com/reset/?id=%v&token=%v&email=%v", user.Id.Hex(), token, user.PrimaryEmail)
-		email.SendPasswordResetEmail(user.PrimaryEmail, user.FirstName, link)
+		emailService.SendPasswordResetEmail(user.PrimaryEmail, user.FirstName, link)
 
 		util.HandleSuccess(c, http.StatusOK, "Password reset email sent successfully", user.Id.Hex())
 	}
@@ -1144,6 +1194,10 @@ func PasswordResetEmail() gin.HandlerFunc {
 
 // PasswordReset - api/password-reset/userid?token=..&newpassword=..&id=user_uid
 func PasswordReset() gin.HandlerFunc {
+	return PasswordResetWithEmailService(nil)
+}
+
+func PasswordResetWithEmailService(emailService services.EmailService) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
 		defer cancel()
@@ -1203,7 +1257,11 @@ func PasswordReset() gin.HandlerFunc {
 			return
 		}
 
-		email.SendPasswordResetSuccessfulEmail(user.PrimaryEmail, user.FirstName)
+		if emailService == nil {
+			emailService = services.NewEmailService()
+		}
+		
+		emailService.SendPasswordResetSuccessfulEmail(user.PrimaryEmail, user.FirstName)
 
 		util.HandleSuccess(c, http.StatusOK, "success", user.Id.Hex())
 	}
