@@ -2,31 +2,37 @@ package controllers
 
 import (
 	"context"
-	"fmt"
 	"net/http"
-	"time"
 
-	"khoomi-api-io/api/internal"
 	"khoomi-api-io/api/internal/auth"
 	"khoomi-api-io/api/internal/common"
 	"khoomi-api-io/api/pkg/models"
+	"khoomi-api-io/api/pkg/services"
 	"khoomi-api-io/api/pkg/util"
-
-	"go.mongodb.org/mongo-driver/bson"
 
 	"github.com/gin-gonic/gin"
 	"github.com/pkg/errors"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
-// SaveCartItem: save cart listing.
-func SaveCartItem() gin.HandlerFunc {
+type CartController struct {
+	cartService         services.CartService
+	notificationService services.NotificationService
+}
+
+func InitCartController(cartService services.CartService, notificationService services.NotificationService) *CartController {
+	return &CartController{
+		cartService:         cartService,
+		notificationService: notificationService,
+	}
+}
+
+func (cc *CartController) SaveCartItem() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		now := time.Now()
 		ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
 		defer cancel()
 
-		myId, err := auth.ValidateUserID(c)
+		userID, err := auth.ValidateUserID(c)
 		if err != nil {
 			util.HandleError(c, http.StatusBadRequest, err)
 			return
@@ -38,196 +44,37 @@ func SaveCartItem() gin.HandlerFunc {
 			return
 		}
 
-		if err := common.Validate.Struct(&cartReq); err != nil {
+		insertedID, err := cc.cartService.SaveCartItem(ctx, userID, cartReq)
+		if err != nil {
 			util.HandleError(c, http.StatusBadRequest, err)
 			return
 		}
 
-		// Fetch listing data
-		var listing models.Listing
-		err = common.ListingCollection.FindOne(ctx, bson.M{"_id": cartReq.ListingId}).Decode(&listing)
-		if err != nil {
-			util.HandleError(c, http.StatusNotFound, fmt.Errorf("listing not found"))
-			return
-		}
+		go func() {
+			if err := cc.notificationService.InvalidateCartCache(context.Background(), userID); err != nil {
+				util.LogError("Failed to invalidate cart cache", err)
+			}
+		}()
 
-		// Validate listing is active
-		if listing.State.State != models.ListingStateActive {
-			util.HandleError(c, http.StatusBadRequest, fmt.Errorf("listing is not available"))
-			return
-		}
-
-		// Validate sufficient inventory
-		if listing.Inventory.Quantity < cartReq.Quantity {
-			util.HandleError(c, http.StatusBadRequest, fmt.Errorf("insufficient inventory. Available: %d, Requested: %d", listing.Inventory.Quantity, cartReq.Quantity))
-			return
-		}
-
-		// Fetch shop data separately using the shop_id from the request
-		var shop models.Shop
-		err = common.ShopCollection.FindOne(ctx, bson.M{"_id": cartReq.ShopId}).Decode(&shop)
-		if err != nil {
-			util.HandleError(c, http.StatusNotFound, fmt.Errorf("shop not found"))
-			return
-		}
-
-		unitPrice := listing.Inventory.Price
-		totalPrice := float64(cartReq.Quantity) * unitPrice
-
-		cartDoc := models.CartItem{
-			Id:              primitive.NewObjectID(),
-			UserId:          myId,
-			ListingId:       cartReq.ListingId,
-			ShopId:          cartReq.ShopId,
-			Title:           listing.Details.Title,
-			Thumbnail:       listing.MainImage,
-			Quantity:        cartReq.Quantity,
-			UnitPrice:       unitPrice,
-			TotalPrice:      totalPrice,
-			Variant:         cartReq.Variant,
-			DynamicType:     listing.Details.DynamicType,
-			Personalization: cartReq.Personalization,
-
-			ShopName:     shop.Name,
-			ShopUsername: shop.Username,
-			ShopSlug:     shop.Slug,
-
-			AvailableQuantity: listing.Inventory.Quantity,
-			ListingState:      listing.State,
-
-			OriginalPrice:  unitPrice,
-			PriceUpdatedAt: now,
-
-			ShippingProfileId: listing.ShippingProfileId,
-
-			AddedAt:    now,
-			ModifiedAt: now,
-			ExpiresAt:  now.Add(common.CART_ITEM_EXPIRATION_TIME),
-		}
-
-		// You can also Upsert instead of InsertOne if you want to overwrite
-		res, err := common.UserCartCollection.InsertOne(ctx, cartDoc)
-		if err != nil {
-			util.HandleError(c, http.StatusInternalServerError, err)
-			return
-		}
-
-		internal.PublishCacheMessage(c, internal.CacheInvalidateCart, myId.Hex())
-
-		util.HandleSuccess(c, http.StatusOK, "Item added to cart", res.InsertedID)
+		util.HandleSuccess(c, http.StatusOK, "Item added to cart", gin.H{
+			"cartItemId": insertedID.Hex(),
+		})
 	}
 }
 
-// GetCartItems(): get all cart listing.
-func GetCartItems() gin.HandlerFunc {
+func (cc *CartController) GetCartItems() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
 		defer cancel()
 
-		myId, err := auth.ValidateUserID(c)
+		userID, err := auth.ValidateUserID(c)
 		if err != nil {
 			util.HandleError(c, http.StatusBadRequest, err)
 			return
 		}
-
 		paginationArgs := common.GetPaginationArgs(c)
 
-		// Use aggregation to join with current listing data for validation
-		pipeline := []bson.M{
-			{"$match": bson.M{"userId": myId}},
-			{
-				"$lookup": bson.M{
-					"from":         "Listing",
-					"localField":   "listing_id",
-					"foreignField": "_id",
-					"as":           "current_listing",
-				},
-			},
-			{"$unwind": bson.M{"path": "$current_listing", "preserveNullAndEmptyArrays": true}},
-			{
-				"$addFields": bson.M{
-					"is_listing_available": bson.M{
-						"$cond": bson.M{
-							"if":   bson.M{"$eq": []interface{}{"$current_listing.state", "active"}},
-							"then": true,
-							"else": false,
-						},
-					},
-					"current_price":    "$current_listing.inventory.price",
-					"current_quantity": "$current_listing.inventory.quantity",
-					"price_changed": bson.M{
-						"$ne": []interface{}{"$unit_price", "$current_listing.inventory.price"},
-					},
-					"insufficient_stock": bson.M{
-						"$gt": []interface{}{"$quantity", "$current_listing.inventory.quantity"},
-					},
-				},
-			},
-			{"$sort": util.GetLoginHistorySortBson(paginationArgs.Sort)},
-			{"$skip": int64(paginationArgs.Skip)},
-			{"$limit": int64(paginationArgs.Limit)},
-		}
-
-		cursor, err := common.UserCartCollection.Aggregate(ctx, pipeline)
-		if err != nil {
-			util.HandleError(c, http.StatusInternalServerError, err)
-			return
-		}
-		defer cursor.Close(ctx)
-
-		var cartItemsWithValidation []struct {
-			models.CartItem    `bson:",inline"`
-			IsListingAvailable bool    `bson:"is_listing_available"`
-			CurrentPrice       float64 `bson:"current_price"`
-			CurrentQuantity    int     `bson:"current_quantity"`
-			PriceChanged       bool    `bson:"price_changed"`
-			InsufficientStock  bool    `bson:"insufficient_stock"`
-		}
-
-		if err = cursor.All(ctx, &cartItemsWithValidation); err != nil {
-			util.HandleError(c, http.StatusInternalServerError, err)
-			return
-		}
-
-		// Convert back to regular cart items and add validation flags
-		var cartItems []models.CartItemJson
-		for _, item := range cartItemsWithValidation {
-			cartItemResponse := models.CartItemJson{
-				Id:                item.Id,
-				ListingId:         item.ListingId,
-				ShopId:            item.ShopId,
-				UserId:            item.UserId,
-				Title:             item.Title,
-				Thumbnail:         item.Thumbnail,
-				Quantity:          item.Quantity,
-				UnitPrice:         item.UnitPrice,
-				TotalPrice:        item.TotalPrice,
-				Variant:           item.Variant,
-				DynamicType:       item.DynamicType,
-				Personalization:   item.Personalization,
-				ShopName:          item.ShopName,
-				ShopUsername:      item.ShopUsername,
-				ShopSlug:          item.ShopSlug,
-				AvailableQuantity: item.AvailableQuantity,
-				ListingState:      item.ListingState,
-				OriginalPrice:     item.OriginalPrice,
-				PriceUpdatedAt:    item.PriceUpdatedAt,
-				ShippingProfileId: item.ShippingProfileId,
-				ExpiresAt:         item.ExpiresAt,
-				AddedAt:           item.AddedAt,
-				ModifiedAt:        item.ModifiedAt,
-
-				// Validation flags
-				IsAvailable:       item.IsListingAvailable,
-				PriceChanged:      item.PriceChanged,
-				CurrentPrice:      item.CurrentPrice,
-				InsufficientStock: item.InsufficientStock,
-				CurrentQuantity:   item.CurrentQuantity,
-			}
-			cartItems = append(cartItems, cartItemResponse)
-		}
-
-		count, err := common.UserCartCollection.CountDocuments(ctx, bson.M{"userId": myId})
+		cartItems, count, err := cc.cartService.GetCartItems(ctx, userID, paginationArgs)
 		if err != nil {
 			util.HandleError(c, http.StatusInternalServerError, err)
 			return
@@ -243,291 +90,207 @@ func GetCartItems() gin.HandlerFunc {
 	}
 }
 
-// IncreaseCartItemQuantity
-func IncreaseCartItemQuantity() gin.HandlerFunc {
+// IncreaseCartItemQuantity handles PUT /api/:userid/carts/:cartId/quantity/inc
+func (cc *CartController) IncreaseCartItemQuantity() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		now := time.Now()
 		ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
 		defer cancel()
 
-		cartItemId := c.Param("cartId")
-		cartItemObjectID, err := primitive.ObjectIDFromHex(cartItemId)
-		if err != nil {
-			util.HandleError(c, http.StatusBadRequest, errors.New("invalid cart item id"))
-			return
-		}
-		myId, err := auth.ValidateUserID(c)
+		userID, cartItemID, err := cc.parseCartParameters(c)
 		if err != nil {
 			util.HandleError(c, http.StatusBadRequest, err)
 			return
 		}
 
-		// Find existing cart item
-		var cartItem models.CartItem
-		filter := bson.M{"_id": cartItemObjectID, "userId": myId}
-		err = common.UserCartCollection.FindOne(ctx, filter).Decode(&cartItem)
+		response, err := cc.cartService.IncreaseCartItemQuantity(ctx, userID, cartItemID)
 		if err != nil {
-			util.HandleError(c, http.StatusNotFound, fmt.Errorf("cart item not found"))
+			util.HandleError(c, http.StatusBadRequest, err)
 			return
 		}
 
-		// Fetch current listing data to validate inventory
-		var listing models.Listing
-		err = common.ListingCollection.FindOne(ctx, bson.M{"_id": cartItem.ListingId}).Decode(&listing)
-		if err != nil {
-			util.HandleError(c, http.StatusNotFound, fmt.Errorf("listing not found"))
-			return
-		}
+		go func() {
+			if err := cc.notificationService.InvalidateCartCache(context.Background(), userID); err != nil {
+				util.LogError("Failed to invalidate cart cache", err)
+			}
+		}()
 
-		// Validate listing is still active
-		if listing.State.State != models.ListingStateActive {
-			util.HandleError(c, http.StatusBadRequest, fmt.Errorf("listing is not available"))
-			return
-		}
-
-		// Validate sufficient inventory for increase
-		if listing.Inventory.Quantity <= cartItem.Quantity {
-			util.HandleError(c, http.StatusBadRequest, fmt.Errorf("insufficient inventory. Available: %d, Current: %d", listing.Inventory.Quantity, cartItem.Quantity))
-			return
-		}
-
-		unitPrice := listing.Inventory.Price
-
-		// For time-series collections, use delete and insert pattern
-		newQuantity := cartItem.Quantity + 1
-		newTotalPrice := float64(newQuantity) * unitPrice
-
-		// Update the cart item fields
-		cartItem.Quantity = newQuantity
-		cartItem.UnitPrice = unitPrice
-		cartItem.TotalPrice = newTotalPrice
-		cartItem.AvailableQuantity = listing.Inventory.Quantity
-		cartItem.ListingState = listing.State
-		cartItem.OriginalPrice = unitPrice
-		cartItem.PriceUpdatedAt = now
-		cartItem.ModifiedAt = now
-		cartItem.ExpiresAt = now.Add(common.CART_ITEM_EXPIRATION_TIME)
-
-		// Delete the old document
-		_, err = common.UserCartCollection.DeleteOne(ctx, filter)
-		if err != nil {
-			util.HandleError(c, http.StatusInternalServerError, err)
-			return
-		}
-
-		// Insert the updated document
-		_, err = common.UserCartCollection.InsertOne(ctx, cartItem)
-		if err != nil {
-			util.HandleError(c, http.StatusInternalServerError, err)
-			return
-		}
-
-		internal.PublishCacheMessage(c, internal.CacheInvalidateCart, myId.Hex())
-
-		util.HandleSuccess(c, http.StatusOK, "Cart item quantity increased", gin.H{
-			"quantity":   newQuantity,
-			"unitPrice":  unitPrice,
-			"totalPrice": newTotalPrice,
-		})
+		util.HandleSuccess(c, http.StatusOK, "Cart item quantity increased", response)
 	}
 }
 
-// DecreaseCartItemQuantity
-func DecreaseCartItemQuantity() gin.HandlerFunc {
+// DecreaseCartItemQuantity handles PUT /api/:userid/carts/:cartId/quantity/dec
+func (cc *CartController) DecreaseCartItemQuantity() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		now := time.Now()
 		ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
 		defer cancel()
 
-		cartItemId := c.Param("cartId")
-		cartItemObjectID, err := primitive.ObjectIDFromHex(cartItemId)
-		if err != nil {
-			util.HandleError(c, http.StatusBadRequest, errors.New("invalid cart item id"))
-			return
-		}
-		myId, err := auth.ValidateUserID(c)
+		userID, cartItemID, err := cc.parseCartParameters(c)
 		if err != nil {
 			util.HandleError(c, http.StatusBadRequest, err)
 			return
 		}
 
-		// Find existing cart item
-		var cartItem models.CartItem
-		filter := bson.M{"_id": cartItemObjectID, "userId": myId}
-		err = common.UserCartCollection.FindOne(ctx, filter).Decode(&cartItem)
+		response, err := cc.cartService.DecreaseCartItemQuantity(ctx, userID, cartItemID)
 		if err != nil {
-			util.HandleError(c, http.StatusNotFound, fmt.Errorf("cart item not found"))
+			util.HandleError(c, http.StatusBadRequest, err)
 			return
 		}
 
-		// Validate minimum quantity
-		if cartItem.Quantity <= 1 {
-			util.HandleError(c, http.StatusBadRequest, fmt.Errorf("cannot decrease quantity below 1. Use delete endpoint to remove item"))
-			return
-		}
+		go func() {
+			if err := cc.notificationService.InvalidateCartCache(context.Background(), userID); err != nil {
+				util.LogError("Failed to invalidate cart cache", err)
+			}
+		}()
 
-		// Fetch current listing data for price validation
-		var listing models.Listing
-		err = common.ListingCollection.FindOne(ctx, bson.M{"_id": cartItem.ListingId}).Decode(&listing)
-		if err != nil {
-			util.HandleError(c, http.StatusNotFound, fmt.Errorf("listing not found"))
-			return
-		}
-
-		unitPrice := listing.Inventory.Price
-
-		// For time-series collections, use delete and insert pattern
-		newQuantity := cartItem.Quantity - 1
-		newTotalPrice := float64(newQuantity) * unitPrice
-
-		// Update the cart item fields
-		cartItem.Quantity = newQuantity
-		cartItem.UnitPrice = unitPrice
-		cartItem.TotalPrice = newTotalPrice
-		cartItem.AvailableQuantity = listing.Inventory.Quantity
-		cartItem.ListingState = listing.State
-		cartItem.OriginalPrice = unitPrice
-		cartItem.PriceUpdatedAt = now
-		cartItem.ModifiedAt = now
-		cartItem.ExpiresAt = now.Add(common.CART_ITEM_EXPIRATION_TIME)
-
-		// Delete the old document
-		_, err = common.UserCartCollection.DeleteOne(ctx, filter)
-		if err != nil {
-			util.HandleError(c, http.StatusInternalServerError, err)
-			return
-		}
-
-		// Insert the updated document
-		_, err = common.UserCartCollection.InsertOne(ctx, cartItem)
-		if err != nil {
-			util.HandleError(c, http.StatusInternalServerError, err)
-			return
-		}
-
-		internal.PublishCacheMessage(c, internal.CacheInvalidateCart, myId.Hex())
-
-		util.HandleSuccess(c, http.StatusOK, "Cart item quantity decreased", gin.H{
-			"quantity":   newQuantity,
-			"unitPrice":  unitPrice,
-			"totalPrice": newTotalPrice,
-		})
+		util.HandleSuccess(c, http.StatusOK, "Cart item quantity decreased", response)
 	}
 }
 
-// DeleteCartItem(): get all cart listing.
-func DeleteCartItem() gin.HandlerFunc {
+// DeleteCartItem handles DELETE /api/:userid/carts/:cartId
+func (cc *CartController) DeleteCartItem() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
 		defer cancel()
 
-		cartItemId := c.Param("cartId")
-		cartItemObjectID, err := primitive.ObjectIDFromHex(cartItemId)
-		if err != nil {
-			util.HandleError(c, http.StatusBadRequest, errors.New("bad payment id"))
-			return
-		}
-		myId, err := auth.ValidateUserID(c)
+		userID, cartItemID, err := cc.parseCartParameters(c)
 		if err != nil {
 			util.HandleError(c, http.StatusBadRequest, err)
 			return
 		}
 
-		filter := bson.M{"_id": cartItemObjectID, "userId": myId}
-		result, err := common.UserCartCollection.DeleteOne(ctx, filter)
+		deletedCount, err := cc.cartService.DeleteCartItem(ctx, userID, cartItemID)
 		if err != nil {
 			util.HandleError(c, http.StatusNotFound, err)
 			return
 		}
 
-		if result.DeletedCount == 0 {
-			util.HandleError(c, http.StatusNotFound, errors.New("No records deleted."))
-			return
-		}
+		go func() {
+			if err := cc.notificationService.InvalidateCartCache(context.Background(), userID); err != nil {
+				util.LogError("Failed to invalidate cart cache", err)
+			}
+		}()
 
-		internal.PublishCacheMessage(c, internal.CacheInvalidateCart, myId.Hex())
-
-		util.HandleSuccess(c, http.StatusOK, "Cart item deleted successfully", result.DeletedCount)
+		util.HandleSuccess(c, http.StatusOK, "Cart item deleted successfully", gin.H{
+			"deletedCount": deletedCount,
+		})
 	}
 }
 
-// deleteManyCartItems: delete multiple cart items by their IDs
-func DeleteCartItems() gin.HandlerFunc {
+// DeleteCartItems handles DELETE /api/:userid/carts/many
+func (cc *CartController) DeleteCartItems() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
 		defer cancel()
 
-		idStrings := c.QueryArray("id")
+		userID, err := auth.ValidateUserID(c)
+		if err != nil {
+			util.HandleError(c, http.StatusUnauthorized, err)
+			return
+		}
 
+		idStrings := c.QueryArray("id")
 		if len(idStrings) == 0 {
 			util.HandleError(c, http.StatusBadRequest, errors.New("no cart item IDs provided"))
 			return
 		}
 
-		myId, err := auth.ValidateUserID(c)
-		if err != nil {
-			util.HandleError(c, http.StatusUnauthorized, err)
-			return
-		}
-
-		var objectIDs []primitive.ObjectID
+		var cartItemIDs []primitive.ObjectID
 		for _, idStr := range idStrings {
 			objectID, err := primitive.ObjectIDFromHex(idStr)
 			if err != nil {
-				util.HandleError(c, http.StatusBadRequest, fmt.Errorf("invalid cart item ID: %s", idStr))
+				util.HandleError(c, http.StatusBadRequest, errors.New("invalid cart item ID: "+idStr))
 				return
 			}
-			objectIDs = append(objectIDs, objectID)
+			cartItemIDs = append(cartItemIDs, objectID)
 		}
 
-		filter := bson.M{
-			"_id":    bson.M{"$in": objectIDs},
-			"userId": myId,
-		}
-
-		result, err := common.UserCartCollection.DeleteMany(ctx, filter)
+		deletedCount, err := cc.cartService.DeleteCartItems(ctx, userID, cartItemIDs)
 		if err != nil {
 			util.HandleError(c, http.StatusInternalServerError, err)
 			return
 		}
 
-		if result.DeletedCount == 0 {
-			util.HandleError(c, http.StatusNotFound, errors.New("no cart items deleted"))
-			return
-		}
+		go func() {
+			if err := cc.notificationService.InvalidateCartCache(context.Background(), userID); err != nil {
+				util.LogError("Failed to invalidate cart cache", err)
+			}
+		}()
 
-		internal.PublishCacheMessage(c, internal.CacheInvalidateCart, myId.Hex())
-
-		util.HandleSuccess(c, http.StatusOK, "Cart items deleted successfully", result.DeletedCount)
+		util.HandleSuccess(c, http.StatusOK, "Cart items deleted successfully", gin.H{
+			"deletedCount": deletedCount,
+		})
 	}
 }
 
-// ClearCartItems: clear all cart items
-func ClearCartItems() gin.HandlerFunc {
+// ClearCartItems handles DELETE /api/:userid/carts/clear
+func (cc *CartController) ClearCartItems() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
 		defer cancel()
 
-		myId, err := auth.ValidateUserID(c)
+		userID, err := auth.ValidateUserID(c)
 		if err != nil {
 			util.HandleError(c, http.StatusUnauthorized, err)
 			return
 		}
 
-		filter := bson.M{"userId": myId}
-		result, err := common.UserCartCollection.DeleteMany(ctx, filter)
+		deletedCount, err := cc.cartService.ClearCartItems(ctx, userID)
 		if err != nil {
 			util.HandleError(c, http.StatusInternalServerError, err)
 			return
 		}
 
-		if result.DeletedCount == 0 {
-			util.HandleSuccess(c, http.StatusOK, "Cart is already empty", result.DeletedCount)
+		go func() {
+			if err := cc.notificationService.InvalidateCartCache(context.Background(), userID); err != nil {
+				util.LogError("Failed to invalidate cart cache", err)
+			}
+		}()
+
+		message := "Cart cleared successfully"
+		if deletedCount == 0 {
+			message = "Cart is already empty"
+		}
+
+		util.HandleSuccess(c, http.StatusOK, message, gin.H{
+			"deletedCount": deletedCount,
+		})
+	}
+}
+
+// ValidateCartItems handles GET /api/:userid/carts/validate
+func (cc *CartController) ValidateCartItems() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
+		defer cancel()
+
+		userID, err := auth.ValidateUserID(c)
+		if err != nil {
+			util.HandleError(c, http.StatusUnauthorized, err)
 			return
 		}
 
-		internal.PublishCacheMessage(c, internal.CacheInvalidateCart, myId.Hex())
+		validation, err := cc.cartService.ValidateCartItems(ctx, userID)
+		if err != nil {
+			util.HandleError(c, http.StatusInternalServerError, err)
+			return
+		}
 
-		util.HandleSuccess(c, http.StatusOK, "Cart cleared successfully", result.DeletedCount)
+		util.HandleSuccess(c, http.StatusOK, "Cart validation completed", validation)
 	}
+}
+
+// Helper methods
+func (cc *CartController) parseCartParameters(c *gin.Context) (primitive.ObjectID, primitive.ObjectID, error) {
+	userID, err := auth.ValidateUserID(c)
+	if err != nil {
+		return primitive.NilObjectID, primitive.NilObjectID, err
+	}
+
+	cartItemIDStr := c.Param("cartId")
+	cartItemID, err := primitive.ObjectIDFromHex(cartItemIDStr)
+	if err != nil {
+		return primitive.NilObjectID, primitive.NilObjectID, errors.New("invalid cart item id")
+	}
+
+	return userID, cartItemID, nil
 }

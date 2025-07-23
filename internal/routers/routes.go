@@ -2,275 +2,242 @@ package routers
 
 import (
 	auth "khoomi-api-io/api/internal/auth"
+	"khoomi-api-io/api/internal/container"
 	"khoomi-api-io/api/internal/middleware"
 	"khoomi-api-io/api/pkg/controllers"
 
 	"github.com/gin-gonic/gin"
 )
 
+// InitRefactoredRoute creates a new Gin router with service layer architecture
 func InitRoute() *gin.Engine {
-	// Create a new Gin router
+	serviceContainer := container.NewServiceContainer()
 	router := gin.Default()
-
-	// Apply CORS middleware
 	router.Use(middleware.CorsMiddleware())
 
-	// Create "/" group for API endpoints
 	api := router.Group("/v1", middleware.KhoomiRateLimiter())
 	{
-		// Public endpoints
-		api.POST("/signup", controllers.CreateUser())
-		api.POST("/auth", controllers.HandleUserAuthentication())
-		api.POST("/auth/google", controllers.HandleUserGoogleAuthentication())
-		api.PUT("/auth/refresh-token", controllers.RefreshToken())
-		api.DELETE("/logout", controllers.Logout())
-		api.GET("/verify-email", controllers.VerifyEmail())
-		api.POST("/send-password-reset", controllers.PasswordResetEmail())
-		api.POST("/password-reset", controllers.PasswordReset())
+		// Public authentication routes
+		setupAuthRoutes(api)
 
-		// Protected endpoints
-		userRoutes(api)
-		shopRoutes(api)
-		listingRoutes(api)
-		categoryRoutes(api)
-		cartRoutes(api)
+		// Protected feature routes
+		userRoutesRefactored(api)
+		shopRoutesRefactored(api, serviceContainer)
+		listingRoutesRefactored(api, serviceContainer)
+		cartRoutesRefactored(api, serviceContainer)
+		// categoryRoutes(api) // Keep existing
 	}
 
 	return router
 }
 
-func userRoutes(api *gin.RouterGroup) {
-	// Define the "/users" group
-	// Ping endpoint
+// setupAuthRoutes configures public authentication endpoints
+func setupAuthRoutes(api *gin.RouterGroup) {
+	api.POST("/signup", controllers.CreateUser())
+	api.POST("/auth", controllers.HandleUserAuthentication())
+	api.POST("/auth/google", controllers.HandleUserGoogleAuthentication())
+	api.PUT("/auth/refresh-token", controllers.RefreshToken())
+	api.DELETE("/logout", controllers.Logout())
+	api.GET("/verify-email", controllers.VerifyEmail())
+	api.POST("/send-password-reset", controllers.PasswordResetEmail())
+	api.POST("/password-reset", controllers.PasswordReset())
+}
+
+// userRoutesRefactored configures user-related endpoints
+func userRoutesRefactored(api *gin.RouterGroup) {
 	api.GET("/ping", controllers.Ping)
+
 	user := api.Group("/users")
-	// Endpoint to get user by ID or email
+
 	user.GET("/:userid", controllers.GetUser())
-	{
-		// Endpoint to get shops by owner user ID
-		user.GET("/:userid/shops", controllers.GetShopByOwnerUserId())
+	user.GET("/:userid/shops", controllers.GetShopByOwnerUserId())
 
-		// Secured endpoints that require authentication
+	{
 		secured := user.Group("").Use(auth.Auth())
-		{
-			// Get my session
-			secured.GET("/:userid/session", controllers.GetMyActiveSession())
+		// Session management
+		secured.GET("/:userid/session", controllers.GetMyActiveSession())
+		secured.PUT("/:userid/change-password", controllers.ChangePassword())
 
-			// Change password endpoint
-			secured.PUT("/:userid/change-password", controllers.ChangePassword())
+		// Account deletion
+		secured.GET("/:userid/deletion", controllers.IsAccountPendingDeletion())
+		secured.POST("/:userid/deletion", controllers.SendDeleteUserAccount())
+		secured.DELETE("/:userid/deletion", controllers.CancelDeleteUserAccount())
 
-			// Get delete user request
-			secured.GET("/:userid/deletion", controllers.IsAccountPendingDeletion())
-			// Send delet user request
-			secured.POST("/:userid/deletion", controllers.SendDeleteUserAccount())
-			// Cancel delet user request
-			secured.DELETE("/:userid/deletion", controllers.CancelDeleteUserAccount())
+		// Profile management
+		secured.PUT("/:userid/", controllers.UpdateMyProfile())
+		secured.PUT("/:userid/single", controllers.UpdateUserSingleField())
+		secured.PUT("/:userid/thumbnail", controllers.UploadThumbnail())
+		secured.DELETE("/:userid/thumbnail/:url", controllers.DeleteThumbnail())
+		secured.PUT("/:userid/birthdate", controllers.UpdateUserBirthdate())
+		secured.POST("/:userid/send-verify-email", controllers.SendVerifyEmail())
 
-			// Update first and last name endpoint
-			secured.PUT("/:userid/", controllers.UpdateMyProfile())
-			secured.PUT("/:userid/single", controllers.UpdateUserSingleField())
+		// Notification settings
+		secured.POST("/:userid/notification-settings", controllers.CreateUserNotificationSettings())
+		secured.GET("/:userid/notification-settings", controllers.GetUserNotificationSettings())
+		secured.PUT("/:userid/notification-settings", controllers.UpdateUserNotificationSettings())
 
-			// Notification settings endpoints
-			secured.POST("/:userid/notification-settings", controllers.CreateUserNotificationSettings())
-			secured.GET("/:userid/notification-settings", controllers.GetUserNotificationSettings())
-			secured.PUT("/:userid/notification-settings", controllers.UpdateUserNotificationSettings())
+		// Address management
+		secured.POST("/:userid/addresses", controllers.CreateUserAddress())
+		secured.PUT("/:userid/addresses/:id", controllers.UpdateUserAddress())
+		secured.GET("/:userid/addresses", controllers.GetUserAddresses())
+		secured.DELETE("/:userid/addresses/:id", controllers.DeleteUserAddress())
+		secured.PUT("/:userid/addresses/:id/default", controllers.ChangeDefaultAddress())
 
-			// User thumbnail endpoints
-			secured.PUT("/:userid/thumbnail", controllers.UploadThumbnail())
-			secured.DELETE("/:userid/thumbnail/:url", controllers.DeleteThumbnail())
+		// Security & login history
+		secured.GET("/:userid/login-history", controllers.GetLoginHistories())
+		secured.DELETE("/:userid/login-history", controllers.DeleteLoginHistories())
+		secured.PUT("/:userid/login-notification", controllers.UpdateSecurityNotificationSetting())
+		secured.GET("/:userid/login-notification", controllers.GetSecurityNotificationSetting())
 
-			// User address endpoints
-			secured.POST("/:userid/addresses", controllers.CreateUserAddress())
-			secured.PUT("/:userid/addresses/:id", controllers.UpdateUserAddress())
-			secured.GET("/:userid/addresses", controllers.GetUserAddresses())
-			secured.DELETE("/:userid/addresses/:id", controllers.DeleteUserAddress())
-			secured.PUT("/:userid/addresses/:id/default", controllers.ChangeDefaultAddress())
+		// Wishlist management
+		secured.GET("/:userid/wishlist", controllers.GetUserWishlist())
+		secured.POST("/:userid/wishlist", controllers.AddWishListItem())
+		secured.DELETE("/:userid/wishlist", controllers.RemoveWishListItem())
 
-			// Send verify email endpoint
-			secured.POST("/:userid/send-verify-email", controllers.SendVerifyEmail())
-
-			// User birthdate endpoint
-			secured.PUT("/:userid/birthdate", controllers.UpdateUserBirthdate())
-
-			// Login histories endpoints
-			secured.GET("/:userid/login-history", controllers.GetLoginHistories())
-			secured.DELETE("/:userid/login-history", controllers.DeleteLoginHistories())
-			secured.PUT("/:userid/login-notification", controllers.UpdateSecurityNotificationSetting())
-			secured.GET("/:userid/login-notification", controllers.GetSecurityNotificationSetting())
-
-			// Wishlist endpoints
-			secured.GET("/:userid/wishlist", controllers.GetUserWishlist())
-			secured.POST("/:userid/wishlist", controllers.AddWishListItem())
-			secured.DELETE("/:userid/wishlist", controllers.RemoveWishListItem())
-
-			// Payment information endpoints
-			payment := user.Group("/:userid/payment/cards").Use(auth.Auth())
-			payment.POST("/", controllers.CreatePaymentCard())
-			payment.GET("/", controllers.GetPaymentCards())
-			payment.PUT("/:id/default", controllers.ChangeDefaultPaymentCard())
-			payment.DELETE("/:id", controllers.DeletePaymentCard())
-
-			// Seller Payment information endpoints
-			secured.POST("/:userid/payment-information/", controllers.CreateSellerPaymentInformation())
-			secured.GET("/:userid/payment-information/onboarded", controllers.CompletedPaymentOnboarding())
-			secured.GET("/:userid/payment-information", controllers.GetSellerPaymentInformations())
-			secured.PUT("/:userid/payment-information/:paymentInfoId/default", controllers.ChangeDefaultSellerPaymentInformation())
-			secured.DELETE("/:userid/payment-information/:paymentInfoId", controllers.DeleteSellerPaymentInformation())
-
-			// User Favorite shops
-			secured.GET("/favorite/shops", controllers.IsShopFavorited())
-			secured.POST("/favorite/shops", controllers.ToggleFavoriteShop())
-			// User Favorite listings
-			secured.GET("/favorite/listings", controllers.IsListingFavorited())
-			secured.POST("/favorite/listings", controllers.ToggleFavoriteListing())
-
-		}
+		// Favorites
+		secured.GET("/favorite/shops", controllers.IsShopFavorited())
+		secured.POST("/favorite/shops", controllers.ToggleFavoriteShop())
+		secured.GET("/favorite/listings", controllers.IsListingFavorited())
+		secured.POST("/favorite/listings", controllers.ToggleFavoriteListing())
 	}
+
+	// Payment routes (separate group for clarity)
+	setupUserPaymentRoutes(user)
 }
 
-func shopRoutes(api *gin.RouterGroup) {
-	// Define the "/shops" group
+// setupUserPaymentRoutes configures user payment-related endpoints
+func setupUserPaymentRoutes(user *gin.RouterGroup) {
+	secured := user.Group("").Use(auth.Auth())
+
+	// Payment cards
+	payment := user.Group("/:userid/payment/cards").Use(auth.Auth())
+	payment.POST("/", controllers.CreatePaymentCard())
+	payment.GET("/", controllers.GetPaymentCards())
+	payment.PUT("/:id/default", controllers.ChangeDefaultPaymentCard())
+	payment.DELETE("/:id", controllers.DeletePaymentCard())
+
+	// Seller payment information
+	secured.POST("/:userid/payment-information/", controllers.CreateSellerPaymentInformation())
+	secured.GET("/:userid/payment-information/onboarded", controllers.CompletedPaymentOnboarding())
+	secured.GET("/:userid/payment-information", controllers.GetSellerPaymentInformations())
+	secured.PUT("/:userid/payment-information/:paymentInfoId/default", controllers.ChangeDefaultSellerPaymentInformation())
+	secured.DELETE("/:userid/payment-information/:paymentInfoId", controllers.DeleteSellerPaymentInformation())
+}
+
+// shopRoutesRefactored configures shop-related endpoints
+func shopRoutesRefactored(api *gin.RouterGroup, serviceContainer *container.ServiceContainer) {
 	shop := api.Group("/shops")
+	reviewController := serviceContainer.GetReviewController()
 
+	// Public shop endpoints - use original controllers (they handle complex aggregations)
+	shop.GET("/", controllers.GetShops())
+	shop.GET("/:shopid", controllers.GetShop())
+	shop.GET("/search", controllers.SearchShops())
+	shop.GET("/:shopid/reviews", reviewController.GetShopReviews()) // Keep refactored review controller
+	shop.GET("/:shopid/followers", controllers.GetShopFollowers())
+	shop.GET("/:shopid/shippings", controllers.GetShopShippingProfileInfos())
+	shop.GET("/:shopid/shippings/:id", controllers.GetShopShippingProfileInfo())
+	shop.GET("/:shopid/listings", controllers.GetShopListings())
+
+	// Protected shop endpoints - use original controllers (they handle file uploads, transactions, etc.)
+	secured := shop.Group("").Use(auth.Auth())
 	{
-		// Endpoint to get all shops
-		shop.GET("/", controllers.GetShops())
-		// Endpoint to get a specific shop by ID
-		shop.GET("/:shopid", controllers.GetShop())
-		// Endpoint to get shop listing reviews
-		shop.GET("/:shopid/reviews", controllers.GetShopReviews())
-		// Endpoint to get shop followers
-		shop.GET("/:shopid/followers", controllers.GetShopFollowers())
-		// Endpoint to search for shops
-		shop.GET("/search", controllers.SearchShops())
-		// Endpoint to get shipping profile
-		shop.GET("/:shopid/shippings", controllers.GetShopShippingProfileInfos())
-		shop.GET("/:shopid/shippings/:id", controllers.GetShopShippingProfileInfo())
+		// Shop creation and basic management
+		secured.POST("", controllers.CreateShop())
+		secured.GET("/check/:username", controllers.CheckShopNameAvailability())
+		secured.PUT("/:shopid/information", controllers.UpdateShopInformation())
+		secured.PUT("/:shopid/status", controllers.UpdateMyShopStatus())
+		secured.PUT("/:shopid/field", controllers.UpdateShopField())
+		secured.POST("/:shopid/address", controllers.UpdateShopAddress())
 
-		// Secured endpoints that require authentication
-		secured := shop.Group("").Use(auth.Auth())
-		{
-			// Endpoint to create a new shop
-			secured.POST("", controllers.CreateShop())
-			secured.PUT("/:shopid/field", controllers.UpdateShopField())
-			// Endpoint to update shop address
-			secured.POST("/:shopid/address", controllers.UpdateShopAddress())
-			// Shop status
-			secured.PUT("/:shopid/status", controllers.UpdateMyShopStatus())
-			// update shop information
-			secured.PUT("/:shopid/information", controllers.UpdateShopInformation())
-			// Endpoint to check shop username availability
-			secured.GET("/check/:username", controllers.CheckShopNameAvailability())
-			// Endpoint to update shop logo
-			secured.PUT("/:shopid/logo", controllers.UpdateShopLogo())
-			// Endpoint to update shop banner
-			secured.PUT("/:shopid/banner", controllers.UpdateShopBanner())
-			// Endpoint to create/update shop about information
-			secured.PUT("/:shopid/about", controllers.UpdateShopAbout())
-			// Endpoint to update shop vacation status
-			secured.PUT("/:shopid/vacation", controllers.UpdateShopVacation())
-			// Endpoint to update shop gallery
-			secured.PUT("/:shopid/gallery", controllers.UpdateShopGallery())
-			secured.DELETE("/:shopid/gallery", controllers.DeleteFromShopGallery())
-			// Endpoint to update shop announcement
-			secured.PUT("/:shopid/announcement", controllers.UpdateShopAnnouncement())
-			// Endpoint to follow shop
-			shop.POST("/:shopid/followers", controllers.FollowShop())
-			secured.DELETE("/:shopid/followers", controllers.UnfollowShop())
-			secured.DELETE("/:shopid/followers/other", controllers.RemoveOtherFollower())
-			secured.GET("/:shopid/followers/following", controllers.IsFollowingShop())
-			// Endpoint to create/update/delete shop return policies
-			secured.POST("/:shopid/policies", controllers.CreateShopReturnPolicy())
-			secured.PUT("/:shopid/policies", controllers.UpdateShopReturnPolicy())
-			secured.GET("/:shopid/policies/:policyid", controllers.GetShopReturnPolicy())
-			secured.GET("/:shopid/policies", controllers.GetShopReturnPolicies())
-			secured.DELETE("/:shopid/policies/:policyid", controllers.DeleteShopReturnPolicy())
-			// Shipping routes
-			secured.POST("/:shopid/shipping", controllers.CreateShopShippingProfile())
-			// Verification routes
-			secured.POST("/:shopid/verification", controllers.CreateSellerVerificationProfile())
-			secured.GET("/:shopid/verification", controllers.GetSellerVerificationProfile())
-			// Compliance information endpoints
-			secured.POST("/:shopid/compliance", controllers.CreateShopComplianceInformation())
-			secured.GET("/:shopid/compliance", controllers.GetShopComplianceInformation())
-		}
+		// Shop content management
+		secured.PUT("/:shopid/about", controllers.UpdateShopAbout())
+		secured.PUT("/:shopid/announcement", controllers.UpdateShopAnnouncement())
+		secured.PUT("/:shopid/vacation", controllers.UpdateShopVacation())
 
-		listing := shop.Group("")
-		{
-			// Get shop listings -> /api/shops/{shopid}/listings/?limit=50&skip=0&sort=date.created_at
-			shop.GET("/:shopid/listings", controllers.GetShopListings())
-			secured := listing.Group("").Use(auth.Auth())
-			{
-				// Endpoint to create a single listing
-				secured.POST("/:shopid/listings", controllers.CreateListing())
-				secured.GET("/:shopid/listings/summary", controllers.GetMyListingsSummary())
-				secured.GET("/:shopid/check-listing-onboarding", controllers.HasUserCreatedListingOnboarding())
-			}
-		}
+		// Shop media management
+		secured.PUT("/:shopid/logo", controllers.UpdateShopLogo())
+		secured.PUT("/:shopid/banner", controllers.UpdateShopBanner())
+		secured.PUT("/:shopid/gallery", controllers.UpdateShopGallery())
+		secured.DELETE("/:shopid/gallery", controllers.DeleteFromShopGallery())
 
+		// Shop following system
+		secured.POST("/:shopid/followers", controllers.FollowShop())
+		secured.DELETE("/:shopid/followers", controllers.UnfollowShop())
+		secured.DELETE("/:shopid/followers/other", controllers.RemoveOtherFollower())
+		secured.GET("/:shopid/followers/following", controllers.IsFollowingShop())
+
+		// Shop business setup
+		secured.POST("/:shopid/shipping", controllers.CreateShopShippingProfile())
+		secured.POST("/:shopid/verification", controllers.CreateSellerVerificationProfile())
+		secured.GET("/:shopid/verification", controllers.GetSellerVerificationProfile())
+		secured.POST("/:shopid/compliance", controllers.CreateShopComplianceInformation())
+		secured.GET("/:shopid/compliance", controllers.GetShopComplianceInformation())
 	}
+
+	// Shop policies and listings (separate groups for clarity)
+	setupShopPoliciesRoutes(shop)
+	setupShopListingsRoutes(shop)
 }
 
-func listingRoutes(api *gin.RouterGroup) {
-	listing := api.Group("/listings")
-	// Get all listings -> /api/listings/?limit=50&skip=0&sort=date.created_at
-	listing.GET("/", controllers.GetListings())
-	// Get single listing by listingid -> /api/listings/{listingId}
-	listing.GET("/:listingid", controllers.GetListing())
-	listing.GET("/:listingid/reviews", controllers.GetListingReviews())
+// setupShopPoliciesRoutes configures shop policy endpoints
+func setupShopPoliciesRoutes(shop *gin.RouterGroup) {
+	secured := shop.Group("").Use(auth.Auth())
 
-	// Secured endpoints for managing listing reviews
-	reviews := listing.Group("/:listingid/reviews").Use(auth.Auth())
+	secured.POST("/:shopid/policies", controllers.CreateShopReturnPolicy())
+	secured.PUT("/:shopid/policies", controllers.UpdateShopReturnPolicy())
+	secured.GET("/:shopid/policies", controllers.GetShopReturnPolicies())
+	secured.GET("/:shopid/policies/:policyid", controllers.GetShopReturnPolicy())
+	secured.DELETE("/:shopid/policies/:policyid", controllers.DeleteShopReturnPolicy())
+}
+
+// setupShopListingsRoutes configures shop listing endpoints
+func setupShopListingsRoutes(shop *gin.RouterGroup) {
+	secured := shop.Group("").Use(auth.Auth())
+
+	secured.POST("/:shopid/listings", controllers.CreateListing())
+	secured.GET("/:shopid/listings/summary", controllers.GetMyListingsSummary())
+	secured.GET("/:shopid/check-listing-onboarding", controllers.HasUserCreatedListingOnboarding())
+}
+
+// listingRoutesRefactored configures listing-related endpoints
+func listingRoutesRefactored(api *gin.RouterGroup, serviceContainer *container.ServiceContainer) {
+	listing := api.Group("/listings")
+	reviewController := serviceContainer.GetReviewController()
+
+	listing.GET("/", controllers.GetListings())
+	listing.GET("/:listingid", controllers.GetListing())
+	listing.GET("/:listingid/reviews", reviewController.GetListingReviews())
 	{
-		reviews.POST("/", controllers.CreateListingReview())
-		reviews.DELETE("/", controllers.DeleteMyListingReview())
-		reviews.DELETE("/:reviewid", controllers.DeleteOtherListingReview())
+		reviews := listing.Group("/:listingid/reviews").Use(auth.Auth())
+		reviews.POST("/", reviewController.CreateListingReview())
+		reviews.DELETE("/", reviewController.DeleteMyListingReview())
+		reviews.DELETE("/:reviewid", reviewController.DeleteOtherListingReview())
 	}
-	// Secured endpoints that require authentication
-	secured := listing.Group("/:listingid").Use(auth.Auth())
 	{
+		secured := listing.Group("/:listingid").Use(auth.Auth())
 		secured.DELETE("/", controllers.DeleteListings())
 		secured.PUT("/deactivate", controllers.DeactivateListings())
 	}
 }
 
-func cartRoutes(api *gin.RouterGroup) {
+// cartRoutesRefactored configures cart-related endpoints
+func cartRoutesRefactored(api *gin.RouterGroup, serviceContainer *container.ServiceContainer) {
 	cart := api.Group("/:userid/carts")
-	// Secured endpoints that require authentication
-	secured := cart.Group("").Use(auth.Auth())
+	cartController := serviceContainer.GetCartController()
 	{
-		secured.GET("/", controllers.GetCartItems())
-		secured.POST("/", controllers.SaveCartItem())
-		secured.DELETE("/:cartId", controllers.DeleteCartItem())
-		secured.DELETE("/many", controllers.DeleteCartItems())
-		secured.DELETE("/clear", controllers.ClearCartItems())
-		secured.PUT("/:cartId/quantity/inc", controllers.IncreaseCartItemQuantity())
-		secured.PUT("/:cartId/quantity/dec", controllers.DecreaseCartItemQuantity())
-	}
-}
+		secured := cart.Group("").Use(auth.Auth())
+		secured.GET("/", cartController.GetCartItems())
+		secured.POST("/", cartController.SaveCartItem())
+		secured.DELETE("/:cartId", cartController.DeleteCartItem())
+		secured.DELETE("/many", cartController.DeleteCartItems())
+		secured.DELETE("/clear", cartController.ClearCartItems())
 
-func categoryRoutes(api *gin.RouterGroup) {
-	// Define the "/categories" group
-	category := api.Group("/categories")
-	{
-		// Endpoint to get all categories
-		category.GET("/", controllers.GetAllCategories())
-		// Endpoint to search for categories
-		category.GET("/search", controllers.SearchCategories())
-		// Endpoint to get category children
-		category.GET("/:id/children", controllers.GetCategoryChildren())
-		// Endpoint to get category ancestor
-		category.GET("/:id/ancestor", controllers.GetCategoryAncestor())
+		// Cart item quantity management
+		secured.PUT("/:cartId/quantity/inc", cartController.IncreaseCartItemQuantity())
+		secured.PUT("/:cartId/quantity/dec", cartController.DecreaseCartItemQuantity())
 
-		// Secured endpoints that require authentication
-		secured := category.Group("").Use(auth.Auth())
-		{
-			// Endpoint to create a single category
-			secured.POST("/", controllers.CreateCategorySingle())
-			// Endpoint to create multiple categories
-			secured.POST("/multi", controllers.CreateCategoryMulti())
-			// Endpoint to delete all categories
-			secured.DELETE("/", controllers.DeleteAllCategories())
-		}
+		// Cart validation
+		secured.GET("/validate", cartController.ValidateCartItems())
 	}
 }

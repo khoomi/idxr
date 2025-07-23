@@ -21,7 +21,6 @@ func CorsMiddleware() gin.HandlerFunc {
 		// Check if the request is a multipart request
 		contentType := c.Request.Header.Get("Content-Type")
 		if strings.HasPrefix(contentType, "multipart/form-data") {
-			// Add the "Content-Type" header for multipart response
 			c.Writer.Header().Set("Content-Type", "multipart/form-data")
 		}
 

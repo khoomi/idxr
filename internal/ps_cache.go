@@ -69,3 +69,8 @@ func PublishCacheMessage(ctx context.Context, messageType CacheMessageType, payl
 	log.Printf("Published cache message: %s", messageJSON)
 	return nil
 }
+
+// PublishCacheMessageDirect publishes a cache invalidation message directly without context
+func PublishCacheMessageDirect(messageType CacheMessageType, payload string) error {
+	return PublishCacheMessage(context.Background(), messageType, payload)
+}

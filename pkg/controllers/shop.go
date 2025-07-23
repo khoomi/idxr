@@ -917,6 +917,39 @@ func UpdateShopField() gin.HandlerFunc {
 				util.HandleSuccess(c, http.StatusOK, "Shop information updated successfully", res.UpsertedID)
 				return
 			}
+		case "policy":
+			{
+				var payload models.ShopPolicy
+				if err := c.Bind(&payload); err != nil {
+					log.Println(err)
+					util.HandleError(c, http.StatusBadRequest, err)
+					return
+				}
+
+				shopId, myId, err := common.MyShopIdAndMyId(c)
+				if err != nil {
+					util.HandleError(c, http.StatusBadRequest, err)
+					return
+				}
+
+				filter := bson.M{"_id": shopId, "user_id": myId}
+				update := bson.M{"$set": bson.M{"policy": payload, "modified_at": now}}
+				res, err := common.ShopCollection.UpdateOne(ctx, filter, update)
+				if err != nil {
+					util.HandleError(c, http.StatusInternalServerError, err)
+					return
+				}
+				if res.ModifiedCount == 0 {
+					util.HandleError(c, http.StatusNotModified, errors.New("unknown error while trying to update shop"))
+					return
+				}
+
+				internal.PublishCacheMessage(c, internal.CacheInvalidateShop, shopId.Hex())
+
+				util.HandleSuccess(c, http.StatusOK, "Shop policy was updated successful", shopId.Hex())
+
+				return
+			}
 		default:
 			util.HandleError(c, http.StatusBadRequest, errors.New("unsupported field. supported fields: banner, logo, address, vacation"))
 			return
