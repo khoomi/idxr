@@ -1,0 +1,103 @@
+package services
+
+import (
+	"context"
+	"time"
+
+	"khoomi-api-io/api/internal"
+	"khoomi-api-io/api/internal/common"
+	"khoomi-api-io/api/pkg/models"
+	"khoomi-api-io/api/pkg/util"
+
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
+	"go.mongodb.org/mongo-driver/mongo/options"
+)
+
+type shippingService struct{}
+
+func NewShippingService() ShippingService {
+	return &shippingService{}
+}
+
+func (s *shippingService) CreateShopShippingProfile(ctx context.Context, userID, shopID primitive.ObjectID, req models.ShopShippingProfileRequest) (primitive.ObjectID, error) {
+	if err := common.Validate.Struct(&req); err != nil {
+		return primitive.NilObjectID, err
+	}
+
+	shippingPolicy := models.ShippingPolicy{
+		AcceptReturns:  req.Policy.AcceptReturns,
+		AcceptExchange: req.Policy.AcceptExchange,
+		ReturnPeriod:   req.Policy.ReturnPeriod,
+		ReturnUnit:     req.Policy.ReturnUnit,
+		Conditions:     req.Policy.Conditions,
+	}
+
+	shippingID := primitive.NewObjectID()
+	now := time.Now()
+	shippingProfile := models.ShopShippingProfile{
+		ID:                 shippingID,
+		ShopID:             shopID,
+		Title:              req.Title,
+		HandlingFee:        req.HandlingFee,
+		OriginState:        req.OriginState,
+		OriginPostalCode:   req.OriginPostalCode,
+		MinDeliveryDays:    req.MinDeliveryDays,
+		MaxDeliveryDays:    req.MaxDeliveryDays,
+		PrimaryPrice:       req.PrimaryPrice,
+		DestinationBy:      req.DestinationBy,
+		Destinations:       req.Destinations,
+		SecondaryPrice:     req.SecondaryPrice,
+		OffersFreeShipping: req.OffersFreeShipping,
+		Policy:             shippingPolicy,
+		CreatedAt:          primitive.NewDateTimeFromTime(now),
+		ModifiedAt:         primitive.NewDateTimeFromTime(now),
+		IsDefault:          req.IsDefault,
+		Processing:         req.Processing,
+	}
+
+	res, err := common.ShippingProfileCollection.InsertOne(ctx, shippingProfile)
+	if err != nil {
+		return primitive.NilObjectID, err
+	}
+
+	internal.PublishCacheMessage(ctx, internal.CacheInvalidateShopShipping, shopID.Hex())
+
+	return res.InsertedID.(primitive.ObjectID), nil
+}
+
+func (s *shippingService) GetShopShippingProfile(ctx context.Context, profileID primitive.ObjectID) (*models.ShopShippingProfile, error) {
+	var shippingProfile models.ShopShippingProfile
+	err := common.ShippingProfileCollection.FindOne(ctx, bson.M{"_id": profileID}).Decode(&shippingProfile)
+	if err != nil {
+		return nil, err
+	}
+
+	return &shippingProfile, nil
+}
+
+func (s *shippingService) GetShopShippingProfiles(ctx context.Context, shopID primitive.ObjectID, pagination util.PaginationArgs) ([]models.ShopShippingProfile, int64, error) {
+	filter := bson.M{"shop_id": shopID}
+	findOptions := options.Find().
+		SetLimit(int64(pagination.Limit)).
+		SetSkip(int64(pagination.Skip)).
+		SetSort(bson.D{{Key: "date", Value: -1}})
+
+	cursor, err := common.ShippingProfileCollection.Find(ctx, filter, findOptions)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer cursor.Close(ctx)
+
+	var shippingProfiles []models.ShopShippingProfile
+	if err = cursor.All(ctx, &shippingProfiles); err != nil {
+		return nil, 0, err
+	}
+
+	count, err := common.ShippingProfileCollection.CountDocuments(ctx, filter)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return shippingProfiles, count, nil
+}

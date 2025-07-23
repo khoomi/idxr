@@ -2,24 +2,35 @@ package controllers
 
 import (
 	"context"
-	"log"
 	"net/http"
-	"time"
 
 	"khoomi-api-io/api/internal/auth"
 	"khoomi-api-io/api/internal/common"
 	"khoomi-api-io/api/pkg/models"
+	"khoomi-api-io/api/pkg/services"
 	"khoomi-api-io/api/pkg/util"
 
 	"github.com/gin-gonic/gin"
-	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
-	"go.mongodb.org/mongo-driver/mongo"
 )
 
-func CreateSellerVerificationProfile() gin.HandlerFunc {
+// VerificationController handles verification-related HTTP requests
+type VerificationController struct {
+	verificationService  services.VerificationService
+	notificationService  services.NotificationService
+}
+
+// InitVerificationController creates a new VerificationController with dependency injection
+func InitVerificationController(verificationService services.VerificationService, notificationService services.NotificationService) *VerificationController {
+	return &VerificationController{
+		verificationService: verificationService,
+		notificationService: notificationService,
+	}
+}
+
+// CreateSellerVerificationProfile creates a new seller verification profile
+func (vc *VerificationController) CreateSellerVerificationProfile() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		now := time.Now()
 		ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
 		defer cancel()
 
@@ -30,17 +41,10 @@ func CreateSellerVerificationProfile() gin.HandlerFunc {
 			return
 		}
 
-		// Check if the user owns the shop
+		// Get authenticated user session
 		session_, err := auth.GetSessionAuto(c)
 		if err != nil {
 			util.HandleError(c, http.StatusUnauthorized, err)
-			return
-		}
-
-		err = common.VerifyShopOwnership(c, session_.UserId, shopIdObj)
-		if err != nil {
-			log.Printf("Error you the shop owner: %s\n", err.Error())
-			util.HandleError(c, http.StatusForbidden, err)
 			return
 		}
 
@@ -57,33 +61,19 @@ func CreateSellerVerificationProfile() gin.HandlerFunc {
 			return
 		}
 
-		verificationId := primitive.NewObjectID()
-		ShippingProfile := models.SellerVerification{
-			ID:                 verificationId,
-			ShopId:             shopIdObj,
-			FirstName:          verificationJson.FirstName,
-			LastName:           verificationJson.LastName,
-			Card:               verificationJson.Card,
-			CardNumber:         verificationJson.CardNumber,
-			IsVerified:         false,
-			VerifiedAt:         now,
-			DOB:                verificationJson.DOB,
-			CountryOfResidence: verificationJson.CountryOfResidence,
-			Nationality:        verificationJson.Nationality,
-			CreatedAt:          now,
-			ModifiedAt:         now,
-		}
-		res, err := common.SellerVerificationCollection.InsertOne(ctx, ShippingProfile)
+		// Create verification profile using service
+		verificationID, err := vc.verificationService.CreateSellerVerificationProfile(ctx, session_.UserId, shopIdObj, verificationJson)
 		if err != nil {
-			util.HandleError(c, http.StatusFound, err)
+			util.HandleError(c, http.StatusInternalServerError, err)
 			return
 		}
 
-		util.HandleSuccess(c, http.StatusOK, "successful", res.InsertedID)
+		util.HandleSuccess(c, http.StatusCreated, "Seller verification profile created successfully", verificationID)
 	}
 }
 
-func GetSellerVerificationProfile() gin.HandlerFunc {
+// GetSellerVerificationProfile retrieves a seller verification profile
+func (vc *VerificationController) GetSellerVerificationProfile() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
 		defer cancel()
@@ -95,27 +85,17 @@ func GetSellerVerificationProfile() gin.HandlerFunc {
 			return
 		}
 
-		// Check if the user owns the shop
+		// Get authenticated user session
 		session_, err := auth.GetSessionAuto(c)
 		if err != nil {
 			util.HandleError(c, http.StatusUnauthorized, err)
 			return
 		}
-		err = common.VerifyShopOwnership(c, session_.UserId, shopIdObj)
-		if err != nil {
-			log.Printf("Error you the shop owner: %s\n", err.Error())
-			util.HandleError(c, http.StatusForbidden, err)
-			return
-		}
 
-		var verificationProfile models.SellerVerification
-		err = common.SellerVerificationCollection.FindOne(ctx, bson.M{"shop_id": shopIdObj}).Decode(&verificationProfile)
+		// Get verification profile using service
+		verificationProfile, err := vc.verificationService.GetSellerVerificationProfile(ctx, session_.UserId, shopIdObj)
 		if err != nil {
-			if err == mongo.ErrNoDocuments {
-				util.HandleError(c, http.StatusNotFound, err)
-				return
-			}
-			util.HandleError(c, http.StatusInternalServerError, err)
+			util.HandleError(c, http.StatusNotFound, err)
 			return
 		}
 

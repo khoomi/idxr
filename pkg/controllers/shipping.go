@@ -1,44 +1,48 @@
 package controllers
 
 import (
-	"context"
 	"log"
 	"net/http"
-	"time"
 
-	"khoomi-api-io/api/internal"
-	auth "khoomi-api-io/api/internal/auth"
 	"khoomi-api-io/api/internal/common"
 	"khoomi-api-io/api/pkg/models"
+	"khoomi-api-io/api/pkg/services"
 	"khoomi-api-io/api/pkg/util"
 
 	"github.com/gin-gonic/gin"
-	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/bson/primitive"
-	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-func CreateShopShippingProfile() gin.HandlerFunc {
+type ShippingController struct {
+	shippingService     services.ShippingService
+	shopService         services.ShopService
+	notificationService services.NotificationService
+}
+
+// InitShippingController initializes a new ShippingController with dependencies
+func InitShippingController(shippingService services.ShippingService, shopService services.ShopService, notificationService services.NotificationService) *ShippingController {
+	return &ShippingController{
+		shippingService:     shippingService,
+		shopService:         shopService,
+		notificationService: notificationService,
+	}
+}
+
+func (sc *ShippingController) CreateShopShippingProfile() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
+		ctx, cancel := WithTimeout()
 		defer cancel()
 
-		shopId := c.Param("shopid")
-		shopIdObj, err := primitive.ObjectIDFromHex(shopId)
-		if err != nil {
-			log.Println(err)
-			util.HandleError(c, http.StatusUnprocessableEntity, err)
+		shopIdObj, ok := ParseObjectIDParam(c, "shopid")
+		if !ok {
 			return
 		}
 
-		// Check if the user owns the shop
-		session, err := auth.GetSessionAuto(c)
-		if err != nil {
-			util.HandleError(c, http.StatusUnauthorized, err)
+		userID, ok := ValidateAndGetUserID(c)
+		if !ok {
 			return
 		}
 
-		err = common.VerifyShopOwnership(c, session.UserId, shopIdObj)
+		err := sc.shopService.VerifyShopOwnership(c, userID, shopIdObj)
 		if err != nil {
 			log.Printf("Error you the shop owner: %s\n", err.Error())
 			util.HandleError(c, http.StatusForbidden, err)
@@ -46,75 +50,32 @@ func CreateShopShippingProfile() gin.HandlerFunc {
 		}
 
 		var shippingJson models.ShopShippingProfileRequest
-		err = c.BindJSON(&shippingJson)
-		if err != nil {
-			log.Println(err)
-			util.HandleError(c, http.StatusUnprocessableEntity, err)
+		if !BindJSONAndValidate(c, &shippingJson) {
 			return
 		}
 
-		// Validate request body
-		if err := common.Validate.Struct(&shippingJson); err != nil {
-			util.HandleError(c, http.StatusUnprocessableEntity, err)
-			return
-		}
-		shippingPolicy := models.ShippingPolicy{
-			AcceptReturns:  shippingJson.Policy.AcceptReturns,
-			AcceptExchange: shippingJson.Policy.AcceptExchange,
-			ReturnPeriod:   shippingJson.Policy.ReturnPeriod,
-			ReturnUnit:     shippingJson.Policy.ReturnUnit,
-			Conditions:     shippingJson.Policy.Conditions,
-		}
-
-		shippingId := primitive.NewObjectID()
-		now := time.Now()
-		ShippingProfile := models.ShopShippingProfile{
-			ID:                 shippingId,
-			ShopID:             shopIdObj,
-			Title:              shippingJson.Title,
-			HandlingFee:        shippingJson.HandlingFee,
-			OriginState:        shippingJson.OriginState,
-			OriginPostalCode:   shippingJson.OriginPostalCode,
-			MinDeliveryDays:    shippingJson.MinDeliveryDays,
-			MaxDeliveryDays:    shippingJson.MaxDeliveryDays,
-			PrimaryPrice:       shippingJson.PrimaryPrice,
-			DestinationBy:      shippingJson.DestinationBy,
-			Destinations:       shippingJson.Destinations,
-			SecondaryPrice:     shippingJson.SecondaryPrice,
-			OffersFreeShipping: shippingJson.OffersFreeShipping,
-			Policy:             shippingPolicy,
-			CreatedAt:          primitive.NewDateTimeFromTime(now),
-			ModifiedAt:         primitive.NewDateTimeFromTime(now),
-			IsDefault:          shippingJson.IsDefault,
-			Processing:         shippingJson.Processing,
-		}
-		res, err := common.ShippingProfileCollection.InsertOne(ctx, ShippingProfile)
+		shippingID, err := sc.shippingService.CreateShopShippingProfile(ctx, userID, shopIdObj, shippingJson)
 		if err != nil {
 			log.Println(err)
 			util.HandleError(c, http.StatusInternalServerError, err)
 			return
 		}
 
-		internal.PublishCacheMessage(c, internal.CacheInvalidateShopShipping, shopId)
-
-		util.HandleSuccess(c, http.StatusOK, "document inserted", res.InsertedID)
+		util.HandleSuccess(c, http.StatusOK, "document inserted", shippingID)
 	}
 }
 
-func GetShopShippingProfileInfo() gin.HandlerFunc {
+func (sc *ShippingController) GetShopShippingProfileInfo() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
+		ctx, cancel := WithTimeout()
 		defer cancel()
 
-		profileIdString := c.Param("id")
-		profileId, err := primitive.ObjectIDFromHex(profileIdString)
-		if err != nil {
-			util.HandleError(c, http.StatusBadRequest, err)
+		profileId, ok := ParseObjectIDParam(c, "id")
+		if !ok {
 			return
 		}
 
-		var shippingProfile models.ShopShippingProfile
-		err = common.ShippingProfileCollection.FindOne(ctx, bson.M{"_id": profileId}).Decode(&shippingProfile)
+		shippingProfile, err := sc.shippingService.GetShopShippingProfile(ctx, profileId)
 		if err != nil {
 			util.HandleError(c, http.StatusBadRequest, err)
 			return
@@ -124,49 +85,24 @@ func GetShopShippingProfileInfo() gin.HandlerFunc {
 	}
 }
 
-func GetShopShippingProfileInfos() gin.HandlerFunc {
+func (sc *ShippingController) GetShopShippingProfileInfos() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), common.REQUEST_TIMEOUT_SECS)
+		ctx, cancel := WithTimeout()
 		defer cancel()
 
-		shopIDStr := c.Param("shopid")
-		shopIDObject, err := primitive.ObjectIDFromHex(shopIDStr)
-		if err != nil {
-			util.HandleError(c, http.StatusUnauthorized, err)
+		shopIDObject, ok := ParseObjectIDParam(c, "shopid")
+		if !ok {
 			return
 		}
 
 		paginationArgs := common.GetPaginationArgs(c)
-		filter := bson.M{"shop_id": shopIDObject}
-		findOptions := options.Find().
-			SetLimit(int64(paginationArgs.Limit)).
-			SetSkip(int64(paginationArgs.Skip)).
-			SetSort(bson.D{{Key: "date", Value: -1}})
-		cursor, err := common.ShippingProfileCollection.Find(ctx, filter, findOptions)
-		if err != nil {
-			util.HandleError(c, http.StatusInternalServerError, err)
-			return
-		}
-		defer cursor.Close(ctx)
-		var shippingProfiles []models.ShopShippingProfile
-		if err = cursor.All(ctx, &shippingProfiles); err != nil {
-			util.HandleError(c, http.StatusInternalServerError, err)
-			return
-		}
-
-		count, err := common.ShippingProfileCollection.CountDocuments(ctx, filter)
+		shippingProfiles, count, err := sc.shippingService.GetShopShippingProfiles(ctx, shopIDObject, paginationArgs)
 		if err != nil {
 			util.HandleError(c, http.StatusInternalServerError, err)
 			return
 		}
 
-		util.HandleSuccessMeta(c, http.StatusOK, "success", shippingProfiles, gin.H{
-			"pagination": util.Pagination{
-				Limit: paginationArgs.Limit,
-				Skip:  paginationArgs.Skip,
-				Count: count,
-			},
-		})
+		HandlePaginationAndResponse(c, shippingProfiles, count, paginationArgs, "success")
 	}
 }
 

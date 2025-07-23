@@ -25,6 +25,21 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
+type ListingController struct {
+	listingService      services.ListingService
+	shopService         services.ShopService
+	notificationService services.NotificationService
+}
+
+// InitListingController initializes a new ListingController with dependencies
+func InitListingController(listingService services.ListingService, shopService services.ShopService, notificationService services.NotificationService) *ListingController {
+	return &ListingController{
+		listingService:      listingService,
+		shopService:         shopService,
+		notificationService: notificationService,
+	}
+}
+
 func CreateListing() gin.HandlerFunc {
 	return CreateListingWithEmailService(nil)
 }
@@ -70,7 +85,10 @@ func CreateListingWithEmailService(emailService services.EmailService) gin.Handl
 		}
 
 		// Verify shop ownership before allowing listing creation
-		err = common.VerifyListingOwnership(ctx, myId, shopId)
+		// Note: This function needs to be refactored to use dependency injection
+		// For now, we'll create a temporary service instance
+		tempShopService := services.NewShopService()
+		err = tempShopService.VerifyShopOwnership(ctx, myId, shopId)
 		if err != nil {
 			util.HandleError(c, http.StatusUnauthorized, errors.New("only listing owners can create listings"))
 			return
@@ -187,9 +205,12 @@ func CreateListingWithEmailService(emailService services.EmailService) gin.Handl
 			ShippingRevenue: 0.0,
 		}
 
+		// Create temporary listing service instance for code generation
+		tempListingService := services.NewListingService()
+		
 		listing := models.Listing{
 			ID:                   primitive.NewObjectID(),
-			Code:                 common.GenerateListingCode(),
+			Code:                 tempListingService.GenerateListingCode(),
 			UserId:               myId,
 			ShopId:               shopId,
 			MainImage:            mainImageUploadUrl.SecureURL,
@@ -262,7 +283,8 @@ func GetListing() gin.HandlerFunc {
 		defer cancel()
 
 		listingId := c.Param("listingid")
-		listingIdentifier, e := common.GenListingIdBson(listingId)
+		tempListingService := services.NewListingService()
+		listingIdentifier, e := tempListingService.GenerateListingBson(listingId)
 		if e != nil {
 			util.HandleError(c, http.StatusBadRequest, e)
 			return
@@ -402,8 +424,9 @@ func GetListings() gin.HandlerFunc {
 		defer cancel()
 
 		paginationArgs := common.GetPaginationArgs(c)
-		match := common.GetListingFilters(c)
-		sort := common.GetListingSortingBson(paginationArgs.Sort)
+		tempListingService := services.NewListingService()
+		match := tempListingService.GetListingFilters(c)
+		sort := tempListingService.GetListingSortingBson(paginationArgs.Sort)
 
 		pipeline := []bson.M{
 			{"$match": match},
@@ -524,10 +547,11 @@ func GetMyListingsSummary() gin.HandlerFunc {
 		}
 
 		paginationArgs := common.GetPaginationArgs(c)
+		tempListingService := services.NewListingService()
 		findOptions := options.Find().
 			SetLimit(int64(paginationArgs.Limit)).
 			SetSkip(int64(paginationArgs.Skip)).
-			SetSort(common.GetListingSortingBson(paginationArgs.Sort))
+			SetSort(tempListingService.GetListingSortingBson(paginationArgs.Sort))
 		filter := bson.M{"shop_id": shopId, "user_id": myId}
 		cursor, err := common.ListingCollection.Find(ctx, filter, findOptions)
 		if err != nil {
@@ -569,13 +593,14 @@ func GetShopListings() gin.HandlerFunc {
 			return
 		}
 
-		match := common.GetListingFilters(c)
+		tempListingService := services.NewListingService()
+		match := tempListingService.GetListingFilters(c)
 		match["shop_id"] = shopObjectId
 		paginationArgs := common.GetPaginationArgs(c)
 		findOptions := options.Find().
 			SetLimit(int64(paginationArgs.Limit)).
 			SetSkip(int64(paginationArgs.Skip)).
-			SetSort(common.GetListingSortingBson(paginationArgs.Sort))
+			SetSort(tempListingService.GetListingSortingBson(paginationArgs.Sort))
 		cursor, err := common.ListingCollection.Find(ctx, match, findOptions)
 		if err != nil {
 			util.HandleError(c, http.StatusNotFound, err)
