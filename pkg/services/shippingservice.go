@@ -9,8 +9,10 @@ import (
 	"khoomi-api-io/api/pkg/models"
 	"khoomi-api-io/api/pkg/util"
 
+	"github.com/pkg/errors"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
+	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
@@ -112,4 +114,47 @@ func (s *shippingService) UpdateShippingProfile(ctx context.Context, shopId prim
 	internal.PublishCacheMessage(ctx, internal.CacheInvalidateShopShipping, shopId.Hex())
 
 	return res.UpsertedID, nil
+}
+
+func (s *shippingService) DeleteShippingProfile(ctx context.Context, shopId primitive.ObjectID, shippingId primitive.ObjectID) (int64, error) {
+
+	res, err := common.ShippingProfileCollection.DeleteOne(ctx, bson.M{"_id": shippingId.Hex(), "shop_id": shopId})
+	if err != nil {
+
+		return 0, err
+	}
+
+	internal.PublishCacheMessage(ctx, internal.CacheInvalidateShopShipping, shopId.Hex())
+
+	return res.DeletedCount, nil
+}
+
+func (s *shippingService) ChangeDefaultShippingProfile(ctx context.Context, shopId primitive.ObjectID, shippingId primitive.ObjectID) error {
+	callback := func(ctx mongo.SessionContext) (any, error) {
+		// Set all other profile to non-default
+		err := SetOtherRecordsToFalse(ctx, common.UserAddressCollection, "shop_id", shopId, shippingId, "is_defualt_profile")
+		if err != nil {
+			return nil, err
+		}
+
+		// Set the specified profile as default
+		filter := bson.M{"shop_id": shopId, "_id": shippingId}
+		result, err := common.ShippingProfileCollection.UpdateOne(
+			ctx,
+			filter,
+			bson.M{"$set": bson.M{"is_default_profile": true}},
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		if result.ModifiedCount == 0 {
+			return nil, errors.New("profile not found")
+		}
+
+		return result, nil
+	}
+
+	_, err := ExecuteTransaction(ctx, callback)
+	return err
 }

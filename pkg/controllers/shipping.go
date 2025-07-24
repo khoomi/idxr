@@ -106,7 +106,7 @@ func (sc *ShippingController) GetShopShippingProfileInfos() gin.HandlerFunc {
 	}
 }
 
-func (s *ShippingController) UpdateShopShippingProfileInfo() gin.HandlerFunc {
+func (s *ShippingController) UpdateShippingProfile() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ctx, cancel := WithTimeout()
 		defer cancel()
@@ -142,5 +142,65 @@ func (s *ShippingController) UpdateShopShippingProfileInfo() gin.HandlerFunc {
 		}
 
 		util.HandleSuccess(c, http.StatusOK, "document inserted", res)
+	}
+}
+
+func (s *ShippingController) DeleteShippingProfile() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ctx, cancel := WithTimeout()
+		defer cancel()
+
+		userId, ok := ValidateAndGetUserID(c)
+		if !ok {
+			return
+		}
+
+		shopId, ok := ParseObjectIDParam(c, "shopid")
+		shippingId, ok := ParseObjectIDParam(c, "shippingId")
+
+		err := s.shopService.VerifyShopOwnership(ctx, userId, shopId)
+		if err != nil {
+			log.Printf("Error you the shop owner: %s\n:", err.Error())
+			util.HandleError(c, http.StatusForbidden, err)
+			return
+		}
+
+		res, err := s.shippingService.DeleteShippingProfile(ctx, shopId, shippingId)
+		if err != nil {
+			util.HandleError(c, http.StatusInternalServerError, err)
+			return
+		}
+
+		util.HandleSuccess(c, http.StatusOK, "document inserted", res)
+	}
+}
+
+func (s *ShippingController) ChangeDefaultShippingProfile() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ctx, cancel := WithTimeout()
+		defer cancel()
+
+		userId, ok := ValidateAndGetUserID(c)
+		if !ok {
+			return
+		}
+
+		shopId, ok := ParseObjectIDParam(c, "shopid")
+		shippingId, ok := ParseObjectIDParam(c, "shippingId")
+
+		err := s.shopService.VerifyShopOwnership(ctx, userId, shopId)
+		if err != nil {
+			log.Printf("Error you the shop owner: %s\n:", err.Error())
+			util.HandleError(c, http.StatusForbidden, err)
+			return
+		}
+
+		err = s.shippingService.ChangeDefaultShippingProfile(ctx, shopId, shippingId)
+		if err != nil {
+			util.HandleError(c, http.StatusInternalServerError, err)
+			return
+		}
+
+		util.HandleSuccess(c, http.StatusOK, "document inserted", gin.H{})
 	}
 }

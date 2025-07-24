@@ -180,6 +180,8 @@ func shopRoutes(api *gin.RouterGroup, serviceContainer *container.ServiceContain
 
 		// Shop business setup
 		secured.POST("/:shopid/shipping", shippingController.CreateShopShippingProfile())
+		secured.DELETE("/:shopid/shipping", shippingController.DeleteShippingProfile())
+		secured.PUT("/:shopid/shipping/default", shippingController.ChangeDefaultShippingProfile())
 		secured.POST("/:shopid/verification", verificationController.CreateSellerVerificationProfile())
 		secured.GET("/:shopid/verification", verificationController.GetSellerVerificationProfile())
 		secured.POST("/:shopid/compliance", shopController.CreateShopComplianceInformation())
