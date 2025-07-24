@@ -101,3 +101,15 @@ func (s *shippingService) GetShopShippingProfiles(ctx context.Context, shopID pr
 
 	return shippingProfiles, count, nil
 }
+
+func (s *shippingService) UpdateShippingProfile(ctx context.Context, shopId primitive.ObjectID, req models.ShopShippingProfileRequest) (any, error) {
+
+	res, err := common.ShippingProfileCollection.UpdateOne(ctx, bson.M{"_id": req.ID, "shop_id": shopId}, bson.M{"$set": req})
+	if err != nil {
+		return nil, err
+	}
+
+	internal.PublishCacheMessage(ctx, internal.CacheInvalidateShopShipping, shopId.Hex())
+
+	return res.UpsertedID, nil
+}

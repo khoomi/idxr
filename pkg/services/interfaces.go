@@ -190,8 +190,8 @@ type UserService interface {
 	// User registration and authentication
 	CreateUser(ctx context.Context, req CreateUserRequest, clientIP string) (primitive.ObjectID, error)
 	CreateUserFromGoogle(ctx context.Context, claim any, clientIP string) (primitive.ObjectID, error)
-	AuthenticateUser(ctx context.Context, req UserAuthRequest, clientIP, userAgent string) (*models.User, string, error)
-	AuthenticateGoogleUser(ctx context.Context, idToken, clientIP, userAgent string) (*models.User, string, error)
+	AuthenticateUser(ctx context.Context, gCtx *gin.Context, req UserAuthRequest, clientIP, userAgent string) (*models.User, string, error)
+	AuthenticateGoogleUser(ctx context.Context, gCtx *gin.Context, idToken, clientIP, userAgent string) (*models.User, string, error)
 
 	// User profile operations
 	GetUserByID(ctx context.Context, userID primitive.ObjectID) (*models.User, error)
@@ -244,6 +244,7 @@ type ShippingService interface {
 	CreateShopShippingProfile(ctx context.Context, userID, shopID primitive.ObjectID, req models.ShopShippingProfileRequest) (primitive.ObjectID, error)
 	GetShopShippingProfile(ctx context.Context, profileID primitive.ObjectID) (*models.ShopShippingProfile, error)
 	GetShopShippingProfiles(ctx context.Context, shopID primitive.ObjectID, pagination util.PaginationArgs) ([]models.ShopShippingProfile, int64, error)
+	UpdateShippingProfile(Ctx context.Context, shopId primitive.ObjectID, req models.ShopShippingProfileRequest) (any, error)
 }
 
 // PaymentService defines the interface for payment-related operations
@@ -266,7 +267,7 @@ type PaymentService interface {
 type ListingService interface {
 	// Listing ownership verification (moved from common)
 	VerifyListingOwnership(ctx context.Context, userID, listingID primitive.ObjectID) error
-	
+
 	// Listing utility functions (moved from common)
 	GenerateListingBson(listingID string) (bson.M, error)
 	GenerateListingCode() string

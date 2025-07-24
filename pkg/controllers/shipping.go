@@ -106,71 +106,41 @@ func (sc *ShippingController) GetShopShippingProfileInfos() gin.HandlerFunc {
 	}
 }
 
-// func UpdateShopShippingProfileInfo() gin.HandlerFunc {
-// 	return func(c *gin.Context) {
-// 		ctx, cancel := context.WithTimeout(context.Background(), REQUEST_TIMEOUT_SECS)
-// 		var shippingJson models.ShopShippingProfileRequest
-// 		defer cancel()
+func (s *ShippingController) UpdateShopShippingProfileInfo() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ctx, cancel := WithTimeout()
+		defer cancel()
 
-// 		shopId := c.Param("shopId")
-// 		shopIdObj, err := primitive.ObjectIDFromHex(shopId)
-// 		if err != nil {
-// 			c.JSON(http.StatusBadRequest, util.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": err.Error()}})
-// 			return
-// 		}
+		shopId, ok := ParseObjectIDParam(c, "shopid")
+		if !ok {
+			return
+		}
 
-// 		// Check if the user owns the shop
-// 		userID, err := util.ExtractTokenID(c)
-// 		if err != nil {
-// 			c.JSON(http.StatusUnauthorized, util.UserResponse{Status: http.StatusUnauthorized, Message: "error", Data: map[string]interface{}{"error": err.Error()}})
-// 			return
-// 		}
+		userID, ok := ValidateAndGetUserID(c)
+		if !ok {
+			return
+		}
 
-// 		err = verifyShopOwnership(ctx, userID, shopIdObj)
-// 		if err != nil {
-// 			c.JSON(http.StatusUnauthorized, util.UserResponse{Status: http.StatusUnauthorized, Message: "error", Data: map[string]interface{}{"error": err.Error()}})
-// 			return
-// 		}
+		err := s.shopService.VerifyShopOwnership(ctx, userID, shopId)
 
-// 		err = c.BindJSON(&shippingJson)
-// 		if err != nil {
-// 			c.JSON(http.StatusBadRequest, util.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": err.Error()}})
-// 			return
-// 		}
+		if err != nil {
+			log.Printf("Error you the shop owner: %s\n", err.Error())
+			util.HandleError(c, http.StatusForbidden, err)
+			return
+		}
 
-// 		// Validate request body
-// 		if validationErr := validate.Struct(&shippingJson); validationErr != nil {
-// 			c.JSON(http.StatusBadRequest, util.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": validationErr.Error()}})
-// 			return
-// 		}
+		var shippingJson models.ShopShippingProfileRequest
+		if !BindJSONAndValidate(c, &shippingJson) {
+			return
+		}
 
-// 		profileIdString := c.Param("infoId")
-// 		profileId, err := primitive.ObjectIDFromHex(profileIdString)
-// 		if err != nil {
-// 			c.JSON(http.StatusBadRequest, util.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"error": err.Error()}})
-// 			return
-// 		}
+		res, err := s.shippingService.UpdateShippingProfile(ctx, shopId, shippingJson)
 
-// 		ShippingProfile := models.ShopShippingProfile{
-// 			ShopID:              shopIdObj,
-// 			Title:               shippingJson.Title,
-// 			MinProcessingTime:   shippingJson.MinProcessingTime,
-// 			MaxProcessingTime:   shippingJson.MaxProcessingTime,
-// 			ProcessingTimeUnit:  shippingJson.ProcessingTimeUnit,
-// 			DomesticHandlingFee: shippingJson.DomesticHandlingFee,
-// 			OriginState:         shippingJson.OriginState,
-// 			OriginPostalCode:    shippingJson.OriginPostalCode,
-// 			MinDeliveryDays:     shippingJson.MinDeliveryDays,
-// 			MaxDeliveryDays:     shippingJson.MaxDeliveryDays,
-// 			PrimaryCost:         shippingJson.PrimaryCost,
-// 		}
+		if err != nil {
+			util.HandleError(c, http.StatusInternalServerError, err)
+			return
+		}
 
-// 		res, err := ShippingProfileCollection.UpdateOne(ctx, bson.M{"_id": profileId}, bson.M{"$set": ShippingProfile})
-// 		if err != nil {
-// 			c.JSON(http.StatusNotModified, util.UserResponse{Status: http.StatusNotModified, Message: "error", Data: map[string]interface{}{"error": err}})
-// 			return
-// 		}
-
-// 		c.JSON(http.StatusOK, util.UserResponse{Status: http.StatusOK, Message: "success", Data: map[string]interface{}{"data": res}})
-// 	}
-// }
+		util.HandleSuccess(c, http.StatusOK, "document inserted", res)
+	}
+}

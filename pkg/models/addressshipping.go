@@ -74,6 +74,7 @@ type ShippingProfileForListing struct {
 }
 
 type ShopShippingProfileRequest struct {
+	ID                 primitive.ObjectID `bson:"_id" json:"_id" validate:"omitempty"`
 	Title              string             `bson:"title" json:"title" validate:"required"`
 	DestinationBy      string             `bson:"destination_by" json:"destinationBy"`
 	OriginState        string             `bson:"origin_state" json:"originState" validate:"required"`
@@ -87,7 +88,6 @@ type ShopShippingProfileRequest struct {
 	OriginPostalCode   int                `bson:"origin_postal_code" json:"originPostalCode"`
 	MaxDeliveryDays    int                `bson:"max_delivery_days" json:"maxDeliveryDays"`
 	MinDeliveryDays    int                `bson:"min_delivery_days" json:"minDeliveryDays"`
-	ID                 primitive.ObjectID `bson:"_id" json:"_id" validate:"omitempty"`
 	IsDefault          bool               `bson:"is_default" json:"isDefault"`
 	OffersFreeShipping bool               `bson:"offers_free_shipping" json:"offersFreeShipping"`
 }

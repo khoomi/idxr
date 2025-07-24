@@ -15,6 +15,7 @@ import (
 	"khoomi-api-io/api/pkg/util"
 
 	googleAuthIDTokenVerifier "github.com/futurenda/google-auth-id-token-verifier"
+	"github.com/gin-gonic/gin"
 
 	"github.com/cloudinary/cloudinary-go/api/uploader"
 	"go.mongodb.org/mongo-driver/bson"
@@ -213,7 +214,7 @@ func (s *userService) CreateUserFromGoogle(ctx context.Context, claim any, clien
 	return result.InsertedID.(primitive.ObjectID), nil
 }
 
-func (s *userService) AuthenticateUser(ctx context.Context, req UserAuthRequest, clientIP, userAgent string) (*models.User, string, error) {
+func (s *userService) AuthenticateUser(ctx context.Context, gCtx *gin.Context, req UserAuthRequest, clientIP, userAgent string) (*models.User, string, error) {
 	now := time.Now()
 
 	var validUser models.User
@@ -292,7 +293,7 @@ func (s *userService) AuthenticateUser(ctx context.Context, req UserAuthRequest,
 		log.Printf("error sending verification email for user: %v, error: %v", validUser.PrimaryEmail, err)
 	}
 
-	sessionId, err := auth.SetSession(nil, validUser.Id, validUser.PrimaryEmail, validUser.LoginName)
+	sessionId, err := auth.SetSession(gCtx, validUser.Id, validUser.PrimaryEmail, validUser.LoginName)
 	if err != nil {
 		return nil, "", err
 	}
@@ -300,7 +301,7 @@ func (s *userService) AuthenticateUser(ctx context.Context, req UserAuthRequest,
 	return &validUser, sessionId, nil
 }
 
-func (s *userService) AuthenticateGoogleUser(ctx context.Context, idToken, clientIP, userAgent string) (*models.User, string, error) {
+func (s *userService) AuthenticateGoogleUser(ctx context.Context, gCtx *gin.Context, idToken, clientIP, userAgent string) (*models.User, string, error) {
 	v := googleAuthIDTokenVerifier.Verifier{}
 	googleClientID := util.LoadEnvFor("GOOGLE_CLIENT_ID")
 	err := v.VerifyIDToken(idToken, []string{googleClientID})
@@ -394,7 +395,7 @@ func (s *userService) AuthenticateGoogleUser(ctx context.Context, idToken, clien
 		log.Printf("error sending verification email for user: %v, error: %v", validUser.PrimaryEmail, err)
 	}
 
-	sessionId, err := auth.SetSession(nil, validUser.Id, validUser.PrimaryEmail, validUser.LoginName)
+	sessionId, err := auth.SetSession(gCtx, validUser.Id, validUser.PrimaryEmail, validUser.LoginName)
 	if err != nil {
 		return nil, "", err
 	}

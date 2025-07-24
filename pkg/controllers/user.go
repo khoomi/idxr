@@ -102,7 +102,7 @@ func (uc *UserController) HandleUserAuthentication(c *gin.Context) {
 		Password: jsonUser.Password,
 	}
 
-	validUser, sessionId, err := uc.userService.AuthenticateUser(ctx, req, c.ClientIP(), c.Request.UserAgent())
+	validUser, sessionId, err := uc.userService.AuthenticateUser(ctx, c, req, c.ClientIP(), c.Request.UserAgent())
 	if err != nil {
 		util.HandleError(c, http.StatusUnauthorized, err)
 		return
@@ -144,7 +144,7 @@ func (uc *UserController) HandleUserGoogleAuthentication(c *gin.Context) {
 		return
 	}
 
-	validUser, sessionId, err := uc.userService.AuthenticateGoogleUser(ctx, body.IDToken, c.ClientIP(), c.Request.UserAgent())
+	validUser, sessionId, err := uc.userService.AuthenticateGoogleUser(ctx, c, body.IDToken, c.ClientIP(), c.Request.UserAgent())
 	if err != nil {
 		util.HandleError(c, http.StatusBadRequest, err)
 		return
