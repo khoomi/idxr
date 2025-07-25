@@ -3,6 +3,7 @@ package controllers
 import (
 	"context"
 	"errors"
+	"log"
 	"net/http"
 
 	"khoomi-api-io/api/internal/auth"
@@ -99,12 +100,16 @@ func ParseObjectIDParam(c *gin.Context, paramName string) (primitive.ObjectID, b
 
 // BindJSONAndValidate binds JSON and handles validation errors
 func BindJSONAndValidate(c *gin.Context, obj any) bool {
-	if err := c.BindJSON(obj); err != nil {
+	if err := c.ShouldBind(obj); err != nil {
+		log.Printf("JSON binding error: %v", err)
 		util.HandleError(c, http.StatusBadRequest, err)
 		return false
 	}
 
+	log.Println("After binding:", obj)
+
 	if err := common.Validate.Struct(obj); err != nil {
+		log.Printf("Validation error: %v", err)
 		util.HandleError(c, http.StatusBadRequest, err)
 		return false
 	}

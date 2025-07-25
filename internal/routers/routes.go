@@ -147,7 +147,7 @@ func shopRoutes(api *gin.RouterGroup, serviceContainer *container.ServiceContain
 	shop.GET("/:shopid/reviews", reviewController.GetShopReviews()) // Keep refactored review controller
 	shop.GET("/:shopid/followers", shopController.GetShopFollowers())
 	shop.GET("/:shopid/shippings", shippingController.GetShopShippingProfileInfos())
-	shop.GET("/:shopid/shippings/:id", shippingController.GetShopShippingProfileInfo())
+	shop.GET("/:shopid/shippings/:shippingid", shippingController.GetShopShippingProfileInfo())
 	shop.GET("/:shopid/listings", controllers.GetShopListings())
 
 	// Protected shop endpoints - use original controllers (they handle file uploads, transactions, etc.)
@@ -179,9 +179,10 @@ func shopRoutes(api *gin.RouterGroup, serviceContainer *container.ServiceContain
 		secured.GET("/:shopid/followers/following", shopController.IsFollowingShop())
 
 		// Shop business setup
-		secured.POST("/:shopid/shipping", shippingController.CreateShopShippingProfile())
-		secured.DELETE("/:shopid/shipping", shippingController.DeleteShippingProfile())
-		secured.PUT("/:shopid/shipping/default", shippingController.ChangeDefaultShippingProfile())
+		secured.POST("/:shopid/shippings", shippingController.CreateShopShippingProfile())
+		secured.DELETE("/:shopid/shippings/:shippingid", shippingController.DeleteShippingProfile())
+		secured.PUT("/:shopid/shippings/:shippingid", shippingController.UpdateShippingProfile())
+		secured.PUT("/:shopid/shippings/:shippingid/default", shippingController.ChangeDefaultShippingProfile())
 		secured.POST("/:shopid/verification", verificationController.CreateSellerVerificationProfile())
 		secured.GET("/:shopid/verification", verificationController.GetSellerVerificationProfile())
 		secured.POST("/:shopid/compliance", shopController.CreateShopComplianceInformation())

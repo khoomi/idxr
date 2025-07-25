@@ -244,7 +244,7 @@ type ShippingService interface {
 	CreateShopShippingProfile(ctx context.Context, userID, shopID primitive.ObjectID, req models.ShopShippingProfileRequest) (primitive.ObjectID, error)
 	GetShopShippingProfile(ctx context.Context, profileID primitive.ObjectID) (*models.ShopShippingProfile, error)
 	GetShopShippingProfiles(ctx context.Context, shopID primitive.ObjectID, pagination util.PaginationArgs) ([]models.ShopShippingProfile, int64, error)
-	UpdateShippingProfile(ctx context.Context, shopId primitive.ObjectID, req models.ShopShippingProfileRequest) (any, error)
+	UpdateShippingProfile(ctx context.Context, shopId primitive.ObjectID, shippingId primitive.ObjectID, req models.UpdateShopShippingProfileRequest) (any, error)
 	DeleteShippingProfile(ctx context.Context, shopId primitive.ObjectID, shippingId primitive.ObjectID) (int64, error)
 	ChangeDefaultShippingProfile(ctx context.Context, shopId primitive.ObjectID, shippingId primitive.ObjectID) error
 }

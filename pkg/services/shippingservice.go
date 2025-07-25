@@ -27,14 +27,6 @@ func (s *shippingService) CreateShopShippingProfile(ctx context.Context, userID,
 		return primitive.NilObjectID, err
 	}
 
-	shippingPolicy := models.ShippingPolicy{
-		AcceptReturns:  req.Policy.AcceptReturns,
-		AcceptExchange: req.Policy.AcceptExchange,
-		ReturnPeriod:   req.Policy.ReturnPeriod,
-		ReturnUnit:     req.Policy.ReturnUnit,
-		Conditions:     req.Policy.Conditions,
-	}
-
 	shippingID := primitive.NewObjectID()
 	now := time.Now()
 	shippingProfile := models.ShopShippingProfile{
@@ -51,11 +43,15 @@ func (s *shippingService) CreateShopShippingProfile(ctx context.Context, userID,
 		Destinations:       req.Destinations,
 		SecondaryPrice:     req.SecondaryPrice,
 		OffersFreeShipping: req.OffersFreeShipping,
-		Policy:             shippingPolicy,
 		CreatedAt:          primitive.NewDateTimeFromTime(now),
 		ModifiedAt:         primitive.NewDateTimeFromTime(now),
 		IsDefault:          req.IsDefault,
 		Processing:         req.Processing,
+		AcceptReturns:      req.AcceptReturns,
+		AcceptExchange:     req.AcceptExchange,
+		ReturnPeriod:       req.ReturnPeriod,
+		ReturnUnit:         req.ReturnUnit,
+		Conditions:         req.Conditions,
 	}
 
 	res, err := common.ShippingProfileCollection.InsertOne(ctx, shippingProfile)
@@ -104,9 +100,33 @@ func (s *shippingService) GetShopShippingProfiles(ctx context.Context, shopID pr
 	return shippingProfiles, count, nil
 }
 
-func (s *shippingService) UpdateShippingProfile(ctx context.Context, shopId primitive.ObjectID, req models.ShopShippingProfileRequest) (any, error) {
+func (s *shippingService) UpdateShippingProfile(ctx context.Context, shopId primitive.ObjectID, shippingId primitive.ObjectID, req models.UpdateShopShippingProfileRequest) (any, error) {
 
-	res, err := common.ShippingProfileCollection.UpdateOne(ctx, bson.M{"_id": req.ID, "shop_id": shopId}, bson.M{"$set": req})
+	now := time.Now()
+	updateDoc := bson.M{
+		"title":                req.Title,
+		"destination_by":       req.DestinationBy,
+		"origin_state":         req.OriginState,
+		"methods":              req.ShippingMethod,
+		"destinations":         req.Destinations,
+		"processing":           req.Processing,
+		"secondary_price":      req.SecondaryPrice,
+		"primary_price":        req.PrimaryPrice,
+		"handling_fee":         req.HandlingFee,
+		"origin_postal_code":   req.OriginPostalCode,
+		"max_delivery_days":    req.MaxDeliveryDays,
+		"min_delivery_days":    req.MinDeliveryDays,
+		"is_default":           req.IsDefault,
+		"offers_free_shipping": req.OffersFreeShipping,
+		"return_unit":          req.ReturnUnit,
+		"conditons":            req.Conditions,
+		"return_period":        req.ReturnPeriod,
+		"accept_returns":       req.AcceptReturns,
+		"accept_exchange":      req.AcceptExchange,
+		"modified_at":          primitive.NewDateTimeFromTime(now),
+	}
+
+	res, err := common.ShippingProfileCollection.UpdateOne(ctx, bson.M{"_id": shippingId, "shop_id": shopId}, bson.M{"$set": updateDoc})
 	if err != nil {
 		return nil, err
 	}
@@ -118,7 +138,7 @@ func (s *shippingService) UpdateShippingProfile(ctx context.Context, shopId prim
 
 func (s *shippingService) DeleteShippingProfile(ctx context.Context, shopId primitive.ObjectID, shippingId primitive.ObjectID) (int64, error) {
 
-	res, err := common.ShippingProfileCollection.DeleteOne(ctx, bson.M{"_id": shippingId.Hex(), "shop_id": shopId})
+	res, err := common.ShippingProfileCollection.DeleteOne(ctx, bson.M{"_id": shippingId, "shop_id": shopId})
 	if err != nil {
 
 		return 0, err
@@ -132,7 +152,7 @@ func (s *shippingService) DeleteShippingProfile(ctx context.Context, shopId prim
 func (s *shippingService) ChangeDefaultShippingProfile(ctx context.Context, shopId primitive.ObjectID, shippingId primitive.ObjectID) error {
 	callback := func(ctx mongo.SessionContext) (any, error) {
 		// Set all other profile to non-default
-		err := SetOtherRecordsToFalse(ctx, common.UserAddressCollection, "shop_id", shopId, shippingId, "is_defualt_profile")
+		err := SetOtherRecordsToFalse(ctx, common.ShippingProfileCollection, "shop_id", shopId, shippingId, "is_default_profile")
 		if err != nil {
 			return nil, err
 		}
@@ -149,12 +169,16 @@ func (s *shippingService) ChangeDefaultShippingProfile(ctx context.Context, shop
 		}
 
 		if result.ModifiedCount == 0 {
-			return nil, errors.New("profile not found")
+			return nil, errors.New("shipping profile not found")
 		}
 
 		return result, nil
 	}
 
 	_, err := ExecuteTransaction(ctx, callback)
+	if err == nil {
+		internal.PublishCacheMessage(ctx, internal.CacheInvalidateShopShipping, shopId.Hex())
+	}
+
 	return err
 }

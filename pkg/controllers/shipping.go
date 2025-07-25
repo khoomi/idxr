@@ -4,6 +4,7 @@ import (
 	"log"
 	"net/http"
 
+	"khoomi-api-io/api/internal/auth"
 	"khoomi-api-io/api/internal/common"
 	"khoomi-api-io/api/pkg/models"
 	"khoomi-api-io/api/pkg/services"
@@ -32,17 +33,17 @@ func (sc *ShippingController) CreateShopShippingProfile() gin.HandlerFunc {
 		ctx, cancel := WithTimeout()
 		defer cancel()
 
-		shopIdObj, ok := ParseObjectIDParam(c, "shopid")
+		shopId, ok := ParseObjectIDParam(c, "shopid")
 		if !ok {
 			return
 		}
 
-		userID, ok := ValidateAndGetUserID(c)
-		if !ok {
+		userId, err := auth.GetSessionUserID(c)
+		if err != nil {
 			return
 		}
 
-		err := sc.shopService.VerifyShopOwnership(c, userID, shopIdObj)
+		err = sc.shopService.VerifyShopOwnership(c, userId, shopId)
 		if err != nil {
 			log.Printf("Error you the shop owner: %s\n", err.Error())
 			util.HandleError(c, http.StatusForbidden, err)
@@ -54,14 +55,14 @@ func (sc *ShippingController) CreateShopShippingProfile() gin.HandlerFunc {
 			return
 		}
 
-		shippingID, err := sc.shippingService.CreateShopShippingProfile(ctx, userID, shopIdObj, shippingJson)
+		shippingId, err := sc.shippingService.CreateShopShippingProfile(ctx, userId, shopId, shippingJson)
 		if err != nil {
 			log.Println(err)
 			util.HandleError(c, http.StatusInternalServerError, err)
 			return
 		}
 
-		util.HandleSuccess(c, http.StatusOK, "document inserted", shippingID)
+		util.HandleSuccess(c, http.StatusOK, "document inserted", shippingId)
 	}
 }
 
@@ -70,7 +71,7 @@ func (sc *ShippingController) GetShopShippingProfileInfo() gin.HandlerFunc {
 		ctx, cancel := WithTimeout()
 		defer cancel()
 
-		profileId, ok := ParseObjectIDParam(c, "id")
+		profileId, ok := ParseObjectIDParam(c, "shippingid")
 		if !ok {
 			return
 		}
@@ -116,25 +117,30 @@ func (s *ShippingController) UpdateShippingProfile() gin.HandlerFunc {
 			return
 		}
 
-		userID, ok := ValidateAndGetUserID(c)
+		shippingId, ok := ParseObjectIDParam(c, "shippingid")
 		if !ok {
 			return
 		}
 
-		err := s.shopService.VerifyShopOwnership(ctx, userID, shopId)
+		userId, err := auth.GetSessionUserID(c)
+		if err != nil {
+			return
+		}
+
+		err = s.shopService.VerifyShopOwnership(ctx, userId, shopId)
 
 		if err != nil {
-			log.Printf("Error you the shop owner: %s\n", err.Error())
+			log.Printf("Error you are not the shop owner: %s\n", err.Error())
 			util.HandleError(c, http.StatusForbidden, err)
 			return
 		}
 
-		var shippingJson models.ShopShippingProfileRequest
+		var shippingJson models.UpdateShopShippingProfileRequest
 		if !BindJSONAndValidate(c, &shippingJson) {
 			return
 		}
 
-		res, err := s.shippingService.UpdateShippingProfile(ctx, shopId, shippingJson)
+		res, err := s.shippingService.UpdateShippingProfile(ctx, shopId, shippingId, shippingJson)
 
 		if err != nil {
 			util.HandleError(c, http.StatusInternalServerError, err)
@@ -150,15 +156,22 @@ func (s *ShippingController) DeleteShippingProfile() gin.HandlerFunc {
 		ctx, cancel := WithTimeout()
 		defer cancel()
 
-		userId, ok := ValidateAndGetUserID(c)
-		if !ok {
+		userId, err := auth.GetSessionUserID(c)
+		if err != nil {
 			return
 		}
 
 		shopId, ok := ParseObjectIDParam(c, "shopid")
-		shippingId, ok := ParseObjectIDParam(c, "shippingId")
+		if !ok {
+			return
+		}
 
-		err := s.shopService.VerifyShopOwnership(ctx, userId, shopId)
+		shippingId, ok := ParseObjectIDParam(c, "shippingid")
+		if !ok {
+			return
+		}
+
+		err = s.shopService.VerifyShopOwnership(ctx, userId, shopId)
 		if err != nil {
 			log.Printf("Error you the shop owner: %s\n:", err.Error())
 			util.HandleError(c, http.StatusForbidden, err)
@@ -180,15 +193,22 @@ func (s *ShippingController) ChangeDefaultShippingProfile() gin.HandlerFunc {
 		ctx, cancel := WithTimeout()
 		defer cancel()
 
-		userId, ok := ValidateAndGetUserID(c)
-		if !ok {
+		userId, err := auth.GetSessionUserID(c)
+		if err != nil {
 			return
 		}
 
 		shopId, ok := ParseObjectIDParam(c, "shopid")
-		shippingId, ok := ParseObjectIDParam(c, "shippingId")
+		if !ok {
+			return
+		}
 
-		err := s.shopService.VerifyShopOwnership(ctx, userId, shopId)
+		shippingId, ok := ParseObjectIDParam(c, "shippingid")
+		if !ok {
+			return
+		}
+
+		err = s.shopService.VerifyShopOwnership(ctx, userId, shopId)
 		if err != nil {
 			log.Printf("Error you the shop owner: %s\n:", err.Error())
 			util.HandleError(c, http.StatusForbidden, err)
