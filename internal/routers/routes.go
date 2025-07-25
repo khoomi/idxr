@@ -187,6 +187,15 @@ func shopRoutes(api *gin.RouterGroup, serviceContainer *container.ServiceContain
 		secured.GET("/:shopid/verification", verificationController.GetSellerVerificationProfile())
 		secured.POST("/:shopid/compliance", shopController.CreateShopComplianceInformation())
 		secured.GET("/:shopid/compliance", shopController.GetShopComplianceInformation())
+
+		// Shop notification management
+		secured.GET("/:shopid/notifications/settings", shopController.GetShopNotificationSettings())
+		secured.PUT("/:shopid/notifications/settings", shopController.UpdateShopNotificationSettings())
+		secured.GET("/:shopid/notifications", shopController.GetShopNotifications())
+		secured.POST("/:shopid/notifications", shopController.CreateShopNotification())
+		secured.PUT("/:shopid/notifications/:notificationid/read", shopController.MarkShopNotificationAsRead())
+		secured.PUT("/:shopid/notifications/read-all", shopController.MarkAllShopNotificationsAsRead())
+		secured.DELETE("/:shopid/notifications/:notificationid", shopController.DeleteShopNotification())
 	}
 
 	// Shop policies and listings (separate groups for clarity)

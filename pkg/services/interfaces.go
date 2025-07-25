@@ -71,6 +71,23 @@ type ShopService interface {
 
 	// Shop ownership verification (moved from common)
 	VerifyShopOwnership(ctx context.Context, userID, shopID primitive.ObjectID) error
+
+	// Shop notification operations
+	CreateShopNotification(ctx context.Context, shopID primitive.ObjectID, req models.ShopNotificationRequest) (primitive.ObjectID, error)
+	GetShopNotifications(ctx context.Context, shopID primitive.ObjectID, pagination util.PaginationArgs) ([]models.ShopNotification, int64, error)
+	GetUnreadShopNotifications(ctx context.Context, shopID primitive.ObjectID, pagination util.PaginationArgs) ([]models.ShopNotification, int64, error)
+	MarkShopNotificationAsRead(ctx context.Context, shopID, notificationID primitive.ObjectID) error
+	MarkAllShopNotificationsAsRead(ctx context.Context, shopID primitive.ObjectID) error
+	DeleteShopNotification(ctx context.Context, shopID, notificationID primitive.ObjectID) error
+	DeleteExpiredShopNotifications(ctx context.Context, shopID primitive.ObjectID) error
+
+	// Shop notification settings operations
+	CreateShopNotificationSettings(ctx context.Context, shopID primitive.ObjectID) (primitive.ObjectID, error)
+	GetShopNotificationSettings(ctx context.Context, shopID primitive.ObjectID) (*models.ShopNotificationSettings, error)
+	UpdateShopNotificationSettings(ctx context.Context, shopID primitive.ObjectID, req models.UpdateShopNotificationSettingsRequest) error
+
+	// Shop notification email integration
+	SendShopNotificationEmail(ctx context.Context, shopID primitive.ObjectID, emailService EmailService, notificationType models.ShopNotificationType, data map[string]interface{}) error
 }
 
 // ReviewService defines the interface for review-related operations
@@ -135,6 +152,25 @@ type EmailService interface {
 	SendNewIpLoginNotification(email, loginName, IP string, loginTime time.Time) error
 	SendNewShopEmail(email, sellerName, shopName string) error
 	SendNewListingEmail(email, sellerName, listingTitle string) error
+
+	// Shop notification emails
+	SendShopNewOrderNotification(email, shopName, orderID, customerName string, orderTotal float64) error
+	SendShopPaymentConfirmedNotification(email, shopName, orderID string, amount float64) error
+	SendShopPaymentFailedNotification(email, shopName, orderID, reason string) error
+	SendShopOrderCancelledNotification(email, shopName, orderID, customerName string) error
+	SendShopLowStockNotification(email, shopName, productName string, currentStock int, threshold int) error
+	SendShopOutOfStockNotification(email, shopName, productName string) error
+	SendShopInventoryRestockedNotification(email, shopName, productName string, newStock int) error
+	SendShopNewReviewNotification(email, shopName, productName, reviewerName string, rating int) error
+	SendShopCustomerMessageNotification(email, shopName, customerName, subject string) error
+	SendShopReturnRequestNotification(email, shopName, orderID, customerName, reason string) error
+	SendShopSalesSummaryNotification(email, shopName string, period string, totalSales float64, orderCount int) error
+	SendShopRevenueMilestoneNotification(email, shopName string, milestone float64, period string) error
+	SendShopPopularProductNotification(email, shopName, productName string, salesCount int, period string) error
+	SendShopAccountVerificationNotification(email, shopName, status string) error
+	SendShopPolicyUpdateNotification(email, shopName, policyType, summary string) error
+	SendShopSecurityAlertNotification(email, shopName, alertType, details string) error
+	SendShopSubscriptionReminderNotification(email, shopName string, dueDate time.Time, amount float64) error
 }
 
 // UserAddressService defines the interface for user address operations

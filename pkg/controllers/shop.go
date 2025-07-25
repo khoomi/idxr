@@ -1492,3 +1492,253 @@ func (sc *ShopController) GetShopComplianceInformation() gin.HandlerFunc {
 		util.HandleSuccess(c, http.StatusOK, "Shop compliance information created successfully", gin.H{"compliance_information": complianceInformation})
 	}
 }
+
+// GetShopNotificationSettings - GET /api/shops/:shopid/notifications/settings
+func (sc *ShopController) GetShopNotificationSettings() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ctx, cancel := WithTimeout()
+		defer cancel()
+
+		shopId, myId, err := common.MyShopIdAndMyId(c)
+		if err != nil {
+			util.HandleError(c, http.StatusBadRequest, err)
+			return
+		}
+
+		// Verify shop ownership
+		err = sc.shopService.VerifyShopOwnership(ctx, myId, shopId)
+		if err != nil {
+			util.HandleError(c, http.StatusUnauthorized, errors.New("you are not authorized to access this shop's notification settings"))
+			return
+		}
+
+		settings, err := sc.shopService.GetShopNotificationSettings(ctx, shopId)
+		if err != nil {
+			util.HandleError(c, http.StatusInternalServerError, err)
+			return
+		}
+
+		util.HandleSuccess(c, http.StatusOK, "Notification settings retrieved successfully", settings)
+	}
+}
+
+// UpdateShopNotificationSettings - PUT /api/shops/:shopid/notifications/settings
+func (sc *ShopController) UpdateShopNotificationSettings() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ctx, cancel := WithTimeout()
+		defer cancel()
+
+		shopId, myId, err := common.MyShopIdAndMyId(c)
+		if err != nil {
+			util.HandleError(c, http.StatusBadRequest, err)
+			return
+		}
+
+		err = sc.shopService.VerifyShopOwnership(ctx, myId, shopId)
+		if err != nil {
+			util.HandleError(c, http.StatusUnauthorized, errors.New("you are not authorized to update this shop's notification settings"))
+			return
+		}
+
+		var req models.UpdateShopNotificationSettingsRequest
+		if err := c.BindJSON(&req); err != nil {
+			util.HandleError(c, http.StatusBadRequest, err)
+			return
+		}
+
+		err = sc.shopService.UpdateShopNotificationSettings(ctx, shopId, req)
+		if err != nil {
+			util.HandleError(c, http.StatusInternalServerError, err)
+			return
+		}
+
+		internal.PublishCacheMessage(c, internal.CacheInvalidateShopNotificationSettings, shopId.Hex())
+		util.HandleSuccess(c, http.StatusOK, "Notification settings updated successfully", nil)
+	}
+}
+
+// GetShopNotifications - GET /api/shops/:shopid/notifications
+func (sc *ShopController) GetShopNotifications() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ctx, cancel := WithTimeout()
+		defer cancel()
+
+		shopId, myId, err := common.MyShopIdAndMyId(c)
+		if err != nil {
+			util.HandleError(c, http.StatusBadRequest, err)
+			return
+		}
+
+		err = sc.shopService.VerifyShopOwnership(ctx, myId, shopId)
+		if err != nil {
+			util.HandleError(c, http.StatusUnauthorized, errors.New("you are not authorized to access this shop's notifications"))
+			return
+		}
+
+		pagination := common.GetPaginationArgs(c)
+		unreadOnly := c.Query("unread") == "true"
+
+		var notifications []models.ShopNotification
+		var count int64
+
+		if unreadOnly {
+			notifications, count, err = sc.shopService.GetUnreadShopNotifications(ctx, shopId, pagination)
+		} else {
+			notifications, count, err = sc.shopService.GetShopNotifications(ctx, shopId, pagination)
+		}
+
+		if err != nil {
+			util.HandleError(c, http.StatusInternalServerError, err)
+			return
+		}
+
+		util.HandleSuccess(c, http.StatusOK, "Notifications retrieved successfully", gin.H{
+			"notifications": notifications,
+			"total_count":   count,
+			"pagination":    pagination,
+		})
+	}
+}
+
+// CreateShopNotification - POST /api/shops/:shopid/notifications
+func (sc *ShopController) CreateShopNotification() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ctx, cancel := WithTimeout()
+		defer cancel()
+
+		shopId, myId, err := common.MyShopIdAndMyId(c)
+		if err != nil {
+			util.HandleError(c, http.StatusBadRequest, err)
+			return
+		}
+
+		// Verify shop ownership
+		err = sc.shopService.VerifyShopOwnership(ctx, myId, shopId)
+		if err != nil {
+			util.HandleError(c, http.StatusUnauthorized, errors.New("you are not authorized to create notifications for this shop"))
+			return
+		}
+
+		var req models.ShopNotificationRequest
+		if err := c.BindJSON(&req); err != nil {
+			util.HandleError(c, http.StatusBadRequest, err)
+			return
+		}
+
+		if validationErr := common.Validate.Struct(&req); validationErr != nil {
+			util.HandleError(c, http.StatusBadRequest, validationErr)
+			return
+		}
+
+		notificationID, err := sc.shopService.CreateShopNotification(ctx, shopId, req)
+		if err != nil {
+			util.HandleError(c, http.StatusInternalServerError, err)
+			return
+		}
+
+		util.HandleSuccess(c, http.StatusCreated, "Notification created successfully", gin.H{
+			"notification_id": notificationID,
+		})
+	}
+}
+
+// MarkShopNotificationAsRead - PUT /api/shops/:shopid/notifications/:notificationid/read
+func (sc *ShopController) MarkShopNotificationAsRead() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ctx, cancel := WithTimeout()
+		defer cancel()
+
+		shopId, myId, err := common.MyShopIdAndMyId(c)
+		if err != nil {
+			util.HandleError(c, http.StatusBadRequest, err)
+			return
+		}
+
+		notificationIdStr := c.Param("notificationid")
+		notificationId, err := primitive.ObjectIDFromHex(notificationIdStr)
+		if err != nil {
+			util.HandleError(c, http.StatusBadRequest, errors.New("invalid notification ID"))
+			return
+		}
+
+		// Verify shop ownership
+		err = sc.shopService.VerifyShopOwnership(ctx, myId, shopId)
+		if err != nil {
+			util.HandleError(c, http.StatusUnauthorized, errors.New("you are not authorized to modify this shop's notifications"))
+			return
+		}
+
+		err = sc.shopService.MarkShopNotificationAsRead(ctx, shopId, notificationId)
+		if err != nil {
+			util.HandleError(c, http.StatusInternalServerError, err)
+			return
+		}
+
+		util.HandleSuccess(c, http.StatusOK, "Notification marked as read", nil)
+	}
+}
+
+// MarkAllShopNotificationsAsRead - PUT /api/shops/:shopid/notifications/read-all
+func (sc *ShopController) MarkAllShopNotificationsAsRead() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ctx, cancel := WithTimeout()
+		defer cancel()
+
+		shopId, myId, err := common.MyShopIdAndMyId(c)
+		if err != nil {
+			util.HandleError(c, http.StatusBadRequest, err)
+			return
+		}
+
+		// Verify shop ownership
+		err = sc.shopService.VerifyShopOwnership(ctx, myId, shopId)
+		if err != nil {
+			util.HandleError(c, http.StatusUnauthorized, errors.New("you are not authorized to modify this shop's notifications"))
+			return
+		}
+
+		err = sc.shopService.MarkAllShopNotificationsAsRead(ctx, shopId)
+		if err != nil {
+			util.HandleError(c, http.StatusInternalServerError, err)
+			return
+		}
+
+		util.HandleSuccess(c, http.StatusOK, "All notifications marked as read", nil)
+	}
+}
+
+// DeleteShopNotification - DELETE /api/shops/:shopid/notifications/:notificationid
+func (sc *ShopController) DeleteShopNotification() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ctx, cancel := WithTimeout()
+		defer cancel()
+
+		shopId, myId, err := common.MyShopIdAndMyId(c)
+		if err != nil {
+			util.HandleError(c, http.StatusBadRequest, err)
+			return
+		}
+
+		notificationIdStr := c.Param("notificationid")
+		notificationId, err := primitive.ObjectIDFromHex(notificationIdStr)
+		if err != nil {
+			util.HandleError(c, http.StatusBadRequest, errors.New("invalid notification ID"))
+			return
+		}
+
+		// Verify shop ownership
+		err = sc.shopService.VerifyShopOwnership(ctx, myId, shopId)
+		if err != nil {
+			util.HandleError(c, http.StatusUnauthorized, errors.New("you are not authorized to delete this shop's notifications"))
+			return
+		}
+
+		err = sc.shopService.DeleteShopNotification(ctx, shopId, notificationId)
+		if err != nil {
+			util.HandleError(c, http.StatusInternalServerError, err)
+			return
+		}
+
+		util.HandleSuccess(c, http.StatusOK, "Notification deleted successfully", nil)
+	}
+}

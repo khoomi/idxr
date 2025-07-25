@@ -27,13 +27,14 @@ const (
 	CacheInvalidateListingReviews        CacheMessageType = "listing.reviews.invalidate"
 	CacheInvalidateListingFavoriteToggle CacheMessageType = "listing.favorite.toggle"
 
-	CacheInvalidateShop               CacheMessageType = "shop.invalidate"
-	CacheInvalidateShops              CacheMessageType = "shops.invalidate"
-	CacheInvalidateShopAbout          CacheMessageType = "shop.about.invalidate"
-	CacheInvalidateShopPolicy         CacheMessageType = "shop.policy.invalidate"
-	CacheInvalidateShopShipping       CacheMessageType = "shop.shipping.invalidate"
-	CacheInvalidateShopCompliance     CacheMessageType = "shop.compliance.invalidate"
-	CacheInvalidateShopFavoriteToggle CacheMessageType = "shop.favorite.toggle"
+	CacheInvalidateShop                     CacheMessageType = "shop.invalidate"
+	CacheInvalidateShops                    CacheMessageType = "shops.invalidate"
+	CacheInvalidateShopAbout                CacheMessageType = "shop.about.invalidate"
+	CacheInvalidateShopPolicy               CacheMessageType = "shop.policy.invalidate"
+	CacheInvalidateShopShipping             CacheMessageType = "shop.shipping.invalidate"
+	CacheInvalidateShopCompliance           CacheMessageType = "shop.compliance.invalidate"
+	CacheInvalidateShopFavoriteToggle       CacheMessageType = "shop.favorite.toggle"
+	CacheInvalidateShopNotificationSettings CacheMessageType = "shop.notifications.settings"
 
 	CacheInvalidateCart CacheMessageType = "cart.invalidate"
 

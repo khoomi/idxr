@@ -62,7 +62,7 @@ func (sc *ShippingController) CreateShopShippingProfile() gin.HandlerFunc {
 			return
 		}
 
-		util.HandleSuccess(c, http.StatusOK, "document inserted", shippingId)
+		util.HandleSuccess(c, http.StatusOK, "shipping profile created", shippingId)
 	}
 }
 
@@ -147,7 +147,7 @@ func (s *ShippingController) UpdateShippingProfile() gin.HandlerFunc {
 			return
 		}
 
-		util.HandleSuccess(c, http.StatusOK, "document inserted", res)
+		util.HandleSuccess(c, http.StatusOK, "shipping profile updated", res)
 	}
 }
 
@@ -184,7 +184,7 @@ func (s *ShippingController) DeleteShippingProfile() gin.HandlerFunc {
 			return
 		}
 
-		util.HandleSuccess(c, http.StatusOK, "document inserted", res)
+		util.HandleSuccess(c, http.StatusOK, "shipping profile deleted!", res)
 	}
 }
 
@@ -221,6 +221,6 @@ func (s *ShippingController) ChangeDefaultShippingProfile() gin.HandlerFunc {
 			return
 		}
 
-		util.HandleSuccess(c, http.StatusOK, "document inserted", gin.H{})
+		util.HandleSuccess(c, http.StatusOK, "shipping profiles updated!", gin.H{})
 	}
 }

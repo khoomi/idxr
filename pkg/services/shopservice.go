@@ -117,6 +117,12 @@ func (ss *ShopServiceImpl) CreateShop(ctx context.Context, userID primitive.Obje
 		return primitive.NilObjectID, err
 	}
 
+	// Create default notification settings with all notifications enabled
+	_, err = ss.CreateShopNotificationSettings(ctx, shopID)
+	if err != nil {
+		return primitive.NilObjectID, fmt.Errorf("failed to create notification settings: %w", err)
+	}
+
 	// Update user profile shop
 	filter := bson.M{"_id": userID}
 	update := bson.M{"$set": bson.M{"shop_id": shopID, "is_seller": true, "modified_at": now}}
@@ -870,4 +876,431 @@ func (ss *ShopServiceImpl) VerifyShopOwnership(ctx context.Context, userID, shop
 		return err
 	}
 	return nil
+}
+
+// CreateShopNotification creates a new notification for a shop
+func (ss *ShopServiceImpl) CreateShopNotification(ctx context.Context, shopID primitive.ObjectID, req models.ShopNotificationRequest) (primitive.ObjectID, error) {
+	now := time.Now()
+	notificationID := primitive.NewObjectID()
+
+	notification := models.ShopNotification{
+		ID:        notificationID,
+		ShopID:    shopID,
+		Type:      req.Type,
+		Title:     req.Title,
+		Message:   req.Message,
+		Priority:  req.Priority,
+		IsRead:    false,
+		Data:      req.Data,
+		CreatedAt: now,
+		ReadAt:    nil,
+		ExpiresAt: nil,
+	}
+
+	_, err := common.ShopNotificationCollection.InsertOne(ctx, notification)
+	if err != nil {
+		return primitive.NilObjectID, err
+	}
+
+	return notificationID, nil
+}
+
+// GetShopNotifications retrieves all notifications for a shop with pagination
+func (ss *ShopServiceImpl) GetShopNotifications(ctx context.Context, shopID primitive.ObjectID, pagination util.PaginationArgs) ([]models.ShopNotification, int64, error) {
+	filter := bson.M{"shop_id": shopID}
+	options := options.Find().
+		SetLimit(int64(pagination.Limit)).
+		SetSkip(int64(pagination.Skip)).
+		SetSort(bson.D{{Key: "created_at", Value: -1}})
+
+	cursor, err := common.ShopNotificationCollection.Find(ctx, filter, options)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer cursor.Close(ctx)
+
+	var notifications []models.ShopNotification
+	if err = cursor.All(ctx, &notifications); err != nil {
+		return nil, 0, err
+	}
+
+	count, err := common.ShopNotificationCollection.CountDocuments(ctx, filter)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return notifications, count, nil
+}
+
+// GetUnreadShopNotifications retrieves unread notifications for a shop with pagination
+func (ss *ShopServiceImpl) GetUnreadShopNotifications(ctx context.Context, shopID primitive.ObjectID, pagination util.PaginationArgs) ([]models.ShopNotification, int64, error) {
+	filter := bson.M{"shop_id": shopID, "is_read": false}
+	options := options.Find().
+		SetLimit(int64(pagination.Limit)).
+		SetSkip(int64(pagination.Skip)).
+		SetSort(bson.D{{Key: "created_at", Value: -1}})
+
+	cursor, err := common.ShopNotificationCollection.Find(ctx, filter, options)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer cursor.Close(ctx)
+
+	var notifications []models.ShopNotification
+	if err = cursor.All(ctx, &notifications); err != nil {
+		return nil, 0, err
+	}
+
+	count, err := common.ShopNotificationCollection.CountDocuments(ctx, filter)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return notifications, count, nil
+}
+
+// MarkShopNotificationAsRead marks a specific notification as read
+func (ss *ShopServiceImpl) MarkShopNotificationAsRead(ctx context.Context, shopID, notificationID primitive.ObjectID) error {
+	now := time.Now()
+	filter := bson.M{"_id": notificationID, "shop_id": shopID}
+	update := bson.M{"$set": bson.M{"is_read": true, "read_at": now}}
+
+	result, err := common.ShopNotificationCollection.UpdateOne(ctx, filter, update)
+	if err != nil {
+		return err
+	}
+
+	if result.ModifiedCount == 0 {
+		return errors.New("notification not found or already read")
+	}
+
+	return nil
+}
+
+// MarkAllShopNotificationsAsRead marks all notifications for a shop as read
+func (ss *ShopServiceImpl) MarkAllShopNotificationsAsRead(ctx context.Context, shopID primitive.ObjectID) error {
+	now := time.Now()
+	filter := bson.M{"shop_id": shopID, "is_read": false}
+	update := bson.M{"$set": bson.M{"is_read": true, "read_at": now}}
+
+	_, err := common.ShopNotificationCollection.UpdateMany(ctx, filter, update)
+	return err
+}
+
+// DeleteShopNotification deletes a specific notification
+func (ss *ShopServiceImpl) DeleteShopNotification(ctx context.Context, shopID, notificationID primitive.ObjectID) error {
+	filter := bson.M{"_id": notificationID, "shop_id": shopID}
+	result, err := common.ShopNotificationCollection.DeleteOne(ctx, filter)
+	if err != nil {
+		return err
+	}
+
+	if result.DeletedCount == 0 {
+		return errors.New("notification not found")
+	}
+
+	return nil
+}
+
+// DeleteExpiredShopNotifications deletes expired notifications for a shop
+func (ss *ShopServiceImpl) DeleteExpiredShopNotifications(ctx context.Context, shopID primitive.ObjectID) error {
+	now := time.Now()
+	filter := bson.M{
+		"shop_id":    shopID,
+		"expires_at": bson.M{"$lt": now},
+	}
+
+	_, err := common.ShopNotificationCollection.DeleteMany(ctx, filter)
+	return err
+}
+
+// CreateShopNotificationSettings creates default notification settings for a shop
+func (ss *ShopServiceImpl) CreateShopNotificationSettings(ctx context.Context, shopID primitive.ObjectID) (primitive.ObjectID, error) {
+	now := time.Now()
+	settingsID := primitive.NewObjectID()
+
+	settings := models.ShopNotificationSettings{
+		ID:                     settingsID,
+		ShopID:                 shopID,
+		EmailEnabled:           true,
+		SMSEnabled:             false,
+		PushEnabled:            true,
+		OrderNotifications:     true,
+		PaymentNotifications:   true,
+		InventoryNotifications: true,
+		CustomerNotifications:  true,
+		AnalyticsNotifications: false,
+		SystemNotifications:    true,
+		CreatedAt:              now,
+		ModifiedAt:             now,
+	}
+
+	_, err := common.ShopNotificationSettingsCollection.InsertOne(ctx, settings)
+	if err != nil {
+		return primitive.NilObjectID, err
+	}
+
+	return settingsID, nil
+}
+
+// GetShopNotificationSettings retrieves notification settings for a shop
+func (ss *ShopServiceImpl) GetShopNotificationSettings(ctx context.Context, shopID primitive.ObjectID) (*models.ShopNotificationSettings, error) {
+	var settings models.ShopNotificationSettings
+	err := common.ShopNotificationSettingsCollection.FindOne(ctx, bson.M{"shop_id": shopID}).Decode(&settings)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			// Create default settings if none exist
+			settingsID, createErr := ss.CreateShopNotificationSettings(ctx, shopID)
+			if createErr != nil {
+				return nil, createErr
+			}
+			err = common.ShopNotificationSettingsCollection.FindOne(ctx, bson.M{"_id": settingsID}).Decode(&settings)
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			return nil, err
+		}
+	}
+	return &settings, nil
+}
+
+// UpdateShopNotificationSettings updates notification settings for a shop
+func (ss *ShopServiceImpl) UpdateShopNotificationSettings(ctx context.Context, shopID primitive.ObjectID, req models.UpdateShopNotificationSettingsRequest) error {
+	updateData := bson.M{"modified_at": time.Now()}
+
+	if req.EmailEnabled != nil {
+		updateData["email_enabled"] = *req.EmailEnabled
+	}
+	if req.SMSEnabled != nil {
+		updateData["sms_enabled"] = *req.SMSEnabled
+	}
+	if req.PushEnabled != nil {
+		updateData["push_enabled"] = *req.PushEnabled
+	}
+	if req.OrderNotifications != nil {
+		updateData["order_notifications"] = *req.OrderNotifications
+	}
+	if req.PaymentNotifications != nil {
+		updateData["payment_notifications"] = *req.PaymentNotifications
+	}
+	if req.InventoryNotifications != nil {
+		updateData["inventory_notifications"] = *req.InventoryNotifications
+	}
+	if req.CustomerNotifications != nil {
+		updateData["customer_notifications"] = *req.CustomerNotifications
+	}
+	if req.AnalyticsNotifications != nil {
+		updateData["analytics_notifications"] = *req.AnalyticsNotifications
+	}
+	if req.SystemNotifications != nil {
+		updateData["system_notifications"] = *req.SystemNotifications
+	}
+
+	filter := bson.M{"shop_id": shopID}
+	update := bson.M{"$set": updateData}
+	opts := options.Update().SetUpsert(true)
+
+	_, err := common.ShopNotificationSettingsCollection.UpdateOne(ctx, filter, update, opts)
+	return err
+}
+
+// SendShopNotificationEmail sends a shop notification via email if email notifications are enabled
+func (ss *ShopServiceImpl) SendShopNotificationEmail(ctx context.Context, shopID primitive.ObjectID, emailService EmailService, notificationType models.ShopNotificationType, data map[string]any) error {
+	shop, err := ss.GetShop(ctx, shopID.Hex(), false)
+	if err != nil {
+		return fmt.Errorf("failed to get shop details: %w", err)
+	}
+
+	settings, err := ss.GetShopNotificationSettings(ctx, shopID)
+	if err != nil {
+		return fmt.Errorf("failed to get notification settings: %w", err)
+	}
+
+	if !settings.EmailEnabled {
+		return nil
+	}
+
+	switch notificationType {
+	case models.ShopNotificationNewOrder, models.ShopNotificationOrderCancelled:
+		if !settings.OrderNotifications {
+			return nil
+		}
+	case models.ShopNotificationPaymentConfirmed, models.ShopNotificationPaymentFailed:
+		if !settings.PaymentNotifications {
+			return nil
+		}
+	case models.ShopNotificationLowStock, models.ShopNotificationOutOfStock, models.ShopNotificationInventoryRestocked:
+		if !settings.InventoryNotifications {
+			return nil
+		}
+	case models.ShopNotificationNewReview, models.ShopNotificationCustomerMessage, models.ShopNotificationReturnRequest:
+		if !settings.CustomerNotifications {
+			return nil
+		}
+	case models.ShopNotificationSalesSummary, models.ShopNotificationRevenueMilestone, models.ShopNotificationPopularProduct:
+		if !settings.AnalyticsNotifications {
+			return nil
+		}
+	case models.ShopNotificationAccountVerification, models.ShopNotificationPolicyUpdate, models.ShopNotificationSecurityAlert, models.ShopNotificationSubscriptionReminder:
+		if !settings.SystemNotifications {
+			return nil
+		}
+	}
+
+	var user models.User
+	err = common.UserCollection.FindOne(ctx, bson.M{"_id": shop.UserID}).Decode(&user)
+	if err != nil {
+		return fmt.Errorf("failed to get shop owner details: %w", err)
+	}
+
+	// Send appropriate email based on notification type
+	switch notificationType {
+	case models.ShopNotificationNewOrder:
+		orderID := getStringFromData(data, "order_id")
+		customerName := getStringFromData(data, "customer_name")
+		orderTotal := getFloatFromData(data, "order_total")
+		return emailService.SendShopNewOrderNotification(user.PrimaryEmail, shop.Name, orderID, customerName, orderTotal)
+
+	case models.ShopNotificationPaymentConfirmed:
+		orderID := getStringFromData(data, "order_id")
+		amount := getFloatFromData(data, "amount")
+		return emailService.SendShopPaymentConfirmedNotification(user.PrimaryEmail, shop.Name, orderID, amount)
+
+	case models.ShopNotificationPaymentFailed:
+		orderID := getStringFromData(data, "order_id")
+		reason := getStringFromData(data, "reason")
+		return emailService.SendShopPaymentFailedNotification(user.PrimaryEmail, shop.Name, orderID, reason)
+
+	case models.ShopNotificationOrderCancelled:
+		orderID := getStringFromData(data, "order_id")
+		customerName := getStringFromData(data, "customer_name")
+		return emailService.SendShopOrderCancelledNotification(user.PrimaryEmail, shop.Name, orderID, customerName)
+
+	case models.ShopNotificationLowStock:
+		productName := getStringFromData(data, "product_name")
+		currentStock := getIntFromData(data, "current_stock")
+		threshold := getIntFromData(data, "threshold")
+		return emailService.SendShopLowStockNotification(user.PrimaryEmail, shop.Name, productName, currentStock, threshold)
+
+	case models.ShopNotificationOutOfStock:
+		productName := getStringFromData(data, "product_name")
+		return emailService.SendShopOutOfStockNotification(user.PrimaryEmail, shop.Name, productName)
+
+	case models.ShopNotificationInventoryRestocked:
+		productName := getStringFromData(data, "product_name")
+		newStock := getIntFromData(data, "new_stock")
+		return emailService.SendShopInventoryRestockedNotification(user.PrimaryEmail, shop.Name, productName, newStock)
+
+	case models.ShopNotificationNewReview:
+		productName := getStringFromData(data, "product_name")
+		reviewerName := getStringFromData(data, "reviewer_name")
+		rating := getIntFromData(data, "rating")
+		return emailService.SendShopNewReviewNotification(user.PrimaryEmail, shop.Name, productName, reviewerName, rating)
+
+	case models.ShopNotificationCustomerMessage:
+		customerName := getStringFromData(data, "customer_name")
+		subject := getStringFromData(data, "subject")
+		return emailService.SendShopCustomerMessageNotification(user.PrimaryEmail, shop.Name, customerName, subject)
+
+	case models.ShopNotificationReturnRequest:
+		orderID := getStringFromData(data, "order_id")
+		customerName := getStringFromData(data, "customer_name")
+		reason := getStringFromData(data, "reason")
+		return emailService.SendShopReturnRequestNotification(user.PrimaryEmail, shop.Name, orderID, customerName, reason)
+
+	case models.ShopNotificationSalesSummary:
+		period := getStringFromData(data, "period")
+		totalSales := getFloatFromData(data, "total_sales")
+		orderCount := getIntFromData(data, "order_count")
+		return emailService.SendShopSalesSummaryNotification(user.PrimaryEmail, shop.Name, period, totalSales, orderCount)
+
+	case models.ShopNotificationRevenueMilestone:
+		milestone := getFloatFromData(data, "milestone")
+		period := getStringFromData(data, "period")
+		return emailService.SendShopRevenueMilestoneNotification(user.PrimaryEmail, shop.Name, milestone, period)
+
+	case models.ShopNotificationPopularProduct:
+		productName := getStringFromData(data, "product_name")
+		salesCount := getIntFromData(data, "sales_count")
+		period := getStringFromData(data, "period")
+		return emailService.SendShopPopularProductNotification(user.PrimaryEmail, shop.Name, productName, salesCount, period)
+
+	case models.ShopNotificationAccountVerification:
+		status := getStringFromData(data, "status")
+		return emailService.SendShopAccountVerificationNotification(user.PrimaryEmail, shop.Name, status)
+
+	case models.ShopNotificationPolicyUpdate:
+		policyType := getStringFromData(data, "policy_type")
+		summary := getStringFromData(data, "summary")
+		return emailService.SendShopPolicyUpdateNotification(user.PrimaryEmail, shop.Name, policyType, summary)
+
+	case models.ShopNotificationSecurityAlert:
+		alertType := getStringFromData(data, "alert_type")
+		details := getStringFromData(data, "details")
+		return emailService.SendShopSecurityAlertNotification(user.PrimaryEmail, shop.Name, alertType, details)
+
+	case models.ShopNotificationSubscriptionReminder:
+		dueDate := getTimeFromData(data, "due_date")
+		amount := getFloatFromData(data, "amount")
+		return emailService.SendShopSubscriptionReminderNotification(user.PrimaryEmail, shop.Name, dueDate, amount)
+
+	default:
+		return fmt.Errorf("unsupported notification type: %v", notificationType)
+	}
+}
+
+func getStringFromData(data map[string]any, key string) string {
+	if val, ok := data[key]; ok {
+		if str, ok := val.(string); ok {
+			return str
+		}
+	}
+	return ""
+}
+
+func getFloatFromData(data map[string]interface{}, key string) float64 {
+	if val, ok := data[key]; ok {
+		switch v := val.(type) {
+		case float64:
+			return v
+		case float32:
+			return float64(v)
+		case int:
+			return float64(v)
+		case int64:
+			return float64(v)
+		}
+	}
+	return 0.0
+}
+
+func getIntFromData(data map[string]interface{}, key string) int {
+	if val, ok := data[key]; ok {
+		switch v := val.(type) {
+		case int:
+			return v
+		case int64:
+			return int(v)
+		case float64:
+			return int(v)
+		case float32:
+			return int(v)
+		}
+	}
+	return 0
+}
+
+func getTimeFromData(data map[string]interface{}, key string) time.Time {
+	if val, ok := data[key]; ok {
+		if timeVal, ok := val.(time.Time); ok {
+			return timeVal
+		}
+		if timeStr, ok := val.(string); ok {
+			if parsedTime, err := time.Parse(time.RFC3339, timeStr); err == nil {
+				return parsedTime
+			}
+		}
+	}
+	return time.Time{}
 }

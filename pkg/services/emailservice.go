@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"khoomi-api-io/api/pkg/util"
 	"log"
+	"strings"
 	"time"
 )
 
@@ -187,5 +188,569 @@ func (e *emailService) SendNewListingEmail(email, sellerName, listingTitle strin
 		return err
 	}
 	log.Printf("New listing email sent to %v", email)
+	return nil
+}
+
+// SendShopNewOrderNotification sends an email notification when a new order is received
+func (e *emailService) SendShopNewOrderNotification(email, shopName, orderID, customerName string, orderTotal float64) error {
+	mail := util.KhoomiEmailComposer{
+		To:         email,
+		ToName:     shopName,
+		Sender:     e.sender,
+		SenderName: e.senderName,
+		Body: fmt.Sprintf(`<html>
+			<head><style>body{font-family: Arial, sans-serif; font-size:14px;}p{margin-bottom: 10px;}.highlight{font-weight: bold;color: #FF5810;}.amount{font-size: 18px; font-weight: bold; color: #28a745;}</style></head>
+			<body>
+				<p>Dear <span class="highlight">%v</span>,</p>
+				<p>Great news! You have received a new order on Khoomi!</p>
+				<p><strong>Order Details:</strong></p>
+				<p>Order ID: <span class="highlight">%v</span></p>
+				<p>Customer: %v</p>
+				<p>Order Total: <span class="amount">₦%.2f</span></p>
+				<p>Please log in to your seller dashboard to process this order promptly.</p>
+				<p>Best regards,</p>
+				<p>The Khoomi Team</p>
+			</body>
+		</html>`, shopName, orderID, customerName, orderTotal),
+		Subject: fmt.Sprintf("New Order Received - Order #%v", orderID),
+	}
+
+	err := util.SendMail(mail)
+	if err != nil {
+		log.Println("Failed to send new order notification:", err)
+		return err
+	}
+	log.Printf("New order notification sent to %v", email)
+	return nil
+}
+
+// SendShopPaymentConfirmedNotification sends an email when payment is confirmed
+func (e *emailService) SendShopPaymentConfirmedNotification(email, shopName, orderID string, amount float64) error {
+	mail := util.KhoomiEmailComposer{
+		To:         email,
+		ToName:     shopName,
+		Sender:     e.sender,
+		SenderName: e.senderName,
+		Body: fmt.Sprintf(`<html>
+			<head><style>body{font-family: Arial, sans-serif; font-size:14px;}p{margin-bottom: 10px;}.highlight{font-weight: bold;color: #FF5810;}.amount{font-size: 18px; font-weight: bold; color: #28a745;}</style></head>
+			<body>
+				<p>Dear <span class="highlight">%v</span>,</p>
+				<p>Payment has been successfully confirmed for your order!</p>
+				<p><strong>Payment Details:</strong></p>
+				<p>Order ID: <span class="highlight">%v</span></p>
+				<p>Amount Received: <span class="amount">₦%.2f</span></p>
+				<p>You can now proceed with fulfilling this order.</p>
+				<p>Best regards,</p>
+				<p>The Khoomi Team</p>
+			</body>
+		</html>`, shopName, orderID, amount),
+		Subject: fmt.Sprintf("Payment Confirmed - Order #%v", orderID),
+	}
+
+	err := util.SendMail(mail)
+	if err != nil {
+		log.Println("Failed to send payment confirmed notification:", err)
+		return err
+	}
+	log.Printf("Payment confirmed notification sent to %v", email)
+	return nil
+}
+
+// SendShopPaymentFailedNotification sends an email when payment fails
+func (e *emailService) SendShopPaymentFailedNotification(email, shopName, orderID, reason string) error {
+	mail := util.KhoomiEmailComposer{
+		To:         email,
+		ToName:     shopName,
+		Sender:     e.sender,
+		SenderName: e.senderName,
+		Body: fmt.Sprintf(`<html>
+			<head><style>body{font-family: Arial, sans-serif; font-size:14px;}p{margin-bottom: 10px;}.highlight{font-weight: bold;color: #FF5810;}.warning{color: #dc3545; font-weight: bold;}</style></head>
+			<body>
+				<p>Dear <span class="highlight">%v</span>,</p>
+				<p><span class="warning">Payment failed</span> for an order in your shop.</p>
+				<p><strong>Order Details:</strong></p>
+				<p>Order ID: <span class="highlight">%v</span></p>
+				<p>Failure Reason: %v</p>
+				<p>Please check your seller dashboard for more details and follow up if necessary.</p>
+				<p>Best regards,</p>
+				<p>The Khoomi Team</p>
+			</body>
+		</html>`, shopName, orderID, reason),
+		Subject: fmt.Sprintf("Payment Failed - Order #%v", orderID),
+	}
+
+	err := util.SendMail(mail)
+	if err != nil {
+		log.Println("Failed to send payment failed notification:", err)
+		return err
+	}
+	log.Printf("Payment failed notification sent to %v", email)
+	return nil
+}
+
+// SendShopOrderCancelledNotification sends an email when an order is cancelled
+func (e *emailService) SendShopOrderCancelledNotification(email, shopName, orderID, customerName string) error {
+	mail := util.KhoomiEmailComposer{
+		To:         email,
+		ToName:     shopName,
+		Sender:     e.sender,
+		SenderName: e.senderName,
+		Body: fmt.Sprintf(`<html>
+			<head><style>body{font-family: Arial, sans-serif; font-size:14px;}p{margin-bottom: 10px;}.highlight{font-weight: bold;color: #FF5810;}.warning{color: #dc3545;}</style></head>
+			<body>
+				<p>Dear <span class="highlight">%v</span>,</p>
+				<p>An order has been <span class="warning">cancelled</span> in your shop.</p>
+				<p><strong>Order Details:</strong></p>
+				<p>Order ID: <span class="highlight">%v</span></p>
+				<p>Customer: %v</p>
+				<p>Please check your seller dashboard for more details about this cancellation.</p>
+				<p>Best regards,</p>
+				<p>The Khoomi Team</p>
+			</body>
+		</html>`, shopName, orderID, customerName),
+		Subject: fmt.Sprintf("Order Cancelled - Order #%v", orderID),
+	}
+
+	err := util.SendMail(mail)
+	if err != nil {
+		log.Println("Failed to send order cancelled notification:", err)
+		return err
+	}
+	log.Printf("Order cancelled notification sent to %v", email)
+	return nil
+}
+
+// SendShopLowStockNotification sends an email when product stock is low
+func (e *emailService) SendShopLowStockNotification(email, shopName, productName string, currentStock int, threshold int) error {
+	mail := util.KhoomiEmailComposer{
+		To:         email,
+		ToName:     shopName,
+		Sender:     e.sender,
+		SenderName: e.senderName,
+		Body: fmt.Sprintf(`<html>
+			<head><style>body{font-family: Arial, sans-serif; font-size:14px;}p{margin-bottom: 10px;}.highlight{font-weight: bold;color: #FF5810;}.warning{color: #ffc107; font-weight: bold;}</style></head>
+			<body>
+				<p>Dear <span class="highlight">%v</span>,</p>
+				<p><span class="warning">Low stock alert!</span> One of your products is running low on inventory.</p>
+				<p><strong>Product Details:</strong></p>
+				<p>Product: <span class="highlight">%v</span></p>
+				<p>Current Stock: <strong>%d units</strong></p>
+				<p>Threshold: %d units</p>
+				<p>Consider restocking this product to avoid going out of stock.</p>
+				<p>Best regards,</p>
+				<p>The Khoomi Team</p>
+			</body>
+		</html>`, shopName, productName, currentStock, threshold),
+		Subject: fmt.Sprintf("Low Stock Alert - %v", productName),
+	}
+
+	err := util.SendMail(mail)
+	if err != nil {
+		log.Println("Failed to send low stock notification:", err)
+		return err
+	}
+	log.Printf("Low stock notification sent to %v", email)
+	return nil
+}
+
+// SendShopOutOfStockNotification sends an email when a product is out of stock
+func (e *emailService) SendShopOutOfStockNotification(email, shopName, productName string) error {
+	mail := util.KhoomiEmailComposer{
+		To:         email,
+		ToName:     shopName,
+		Sender:     e.sender,
+		SenderName: e.senderName,
+		Body: fmt.Sprintf(`<html>
+			<head><style>body{font-family: Arial, sans-serif; font-size:14px;}p{margin-bottom: 10px;}.highlight{font-weight: bold;color: #FF5810;}.danger{color: #dc3545; font-weight: bold;}</style></head>
+			<body>
+				<p>Dear <span class="highlight">%v</span>,</p>
+				<p><span class="danger">Out of stock alert!</span> One of your products is now completely out of stock.</p>
+				<p><strong>Product Details:</strong></p>
+				<p>Product: <span class="highlight">%v</span></p>
+				<p>Current Stock: <strong>0 units</strong></p>
+				<p>This product is no longer available for purchase. Please restock as soon as possible.</p>
+				<p>Best regards,</p>
+				<p>The Khoomi Team</p>
+			</body>
+		</html>`, shopName, productName),
+		Subject: fmt.Sprintf("Out of Stock Alert - %v", productName),
+	}
+
+	err := util.SendMail(mail)
+	if err != nil {
+		log.Println("Failed to send out of stock notification:", err)
+		return err
+	}
+	log.Printf("Out of stock notification sent to %v", email)
+	return nil
+}
+
+// SendShopInventoryRestockedNotification sends an email when inventory is restocked
+func (e *emailService) SendShopInventoryRestockedNotification(email, shopName, productName string, newStock int) error {
+	mail := util.KhoomiEmailComposer{
+		To:         email,
+		ToName:     shopName,
+		Sender:     e.sender,
+		SenderName: e.senderName,
+		Body: fmt.Sprintf(`<html>
+			<head><style>body{font-family: Arial, sans-serif; font-size:14px;}p{margin-bottom: 10px;}.highlight{font-weight: bold;color: #FF5810;}.success{color: #28a745; font-weight: bold;}</style></head>
+			<body>
+				<p>Dear <span class="highlight">%v</span>,</p>
+				<p><span class="success">Inventory restocked!</span> Your product inventory has been updated.</p>
+				<p><strong>Product Details:</strong></p>
+				<p>Product: <span class="highlight">%v</span></p>
+				<p>New Stock Level: <strong>%d units</strong></p>
+				<p>Your product is now available for purchase again.</p>
+				<p>Best regards,</p>
+				<p>The Khoomi Team</p>
+			</body>
+		</html>`, shopName, productName, newStock),
+		Subject: fmt.Sprintf("Inventory Restocked - %v", productName),
+	}
+
+	err := util.SendMail(mail)
+	if err != nil {
+		log.Println("Failed to send inventory restocked notification:", err)
+		return err
+	}
+	log.Printf("Inventory restocked notification sent to %v", email)
+	return nil
+}
+
+// SendShopNewReviewNotification sends an email when a new review is posted
+func (e *emailService) SendShopNewReviewNotification(email, shopName, productName, reviewerName string, rating int) error {
+	stars := strings.Repeat("⭐", rating)
+	mail := util.KhoomiEmailComposer{
+		To:         email,
+		ToName:     shopName,
+		Sender:     e.sender,
+		SenderName: e.senderName,
+		Body: fmt.Sprintf(`<html>
+			<head><style>body{font-family: Arial, sans-serif; font-size:14px;}p{margin-bottom: 10px;}.highlight{font-weight: bold;color: #FF5810;}.stars{font-size: 16px;}</style></head>
+			<body>
+				<p>Dear <span class="highlight">%v</span>,</p>
+				<p>You have received a new review on one of your products!</p>
+				<p><strong>Review Details:</strong></p>
+				<p>Product: <span class="highlight">%v</span></p>
+				<p>Reviewer: %v</p>
+				<p>Rating: <span class="stars">%v</span> (%d/5)</p>
+				<p>Check your seller dashboard to read the full review and respond if needed.</p>
+				<p>Best regards,</p>
+				<p>The Khoomi Team</p>
+			</body>
+		</html>`, shopName, productName, reviewerName, stars, rating),
+		Subject: fmt.Sprintf("New Review Received - %v", productName),
+	}
+
+	err := util.SendMail(mail)
+	if err != nil {
+		log.Println("Failed to send new review notification:", err)
+		return err
+	}
+	log.Printf("New review notification sent to %v", email)
+	return nil
+}
+
+// SendShopCustomerMessageNotification sends an email when a customer sends a message
+func (e *emailService) SendShopCustomerMessageNotification(email, shopName, customerName, subject string) error {
+	mail := util.KhoomiEmailComposer{
+		To:         email,
+		ToName:     shopName,
+		Sender:     e.sender,
+		SenderName: e.senderName,
+		Body: fmt.Sprintf(`<html>
+			<head><style>body{font-family: Arial, sans-serif; font-size:14px;}p{margin-bottom: 10px;}.highlight{font-weight: bold;color: #FF5810;}</style></head>
+			<body>
+				<p>Dear <span class="highlight">%v</span>,</p>
+				<p>You have received a new message from a customer!</p>
+				<p><strong>Message Details:</strong></p>
+				<p>From: <span class="highlight">%v</span></p>
+				<p>Subject: %v</p>
+				<p>Please log in to your seller dashboard to read and respond to this message.</p>
+				<p>Best regards,</p>
+				<p>The Khoomi Team</p>
+			</body>
+		</html>`, shopName, customerName, subject),
+		Subject: fmt.Sprintf("New Customer Message - %v", subject),
+	}
+
+	err := util.SendMail(mail)
+	if err != nil {
+		log.Println("Failed to send customer message notification:", err)
+		return err
+	}
+	log.Printf("Customer message notification sent to %v", email)
+	return nil
+}
+
+// SendShopReturnRequestNotification sends an email when a return request is made
+func (e *emailService) SendShopReturnRequestNotification(email, shopName, orderID, customerName, reason string) error {
+	mail := util.KhoomiEmailComposer{
+		To:         email,
+		ToName:     shopName,
+		Sender:     e.sender,
+		SenderName: e.senderName,
+		Body: fmt.Sprintf(`<html>
+			<head><style>body{font-family: Arial, sans-serif; font-size:14px;}p{margin-bottom: 10px;}.highlight{font-weight: bold;color: #FF5810;}.warning{color: #ffc107; font-weight: bold;}</style></head>
+			<body>
+				<p>Dear <span class="highlight">%v</span>,</p>
+				<p><span class="warning">Return request received!</span> A customer has requested to return an order.</p>
+				<p><strong>Return Details:</strong></p>
+				<p>Order ID: <span class="highlight">%v</span></p>
+				<p>Customer: %v</p>
+				<p>Reason: %v</p>
+				<p>Please review this return request in your seller dashboard and take appropriate action.</p>
+				<p>Best regards,</p>
+				<p>The Khoomi Team</p>
+			</body>
+		</html>`, shopName, orderID, customerName, reason),
+		Subject: fmt.Sprintf("Return Request - Order #%v", orderID),
+	}
+
+	err := util.SendMail(mail)
+	if err != nil {
+		log.Println("Failed to send return request notification:", err)
+		return err
+	}
+	log.Printf("Return request notification sent to %v", email)
+	return nil
+}
+
+// SendShopSalesSummaryNotification sends periodic sales summary emails
+func (e *emailService) SendShopSalesSummaryNotification(email, shopName string, period string, totalSales float64, orderCount int) error {
+	mail := util.KhoomiEmailComposer{
+		To:         email,
+		ToName:     shopName,
+		Sender:     e.sender,
+		SenderName: e.senderName,
+		Body: fmt.Sprintf(`<html>
+			<head><style>body{font-family: Arial, sans-serif; font-size:14px;}p{margin-bottom: 10px;}.highlight{font-weight: bold;color: #FF5810;}.amount{font-size: 18px; font-weight: bold; color: #28a745;}</style></head>
+			<body>
+				<p>Dear <span class="highlight">%v</span>,</p>
+				<p>Here's your sales summary for the %v:</p>
+				<p><strong>Sales Performance:</strong></p>
+				<p>Total Revenue: <span class="amount">₦%.2f</span></p>
+				<p>Total Orders: <strong>%d orders</strong></p>
+				<p>Keep up the great work! Check your seller dashboard for detailed analytics.</p>
+				<p>Best regards,</p>
+				<p>The Khoomi Team</p>
+			</body>
+		</html>`, shopName, period, totalSales, orderCount),
+		Subject: fmt.Sprintf("Sales Summary - %v", period),
+	}
+
+	err := util.SendMail(mail)
+	if err != nil {
+		log.Println("Failed to send sales summary notification:", err)
+		return err
+	}
+	log.Printf("Sales summary notification sent to %v", email)
+	return nil
+}
+
+// SendShopRevenueMilestoneNotification sends an email when a revenue milestone is reached
+func (e *emailService) SendShopRevenueMilestoneNotification(email, shopName string, milestone float64, period string) error {
+	mail := util.KhoomiEmailComposer{
+		To:         email,
+		ToName:     shopName,
+		Sender:     e.sender,
+		SenderName: e.senderName,
+		Body: fmt.Sprintf(`<html>
+			<head><style>body{font-family: Arial, sans-serif; font-size:14px;}p{margin-bottom: 10px;}.highlight{font-weight: bold;color: #FF5810;}.milestone{font-size: 24px; font-weight: bold; color: #28a745;}</style></head>
+			<body>
+				<p>Dear <span class="highlight">%v</span>,</p>
+				<p>🎉 <strong>Congratulations!</strong> You've reached a new revenue milestone!</p>
+				<p><span class="milestone">₦%.2f</span></p>
+				<p>Achievement Period: %v</p>
+				<p>This is a fantastic achievement! Keep growing your business on Khoomi.</p>
+				<p>Best regards,</p>
+				<p>The Khoomi Team</p>
+			</body>
+		</html>`, shopName, milestone, period),
+		Subject: fmt.Sprintf("🎉 Revenue Milestone Reached - ₦%.2f!", milestone),
+	}
+
+	err := util.SendMail(mail)
+	if err != nil {
+		log.Println("Failed to send revenue milestone notification:", err)
+		return err
+	}
+	log.Printf("Revenue milestone notification sent to %v", email)
+	return nil
+}
+
+// SendShopPopularProductNotification sends an email about trending products
+func (e *emailService) SendShopPopularProductNotification(email, shopName, productName string, salesCount int, period string) error {
+	mail := util.KhoomiEmailComposer{
+		To:         email,
+		ToName:     shopName,
+		Sender:     e.sender,
+		SenderName: e.senderName,
+		Body: fmt.Sprintf(`<html>
+			<head><style>body{font-family: Arial, sans-serif; font-size:14px;}p{margin-bottom: 10px;}.highlight{font-weight: bold;color: #FF5810;}.trend{color: #28a745; font-weight: bold;}</style></head>
+			<body>
+				<p>Dear <span class="highlight">%v</span>,</p>
+				<p><span class="trend">🔥 Trending Product Alert!</span></p>
+				<p>Your product "<span class="highlight">%v</span>" is performing exceptionally well!</p>
+				<p><strong>Performance Stats:</strong></p>
+				<p>Sales in %v: <strong>%d units</strong></p>
+				<p>Consider promoting this product more or creating similar items to capitalize on this trend.</p>
+				<p>Best regards,</p>
+				<p>The Khoomi Team</p>
+			</body>
+		</html>`, shopName, productName, period, salesCount),
+		Subject: fmt.Sprintf("🔥 Trending Product - %v", productName),
+	}
+
+	err := util.SendMail(mail)
+	if err != nil {
+		log.Println("Failed to send popular product notification:", err)
+		return err
+	}
+	log.Printf("Popular product notification sent to %v", email)
+	return nil
+}
+
+// SendShopAccountVerificationNotification sends account verification status updates
+func (e *emailService) SendShopAccountVerificationNotification(email, shopName, status string) error {
+	var statusColor, statusMessage string
+	switch status {
+	case "approved":
+		statusColor = "#28a745"
+		statusMessage = "Your shop has been successfully verified!"
+	case "pending":
+		statusColor = "#ffc107"
+		statusMessage = "Your shop verification is under review."
+	case "rejected":
+		statusColor = "#dc3545"
+		statusMessage = "Your shop verification was not approved."
+	default:
+		statusColor = "#6c757d"
+		statusMessage = "Your shop verification status has been updated."
+	}
+
+	mail := util.KhoomiEmailComposer{
+		To:         email,
+		ToName:     shopName,
+		Sender:     e.sender,
+		SenderName: e.senderName,
+		Body: fmt.Sprintf(`<html>
+			<head><style>body{font-family: Arial, sans-serif; font-size:14px;}p{margin-bottom: 10px;}.highlight{font-weight: bold;color: #FF5810;}.status{color: %v; font-weight: bold;}</style></head>
+			<body>
+				<p>Dear <span class="highlight">%v</span>,</p>
+				<p>Your account verification status has been updated.</p>
+				<p><span class="status">%v</span></p>
+				<p>Status: <strong>%v</strong></p>
+				<p>Check your seller dashboard for more details and next steps.</p>
+				<p>Best regards,</p>
+				<p>The Khoomi Team</p>
+			</body>
+		</html>`, statusColor, shopName, statusMessage, status),
+		Subject: fmt.Sprintf("Account Verification Update - %v", shopName),
+	}
+
+	err := util.SendMail(mail)
+	if err != nil {
+		log.Println("Failed to send account verification notification:", err)
+		return err
+	}
+	log.Printf("Account verification notification sent to %v", email)
+	return nil
+}
+
+// SendShopPolicyUpdateNotification sends notifications about policy changes
+func (e *emailService) SendShopPolicyUpdateNotification(email, shopName, policyType, summary string) error {
+	mail := util.KhoomiEmailComposer{
+		To:         email,
+		ToName:     shopName,
+		Sender:     e.sender,
+		SenderName: e.senderName,
+		Body: fmt.Sprintf(`<html>
+			<head><style>body{font-family: Arial, sans-serif; font-size:14px;}p{margin-bottom: 10px;}.highlight{font-weight: bold;color: #FF5810;}.info{color: #17a2b8; font-weight: bold;}</style></head>
+			<body>
+				<p>Dear <span class="highlight">%v</span>,</p>
+				<p><span class="info">Policy Update Notice</span></p>
+				<p>We have updated our <strong>%v</strong> policy.</p>
+				<p><strong>Summary of Changes:</strong></p>
+				<p>%v</p>
+				<p>Please review the updated policy in your seller dashboard to ensure compliance.</p>
+				<p>Best regards,</p>
+				<p>The Khoomi Team</p>
+			</body>
+		</html>`, shopName, policyType, summary),
+		Subject: fmt.Sprintf("Policy Update - %v", policyType),
+	}
+
+	err := util.SendMail(mail)
+	if err != nil {
+		log.Println("Failed to send policy update notification:", err)
+		return err
+	}
+	log.Printf("Policy update notification sent to %v", email)
+	return nil
+}
+
+// SendShopSecurityAlertNotification sends security-related alerts
+func (e *emailService) SendShopSecurityAlertNotification(email, shopName, alertType, details string) error {
+	mail := util.KhoomiEmailComposer{
+		To:         email,
+		ToName:     shopName,
+		Sender:     e.sender,
+		SenderName: e.senderName,
+		Body: fmt.Sprintf(`<html>
+			<head><style>body{font-family: Arial, sans-serif; font-size:14px;}p{margin-bottom: 10px;}.highlight{font-weight: bold;color: #FF5810;}.alert{color: #dc3545; font-weight: bold;}</style></head>
+			<body>
+				<p>Dear <span class="highlight">%v</span>,</p>
+				<p><span class="alert">🚨 Security Alert</span></p>
+				<p>We detected a security event related to your shop account.</p>
+				<p><strong>Alert Type:</strong> %v</p>
+				<p><strong>Details:</strong> %v</p>
+				<p>If this was not you, please secure your account immediately by changing your password.</p>
+				<p>Best regards,</p>
+				<p>The Khoomi Security Team</p>
+			</body>
+		</html>`, shopName, alertType, details),
+		Subject: fmt.Sprintf("🚨 Security Alert - %v", alertType),
+	}
+
+	err := util.SendMail(mail)
+	if err != nil {
+		log.Println("Failed to send security alert notification:", err)
+		return err
+	}
+	log.Printf("Security alert notification sent to %v", email)
+	return nil
+}
+
+// SendShopSubscriptionReminderNotification sends subscription/fee reminders
+func (e *emailService) SendShopSubscriptionReminderNotification(email, shopName string, dueDate time.Time, amount float64) error {
+	mail := util.KhoomiEmailComposer{
+		To:         email,
+		ToName:     shopName,
+		Sender:     e.sender,
+		SenderName: e.senderName,
+		Body: fmt.Sprintf(`<html>
+			<head><style>body{font-family: Arial, sans-serif; font-size:14px;}p{margin-bottom: 10px;}.highlight{font-weight: bold;color: #FF5810;}.reminder{color: #ffc107; font-weight: bold;}.amount{font-size: 16px; font-weight: bold;}</style></head>
+			<body>
+				<p>Dear <span class="highlight">%v</span>,</p>
+				<p><span class="reminder">💳 Payment Reminder</span></p>
+				<p>Your subscription payment is due soon.</p>
+				<p><strong>Payment Details:</strong></p>
+				<p>Amount Due: <span class="amount">₦%.2f</span></p>
+				<p>Due Date: <strong>%v</strong></p>
+				<p>Please ensure your payment method is up to date to avoid service interruption.</p>
+				<p>Best regards,</p>
+				<p>The Khoomi Team</p>
+			</body>
+		</html>`, shopName, amount, dueDate.Format("January 2, 2006")),
+		Subject: fmt.Sprintf("Payment Reminder - ₦%.2f Due %v", amount, dueDate.Format("Jan 2")),
+	}
+
+	err := util.SendMail(mail)
+	if err != nil {
+		log.Println("Failed to send subscription reminder notification:", err)
+		return err
+	}
+	log.Printf("Subscription reminder notification sent to %v", email)
 	return nil
 }

@@ -140,7 +140,6 @@ func (s *shippingService) DeleteShippingProfile(ctx context.Context, shopId prim
 
 	res, err := common.ShippingProfileCollection.DeleteOne(ctx, bson.M{"_id": shippingId, "shop_id": shopId})
 	if err != nil {
-
 		return 0, err
 	}
 
@@ -152,7 +151,7 @@ func (s *shippingService) DeleteShippingProfile(ctx context.Context, shopId prim
 func (s *shippingService) ChangeDefaultShippingProfile(ctx context.Context, shopId primitive.ObjectID, shippingId primitive.ObjectID) error {
 	callback := func(ctx mongo.SessionContext) (any, error) {
 		// Set all other profile to non-default
-		err := SetOtherRecordsToFalse(ctx, common.ShippingProfileCollection, "shop_id", shopId, shippingId, "is_default_profile")
+		err := SetOtherRecordsToFalse(ctx, common.ShippingProfileCollection, "shop_id", shopId, shippingId, "is_default")
 		if err != nil {
 			return nil, err
 		}
@@ -162,7 +161,7 @@ func (s *shippingService) ChangeDefaultShippingProfile(ctx context.Context, shop
 		result, err := common.ShippingProfileCollection.UpdateOne(
 			ctx,
 			filter,
-			bson.M{"$set": bson.M{"is_default_profile": true}},
+			bson.M{"$set": bson.M{"is_default": true}},
 		)
 		if err != nil {
 			return nil, err
