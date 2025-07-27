@@ -28,12 +28,12 @@ func LoadEnvFor(v string) (x string) {
 // Initialize db connection
 func ConnectDB() (client *mongo.Client) {
 	log.Println("starting MongoDB connection..")
-	client, err := mongo.NewClient(options.Client().ApplyURI(LoadEnvFor("DATABASE_URL")))
+	client, err := mongo.NewClient(options.Client().SetTimeout(2 * 60 * time.Second).ApplyURI(LoadEnvFor("DATABASE_URL")))
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 	err = client.Connect(ctx)
 	if err != nil {

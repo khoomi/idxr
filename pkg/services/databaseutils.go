@@ -19,22 +19,28 @@ type TransactionCallback func(ctx mongo.SessionContext) (any, error)
 // ExecuteTransaction executes a database transaction with proper error handling
 func ExecuteTransaction(ctx context.Context, callback TransactionCallback) (any, error) {
 	wc := writeconcern.New(writeconcern.WMajority())
+	println("start session")
 	txnOptions := options.Transaction().SetWriteConcern(wc)
 	session, err := util.DB.StartSession()
 	if err != nil {
+		println("err session", err)
 		return nil, err
 	}
 	defer session.EndSession(ctx)
 
 	result, err := session.WithTransaction(ctx, callback, txnOptions)
+	println("with transaction session", err)
 	if err != nil {
 		return nil, err
 	}
 
+	println("before commit session")
 	if err := session.CommitTransaction(ctx); err != nil {
+		println("in commit session", err)
 		return nil, err
 	}
 
+	println(result)
 	return result, nil
 }
 
@@ -72,16 +78,16 @@ func CheckRecordLimit(ctx context.Context, collection *mongo.Collection, userFie
 
 // CommonCollectionLimits defines common limits used across services
 const (
-	MaxUserAddresses     = 5
-	MaxPaymentMethods    = 5
-	MaxPaymentCards      = 5
+	MaxUserAddresses  = 5
+	MaxPaymentMethods = 5
+	MaxPaymentCards   = 5
 )
 
 // Common error messages
 const (
-	ErrMaxAddressesReached     = "max allowed addresses reached. please delete other address to accommodate a new one"
-	ErrMaxPaymentInfoReached   = "Max allowed payment information reached. Please delete other payment information to accommodate a new one."
-	ErrMaxPaymentCardsReached  = "Max allowed payment cards reached. Please delete other cards to accommodate a new one."
+	ErrMaxAddressesReached    = "max allowed addresses reached. please delete other address to accommodate a new one"
+	ErrMaxPaymentInfoReached  = "Max allowed payment information reached. Please delete other payment information to accommodate a new one."
+	ErrMaxPaymentCardsReached = "Max allowed payment cards reached. Please delete other cards to accommodate a new one."
 )
 
 // Helper functions for common operations

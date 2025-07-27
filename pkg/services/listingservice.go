@@ -15,6 +15,8 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
+	"go.mongodb.org/mongo-driver/mongo/writeconcern"
 )
 
 type listingService struct{}
@@ -105,10 +107,6 @@ func (s *listingService) GetListingSortingBson(sort string) bson.D {
 		key = "inventory.price"
 	case "rating_desc":
 		key = "rating.rating.positive_reviews"
-	case "category_asc":
-		key = "details.category.categoryPath"
-	case "category_desc":
-		key = "details.category.categoryPath"
 	default:
 		key = "date.created_at"
 	}
@@ -138,10 +136,10 @@ func (s *listingService) GetListingFilters(c *gin.Context) bson.M {
 		}
 	}
 	if category := c.Query("category"); category != "" && category != "All" {
-		match["details.category.categoryName"] = category
+		match["details.category.id"] = category
 	}
 
-	if state := c.Query("state"); state != "" {
+	if state := c.Query("status"); state != "" {
 		match["state.state"] = state
 	}
 
@@ -172,8 +170,8 @@ func (s *listingService) GetListingFilters(c *gin.Context) bson.M {
 		match["details.color"] = color
 	}
 
-	if q := c.Query("q"); q != "" {
-		match["$text"] = bson.M{"$search": q}
+	if search := c.Query("search"); search != "" {
+		match["$text"] = bson.M{"$search": search}
 	}
 
 	if hp := c.Query("has_personalization"); hp == "true" {
@@ -222,89 +220,100 @@ func (s *listingService) DeleteListings(ctx context.Context, userID, shopID prim
 		return result, errors.New("no listing IDs provided")
 	}
 
+	for _, listingID := range listingIDs {
+		cartFilter := bson.M{"listing_id": listingID}
+		common.UserCartCollection.DeleteMany(ctx, cartFilter)
+
+		favoriteFilter := bson.M{"listing_id": listingID}
+		common.UserFavoriteListingCollection.DeleteMany(ctx, favoriteFilter)
+	}
+
 	callback := func(sessionCtx mongo.SessionContext) (any, error) {
 		var deletedCount int64 = 0
 		var totalDeletedReviews int64 = 0
+		var deletedListings []primitive.ObjectID
+		var notDeletedListings []primitive.ObjectID
 
 		for _, listingID := range listingIDs {
-			err := s.VerifyListingOwnership(sessionCtx, userID, listingID)
-			if err != nil {
-				result.NotDeletedListings = append(result.NotDeletedListings, listingID)
-				continue
-			}
-
 			var listing struct {
 				ShopID primitive.ObjectID `bson:"shop_id"`
 			}
-			err = common.ListingCollection.FindOne(sessionCtx, bson.M{"_id": listingID}).Decode(&listing)
+			err := common.ListingCollection.FindOne(sessionCtx, bson.M{"_id": listingID, "user_id": userID}).Decode(&listing)
 			if err != nil {
-				result.NotDeletedListings = append(result.NotDeletedListings, listingID)
-				continue
+				if err == mongo.ErrNoDocuments {
+					notDeletedListings = append(notDeletedListings, listingID)
+					continue
+				}
+				return nil, err
 			}
 
 			if listing.ShopID != shopID {
-				result.NotDeletedListings = append(result.NotDeletedListings, listingID)
+				notDeletedListings = append(notDeletedListings, listingID)
 				continue
 			}
 
 			reviewFilter := bson.M{"listing_id": listingID}
 			deleteReviewsResult, err := common.ListingReviewCollection.DeleteMany(sessionCtx, reviewFilter)
 			if err != nil {
-				result.NotDeletedListings = append(result.NotDeletedListings, listingID)
-				continue
+				return nil, err
 			}
 			totalDeletedReviews += deleteReviewsResult.DeletedCount
 
-			// Delete cart items referencing this listing
-			cartFilter := bson.M{"listing_id": listingID}
-			common.UserCartCollection.DeleteMany(sessionCtx, cartFilter)
-
-			// Delete favorite listings referencing this listing
-			favoriteFilter := bson.M{"listing_id": listingID}
-			common.UserFavoriteListingCollection.DeleteMany(sessionCtx, favoriteFilter)
-
-			// Delete the listing itself
 			deleteResult, err := common.ListingCollection.DeleteOne(sessionCtx, bson.M{"_id": listingID, "user_id": userID})
-			if err != nil || deleteResult.DeletedCount == 0 {
-				result.NotDeletedListings = append(result.NotDeletedListings, listingID)
+			if err != nil {
+				return nil, err
+			}
+			if deleteResult.DeletedCount == 0 {
+				notDeletedListings = append(notDeletedListings, listingID)
 				continue
 			}
 
-			result.DeletedListings = append(result.DeletedListings, listingID)
+			deletedListings = append(deletedListings, listingID)
 			deletedCount++
 		}
-
-		result.DeletedReviews = totalDeletedReviews
 
 		if deletedCount > 0 {
 			shopFilter := bson.M{"_id": shopID}
 			shopUpdate := bson.M{"$inc": bson.M{"listing_active_count": -deletedCount}}
 			updateResult, err := common.ShopCollection.UpdateOne(sessionCtx, shopFilter, shopUpdate)
-			if err == nil && updateResult.ModifiedCount > 0 {
+			if err != nil {
+				return nil, err
+			}
+			if updateResult.ModifiedCount > 0 {
 				result.UpdatedShop = true
 			}
 
 			if totalDeletedReviews > 0 && reviewService != nil {
 				newShopRating, err := reviewService.CalculateShopRating(sessionCtx, shopID)
-				if err == nil {
-					shopRatingUpdate := bson.M{"$set": bson.M{"rating": newShopRating}}
-					common.ShopCollection.UpdateOne(sessionCtx, shopFilter, shopRatingUpdate)
+				if err != nil {
+					return nil, err
+				}
+				shopRatingUpdate := bson.M{"$set": bson.M{"rating": newShopRating}}
+				_, err = common.ShopCollection.UpdateOne(sessionCtx, shopFilter, shopRatingUpdate)
+				if err != nil {
+					return nil, err
 				}
 			}
 		}
 
+		result.DeletedListings = deletedListings
+		result.NotDeletedListings = notDeletedListings
+		result.DeletedReviews = totalDeletedReviews
+
 		return result, nil
 	}
 
+	wc := writeconcern.New(writeconcern.WMajority())
+	txnOptions := options.Transaction().SetWriteConcern(wc)
 	session, err := util.DB.StartSession()
 	if err != nil {
-		return result, err
+		return nil, err
 	}
 	defer session.EndSession(ctx)
 
-	_, err = session.WithTransaction(ctx, callback)
+	_, err = session.WithTransaction(ctx, callback, txnOptions)
 	if err != nil {
-		return result, err
+		return nil, err
 	}
 
 	return result, nil

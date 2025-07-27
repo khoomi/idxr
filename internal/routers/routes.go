@@ -23,7 +23,7 @@ func InitRoute() *gin.Engine {
 		shopRoutes(api, serviceContainer)
 		listingRoutes(api, serviceContainer)
 		cartRoutes(api, serviceContainer)
-		// categoryRoutes(api) // Keep existing
+		categoryRoutes(api)
 	}
 
 	return router
@@ -267,5 +267,22 @@ func cartRoutes(api *gin.RouterGroup, serviceContainer *container.ServiceContain
 
 		// Cart validation
 		secured.GET("/validate", cartController.ValidateCartItems())
+	}
+}
+
+func categoryRoutes(api *gin.RouterGroup) {
+	category := api.Group("/categories")
+	{
+		category.GET("/", controllers.GetAllCategories())
+		category.GET("/search", controllers.SearchCategories())
+		category.GET("/:id/children", controllers.GetCategoryChildren())
+		category.GET("/:id/ancestor", controllers.GetCategoryAncestor())
+
+		secured := category.Group("").Use(auth.Auth())
+		{
+			secured.POST("/", controllers.CreateCategorySingle())
+			secured.POST("/multi", controllers.CreateCategoryMulti())
+			secured.DELETE("/", controllers.DeleteAllCategories())
+		}
 	}
 }
