@@ -311,4 +311,15 @@ type ListingService interface {
 	GenerateListingCode() string
 	GetListingSortingBson(sort string) bson.D
 	GetListingFilters(c *gin.Context) bson.M
+
+	// Listing management operations
+	DeleteListings(ctx context.Context, userID, shopID primitive.ObjectID, listingIDs []primitive.ObjectID, reviewService ReviewService) (*DeleteListingsResult, error)
+}
+
+// DeleteListingsResult represents the result of bulk listing deletion
+type DeleteListingsResult struct {
+	DeletedListings    []primitive.ObjectID `json:"deleted"`
+	NotDeletedListings []primitive.ObjectID `json:"not_deleted"`
+	DeletedReviews     int64                `json:"deleted_reviews"`
+	UpdatedShop        bool                 `json:"updated_shop"`
 }

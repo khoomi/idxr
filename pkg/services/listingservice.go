@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"khoomi-api-io/api/internal/common"
+	"khoomi-api-io/api/pkg/util"
 
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/bson"
@@ -41,7 +42,6 @@ func (s *listingService) VerifyListingOwnership(ctx context.Context, userID, lis
 // GenerateListingBson builds bson.M from listingid param
 func (s *listingService) GenerateListingBson(listingID string) (bson.M, error) {
 	if primitive.IsValidObjectID(listingID) {
-		// If listingid is a valid object ID string
 		listingObjectID, e := primitive.ObjectIDFromHex(listingID)
 		if e != nil {
 			return nil, e
@@ -49,7 +49,7 @@ func (s *listingService) GenerateListingBson(listingID string) (bson.M, error) {
 
 		return bson.M{"_id": listingObjectID}, nil
 	} else {
-		return bson.M{"slug": listingID}, nil
+		return bson.M{"slug": strings.TrimSpace(listingID)}, nil
 	}
 }
 
@@ -207,4 +207,105 @@ func (s *listingService) GetListingFilters(c *gin.Context) bson.M {
 	}
 
 	return match
+}
+
+// DeleteListings deletes multiple listings and handles all related data cleanup
+func (s *listingService) DeleteListings(ctx context.Context, userID, shopID primitive.ObjectID, listingIDs []primitive.ObjectID, reviewService ReviewService) (*DeleteListingsResult, error) {
+	result := &DeleteListingsResult{
+		DeletedListings:    []primitive.ObjectID{},
+		NotDeletedListings: []primitive.ObjectID{},
+		DeletedReviews:     0,
+		UpdatedShop:        false,
+	}
+
+	if len(listingIDs) == 0 {
+		return result, errors.New("no listing IDs provided")
+	}
+
+	callback := func(sessionCtx mongo.SessionContext) (any, error) {
+		var deletedCount int64 = 0
+		var totalDeletedReviews int64 = 0
+
+		for _, listingID := range listingIDs {
+			err := s.VerifyListingOwnership(sessionCtx, userID, listingID)
+			if err != nil {
+				result.NotDeletedListings = append(result.NotDeletedListings, listingID)
+				continue
+			}
+
+			var listing struct {
+				ShopID primitive.ObjectID `bson:"shop_id"`
+			}
+			err = common.ListingCollection.FindOne(sessionCtx, bson.M{"_id": listingID}).Decode(&listing)
+			if err != nil {
+				result.NotDeletedListings = append(result.NotDeletedListings, listingID)
+				continue
+			}
+
+			if listing.ShopID != shopID {
+				result.NotDeletedListings = append(result.NotDeletedListings, listingID)
+				continue
+			}
+
+			reviewFilter := bson.M{"listing_id": listingID}
+			deleteReviewsResult, err := common.ListingReviewCollection.DeleteMany(sessionCtx, reviewFilter)
+			if err != nil {
+				result.NotDeletedListings = append(result.NotDeletedListings, listingID)
+				continue
+			}
+			totalDeletedReviews += deleteReviewsResult.DeletedCount
+
+			// Delete cart items referencing this listing
+			cartFilter := bson.M{"listing_id": listingID}
+			common.UserCartCollection.DeleteMany(sessionCtx, cartFilter)
+
+			// Delete favorite listings referencing this listing
+			favoriteFilter := bson.M{"listing_id": listingID}
+			common.UserFavoriteListingCollection.DeleteMany(sessionCtx, favoriteFilter)
+
+			// Delete the listing itself
+			deleteResult, err := common.ListingCollection.DeleteOne(sessionCtx, bson.M{"_id": listingID, "user_id": userID})
+			if err != nil || deleteResult.DeletedCount == 0 {
+				result.NotDeletedListings = append(result.NotDeletedListings, listingID)
+				continue
+			}
+
+			result.DeletedListings = append(result.DeletedListings, listingID)
+			deletedCount++
+		}
+
+		result.DeletedReviews = totalDeletedReviews
+
+		if deletedCount > 0 {
+			shopFilter := bson.M{"_id": shopID}
+			shopUpdate := bson.M{"$inc": bson.M{"listing_active_count": -deletedCount}}
+			updateResult, err := common.ShopCollection.UpdateOne(sessionCtx, shopFilter, shopUpdate)
+			if err == nil && updateResult.ModifiedCount > 0 {
+				result.UpdatedShop = true
+			}
+
+			if totalDeletedReviews > 0 && reviewService != nil {
+				newShopRating, err := reviewService.CalculateShopRating(sessionCtx, shopID)
+				if err == nil {
+					shopRatingUpdate := bson.M{"$set": bson.M{"rating": newShopRating}}
+					common.ShopCollection.UpdateOne(sessionCtx, shopFilter, shopRatingUpdate)
+				}
+			}
+		}
+
+		return result, nil
+	}
+
+	session, err := util.DB.StartSession()
+	if err != nil {
+		return result, err
+	}
+	defer session.EndSession(ctx)
+
+	_, err = session.WithTransaction(ctx, callback)
+	if err != nil {
+		return result, err
+	}
+
+	return result, nil
 }

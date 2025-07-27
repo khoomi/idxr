@@ -1,12 +1,16 @@
 package models
 
-import "time"
+import (
+	"errors"
+	"fmt"
+	"time"
+)
 
 type ListingStateType string
 
 const (
 	ListingStateActive      ListingStateType = "active"
-	ListingStateRemoved     ListingStateType = "remove"
+	ListingStateRemoved     ListingStateType = "removed"
 	ListingStateSoldOut     ListingStateType = "soldout"
 	ListingStateExpired     ListingStateType = "expired"
 	ListingStateEdit        ListingStateType = "edit"
@@ -15,6 +19,31 @@ const (
 	ListingStateUnavailable ListingStateType = "unavailable"
 	ListingStateDeactivated ListingStateType = "deactivated"
 )
+
+func (ListingStateType) ParseListingStateType(state string) (ListingStateType, error) {
+	switch state {
+	case "active":
+		return ListingStateActive, nil
+	case "removed":
+		return ListingStateRemoved, nil
+	case "soldout":
+		return ListingStateSoldOut, nil
+	case "expired":
+		return ListingStateExpired, nil
+	case "edit":
+		return ListingStateEdit, nil
+	case "private":
+		return ListingStatePrivate, nil
+	case "unavailable":
+		return ListingStateUnavailable, nil
+	case "deactivated":
+		return ListingStateDeactivated, nil
+	}
+
+	err := fmt.Sprintf("Invalid listing state from request: %v", state)
+
+	return ListingStateActive, errors.New(err)
+}
 
 type ListingState struct {
 	StateUpdatedAt time.Time        `bson:"state_updated_at" json:"stateUpdatedAt"`

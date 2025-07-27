@@ -670,80 +670,91 @@ func DeleteListings() gin.HandlerFunc {
 		ctx, cancel := WithTimeout()
 		defer cancel()
 
-		myId, err := auth.ValidateUserID(c)
+		shopId, myId, err := common.MyShopIdAndMyId(c)
 		if err != nil {
-			util.HandleError(c, http.StatusUnauthorized, err)
+			util.HandleError(c, http.StatusBadRequest, err)
 			return
 		}
 
-		listingIDs := c.PostFormArray("ids")
+		listingIDs := c.QueryArray("ids")
 		if len(listingIDs) < 1 {
 			util.HandleError(c, http.StatusBadRequest, errors.New("no listing IDs provided"))
 			return
 		}
 
-		var deletedObjectIDs []primitive.ObjectID
-		var notDeletedObjectIDs []primitive.ObjectID
-
+		var objectIDs []primitive.ObjectID
 		for _, id := range listingIDs {
-			idObjectID, err := primitive.ObjectIDFromHex(id)
+			objectID, err := primitive.ObjectIDFromHex(id)
 			if err != nil {
-				notDeletedObjectIDs = append(notDeletedObjectIDs, idObjectID)
-				continue
+				util.HandleError(c, http.StatusBadRequest, fmt.Errorf("invalid listing ID: %s", id))
+				return
 			}
-
-			_, err = common.ListingCollection.DeleteOne(ctx, bson.M{"_id": idObjectID, "user_id": myId})
-			if err != nil {
-				notDeletedObjectIDs = append(notDeletedObjectIDs, idObjectID)
-				continue
-			}
-
-			deletedObjectIDs = append(deletedObjectIDs, idObjectID)
+			objectIDs = append(objectIDs, objectID)
 		}
 
-		internal.PublishCacheMessage(c, internal.CacheInvalidateListings, "")
-		util.HandleSuccess(c, http.StatusOK, "Listing(s) deleted", gin.H{"deleted": deletedObjectIDs, "not_deleted": notDeletedObjectIDs})
+		listingService := services.NewListingService()
+		reviewService := services.NewReviewService()
+
+		result, err := listingService.DeleteListings(ctx, myId, shopId, objectIDs, reviewService)
+		if err != nil {
+			util.HandleError(c, http.StatusInternalServerError, fmt.Errorf("failed to delete listings: %v", err))
+			return
+		}
+
+		internal.PublishCacheMessage(c, internal.CacheInvalidateListings, shopId.Hex())
+
+		message := fmt.Sprintf("Deleted %d listings with %d reviews", len(result.DeletedListings), result.DeletedReviews)
+		if len(result.NotDeletedListings) > 0 {
+			message += fmt.Sprintf(", %d failed to delete", len(result.NotDeletedListings))
+		}
+
+		util.HandleSuccess(c, http.StatusOK, message, result)
 	}
 }
 
-func DeactivateListings() gin.HandlerFunc {
+func ChangeListingState() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		now := time.Now()
 		ctx, cancel := WithTimeout()
 		defer cancel()
 
-		session, err := auth.GetSessionAuto(c)
+		shopId, myId, err := common.MyShopIdAndMyId(c)
 		if err != nil {
-			util.HandleError(c, http.StatusUnauthorized, err)
+			util.HandleError(c, http.StatusBadRequest, err)
 			return
 		}
-		listingIDs := c.PostFormArray("id")
+
+		listingIDs := c.QueryArray("ids")
 		if len(listingIDs) < 1 {
 			util.HandleError(c, http.StatusBadRequest, errors.New("no listing IDs provided"))
 			return
 		}
+		log.Println(listingIDs)
 
-		var deletedObjectIDs []primitive.ObjectID
-		var notDeletedObjectIDs []primitive.ObjectID
+		newStatus := models.ListingStateType(c.Query("status"))
+		// newStatus := models.ListingStateType.ParseListingStateType()
+
+		var updateIDs []primitive.ObjectID
+		var notUpdateIDs []primitive.ObjectID
 
 		for _, id := range listingIDs {
 			idObjectID, err := primitive.ObjectIDFromHex(id)
 			if err != nil {
-				notDeletedObjectIDs = append(notDeletedObjectIDs, idObjectID)
+				notUpdateIDs = append(notUpdateIDs, idObjectID)
 				continue
 			}
 
-			_, err = common.ListingCollection.UpdateOne(ctx, bson.M{"_id": idObjectID, "user_id": session.UserId}, bson.M{"$set": bson.M{"state.state": models.ListingStateDeactivated, "state.state_updated_at": now, "date.modified_at": now}})
+			_, err = common.ListingCollection.UpdateOne(ctx, bson.M{"_id": idObjectID, "user_id": myId}, bson.M{"$set": bson.M{"state.state": newStatus, "state.state_updated_at": now, "date.modified_at": now}})
 			if err != nil {
-				notDeletedObjectIDs = append(notDeletedObjectIDs, idObjectID)
+				notUpdateIDs = append(notUpdateIDs, idObjectID)
 				continue
 			}
 
-			deletedObjectIDs = append(deletedObjectIDs, idObjectID)
+			updateIDs = append(updateIDs, idObjectID)
 		}
 
-		internal.PublishCacheMessage(c, internal.CacheInvalidateListings, "")
+		internal.PublishCacheMessage(c, internal.CacheInvalidateListings, shopId.Hex())
 
-		util.HandleSuccess(c, http.StatusOK, "Listing(s) deleted", gin.H{"deactivated": deletedObjectIDs, "not_deactivated": notDeletedObjectIDs})
+		util.HandleSuccess(c, http.StatusOK, "Listing(s) state update", gin.H{"updated": updateIDs, "not_updated": updateIDs})
 	}
 }

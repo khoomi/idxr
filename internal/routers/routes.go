@@ -196,6 +196,10 @@ func shopRoutes(api *gin.RouterGroup, serviceContainer *container.ServiceContain
 		secured.PUT("/:shopid/notifications/:notificationid/read", shopController.MarkShopNotificationAsRead())
 		secured.PUT("/:shopid/notifications/read-all", shopController.MarkAllShopNotificationsAsRead())
 		secured.DELETE("/:shopid/notifications/:notificationid", shopController.DeleteShopNotification())
+
+		// Shop Listing management
+		secured.DELETE("/:shopid/listings/delete", controllers.DeleteListings())
+		secured.PUT("/:shopid/listings/status", controllers.ChangeListingState())
 	}
 
 	// Shop policies and listings (separate groups for clarity)
@@ -242,7 +246,6 @@ func listingRoutes(api *gin.RouterGroup, serviceContainer *container.ServiceCont
 	{
 		secured := listing.Group("/:listingid").Use(auth.Auth())
 		secured.DELETE("/", controllers.DeleteListings())
-		secured.PUT("/deactivate", controllers.DeactivateListings())
 	}
 }
 

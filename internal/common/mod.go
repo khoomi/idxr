@@ -43,20 +43,20 @@ var (
 	UserFavoriteListingCollection      = util.GetCollection(util.DB, "UserFavoriteListing")
 	UserFavoriteShopCollection         = util.GetCollection(util.DB, "UserFavoriteShop")
 
-	ShopFollowerCollection              = util.GetCollection(util.DB, "ShopFollower")
-	ShopReturnPolicyCollection          = util.GetCollection(util.DB, "ShopReturnPolicies")
-	ShopCompliancePolicyCollection      = util.GetCollection(util.DB, "ShopCompliancePolicy")
-	ShopNotificationCollection          = util.GetCollection(util.DB, "ShopNotification")
-	ShopNotificationSettingsCollection  = util.GetCollection(util.DB, "ShopNotificationSettings")
-	ShippingProfileCollection           = util.GetCollection(util.DB, "ShopShippingProfile")
-	SellerVerificationCollection        = util.GetCollection(util.DB, "SellerVerification")
-	ListingCollection                   = util.GetCollection(util.DB, "Listing")
-	ListingReviewCollection             = util.GetCollection(util.DB, "ListingReview")
-	Validate                            = validator.New()
+	ShopFollowerCollection             = util.GetCollection(util.DB, "ShopFollower")
+	ShopReturnPolicyCollection         = util.GetCollection(util.DB, "ShopReturnPolicies")
+	ShopCompliancePolicyCollection     = util.GetCollection(util.DB, "ShopCompliancePolicy")
+	ShopNotificationCollection         = util.GetCollection(util.DB, "ShopNotification")
+	ShopNotificationSettingsCollection = util.GetCollection(util.DB, "ShopNotificationSettings")
+	ShippingProfileCollection          = util.GetCollection(util.DB, "ShopShippingProfile")
+	SellerVerificationCollection       = util.GetCollection(util.DB, "SellerVerification")
+	ListingCollection                  = util.GetCollection(util.DB, "Listing")
+	ListingReviewCollection            = util.GetCollection(util.DB, "ListingReview")
+	Validate                           = validator.New()
 )
 
 const (
-	REQUEST_TIMEOUT_SECS               = 60 * time.Second
+	REQUEST_TIMEOUT_SECS               = 5 * 60 * time.Second
 	MONGO_DUPLICATE_KEY_CODE           = 11000
 	VERIFICATION_EMAIL_EXPIRATION_TIME = 1 * time.Hour
 	CART_ITEM_EXPIRATION_TIME          = 7 * 24 * time.Hour
