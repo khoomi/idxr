@@ -27,14 +27,10 @@ func CreateCategorySingle() gin.HandlerFunc {
 		defer cancel()
 
 		var categoryJson models.Category
-
-		// Bind and validate the request body
 		if err := c.ShouldBindJSON(&categoryJson); err != nil {
 			util.HandleError(c, http.StatusUnprocessableEntity, err)
 			return
 		}
-
-		// Validate the request body
 		if validationErr := common.Validate.Struct(&categoryJson); validationErr != nil {
 			util.HandleError(c, http.StatusUnprocessableEntity, validationErr)
 			return

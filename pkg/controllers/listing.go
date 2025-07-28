@@ -224,7 +224,6 @@ func CreateListingWithEmailService(emailService services.EmailService) gin.Handl
 			Variations:           newListing.Variations,
 			Inventory:            listingInventory,
 			Rating:               listingRating,
-			Measurements:         newListing.Measurements,
 			FinancialInformation: listingFinancialInformation,
 			Views:                0,
 			FavorersCount:        0,

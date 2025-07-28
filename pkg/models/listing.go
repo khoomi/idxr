@@ -15,7 +15,6 @@ type Listing struct {
 	Images               []string             `bson:"images" json:"images"`
 	Variations           []Variation          `bson:"variations" json:"variations"`
 	Details              Details              `bson:"details" json:"details"`
-	Measurements         Measurement          `bson:"measurements" json:"measurements"`
 	Inventory            Inventory            `bson:"inventory" json:"inventory"`
 	FinancialInformation FinancialInformation `bson:"financial_information" json:"financialInformation"`
 	Rating               Rating               `bson:"rating" json:"rating"`
@@ -137,7 +136,6 @@ type ListingExtra struct {
 	Images               []string                  `bson:"images" json:"images"`
 	Variations           []Variation               `bson:"variations" json:"variations"`
 	Details              Details                   `bson:"details" json:"details"`
-	Measurements         Measurement               `bson:"measurements" json:"measurements"`
 	Inventory            Inventory                 `bson:"inventory" json:"inventory"`
 	FinancialInformation FinancialInformation      `bson:"financial_information" json:"financialInformation"`
 	Rating               Rating                    `bson:"rating" json:"rating"`
@@ -175,10 +173,9 @@ type ListingShopExcept struct {
 }
 
 type NewListing struct {
-	Details      NewListingDetails `json:"details"`
-	Measurements Measurement       `json:"measurements"`
-	Variations   []Variation       `json:"variations"`
-	Inventory    Inventory         `json:"inventory" validate:"required"`
+	Details    NewListingDetails `json:"details"`
+	Variations []Variation       `json:"variations"`
+	Inventory  Inventory         `json:"inventory" validate:"required"`
 }
 
 type NewListingDetails struct {

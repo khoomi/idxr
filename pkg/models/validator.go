@@ -6,7 +6,6 @@ import (
 	"log"
 )
 
-// Validate if submitted listing is a dynamic type.
 func IsValidDynamicType(dt DynamicType) bool {
 	switch dt {
 	case FurnitureType,
