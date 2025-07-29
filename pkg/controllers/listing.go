@@ -231,7 +231,6 @@ func CreateListingWithEmailService(emailService services.EmailService) gin.Handl
 
 		res, err := common.ListingCollection.InsertOne(ctx, listing)
 		if err != nil {
-			// Cleanup uploaded images on listing creation failure
 			if mainImageUploadUrl.PublicID != "" {
 				if _, destroyErr := util.DestroyMedia(mainImageUploadUrl.PublicID); destroyErr != nil {
 					log.Printf("Failed to cleanup main image %s: %v", mainImageUploadUrl.PublicID, destroyErr)
@@ -243,7 +242,6 @@ func CreateListingWithEmailService(emailService services.EmailService) gin.Handl
 				}
 			}
 
-			// Return specific error based on MongoDB error type
 			if mongo.IsDuplicateKeyError(err) {
 				util.HandleError(c, http.StatusConflict, errors.New("listing with similar data already exists"))
 			} else {
@@ -252,7 +250,6 @@ func CreateListingWithEmailService(emailService services.EmailService) gin.Handl
 			return
 		}
 
-		// update shop listing active count
 		filter := bson.M{"_id": shopId}
 		update := bson.M{"$inc": bson.M{"listing_active_count": 1}}
 		updateResult, err := common.ShopCollection.UpdateOne(ctx, filter, update)
@@ -266,7 +263,6 @@ func CreateListingWithEmailService(emailService services.EmailService) gin.Handl
 			emailService = services.NewEmailService()
 		}
 
-		// send new listing email notification to user
 		emailService.SendNewListingEmail(loginEmail, loginName, newListing.Details.Title)
 
 		internal.PublishCacheMessage(c, internal.CacheInvalidateShopListings, shopId.Hex())

@@ -74,7 +74,7 @@ type ShippingProfileForListing struct {
 	SecondaryPrice           float64            `bson:"secondary_price" json:"secondaryPrice"`
 	HandlingFee              float64            `bson:"handling_fee" json:"handlingFee"`
 	PrimaryPrice             float64            `bson:"primary_price" json:"primaryPrice"`
-	OriginPostalCode         int                `bson:"origin_postal_code" json:"originPostalCode"`
+	OriginPostalCode         string             `bson:"origin_postal_code" json:"originPostalCode"`
 	MaxDeliveryDays          int                `bson:"max_delivery_days" json:"maxDeliveryDays"`
 	MinDeliveryDays          int                `bson:"min_delivery_days" json:"minDeliveryDays"`
 	IsDefaultShippingProfile bool               `bson:"is_default_profile" json:"isDefault"`
