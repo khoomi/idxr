@@ -223,7 +223,7 @@ func setupShopPoliciesRoutes(shop *gin.RouterGroup, serviceContainer *container.
 func setupShopListingsRoutes(shop *gin.RouterGroup, emailService services.EmailService) {
 	secured := shop.Group("").Use(auth.Auth())
 
-	secured.POST("/:shopid/listings", controllers.CreateListingWithEmailService(emailService))
+	secured.POST("/:shopid/listings", controllers.CreateListing(emailService))
 	secured.GET("/:shopid/listings/summary", controllers.GetMyListingsSummary())
 	secured.GET("/:shopid/check-listing-onboarding", controllers.HasUserCreatedListingOnboarding())
 }

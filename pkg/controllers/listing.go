@@ -39,11 +39,7 @@ func InitListingController(listingService services.ListingService, shopService s
 	}
 }
 
-func CreateListing() gin.HandlerFunc {
-	return CreateListingWithEmailService(nil)
-}
-
-func CreateListingWithEmailService(emailService services.EmailService) gin.HandlerFunc {
+func CreateListing(emailService services.EmailService) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ctx, cancel := WithTimeout()
 		defer cancel()
@@ -108,18 +104,12 @@ func CreateListingWithEmailService(emailService services.EmailService) gin.Handl
 			mainImageUploadUrl.SecureURL = common.DEFAULT_THUMBNAIL
 		}
 
-		if err := c.Request.ParseMultipartForm(10 << 20); err != nil {
-			util.HandleError(c, http.StatusBadRequest, err)
-			return
-		}
-
 		uploadedImagesUrl, uploadedImagesResult, err := common.HandleSequentialImages(c)
 		if err != nil {
 			util.HandleError(c, http.StatusInternalServerError, err)
 			return
 		}
 
-		// Verify shipping id, if null, find default shipping profile from db and use for listing.
 		var shippingId primitive.ObjectID
 		shippingObj, err := primitive.ObjectIDFromHex(newListing.Details.ShippingProfileId)
 		if err != nil {
@@ -127,10 +117,8 @@ func CreateListingWithEmailService(emailService services.EmailService) gin.Handl
 			err := common.ShippingProfileCollection.FindOne(ctx, bson.M{"shop_id": shopId, "is_default_profile": true}).Decode(&shipping)
 			if err != nil {
 				if err == mongo.ErrNoDocuments {
-					// No default shipping profile found, set to nil
 					shippingId = primitive.NilObjectID
 				} else {
-					// Database error, return early
 					util.HandleError(c, http.StatusInternalServerError, fmt.Errorf("failed to fetch default shipping profile: %v", err))
 					return
 				}

@@ -31,7 +31,7 @@ type Shop struct {
 	Rating                 Rating               `bson:"rating" json:"rating"`
 	ReviewsCount           int                  `bson:"reviews_count" json:"reviewsCount"`
 	FinancialInformation   FinancialInformation `bson:"financial_information" json:"financialInformation"`
-	ListingActiveCount     int                  `bson:"listing_active_count" json:"listingActiveCount" validate:"required"`
+	ListingActiveCount     int64                `bson:"listing_active_count" json:"listingActiveCount" validate:"required"`
 	FollowerCount          int                  `bson:"follower_count" json:"followerCount" validate:"required"`
 	ID                     primitive.ObjectID   `bson:"_id" json:"_id" validate:"required"`
 	UserID                 primitive.ObjectID   `bson:"user_id" json:"userId"`
@@ -57,7 +57,7 @@ type ShopExcerpt struct {
 	BannerURL          string             `bson:"banner_url"            json:"bannerUrl"`
 	Status             ShopStatus         `bson:"status"                json:"status"`
 	CreatedAt          time.Time          `bson:"created_at"            json:"createdAt"`
-	ListingActiveCount int                `bson:"listing_active_count"  json:"listingActiveCount"`
+	ListingActiveCount int64              `bson:"listing_active_count"  json:"listingActiveCount"`
 	FollowerCount      int                `bson:"follower_count"        json:"followerCount"`
 	Rating             Rating             `bson:"rating"                json:"rating"`
 	ReviewsCount       int                `bson:"reviews_count"         json:"reviewsCount"`

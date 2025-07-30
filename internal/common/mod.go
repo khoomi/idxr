@@ -7,6 +7,7 @@ import (
 	"log"
 	"math/big"
 	"math/rand"
+	"mime/multipart"
 	"net/http"
 	"net/url"
 	"path/filepath"
@@ -220,6 +221,7 @@ func parseWeightUnit(unit string) models.WeightUnit {
 	}
 }
 
+// HandleSequentialImages handles image array from formdata
 func HandleSequentialImages(c *gin.Context) ([]string, []uploader.UploadResult, error) {
 	var (
 		uploadedImagesUrl    []string
@@ -229,20 +231,26 @@ func HandleSequentialImages(c *gin.Context) ([]string, []uploader.UploadResult, 
 		errs                 []error
 	)
 
-	for i := 1; i <= IMAGE_COUNT; i++ {
+	if err := c.Request.ParseMultipartForm(MAX_FILE_SIZE); err != nil {
+		return nil, nil, fmt.Errorf("failed to parse multipart form: %w", err)
+	}
+
+	files := c.Request.MultipartForm.File["images"]
+
+	if len(files) > IMAGE_COUNT {
+		files = files[:IMAGE_COUNT]
+	}
+
+	for i, fileHeader := range files {
 		wg.Add(1)
-		go func(imageNum int) {
+		go func(index int, fh *multipart.FileHeader) {
 			defer wg.Done()
 
-			// Get file from form
-			fileField := fmt.Sprintf("image%d", imageNum)
-			file, _, err := c.Request.FormFile(fileField)
+			file, err := fh.Open()
 			if err != nil {
-				if err != http.ErrMissingFile {
-					mu.Lock()
-					errs = append(errs, fmt.Errorf("error getting %s: %w", fileField, err))
-					mu.Unlock()
-				}
+				mu.Lock()
+				errs = append(errs, fmt.Errorf("error opening file %d: %w", index, err))
+				mu.Unlock()
 				return
 			}
 			defer file.Close()
@@ -250,7 +258,7 @@ func HandleSequentialImages(c *gin.Context) ([]string, []uploader.UploadResult, 
 			imageUpload, err := util.FileUpload(models.File{File: file})
 			if err != nil {
 				mu.Lock()
-				errs = append(errs, fmt.Errorf("failed to upload %s: %w", fileField, err))
+				errs = append(errs, fmt.Errorf("failed to upload image %d: %w", index, err))
 				mu.Unlock()
 				return
 			}
@@ -259,29 +267,17 @@ func HandleSequentialImages(c *gin.Context) ([]string, []uploader.UploadResult, 
 			uploadedImagesUrl = append(uploadedImagesUrl, imageUpload.SecureURL)
 			uploadedImagesResult = append(uploadedImagesResult, imageUpload)
 			mu.Unlock()
-		}(i)
+		}(i, fileHeader)
 	}
 
-	// Wait for all uploads to complete
 	wg.Wait()
 
-	// Check if any errors occurred
 	if len(errs) > 0 {
-		// Combine error messages
 		errMsg := "Failed to upload some images:"
 		for _, err := range errs {
 			errMsg += "\n" + err.Error()
 		}
 		return uploadedImagesUrl, uploadedImagesResult, errors.New(errMsg)
-	}
-
-	// If no images were uploaded, use default thumbnail
-	if len(uploadedImagesUrl) == 0 {
-		tempImage := uploader.UploadResult{
-			SecureURL: DEFAULT_THUMBNAIL,
-		}
-		uploadedImagesUrl = append(uploadedImagesUrl, DEFAULT_THUMBNAIL)
-		uploadedImagesResult = append(uploadedImagesResult, tempImage)
 	}
 
 	return uploadedImagesUrl, uploadedImagesResult, nil
