@@ -312,8 +312,60 @@ type ListingService interface {
 	GetListingSortingBson(sort string) bson.D
 	GetListingFilters(c *gin.Context) bson.M
 
+	// Listing CRUD operations
+	CreateListing(ctx context.Context, req CreateListingRequest) (primitive.ObjectID, error)
+	UpdateListing(ctx context.Context, req UpdateListingRequest) error
+	GetListing(ctx context.Context, listingID string) (*models.ListingExtra, error)
+	GetListings(ctx context.Context, pagination util.PaginationArgs, filters bson.M, sort bson.D) ([]models.ListingExtra, int64, error)
+	GetMyListingsSummary(ctx context.Context, shopID, userID primitive.ObjectID, pagination util.PaginationArgs, sort bson.D) ([]models.ListingsSummary, int64, error)
+	GetShopListings(ctx context.Context, shopID primitive.ObjectID, pagination util.PaginationArgs, filters bson.M, sort bson.D) ([]models.Listing, int64, error)
+	UpdateListingState(ctx context.Context, userID primitive.ObjectID, listingIDs []string, newState models.ListingStateType) (*UpdateListingStateResult, error)
+	HasUserCreatedListing(ctx context.Context, userID primitive.ObjectID) (bool, error)
+
 	// Listing management operations
 	DeleteListings(ctx context.Context, userID, shopID primitive.ObjectID, listingIDs []primitive.ObjectID, reviewService ReviewService) (*DeleteListingsResult, error)
+}
+
+// CreateListingRequest represents the request to create a new listing
+type CreateListingRequest struct {
+	UserID            primitive.ObjectID
+	ShopID            primitive.ObjectID
+	LoginName         string
+	LoginEmail        string
+	NewListing        models.NewListing
+	MainImageURL      string
+	ImagesURLs        []string
+	ImagesResults     []any // Store upload results for cleanup
+	MainImageResult   any   // Store main image upload result for cleanup
+}
+
+// UpdateListingRequest represents the request to update an existing listing
+type UpdateListingRequest struct {
+	ListingID        primitive.ObjectID
+	UserID           primitive.ObjectID
+	ShopID           primitive.ObjectID
+	
+	// Listing data updates - only changed fields
+	UpdatedListing   models.UpdateListing
+	
+	// Main image handling
+	NewMainImageURL  *string  // New main image URL if uploaded
+	KeepMainImage    bool     // Whether to keep existing main image
+	
+	// Image array handling
+	ImagesToAdd      []string // New image URLs to add
+	ImagesToRemove   []string // Existing URLs to remove
+	ImageOrder       []string // Optional: new order for all images
+	
+	// Upload results for cleanup on error
+	MainImageResult  any      // New main image upload result
+	NewImageResults  []any    // New images upload results
+}
+
+// UpdateListingStateResult represents the result of bulk listing state update
+type UpdateListingStateResult struct {
+	UpdatedListings    []primitive.ObjectID `json:"updated"`
+	NotUpdatedListings []primitive.ObjectID `json:"not_updated"`
 }
 
 // DeleteListingsResult represents the result of bulk listing deletion

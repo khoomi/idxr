@@ -3,6 +3,8 @@ package models
 import (
 	"time"
 
+	"khoomi-api-io/api/internal/common"
+
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
@@ -178,6 +180,12 @@ type NewListing struct {
 	Inventory  Inventory         `json:"inventory" validate:"required"`
 }
 
+type UpdateListing struct {
+	Details    *UpdateListingDetails `json:"details,omitempty"`
+	Variations []Variation           `json:"variations,omitempty"`
+	Inventory  *UpdateInventory      `json:"inventory,omitempty"`
+}
+
 type NewListingDetails struct {
 	Dynamic            map[string]any  `json:"dynamic"`
 	DynamicType        DynamicType     `json:"dynamicType"`
@@ -203,4 +211,89 @@ type NewListingDetails struct {
 	GiftsAndOccasionsData     *GiftsAndOccasions     `json:"-" bson:"gifts_and_occasions_data,omitempty"`
 	ArtAndCollectiblesData    *ArtAndCollectibles    `json:"-" bson:"art_and_collectibles_data,omitempty"`
 	HomeAndLivingData         *HomeAndLiving         `json:"-" bson:"home_and_living_data,omitempty"`
+}
+
+// UpdateListingDetails represents partial updates to listing details
+type UpdateListingDetails struct {
+	Dynamic            map[string]any   `json:"dynamic,omitempty"`
+	DynamicType        *DynamicType     `json:"dynamicType,omitempty"`
+	Category           *Category        `json:"category,omitempty"`
+	Condition          *string          `json:"condition,omitempty" validate:"omitempty,oneof=new used refurbished"`
+	Title              *string          `json:"title,omitempty" validate:"omitempty,min=10,max=50"`
+	WhenMade           *string          `json:"whenMade,omitempty"`
+	Type               *string          `json:"type,omitempty"`
+	Sustainability     *string          `json:"sustainability,omitempty"`
+	WhoMade            *string          `json:"whoMade,omitempty" validate:"omitempty,oneof=i_did collective someone_else"`
+	ShippingProfileId  *string          `json:"shippingProfileId,omitempty"`
+	OtherColor         *string          `json:"otherColor,omitempty"`
+	Color              *string          `json:"color,omitempty"`
+	Description        *string          `json:"description,omitempty" validate:"omitempty,min=50,max=500"`
+	Tags               []string         `json:"tags,omitempty"`
+	Keywords           []string         `json:"keywords,omitempty"`
+	HasPersonalization *bool            `json:"hasPersonalization,omitempty"`
+	Personalization    *Personalization `json:"personalization,omitempty"`
+
+	// Dynamic category data
+	AceessoriesAndJewelryData *AceessoriesAndJewelry `json:"-" bson:"accessories_and_jewelry_data,omitempty"`
+	ClothingData              *Clothing              `json:"-" bson:"clothing_data,omitempty"`
+	FurnitureData             *Furniture             `json:"-" bson:"furniture_data,omitempty"`
+	GiftsAndOccasionsData     *GiftsAndOccasions     `json:"-" bson:"gifts_and_occasions_data,omitempty"`
+	ArtAndCollectiblesData    *ArtAndCollectibles    `json:"-" bson:"art_and_collectibles_data,omitempty"`
+	HomeAndLivingData         *HomeAndLiving         `json:"-" bson:"home_and_living_data,omitempty"`
+}
+
+// UpdateInventory represents partial updates to listing inventory
+type UpdateInventory struct {
+	DomesticPricing *bool    `json:"domesticPricing,omitempty"`
+	DomesticPrice   *float64 `json:"domesticPrice,omitempty"`
+	Price           *float64 `json:"price,omitempty"`
+	Quantity        *int     `json:"quantity,omitempty"`
+	SKU             *string  `json:"sku,omitempty"`
+}
+
+func (uld *UpdateListingDetails) SetDynamicToTypedField() error {
+	if uld.DynamicType == nil || uld.Dynamic == nil {
+		return nil
+	}
+
+	switch *uld.DynamicType {
+	case ClothingType:
+		var data Clothing
+		if err := common.ConvertMapToStruct(uld.Dynamic, &data); err != nil {
+			return err
+		}
+		uld.ClothingData = &data
+	case FurnitureType:
+		var data Furniture
+		if err := common.ConvertMapToStruct(uld.Dynamic, &data); err != nil {
+			return err
+		}
+		uld.FurnitureData = &data
+	case AccessoriesAndJewelryType:
+		var data AceessoriesAndJewelry
+		if err := common.ConvertMapToStruct(uld.Dynamic, &data); err != nil {
+			return err
+		}
+		uld.AceessoriesAndJewelryData = &data
+	case GiftsAndOccasionsType:
+		var data GiftsAndOccasions
+		if err := common.ConvertMapToStruct(uld.Dynamic, &data); err != nil {
+			return err
+		}
+		uld.GiftsAndOccasionsData = &data
+	case ArtAndCollectiblesType:
+		var data ArtAndCollectibles
+		if err := common.ConvertMapToStruct(uld.Dynamic, &data); err != nil {
+			return err
+		}
+		uld.ArtAndCollectiblesData = &data
+	case HomeAndLivingType:
+		var data HomeAndLiving
+		if err := common.ConvertMapToStruct(uld.Dynamic, &data); err != nil {
+			return err
+		}
+		uld.HomeAndLivingData = &data
+	}
+
+	return nil
 }

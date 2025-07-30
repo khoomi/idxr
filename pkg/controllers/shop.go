@@ -28,13 +28,15 @@ import (
 type ShopController struct {
 	shopService         services.ShopService
 	notificationService services.NotificationService
+	emailService               services.EmailService
 }
 
 // InitShopController initializes a new ShopController with dependencies
-func InitShopController(shopService services.ShopService, notificationService services.NotificationService) *ShopController {
+func InitShopController(shopService services.ShopService, notificationService services.NotificationService, emailService services.EmailService) *ShopController {
 	return &ShopController{
 		shopService:         shopService,
 		notificationService: notificationService,
+		emailService: emailService
 	}
 }
 
@@ -61,7 +63,7 @@ func (sc *ShopController) CheckShopNameAvailability() gin.HandlerFunc {
 	}
 }
 
-func (sc *ShopController) CreateShop(emailService services.EmailService) gin.HandlerFunc {
+func (sc *ShopController) CreateShop() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ctx, cancel := WithTimeout()
 		defer cancel()
@@ -90,7 +92,6 @@ func (sc *ShopController) CreateShop(emailService services.EmailService) gin.Han
 			return
 		}
 
-		// Logo file handling
 		logoFile, _, err := c.Request.FormFile("logo")
 		logoUploadUrl := ""
 		var logoUploadResult uploader.UploadResult
@@ -104,7 +105,6 @@ func (sc *ShopController) CreateShop(emailService services.EmailService) gin.Han
 			logoUploadUrl = logoUploadResult.SecureURL
 		}
 
-		// Banner file handling
 		bannerFile, _, err := c.Request.FormFile("banner")
 		bannerUploadUrl := ""
 		var bannerUploadResult uploader.UploadResult
@@ -128,7 +128,6 @@ func (sc *ShopController) CreateShop(emailService services.EmailService) gin.Han
 
 		shopID, err := sc.shopService.CreateShop(ctx, session_.UserId, req)
 		if err != nil {
-			// delete media on error
 			if logoUploadResult.PublicID != "" {
 				util.DestroyMedia(logoUploadResult.PublicID)
 			}
@@ -139,12 +138,7 @@ func (sc *ShopController) CreateShop(emailService services.EmailService) gin.Han
 			return
 		}
 
-		if emailService == nil {
-			emailService = services.NewEmailService()
-		}
-
-		// send success shop creation notification
-		emailService.SendNewShopEmail(userEmail, loginName, shopName)
+		sc.emailService.SendNewShopEmail(userEmail, loginName, shopName)
 
 		internal.PublishCacheMessage(c, internal.CacheInvalidateShop, shopID.Hex())
 		util.HandleSuccess(c, http.StatusOK, shopID.Hex(), shopID.Hex())

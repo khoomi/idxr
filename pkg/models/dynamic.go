@@ -7,7 +7,7 @@ const (
 	GiftsAndOccasionsType     = "gifts-and-occasions"
 	ClothingType              = "clothing"
 	ArtAndCollectiblesType    = "art-and-collectibles"
-	AceessoriesAndJewelryType = "accessories-and-jewelry"
+	AccessoriesAndJewelryType = "accessories-and-jewelry"
 	HomeAndLivingType         = "home-and-living"
 )
 

@@ -2,6 +2,7 @@ package common
 
 import (
 	rand2 "crypto/rand"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
@@ -351,4 +352,18 @@ func (g *SKUGenerator) GeneratePatternSKU(pattern string) string {
 func randInt(max int) int {
 	n, _ := rand2.Int(rand2.Reader, big.NewInt(int64(max)))
 	return int(n.Int64())
+}
+
+// ConvertMapToStruct converts a map to a struct using JSON marshaling
+func ConvertMapToStruct(m map[string]any, v any) error {
+	data, err := json.Marshal(m)
+	if err != nil {
+		return fmt.Errorf("failed to marshal map: %w", err)
+	}
+
+	if err := json.Unmarshal(data, v); err != nil {
+		return fmt.Errorf("failed to unmarshal to struct: %w", err)
+	}
+
+	return nil
 }

@@ -12,7 +12,7 @@ func IsValidDynamicType(dt DynamicType) bool {
 		GiftsAndOccasionsType,
 		ClothingType,
 		ArtAndCollectiblesType,
-		AceessoriesAndJewelryType,
+		AccessoriesAndJewelryType,
 		HomeAndLivingType:
 		return true
 	default:
@@ -60,7 +60,7 @@ func (n *NewListingDetails) ParseDynamicData() (any, error) {
 		}
 		return &v, nil
 
-	case AceessoriesAndJewelryType:
+	case AccessoriesAndJewelryType:
 		var v AceessoriesAndJewelry
 		if err := json.Unmarshal(raw, &v); err != nil {
 			return nil, err

@@ -5,7 +5,6 @@ import (
 	"khoomi-api-io/api/internal/container"
 	"khoomi-api-io/api/internal/middleware"
 	"khoomi-api-io/api/pkg/controllers"
-	"khoomi-api-io/api/pkg/services"
 
 	"github.com/gin-gonic/gin"
 )
@@ -132,7 +131,6 @@ func setupUserPaymentRoutes(user *gin.RouterGroup, serviceContainer *container.S
 // shopRoutesRefactored configures shop-related endpoints
 func shopRoutes(api *gin.RouterGroup, serviceContainer *container.ServiceContainer) {
 	reviewController := serviceContainer.GetReviewController()
-	emailService := serviceContainer.GetEmailService()
 	shopController := serviceContainer.GetShopController()
 	verificationController := serviceContainer.GetVerificationController()
 	shippingController := serviceContainer.GetShippingController()
@@ -140,21 +138,21 @@ func shopRoutes(api *gin.RouterGroup, serviceContainer *container.ServiceContain
 	api.GET("/:userid/shops", shopController.GetShopByOwnerUserId())
 
 	shop := api.Group("/shops")
-	// Public shop endpoints - use original controllers (they handle complex aggregations)
+	// Public shop endpoints
 	shop.GET("/", shopController.GetShops())
 	shop.GET("/:shopid", shopController.GetShop())
 	shop.GET("/search", shopController.SearchShops())
-	shop.GET("/:shopid/reviews", reviewController.GetShopReviews()) // Keep refactored review controller
+	shop.GET("/:shopid/reviews", reviewController.GetShopReviews())
 	shop.GET("/:shopid/followers", shopController.GetShopFollowers())
 	shop.GET("/:shopid/shippings", shippingController.GetShopShippingProfileInfos())
 	shop.GET("/:shopid/shippings/:shippingid", shippingController.GetShopShippingProfileInfo())
-	shop.GET("/:shopid/listings", controllers.GetShopListings())
+	shop.GET("/:shopid/listings", serviceContainer.GetListingController().GetShopListings)
 
-	// Protected shop endpoints - use original controllers (they handle file uploads, transactions, etc.)
+	// Protected shop endpoints
 	secured := shop.Group("").Use(auth.Auth())
 	{
 		// Shop creation and basic management
-		secured.POST("", shopController.CreateShop(emailService))
+		secured.POST("", shopController.CreateShop())
 		secured.GET("/check/:username", shopController.CheckShopNameAvailability())
 		secured.PUT("/:shopid/information", shopController.UpdateShopInformation())
 		secured.PUT("/:shopid/status", shopController.UpdateMyShopStatus())
@@ -197,14 +195,11 @@ func shopRoutes(api *gin.RouterGroup, serviceContainer *container.ServiceContain
 		secured.PUT("/:shopid/notifications/read-all", shopController.MarkAllShopNotificationsAsRead())
 		secured.DELETE("/:shopid/notifications/:notificationid", shopController.DeleteShopNotification())
 
-		// Shop Listing management
-		secured.DELETE("/:shopid/listings/delete", controllers.DeleteListings())
-		secured.PUT("/:shopid/listings/status", controllers.ChangeListingState())
 	}
 
 	// Shop policies and listings (separate groups for clarity)
 	setupShopPoliciesRoutes(shop, serviceContainer)
-	setupShopListingsRoutes(shop, emailService)
+	setupShopListingsRoutes(shop, serviceContainer)
 }
 
 // setupShopPoliciesRoutes configures shop policy endpoints
@@ -220,22 +215,26 @@ func setupShopPoliciesRoutes(shop *gin.RouterGroup, serviceContainer *container.
 }
 
 // setupShopListingsRoutes configures shop listing endpoints
-func setupShopListingsRoutes(shop *gin.RouterGroup, emailService services.EmailService) {
+func setupShopListingsRoutes(shop *gin.RouterGroup, serviceContainer *container.ServiceContainer) {
+	listingController := serviceContainer.GetListingController()
 	secured := shop.Group("").Use(auth.Auth())
 
-	secured.POST("/:shopid/listings", controllers.CreateListing(emailService))
-	secured.GET("/:shopid/listings/summary", controllers.GetMyListingsSummary())
-	secured.GET("/:shopid/check-listing-onboarding", controllers.HasUserCreatedListingOnboarding())
+	secured.POST("/:shopid/listings", listingController.CreateListing)
+	secured.PUT(":shopid/listings/:listingid", listingController.UpdateListing)
+	secured.GET("/:shopid/listings/summary", listingController.GetMyListingsSummary)
+	secured.GET("/:shopid/check-listing-onboarding", listingController.HasUserCreatedListingOnboarding)
+	secured.DELETE("/:shopid/listings/delete", listingController.DeleteListings)
+	secured.PUT("/:shopid/listings/status", listingController.ChangeListingState)
 }
 
-// listingRoutesRefactored configures listing-related endpoints
+// listingRoutes configures listing-related endpoints
 func listingRoutes(api *gin.RouterGroup, serviceContainer *container.ServiceContainer) {
 	listing := api.Group("/listings")
 	reviewController := serviceContainer.GetReviewController()
-	// Note: ListingController methods need to be refactored from functions to struct methods
+	listingController := serviceContainer.GetListingController()
 
-	listing.GET("/", controllers.GetListings())
-	listing.GET("/:listingid", controllers.GetListing())
+	listing.GET("/", listingController.GetListings)
+	listing.GET("/:listingid", listingController.GetListing)
 	listing.GET("/:listingid/reviews", reviewController.GetListingReviews())
 	{
 		reviews := listing.Group("/:listingid/reviews").Use(auth.Auth())
@@ -244,8 +243,7 @@ func listingRoutes(api *gin.RouterGroup, serviceContainer *container.ServiceCont
 		reviews.DELETE("/:reviewid", reviewController.DeleteOtherListingReview())
 	}
 	{
-		secured := listing.Group("/:listingid").Use(auth.Auth())
-		secured.DELETE("/", controllers.DeleteListings())
+		secured := listing.Group("").Use(auth.Auth())
 	}
 }
 
