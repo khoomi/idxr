@@ -23,7 +23,6 @@ func initCloudinary() (*cloudinary.Cloudinary, error) {
 	cloudName := LoadEnvFor("CLOUDINARY_CLOUDNAME")
 	apiKey := LoadEnvFor("CLOUDINARY_API_KEY")
 	apiSecret := LoadEnvFor("CLOUDINARY_API_SECRET")
-	// create cloudinary instance
 	cld, err := cloudinary.NewFromParams(cloudName, apiKey, apiSecret)
 	if err != nil {
 		return &cloudinary.Cloudinary{}, err
@@ -36,13 +35,10 @@ func ImageUploadHelper(input any) (uploader.UploadResult, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 40*time.Second)
 	defer cancel()
 
-	// create cloudinary instance
 	cld, err := initCloudinary()
 	if err != nil {
 		return uploader.UploadResult{}, err
 	}
-
-	// upload file
 	uploadFolder := LoadEnvFor("CLOUDINARY_UPLOAD_FOLDER")
 	uploadRes, err := cld.Upload.Upload(ctx, input, uploader.UploadParams{Folder: uploadFolder})
 	if err != nil {
@@ -56,7 +52,6 @@ func ImageDeletionHelper(params uploader.DestroyParams) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 40*time.Second)
 	defer cancel()
 
-	// create cloudinary instance
 	cld, err := initCloudinary()
 	if err != nil {
 		return "", err

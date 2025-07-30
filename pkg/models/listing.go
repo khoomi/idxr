@@ -1,9 +1,9 @@
 package models
 
 import (
+	"encoding/json"
+	"fmt"
 	"time"
-
-	"khoomi-api-io/api/internal/common"
 
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
@@ -213,13 +213,12 @@ type NewListingDetails struct {
 	HomeAndLivingData         *HomeAndLiving         `json:"-" bson:"home_and_living_data,omitempty"`
 }
 
-// UpdateListingDetails represents partial updates to listing details
 type UpdateListingDetails struct {
 	Dynamic            map[string]any   `json:"dynamic,omitempty"`
 	DynamicType        *DynamicType     `json:"dynamicType,omitempty"`
 	Category           *Category        `json:"category,omitempty"`
 	Condition          *string          `json:"condition,omitempty" validate:"omitempty,oneof=new used refurbished"`
-	Title              *string          `json:"title,omitempty" validate:"omitempty,min=10,max=50"`
+	Title              *string          `json:"title,omitempty" validate:"omitempty,min=10,max=80"`
 	WhenMade           *string          `json:"whenMade,omitempty"`
 	Type               *string          `json:"type,omitempty"`
 	Sustainability     *string          `json:"sustainability,omitempty"`
@@ -259,40 +258,54 @@ func (uld *UpdateListingDetails) SetDynamicToTypedField() error {
 	switch *uld.DynamicType {
 	case ClothingType:
 		var data Clothing
-		if err := common.ConvertMapToStruct(uld.Dynamic, &data); err != nil {
+		if err := convertMapToStruct(uld.Dynamic, &data); err != nil {
 			return err
 		}
 		uld.ClothingData = &data
 	case FurnitureType:
 		var data Furniture
-		if err := common.ConvertMapToStruct(uld.Dynamic, &data); err != nil {
+		if err := convertMapToStruct(uld.Dynamic, &data); err != nil {
 			return err
 		}
 		uld.FurnitureData = &data
 	case AccessoriesAndJewelryType:
 		var data AceessoriesAndJewelry
-		if err := common.ConvertMapToStruct(uld.Dynamic, &data); err != nil {
+		if err := convertMapToStruct(uld.Dynamic, &data); err != nil {
 			return err
 		}
 		uld.AceessoriesAndJewelryData = &data
 	case GiftsAndOccasionsType:
 		var data GiftsAndOccasions
-		if err := common.ConvertMapToStruct(uld.Dynamic, &data); err != nil {
+		if err := convertMapToStruct(uld.Dynamic, &data); err != nil {
 			return err
 		}
 		uld.GiftsAndOccasionsData = &data
 	case ArtAndCollectiblesType:
 		var data ArtAndCollectibles
-		if err := common.ConvertMapToStruct(uld.Dynamic, &data); err != nil {
+		if err := convertMapToStruct(uld.Dynamic, &data); err != nil {
 			return err
 		}
 		uld.ArtAndCollectiblesData = &data
 	case HomeAndLivingType:
 		var data HomeAndLiving
-		if err := common.ConvertMapToStruct(uld.Dynamic, &data); err != nil {
+		if err := convertMapToStruct(uld.Dynamic, &data); err != nil {
 			return err
 		}
 		uld.HomeAndLivingData = &data
+	}
+
+	return nil
+}
+
+// convertMapToStruct converts a map to a struct using JSON marshaling
+func convertMapToStruct(m map[string]any, v any) error {
+	data, err := json.Marshal(m)
+	if err != nil {
+		return fmt.Errorf("failed to marshal map: %w", err)
+	}
+
+	if err := json.Unmarshal(data, v); err != nil {
+		return fmt.Errorf("failed to unmarshal to struct: %w", err)
 	}
 
 	return nil

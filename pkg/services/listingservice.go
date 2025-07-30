@@ -24,10 +24,18 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/writeconcern"
 )
 
-type listingService struct{}
+type listingService struct {
+	listingCollection       *mongo.Collection
+	shopCollection          *mongo.Collection
+	listingReviewCollection *mongo.Collection
+}
 
 func NewListingService() ListingService {
-	return &listingService{}
+	return &listingService{
+		listingCollection:       util.GetCollection(util.DB, "Listing"),
+		shopCollection:          util.GetCollection(util.DB, "Shop"),
+		listingReviewCollection: util.GetCollection(util.DB, "ListingReview"),
+	}
 }
 
 // VerifyListingOwnership verifies if a user owns a given listing using its listingId
@@ -36,7 +44,7 @@ func (s *listingService) VerifyListingOwnership(ctx context.Context, userID, lis
 	var result struct {
 		ID primitive.ObjectID `bson:"_id"`
 	}
-	err := common.ListingCollection.FindOne(ctx, bson.M{"_id": listingID, "user_id": userID}).Decode(&result)
+	err := s.listingCollection.FindOne(ctx, bson.M{"_id": listingID, "user_id": userID}).Decode(&result)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
 			return errors.New("user does not own the listing")
@@ -243,7 +251,7 @@ func (s *listingService) DeleteListings(ctx context.Context, userID, shopID prim
 			var listing struct {
 				ShopID primitive.ObjectID `bson:"shop_id"`
 			}
-			err := common.ListingCollection.FindOne(sessionCtx, bson.M{"_id": listingID, "user_id": userID}).Decode(&listing)
+			err := s.listingCollection.FindOne(sessionCtx, bson.M{"_id": listingID, "user_id": userID}).Decode(&listing)
 			if err != nil {
 				if err == mongo.ErrNoDocuments {
 					notDeletedListings = append(notDeletedListings, listingID)
@@ -258,13 +266,13 @@ func (s *listingService) DeleteListings(ctx context.Context, userID, shopID prim
 			}
 
 			reviewFilter := bson.M{"listing_id": listingID}
-			deleteReviewsResult, err := common.ListingReviewCollection.DeleteMany(sessionCtx, reviewFilter)
+			deleteReviewsResult, err := s.listingReviewCollection.DeleteMany(sessionCtx, reviewFilter)
 			if err != nil {
 				return nil, err
 			}
 			totalDeletedReviews += deleteReviewsResult.DeletedCount
 
-			deleteResult, err := common.ListingCollection.DeleteOne(sessionCtx, bson.M{"_id": listingID, "user_id": userID})
+			deleteResult, err := s.listingCollection.DeleteOne(sessionCtx, bson.M{"_id": listingID, "user_id": userID})
 			if err != nil {
 				return nil, err
 			}
@@ -280,7 +288,7 @@ func (s *listingService) DeleteListings(ctx context.Context, userID, shopID prim
 		if deletedCount > 0 {
 			shopFilter := bson.M{"_id": shopID}
 			shopUpdate := bson.M{"$inc": bson.M{"listing_active_count": -deletedCount}}
-			updateResult, err := common.ShopCollection.UpdateOne(sessionCtx, shopFilter, shopUpdate)
+			updateResult, err := s.shopCollection.UpdateOne(sessionCtx, shopFilter, shopUpdate)
 			if err != nil {
 				return nil, err
 			}
@@ -294,7 +302,7 @@ func (s *listingService) DeleteListings(ctx context.Context, userID, shopID prim
 					return nil, err
 				}
 				shopRatingUpdate := bson.M{"$set": bson.M{"rating": newShopRating}}
-				_, err = common.ShopCollection.UpdateOne(sessionCtx, shopFilter, shopRatingUpdate)
+				_, err = s.shopCollection.UpdateOne(sessionCtx, shopFilter, shopRatingUpdate)
 				if err != nil {
 					return nil, err
 				}
@@ -326,19 +334,16 @@ func (s *listingService) DeleteListings(ctx context.Context, userID, shopID prim
 
 // CreateListing creates a new listing
 func (s *listingService) CreateListing(ctx context.Context, req CreateListingRequest) (primitive.ObjectID, error) {
-	// Verify shop ownership
 	tempShopService := NewShopService()
 	err := tempShopService.VerifyShopOwnership(ctx, req.UserID, req.ShopID)
 	if err != nil {
 		return primitive.NilObjectID, errors.New("only shop owners can create listings")
 	}
 
-	// Set dynamic to typed field
 	if err := req.NewListing.Details.SetDynamicToTypedField(); err != nil {
 		return primitive.NilObjectID, fmt.Errorf("invalid dynamic data: %v", err)
 	}
 
-	// Get shipping profile ID
 	var shippingId primitive.ObjectID
 	shippingObj, err := primitive.ObjectIDFromHex(req.NewListing.Details.ShippingProfileId)
 	if err != nil {
@@ -442,7 +447,7 @@ func (s *listingService) CreateListing(ctx context.Context, req CreateListingReq
 		FavorersCount:        0,
 	}
 
-	res, err := common.ListingCollection.InsertOne(ctx, listing)
+	res, err := s.listingCollection.InsertOne(ctx, listing)
 	if err != nil {
 		// Cleanup uploaded images on error
 		if mainResult, ok := req.MainImageResult.(uploader.UploadResult); ok && mainResult.PublicID != "" {
@@ -467,14 +472,13 @@ func (s *listingService) CreateListing(ctx context.Context, req CreateListingReq
 	// Update shop listing count
 	filter := bson.M{"_id": req.ShopID}
 	update := bson.M{"$inc": bson.M{"listing_active_count": 1}}
-	updateResult, err := common.ShopCollection.UpdateOne(ctx, filter, update)
+	updateResult, err := s.shopCollection.UpdateOne(ctx, filter, update)
 	if err != nil {
 		log.Printf("Failed to update shop listing count for shop %s: %v", req.ShopID.Hex(), err)
 	} else if updateResult.MatchedCount == 0 {
 		log.Printf("Warning: Shop %s not found when updating listing count", req.ShopID.Hex())
 	}
 
-	// Send new listing email
 	emailService := NewEmailService()
 	emailService.SendNewListingEmail(req.LoginEmail, req.LoginName, req.NewListing.Details.Title)
 
@@ -594,7 +598,7 @@ func (s *listingService) GetListing(ctx context.Context, listingID string) (*mod
 		},
 	}
 
-	cursor, err := common.ListingCollection.Aggregate(ctx, pipeline)
+	cursor, err := s.listingCollection.Aggregate(ctx, pipeline)
 	if err != nil {
 		return nil, err
 	}
@@ -680,7 +684,7 @@ func (s *listingService) GetListings(ctx context.Context, pagination util.Pagina
 		{"$limit": int64(pagination.Limit)},
 	}
 
-	cursor, err := common.ListingCollection.Aggregate(ctx, pipeline)
+	cursor, err := s.listingCollection.Aggregate(ctx, pipeline)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -696,7 +700,7 @@ func (s *listingService) GetListings(ctx context.Context, pagination util.Pagina
 		{"$match": filters},
 		{"$count": "total"},
 	}
-	countCursor, err := common.ListingCollection.Aggregate(ctx, countPipeline)
+	countCursor, err := s.listingCollection.Aggregate(ctx, countPipeline)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -722,7 +726,7 @@ func (s *listingService) GetMyListingsSummary(ctx context.Context, shopID, userI
 		SetSort(sort)
 
 	filter := bson.M{"shop_id": shopID, "user_id": userID}
-	cursor, err := common.ListingCollection.Find(ctx, filter, findOptions)
+	cursor, err := s.listingCollection.Find(ctx, filter, findOptions)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -733,7 +737,7 @@ func (s *listingService) GetMyListingsSummary(ctx context.Context, shopID, userI
 		return nil, 0, err
 	}
 
-	count, err := common.ListingCollection.CountDocuments(ctx, filter)
+	count, err := s.listingCollection.CountDocuments(ctx, filter)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -750,13 +754,13 @@ func (s *listingService) GetShopListings(ctx context.Context, shopID primitive.O
 		SetSkip(int64(pagination.Skip)).
 		SetSort(sort)
 
-	cursor, err := common.ListingCollection.Find(ctx, filters, findOptions)
+	cursor, err := s.listingCollection.Find(ctx, filters, findOptions)
 	if err != nil {
 		return nil, 0, err
 	}
 	defer cursor.Close(ctx)
 
-	count, err := common.ListingCollection.CountDocuments(ctx, filters)
+	count, err := s.listingCollection.CountDocuments(ctx, filters)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -784,7 +788,7 @@ func (s *listingService) UpdateListingState(ctx context.Context, userID primitiv
 			continue
 		}
 
-		_, err = common.ListingCollection.UpdateOne(ctx,
+		_, err = s.listingCollection.UpdateOne(ctx,
 			bson.M{"_id": idObjectID, "user_id": userID},
 			bson.M{"$set": bson.M{
 				"state.state":            newState,
@@ -808,7 +812,7 @@ func (s *listingService) HasUserCreatedListing(ctx context.Context, userID primi
 	filter := bson.M{"user_id": userID}
 	findOptions := options.Find().SetLimit(1)
 
-	cursor, err := common.ListingCollection.Find(ctx, filter, findOptions)
+	cursor, err := s.listingCollection.Find(ctx, filter, findOptions)
 	if err != nil {
 		return false, err
 	}
@@ -830,7 +834,7 @@ func (s *listingService) UpdateListing(ctx context.Context, req UpdateListingReq
 	}
 
 	var currentListing models.Listing
-	err = common.ListingCollection.FindOne(ctx, bson.M{"_id": req.ListingID}).Decode(&currentListing)
+	err = s.listingCollection.FindOne(ctx, bson.M{"_id": req.ListingID}).Decode(&currentListing)
 	if err != nil {
 		return fmt.Errorf("failed to fetch current listing: %v", err)
 	}
@@ -852,9 +856,7 @@ func (s *listingService) UpdateListing(ctx context.Context, req UpdateListingReq
 		req.ImagesToRemove,
 		req.ImageOrder,
 	)
-	if updatedImages != nil {
-		updateDoc["images"] = updatedImages
-	}
+	updateDoc["images"] = updatedImages
 
 	if req.UpdatedListing.Details != nil {
 		if err := req.UpdatedListing.Details.SetDynamicToTypedField(); err != nil {
@@ -874,7 +876,7 @@ func (s *listingService) UpdateListing(ctx context.Context, req UpdateListingReq
 
 	updateDoc["date.modified_at"] = now
 
-	result, err := common.ListingCollection.UpdateOne(
+	result, err := s.listingCollection.UpdateOne(
 		ctx,
 		bson.M{"_id": req.ListingID, "user_id": req.UserID},
 		bson.M{"$set": updateDoc},
@@ -890,7 +892,9 @@ func (s *listingService) UpdateListing(ctx context.Context, req UpdateListingReq
 	}
 
 	for _, imageURL := range req.ImagesToRemove {
-		go s.cleanupImageByURL(imageURL)
+		if imageURL != common.DEFAULT_THUMBNAIL {
+			go s.cleanupImageByURL(imageURL)
+		}
 	}
 
 	return nil
@@ -927,7 +931,6 @@ func (s *listingService) processImageUpdates(current []string, toAdd []string, t
 func (s *listingService) addDetailsUpdates(updateDoc bson.M, details *models.UpdateListingDetails) {
 	if details.Title != nil {
 		updateDoc["details.title"] = *details.Title
-		updateDoc["slug"] = slug2.Make(*details.Title)
 	}
 	if details.Description != nil {
 		updateDoc["details.description"] = *details.Description
@@ -951,7 +954,6 @@ func (s *listingService) addDetailsUpdates(updateDoc bson.M, details *models.Upd
 		updateDoc["details.sustainability"] = *details.Sustainability
 	}
 	if details.ShippingProfileId != nil {
-		// Validate shipping profile ID
 		if shippingID, err := primitive.ObjectIDFromHex(*details.ShippingProfileId); err == nil {
 			updateDoc["shipping_profile_id"] = shippingID
 		}
@@ -969,7 +971,6 @@ func (s *listingService) addDetailsUpdates(updateDoc bson.M, details *models.Upd
 		updateDoc["details.personalization"] = *details.Personalization
 	}
 
-	// Handle dynamic category data
 	if details.ClothingData != nil {
 		updateDoc["details.clothing_data"] = details.ClothingData
 	}
@@ -1049,10 +1050,8 @@ func (s *listingService) cleanupImageByURL(imageURL string) {
 		return
 	}
 
-	// Build public ID (skip version, include folder path)
 	publicIDParts := parts[uploadIndex+2:]
 	if len(publicIDParts) > 0 {
-		// Remove file extension from last part
 		lastPart := publicIDParts[len(publicIDParts)-1]
 		extIndex := strings.LastIndex(lastPart, ".")
 		if extIndex > 0 {

@@ -5,7 +5,7 @@ import (
 	"net/http"
 
 	"khoomi-api-io/api/internal/auth"
-	"khoomi-api-io/api/internal/common"
+	"khoomi-api-io/api/internal/helpers"
 	"khoomi-api-io/api/pkg/models"
 	"khoomi-api-io/api/pkg/services"
 	"khoomi-api-io/api/pkg/util"
@@ -72,7 +72,7 @@ func (cc *CartController) GetCartItems() gin.HandlerFunc {
 			util.HandleError(c, http.StatusBadRequest, err)
 			return
 		}
-		paginationArgs := common.GetPaginationArgs(c)
+		paginationArgs := helpers.GetPaginationArgs(c)
 
 		cartItems, count, err := cc.cartService.GetCartItems(ctx, userID, paginationArgs)
 		if err != nil {

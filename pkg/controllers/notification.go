@@ -9,6 +9,7 @@ import (
 	auth "khoomi-api-io/api/internal/auth"
 	"khoomi-api-io/api/internal/common"
 	"khoomi-api-io/api/pkg/models"
+	"khoomi-api-io/api/pkg/services"
 	"khoomi-api-io/api/pkg/util"
 
 	"github.com/gin-gonic/gin"
@@ -45,14 +46,15 @@ func CreateUserNotificationSettings() gin.HandlerFunc {
 			NewsAndFeatures:  notificationRequest.NewsAndFeatures,
 		}
 
-		res, err := common.NotificationCollection.InsertOne(ctx, notification)
+		notificationService := services.NewNotificationService()
+		insertedID, err := notificationService.CreateNotification(ctx, notification)
 		if err != nil {
 			util.HandleError(c, http.StatusInternalServerError, err)
 			return
 		}
 
 		log.Printf("Notification was created for user %v", userId)
-		util.HandleSuccess(c, http.StatusOK, "Notification created successfully", res.InsertedID)
+		util.HandleSuccess(c, http.StatusOK, "Notification created successfully", insertedID)
 	}
 }
 

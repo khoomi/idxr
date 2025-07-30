@@ -11,6 +11,7 @@ import (
 	"khoomi-api-io/api/internal"
 	"khoomi-api-io/api/internal/auth"
 	"khoomi-api-io/api/internal/common"
+	"khoomi-api-io/api/internal/validators"
 	"khoomi-api-io/api/pkg/models"
 	"khoomi-api-io/api/pkg/util"
 
@@ -27,12 +28,26 @@ import (
 )
 
 type userService struct {
-	emailService EmailService
+	emailService                     EmailService
+	userCollection                   *mongo.Collection
+	loginHistoryCollection           *mongo.Collection
+	passwordResetTokenCollection     *mongo.Collection
+	emailVerificationTokenCollection *mongo.Collection
+	wishListCollection               *mongo.Collection
+	userDeletionCollection           *mongo.Collection
+	notificationCollection           *mongo.Collection
 }
 
 func NewUserService() UserService {
 	return &userService{
-		emailService: NewEmailService(),
+		emailService:                     NewEmailService(),
+		userCollection:                   util.GetCollection(util.DB, "User"),
+		loginHistoryCollection:           util.GetCollection(util.DB, "UserLoginHistory"),
+		passwordResetTokenCollection:     util.GetCollection(util.DB, "UserPasswordResetToken"),
+		emailVerificationTokenCollection: util.GetCollection(util.DB, "UserEmailVerificationToken"),
+		wishListCollection:               util.GetCollection(util.DB, "UserWishList"),
+		userDeletionCollection:           util.GetCollection(util.DB, "UserDeletionRequest"),
+		notificationCollection:           util.GetCollection(util.DB, "UserNotification"),
 	}
 }
 
@@ -66,7 +81,7 @@ func (s *userService) CreateUser(ctx context.Context, req CreateUserRequest, cli
 
 	newUser := bson.M{
 		"_id":                         userId,
-		"login_name":                  common.GenerateRandomUsername(),
+		"login_name":                  GenerateRandomUsername(),
 		"primary_email":               userEmail,
 		"first_name":                  req.FirstName,
 		"last_name":                   req.LastName,
@@ -92,7 +107,7 @@ func (s *userService) CreateUser(ctx context.Context, req CreateUserRequest, cli
 		"review_count":                0,
 	}
 
-	result, err := common.UserCollection.InsertOne(ctx, newUser)
+	result, err := s.userCollection.InsertOne(ctx, newUser)
 	if err != nil {
 		writeException, ok := err.(mongo.WriteException)
 		if ok {
@@ -117,7 +132,7 @@ func (s *userService) CreateUser(ctx context.Context, req CreateUserRequest, cli
 		NewsAndFeatures:  true,
 	}
 
-	_, err = common.NotificationCollection.InsertOne(ctx, notification)
+	_, err = s.notificationCollection.InsertOne(ctx, notification)
 	if err != nil {
 		return primitive.NilObjectID, err
 	}
@@ -152,7 +167,7 @@ func (s *userService) CreateUserFromGoogle(ctx context.Context, claim any, clien
 	userId := primitive.NewObjectID()
 	newUser := bson.M{
 		"_id":                         userId,
-		"login_name":                  common.GenerateRandomUsername(),
+		"login_name":                  GenerateRandomUsername(),
 		"primary_email":               userEmail,
 		"first_name":                  firstName,
 		"last_name":                   lastName,
@@ -178,7 +193,7 @@ func (s *userService) CreateUserFromGoogle(ctx context.Context, claim any, clien
 		"review_count":                0,
 	}
 
-	result, err := common.UserCollection.InsertOne(ctx, newUser)
+	result, err := s.userCollection.InsertOne(ctx, newUser)
 	if err != nil {
 		writeException, ok := err.(mongo.WriteException)
 		if ok {
@@ -203,7 +218,7 @@ func (s *userService) CreateUserFromGoogle(ctx context.Context, claim any, clien
 		NewsAndFeatures:  true,
 	}
 
-	_, err = common.NotificationCollection.InsertOne(ctx, notification)
+	_, err = s.notificationCollection.InsertOne(ctx, notification)
 	if err != nil {
 		return primitive.NilObjectID, err
 	}
@@ -218,7 +233,7 @@ func (s *userService) AuthenticateUser(ctx context.Context, gCtx *gin.Context, r
 	now := time.Now()
 
 	var validUser models.User
-	if err := common.UserCollection.FindOne(ctx, bson.M{"primary_email": req.Email}).Decode(&validUser); err != nil {
+	if err := s.userCollection.FindOne(ctx, bson.M{"primary_email": req.Email}).Decode(&validUser); err != nil {
 		return nil, "", err
 	}
 
@@ -243,7 +258,7 @@ func (s *userService) AuthenticateUser(ctx context.Context, gCtx *gin.Context, r
 				"last_login_ip": clientIP,
 			},
 		}
-		errUpdateLoginCounts := common.UserCollection.FindOneAndUpdate(ctx, filter, update).Decode(&validUser)
+		errUpdateLoginCounts := s.userCollection.FindOneAndUpdate(ctx, filter, update).Decode(&validUser)
 		if errUpdateLoginCounts != nil {
 			return nil, errUpdateLoginCounts
 		}
@@ -255,7 +270,7 @@ func (s *userService) AuthenticateUser(ctx context.Context, gCtx *gin.Context, r
 			UserAgent: userAgent,
 			IpAddr:    clientIP,
 		}
-		result, errLoginHistory := common.LoginHistoryCollection.InsertOne(ctx, doc)
+		result, errLoginHistory := s.loginHistoryCollection.InsertOne(ctx, doc)
 		if errLoginHistory != nil {
 			return result, errLoginHistory
 		}
@@ -288,7 +303,7 @@ func (s *userService) AuthenticateUser(ctx context.Context, gCtx *gin.Context, r
 	}
 	opts := options.Replace().SetUpsert(true)
 	filter := bson.M{"user_uid": validUser.Id}
-	_, err = common.EmailVerificationTokenCollection.ReplaceOne(ctx, filter, verifyEmail, opts)
+	_, err = s.emailVerificationTokenCollection.ReplaceOne(ctx, filter, verifyEmail, opts)
 	if err != nil {
 		log.Printf("error sending verification email for user: %v, error: %v", validUser.PrimaryEmail, err)
 	}
@@ -316,14 +331,14 @@ func (s *userService) AuthenticateGoogleUser(ctx context.Context, gCtx *gin.Cont
 
 	var validUser models.User
 	// If no user is found with email, create new user
-	if err := common.UserCollection.FindOne(ctx, bson.M{"primary_email": claimSet.Email}).Decode(&validUser); err != nil {
+	if err := s.userCollection.FindOne(ctx, bson.M{"primary_email": claimSet.Email}).Decode(&validUser); err != nil {
 		_, err := s.CreateUserFromGoogle(ctx, claimSet, clientIP)
 		if err != nil {
 			return nil, "", errors.New("error setting up user")
 		}
 	}
 
-	if err := common.UserCollection.FindOne(ctx, bson.M{"primary_email": claimSet.Email}).Decode(&validUser); err != nil {
+	if err := s.userCollection.FindOne(ctx, bson.M{"primary_email": claimSet.Email}).Decode(&validUser); err != nil {
 		return nil, "", err
 	}
 
@@ -345,7 +360,7 @@ func (s *userService) AuthenticateGoogleUser(ctx context.Context, gCtx *gin.Cont
 				"last_login_ip": clientIP,
 			},
 		}
-		errUpdateLoginCounts := common.UserCollection.FindOneAndUpdate(ctx, filter, update).Decode(&validUser)
+		errUpdateLoginCounts := s.userCollection.FindOneAndUpdate(ctx, filter, update).Decode(&validUser)
 		if errUpdateLoginCounts != nil {
 			return nil, errUpdateLoginCounts
 		}
@@ -357,7 +372,7 @@ func (s *userService) AuthenticateGoogleUser(ctx context.Context, gCtx *gin.Cont
 			UserAgent: userAgent,
 			IpAddr:    clientIP,
 		}
-		result, errLoginHistory := common.LoginHistoryCollection.InsertOne(ctx, doc)
+		result, errLoginHistory := s.loginHistoryCollection.InsertOne(ctx, doc)
 		if errLoginHistory != nil {
 			return result, errLoginHistory
 		}
@@ -390,7 +405,7 @@ func (s *userService) AuthenticateGoogleUser(ctx context.Context, gCtx *gin.Cont
 	}
 	opts := options.Replace().SetUpsert(true)
 	filter := bson.M{"user_uid": validUser.Id}
-	_, err = common.EmailVerificationTokenCollection.ReplaceOne(ctx, filter, verifyEmail, opts)
+	_, err = s.emailVerificationTokenCollection.ReplaceOne(ctx, filter, verifyEmail, opts)
 	if err != nil {
 		log.Printf("error sending verification email for user: %v, error: %v", validUser.PrimaryEmail, err)
 	}
@@ -405,7 +420,7 @@ func (s *userService) AuthenticateGoogleUser(ctx context.Context, gCtx *gin.Cont
 
 func (s *userService) GetUserByID(ctx context.Context, userID primitive.ObjectID) (*models.User, error) {
 	var user models.User
-	err := common.UserCollection.FindOne(ctx, bson.M{"_id": userID}).Decode(&user)
+	err := s.userCollection.FindOne(ctx, bson.M{"_id": userID}).Decode(&user)
 	if err != nil {
 		return nil, err
 	}
@@ -478,7 +493,7 @@ func (s *userService) GetUser(ctx context.Context, userIdentifier string) (*mode
 			},
 		}},
 	}
-	cursor, err := common.UserCollection.Aggregate(ctx, userPipeline)
+	cursor, err := s.userCollection.Aggregate(ctx, userPipeline)
 
 	var user models.User
 	if err != nil {
@@ -503,14 +518,14 @@ func (s *userService) UpdateUserProfile(ctx context.Context, userID primitive.Ob
 	updateData := bson.M{}
 
 	if req.FirstName != "" {
-		if err := common.ValidateNameFormat(req.FirstName); err != nil {
+		if err := validators.ValidateNameFormat(req.FirstName); err != nil {
 			return err
 		}
 		updateData["first_name"] = req.FirstName
 	}
 
 	if req.LastName != "" {
-		if err := common.ValidateNameFormat(req.LastName); err != nil {
+		if err := validators.ValidateNameFormat(req.LastName); err != nil {
 			return err
 		}
 		updateData["last_name"] = req.LastName
@@ -537,7 +552,7 @@ func (s *userService) UpdateUserProfile(ctx context.Context, userID primitive.Ob
 	filter := bson.M{"_id": userID}
 	update := bson.M{"$set": updateData}
 
-	_, err := common.UserCollection.UpdateOne(ctx, filter, update)
+	_, err := s.userCollection.UpdateOne(ctx, filter, update)
 	if err != nil {
 		return err
 	}
@@ -562,7 +577,7 @@ func (s *userService) UpdateUserSingleField(ctx context.Context, userID primitiv
 
 	filter := bson.M{"_id": userID}
 	update := bson.M{"$set": bson.M{field: value}}
-	_, err := common.UserCollection.UpdateOne(ctx, filter, update)
+	_, err := s.userCollection.UpdateOne(ctx, filter, update)
 	if err != nil {
 		return err
 	}
@@ -578,7 +593,7 @@ func (s *userService) UpdateUserBirthdate(ctx context.Context, userID primitive.
 
 	filter := bson.M{"_id": userID}
 	update := bson.M{"$set": bson.M{"birthdate.day": birthdate.Day, "birthdate.month": birthdate.Month, "birthdate.year": birthdate.Year}}
-	_, err := common.UserCollection.UpdateOne(ctx, filter, update)
+	_, err := s.userCollection.UpdateOne(ctx, filter, update)
 	if err != nil {
 		return err
 	}
@@ -589,7 +604,7 @@ func (s *userService) UpdateUserBirthdate(ctx context.Context, userID primitive.
 
 func (s *userService) ChangePassword(ctx context.Context, userID primitive.ObjectID, req PasswordChangeRequest) error {
 	var validUser models.User
-	if err := common.UserCollection.FindOne(ctx, bson.M{"_id": userID}).Decode(&validUser); err != nil {
+	if err := s.userCollection.FindOne(ctx, bson.M{"_id": userID}).Decode(&validUser); err != nil {
 		return err
 	}
 
@@ -613,7 +628,7 @@ func (s *userService) ChangePassword(ctx context.Context, userID primitive.Objec
 
 	filter := bson.M{"_id": userID}
 	update := bson.M{"$set": bson.M{"auth.password_digest": hashedPassword, "modified_at": time.Now()}}
-	_, err = common.UserCollection.UpdateOne(ctx, filter, update)
+	_, err = s.userCollection.UpdateOne(ctx, filter, update)
 	if err != nil {
 		return err
 	}
@@ -625,7 +640,7 @@ func (s *userService) SendPasswordResetEmail(ctx context.Context, email string) 
 	currentEmail := strings.ToLower(email)
 	var user models.User
 
-	err := common.UserCollection.FindOne(ctx, bson.M{"primary_email": currentEmail}).Decode(&user)
+	err := s.userCollection.FindOne(ctx, bson.M{"primary_email": currentEmail}).Decode(&user)
 	if err != nil {
 		return err
 	}
@@ -642,7 +657,7 @@ func (s *userService) SendPasswordResetEmail(ctx context.Context, email string) 
 
 	opts := options.Replace().SetUpsert(true)
 	filter := bson.M{"user_uid": user.Id}
-	_, err = common.PasswordResetTokenCollection.ReplaceOne(ctx, filter, passwordReset, opts)
+	_, err = s.passwordResetTokenCollection.ReplaceOne(ctx, filter, passwordReset, opts)
 	if err != nil {
 		return err
 	}
@@ -657,7 +672,7 @@ func (s *userService) ResetPassword(ctx context.Context, userID primitive.Object
 	var passwordResetData models.UserPasswordResetToken
 	var user models.User
 
-	err := common.PasswordResetTokenCollection.FindOneAndDelete(ctx, bson.M{"user_uid": userID}).Decode(&passwordResetData)
+	err := s.passwordResetTokenCollection.FindOneAndDelete(ctx, bson.M{"user_uid": userID}).Decode(&passwordResetData)
 	if err != nil {
 		return err
 	}
@@ -683,7 +698,7 @@ func (s *userService) ResetPassword(ctx context.Context, userID primitive.Object
 
 	filter := bson.M{"_id": passwordResetData.UserId}
 	update := bson.M{"$set": bson.M{"auth.password_digest": hashedPassword, "auth.modified_at": now, "auth.email_verified": true}}
-	err = common.UserCollection.FindOneAndUpdate(ctx, filter, update).Decode(&user)
+	err = s.userCollection.FindOneAndUpdate(ctx, filter, update).Decode(&user)
 	if err != nil {
 		return err
 	}
@@ -710,7 +725,7 @@ func (s *userService) SendVerificationEmail(ctx context.Context, userID primitiv
 	}
 	opts := options.Replace().SetUpsert(true)
 	filter := bson.M{"user_uid": userID}
-	_, err = common.EmailVerificationTokenCollection.ReplaceOne(ctx, filter, verifyEmail, opts)
+	_, err = s.emailVerificationTokenCollection.ReplaceOne(ctx, filter, verifyEmail, opts)
 	if err != nil {
 		return err
 	}
@@ -725,7 +740,7 @@ func (s *userService) VerifyEmail(ctx context.Context, userID primitive.ObjectID
 	var emailVerificationData models.UserVerifyEmailToken
 	var user models.User
 
-	err := common.EmailVerificationTokenCollection.FindOneAndDelete(ctx, bson.M{"user_uid": userID}).Decode(&emailVerificationData)
+	err := s.emailVerificationTokenCollection.FindOneAndDelete(ctx, bson.M{"user_uid": userID}).Decode(&emailVerificationData)
 	if err != nil {
 		return err
 	}
@@ -741,7 +756,7 @@ func (s *userService) VerifyEmail(ctx context.Context, userID primitive.ObjectID
 
 	filter := bson.M{"_id": emailVerificationData.UserId}
 	update := bson.M{"$set": bson.M{"status": "Active", "modified_at": now, "auth.modified_at": now, "auth.email_verified": true}}
-	err = common.UserCollection.FindOneAndUpdate(ctx, filter, update).Decode(&user)
+	err = s.userCollection.FindOneAndUpdate(ctx, filter, update).Decode(&user)
 	if err != nil {
 		return err
 	}
@@ -752,7 +767,7 @@ func (s *userService) VerifyEmail(ctx context.Context, userID primitive.ObjectID
 
 func (s *userService) RefreshUserSession(ctx context.Context, userID primitive.ObjectID) (*models.User, error) {
 	var user models.User
-	err := common.UserCollection.FindOne(ctx, bson.M{"_id": userID}).Decode(&user)
+	err := s.userCollection.FindOne(ctx, bson.M{"_id": userID}).Decode(&user)
 	if err != nil {
 		return nil, err
 	}
@@ -760,7 +775,7 @@ func (s *userService) RefreshUserSession(ctx context.Context, userID primitive.O
 }
 
 func (s *userService) RequestAccountDeletion(ctx context.Context, userID primitive.ObjectID) error {
-	_, err := common.UserDeletionCollection.InsertOne(ctx, bson.M{"user_id": userID, "created_at": time.Now()})
+	_, err := s.userDeletionCollection.InsertOne(ctx, bson.M{"user_id": userID, "created_at": time.Now()})
 	if err != nil {
 		return err
 	}
@@ -770,7 +785,7 @@ func (s *userService) RequestAccountDeletion(ctx context.Context, userID primiti
 }
 
 func (s *userService) CancelAccountDeletion(ctx context.Context, userID primitive.ObjectID) error {
-	_, err := common.UserDeletionCollection.DeleteOne(ctx, bson.M{"user_id": userID})
+	_, err := s.userDeletionCollection.DeleteOne(ctx, bson.M{"user_id": userID})
 	if err != nil {
 		return err
 	}
@@ -781,7 +796,7 @@ func (s *userService) CancelAccountDeletion(ctx context.Context, userID primitiv
 
 func (s *userService) IsAccountPendingDeletion(ctx context.Context, userID primitive.ObjectID) (bool, error) {
 	var account models.AccountDeletionRequested
-	err := common.UserDeletionCollection.FindOne(ctx, bson.M{"user_id": userID}).Decode(&account)
+	err := s.userDeletionCollection.FindOne(ctx, bson.M{"user_id": userID}).Decode(&account)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
 			return false, nil
@@ -797,7 +812,7 @@ func (s *userService) GetLoginHistories(ctx context.Context, userID primitive.Ob
 		SetLimit(int64(pagination.Limit)).
 		SetSkip(int64(pagination.Skip)).
 		SetSort(util.GetLoginHistorySortBson(pagination.Sort))
-	cursor, err := common.LoginHistoryCollection.Find(ctx, filter, findOptions)
+	cursor, err := s.loginHistoryCollection.Find(ctx, filter, findOptions)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -808,7 +823,7 @@ func (s *userService) GetLoginHistories(ctx context.Context, userID primitive.Ob
 		return nil, 0, err
 	}
 
-	count, err := common.LoginHistoryCollection.CountDocuments(ctx, filter)
+	count, err := s.loginHistoryCollection.CountDocuments(ctx, filter)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -833,7 +848,7 @@ func (s *userService) DeleteLoginHistories(ctx context.Context, userID primitive
 
 	callback := func(ctx mongo.SessionContext) (any, error) {
 		filter := bson.M{"_id": bson.M{"$in": IdsToDelete}, "user_uid": userID}
-		result, err := common.LoginHistoryCollection.DeleteMany(ctx, filter)
+		result, err := s.loginHistoryCollection.DeleteMany(ctx, filter)
 		if err != nil {
 			return nil, err
 		}
@@ -873,7 +888,7 @@ func (s *userService) UploadThumbnail(ctx context.Context, userID primitive.Obje
 		return errors.New("file upload not implemented in service")
 	}
 
-	_, err = common.UserCollection.UpdateOne(ctx, filter, update)
+	_, err = s.userCollection.UpdateOne(ctx, filter, update)
 	if err != nil {
 		// delete media on error
 		_, delErr := util.DestroyMedia(uploadResult.PublicID)
@@ -891,7 +906,7 @@ func (s *userService) DeleteThumbnail(ctx context.Context, userID primitive.Obje
 	update := bson.M{"$set": bson.M{"thumbnail": nil, "modified_at": now}}
 
 	var user models.User
-	err := common.UserCollection.FindOneAndUpdate(ctx, filter, update).Decode(&user)
+	err := s.userCollection.FindOneAndUpdate(ctx, filter, update).Decode(&user)
 	if err != nil {
 		return err
 	}
@@ -923,7 +938,7 @@ func (s *userService) AddWishlistItem(ctx context.Context, userID, listingID pri
 		ListingId: listingID,
 		CreatedAt: now,
 	}
-	_, err := common.WishListCollection.InsertOne(ctx, data)
+	_, err := s.wishListCollection.InsertOne(ctx, data)
 	if err != nil {
 		return primitive.NilObjectID, err
 	}
@@ -934,7 +949,7 @@ func (s *userService) AddWishlistItem(ctx context.Context, userID, listingID pri
 
 func (s *userService) RemoveWishlistItem(ctx context.Context, userID, listingID primitive.ObjectID) error {
 	filter := bson.M{"user_id": userID, "listing_id": listingID}
-	_, err := common.WishListCollection.DeleteOne(ctx, filter)
+	_, err := s.wishListCollection.DeleteOne(ctx, filter)
 	if err != nil {
 		return err
 	}
@@ -946,7 +961,7 @@ func (s *userService) RemoveWishlistItem(ctx context.Context, userID, listingID 
 func (s *userService) GetUserWishlist(ctx context.Context, userID primitive.ObjectID, pagination util.PaginationArgs) ([]models.UserWishlist, int64, error) {
 	filter := bson.M{"user_id": userID}
 	find := options.Find().SetLimit(int64(pagination.Limit)).SetSkip(int64(pagination.Skip))
-	cursor, err := common.WishListCollection.Find(ctx, filter, find)
+	cursor, err := s.wishListCollection.Find(ctx, filter, find)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -957,7 +972,7 @@ func (s *userService) GetUserWishlist(ctx context.Context, userID primitive.Obje
 		return nil, 0, err
 	}
 
-	count, err := common.WishListCollection.CountDocuments(ctx, bson.M{"user_id": userID})
+	count, err := s.wishListCollection.CountDocuments(ctx, bson.M{"user_id": userID})
 	if err != nil {
 		return nil, 0, err
 	}
@@ -969,7 +984,7 @@ func (s *userService) UpdateSecurityNotificationSetting(ctx context.Context, use
 	filter := bson.M{"_id": userID}
 	update := bson.M{"$set": bson.M{"allow_login_ip_notification": enabled}}
 
-	res, err := common.UserCollection.UpdateOne(ctx, filter, update)
+	res, err := s.userCollection.UpdateOne(ctx, filter, update)
 	if err != nil {
 		return err
 	}
@@ -988,7 +1003,7 @@ func (s *userService) GetSecurityNotificationSetting(ctx context.Context, userID
 
 	var result bson.M
 	filter := bson.M{"_id": userID}
-	err := common.UserCollection.FindOne(ctx, filter, options).Decode(&result)
+	err := s.userCollection.FindOne(ctx, filter, options).Decode(&result)
 	if err != nil {
 		return false, err
 	}
@@ -1004,7 +1019,7 @@ func (s *userService) GetSecurityNotificationSetting(ctx context.Context, userID
 // GetUserByEmail retrieves a user by their email address
 func (s *userService) GetUserByEmail(ctx context.Context, email string) (*models.User, error) {
 	var user models.User
-	err := common.UserCollection.FindOne(ctx, bson.M{"primary_email": email}).Decode(&user)
+	err := s.userCollection.FindOne(ctx, bson.M{"primary_email": email}).Decode(&user)
 	if err != nil {
 		return nil, err
 	}
@@ -1014,7 +1029,7 @@ func (s *userService) GetUserByEmail(ctx context.Context, email string) (*models
 
 // IsSeller checks if the specified user is a seller in the database
 func (s *userService) IsSeller(ctx context.Context, userID primitive.ObjectID) (bool, error) {
-	err := common.UserCollection.FindOne(ctx, bson.M{"_id": userID, "is_seller": true}).Err()
+	err := s.userCollection.FindOne(ctx, bson.M{"_id": userID, "is_seller": true}).Err()
 	if err == mongo.ErrNoDocuments {
 		return false, nil
 	} else if err != nil {

@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"khoomi-api-io/api/internal/common"
+	"khoomi-api-io/api/internal/helpers"
 	"khoomi-api-io/api/pkg/models"
 	"khoomi-api-io/api/pkg/services"
 	"khoomi-api-io/api/pkg/util"
@@ -34,7 +35,7 @@ func (rc *ReviewController) CreateListingReview() gin.HandlerFunc {
 
 		var reviewRequest models.ReviewRequest
 
-		listingID, userID, err := common.ListingIdAndMyId(c)
+		listingID, userID, err := helpers.ListingIdAndMyId(c)
 		if err != nil {
 			util.HandleError(c, http.StatusBadRequest, err)
 			return
@@ -87,7 +88,7 @@ func (rc *ReviewController) GetListingReviews() gin.HandlerFunc {
 			return
 		}
 
-		paginationArgs := common.GetPaginationArgs(c)
+		paginationArgs := helpers.GetPaginationArgs(c)
 
 		reviews, count, err := rc.reviewService.GetListingReviews(ctx, listingID, paginationArgs)
 		if err != nil {
@@ -118,7 +119,7 @@ func (rc *ReviewController) GetShopReviews() gin.HandlerFunc {
 			return
 		}
 
-		paginationArgs := common.GetPaginationArgs(c)
+		paginationArgs := helpers.GetPaginationArgs(c)
 
 		reviews, count, err := rc.reviewService.GetShopReviews(ctx, shopID, paginationArgs)
 		if err != nil {
@@ -142,7 +143,7 @@ func (rc *ReviewController) DeleteMyListingReview() gin.HandlerFunc {
 		ctx, cancel := WithTimeout()
 		defer cancel()
 
-		listingID, userID, err := common.ListingIdAndMyId(c)
+		listingID, userID, err := helpers.ListingIdAndMyId(c)
 		if err != nil {
 			util.HandleError(c, http.StatusBadRequest, err)
 			return
@@ -178,7 +179,7 @@ func (rc *ReviewController) DeleteOtherListingReview() gin.HandlerFunc {
 			return
 		}
 
-		listingID, ownerID, err := common.ListingIdAndMyId(c)
+		listingID, ownerID, err := helpers.ListingIdAndMyId(c)
 		if err != nil {
 			util.HandleError(c, http.StatusBadRequest, err)
 			return

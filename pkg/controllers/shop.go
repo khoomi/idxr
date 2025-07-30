@@ -12,6 +12,7 @@ import (
 	"khoomi-api-io/api/internal"
 	auth "khoomi-api-io/api/internal/auth"
 	"khoomi-api-io/api/internal/common"
+	"khoomi-api-io/api/internal/helpers"
 	"khoomi-api-io/api/pkg/models"
 	"khoomi-api-io/api/pkg/services"
 	"khoomi-api-io/api/pkg/util"
@@ -36,7 +37,7 @@ func InitShopController(shopService services.ShopService, notificationService se
 	return &ShopController{
 		shopService:         shopService,
 		notificationService: notificationService,
-		emailService: emailService
+		emailService:        emailService,
 	}
 }
 
@@ -150,7 +151,7 @@ func (sc *ShopController) UpdateShopInformation() gin.HandlerFunc {
 		ctx, cancel := WithTimeout()
 		defer cancel()
 
-		shopId, myId, err := common.MyShopIdAndMyId(c)
+		shopId, myId, err := helpers.MyShopIdAndMyId(c)
 		if err != nil {
 			util.HandleError(c, http.StatusBadRequest, err)
 			return
@@ -269,7 +270,7 @@ func (sc *ShopController) UpdateMyShopStatus() gin.HandlerFunc {
 			return
 		}
 
-		shopId, myId, err := common.MyShopIdAndMyId(c)
+		shopId, myId, err := helpers.MyShopIdAndMyId(c)
 		if err != nil {
 			util.HandleError(c, http.StatusBadRequest, err)
 			return
@@ -299,7 +300,7 @@ func (sc *ShopController) UpdateShopAddress() gin.HandlerFunc {
 			return
 		}
 
-		shopId, myId, err := common.MyShopIdAndMyId(c)
+		shopId, myId, err := helpers.MyShopIdAndMyId(c)
 		if err != nil {
 			util.HandleError(c, http.StatusBadRequest, err)
 			return
@@ -369,7 +370,7 @@ func (sc *ShopController) GetShops() gin.HandlerFunc {
 		ctx, cancel := WithTimeout()
 		defer cancel()
 
-		paginationArgs := common.GetPaginationArgs(c)
+		paginationArgs := helpers.GetPaginationArgs(c)
 
 		shops, err := sc.shopService.GetShops(ctx, paginationArgs)
 		if err != nil {
@@ -392,7 +393,7 @@ func (sc *ShopController) SearchShops() gin.HandlerFunc {
 		defer cancel()
 
 		query := c.Query("q")
-		paginationArgs := common.GetPaginationArgs(c)
+		paginationArgs := helpers.GetPaginationArgs(c)
 
 		shops, count, err := sc.shopService.SearchShops(ctx, query, paginationArgs)
 		if err != nil {
@@ -415,7 +416,7 @@ func (sc *ShopController) UpdateShopField() gin.HandlerFunc {
 		defer cancel()
 		now := time.Now()
 
-		shopId, myId, err := common.MyShopIdAndMyId(c)
+		shopId, myId, err := helpers.MyShopIdAndMyId(c)
 		if err != nil {
 			util.HandleError(c, http.StatusBadRequest, err)
 			return
@@ -589,7 +590,7 @@ func (sc *ShopController) UpdateShopField() gin.HandlerFunc {
 					return
 				}
 
-				shopId, myId, err := common.MyShopIdAndMyId(c)
+				shopId, myId, err := helpers.MyShopIdAndMyId(c)
 				if err != nil {
 					util.HandleError(c, http.StatusBadRequest, err)
 					return
@@ -682,7 +683,7 @@ func (sc *ShopController) UpdateShopField() gin.HandlerFunc {
 					return
 				}
 
-				shopId, myId, err := common.MyShopIdAndMyId(c)
+				shopId, myId, err := helpers.MyShopIdAndMyId(c)
 				if err != nil {
 					util.HandleError(c, http.StatusBadRequest, err)
 					return
@@ -735,7 +736,7 @@ func (sc *ShopController) UpdateShopAnnouncement() gin.HandlerFunc {
 			return
 		}
 
-		shopId, myId, err := common.MyShopIdAndMyId(c)
+		shopId, myId, err := helpers.MyShopIdAndMyId(c)
 		if err != nil {
 			util.HandleError(c, http.StatusBadRequest, err)
 			return
@@ -768,7 +769,7 @@ func (sc *ShopController) UpdateShopVacation() gin.HandlerFunc {
 			return
 		}
 
-		shopId, myId, err := common.MyShopIdAndMyId(c)
+		shopId, myId, err := helpers.MyShopIdAndMyId(c)
 		if err != nil {
 			util.HandleError(c, http.StatusBadRequest, err)
 			return
@@ -795,7 +796,7 @@ func (sc *ShopController) UpdateShopLogo() gin.HandlerFunc {
 		ctx, cancel := WithTimeout()
 		defer cancel()
 
-		shopId, myId, err := common.MyShopIdAndMyId(c)
+		shopId, myId, err := helpers.MyShopIdAndMyId(c)
 		if err != nil {
 			util.HandleError(c, http.StatusBadRequest, err)
 			return
@@ -833,7 +834,7 @@ func (sc *ShopController) UpdateShopBanner() gin.HandlerFunc {
 		ctx, cancel := WithTimeout()
 		defer cancel()
 
-		shopId, myId, err := common.MyShopIdAndMyId(c)
+		shopId, myId, err := helpers.MyShopIdAndMyId(c)
 		if err != nil {
 			util.HandleError(c, http.StatusBadRequest, err)
 			return
@@ -871,7 +872,7 @@ func (sc *ShopController) UpdateShopGallery() gin.HandlerFunc {
 		ctx, cancel := WithTimeout()
 		defer cancel()
 
-		shopId, myId, err := common.MyShopIdAndMyId(c)
+		shopId, myId, err := helpers.MyShopIdAndMyId(c)
 		if err != nil {
 			util.HandleError(c, http.StatusBadRequest, err)
 			return
@@ -913,7 +914,7 @@ func (sc *ShopController) DeleteFromShopGallery() gin.HandlerFunc {
 
 		imageURL := c.Query("image")
 
-		shopID, myID, err := common.MyShopIdAndMyId(c)
+		shopID, myID, err := helpers.MyShopIdAndMyId(c)
 		if err != nil {
 			util.HandleError(c, http.StatusBadRequest, err)
 			return
@@ -941,7 +942,7 @@ func (sc *ShopController) FollowShop() gin.HandlerFunc {
 		ctx, cancel := WithTimeout()
 		defer cancel()
 
-		shopId, myId, err := common.MyShopIdAndMyId(c)
+		shopId, myId, err := helpers.MyShopIdAndMyId(c)
 		if err != nil {
 			log.Println(err)
 			util.HandleError(c, http.StatusBadRequest, err)
@@ -974,7 +975,7 @@ func (sc *ShopController) GetShopFollowers() gin.HandlerFunc {
 			return
 		}
 
-		paginationArgs := common.GetPaginationArgs(c)
+		paginationArgs := helpers.GetPaginationArgs(c)
 
 		shopFollowers, count, err := sc.shopService.GetShopFollowers(ctx, shopObjectID, paginationArgs)
 		if err != nil {
@@ -999,7 +1000,7 @@ func (sc *ShopController) IsFollowingShop() gin.HandlerFunc {
 		ctx, cancel := WithTimeout()
 		defer cancel()
 
-		shopId, myId, err := common.MyShopIdAndMyId(c)
+		shopId, myId, err := helpers.MyShopIdAndMyId(c)
 		if err != nil {
 			util.HandleError(c, http.StatusBadRequest, err)
 			return
@@ -1021,7 +1022,7 @@ func (sc *ShopController) UnfollowShop() gin.HandlerFunc {
 		ctx, cancel := WithTimeout()
 		defer cancel()
 
-		shopId, myId, err := common.MyShopIdAndMyId(c)
+		shopId, myId, err := helpers.MyShopIdAndMyId(c)
 		if err != nil {
 			util.HandleError(c, http.StatusBadRequest, err)
 			return
@@ -1087,7 +1088,7 @@ func (sc *ShopController) RemoveOtherFollower() gin.HandlerFunc {
 		userToBeRemoved := c.Query("userid")
 		defer cancel()
 
-		shopId, myId, err := common.MyShopIdAndMyId(c)
+		shopId, myId, err := helpers.MyShopIdAndMyId(c)
 		if err != nil {
 			util.HandleError(c, http.StatusBadRequest, err)
 			return
@@ -1168,7 +1169,7 @@ func (sc *ShopController) UpdateShopAbout() gin.HandlerFunc {
 
 		var shopAboutJson models.ShopAbout
 
-		shopId, myId, err := common.MyShopIdAndMyId(c)
+		shopId, myId, err := helpers.MyShopIdAndMyId(c)
 		if err != nil {
 			util.HandleError(c, http.StatusBadRequest, err)
 			return
@@ -1218,7 +1219,7 @@ func (sc *ShopController) CreateShopReturnPolicy() gin.HandlerFunc {
 		var shopReturnPolicyJson models.ShopReturnPolicies
 		defer cancel()
 
-		shopId, myId, err := common.MyShopIdAndMyId(c)
+		shopId, myId, err := helpers.MyShopIdAndMyId(c)
 		if err != nil {
 			util.HandleError(c, http.StatusBadRequest, err)
 			return
@@ -1263,7 +1264,7 @@ func (sc *ShopController) UpdateShopReturnPolicy() gin.HandlerFunc {
 		var shopReturnPolicyJson models.ShopReturnPolicies
 		defer cancel()
 
-		shopId, myId, err := common.MyShopIdAndMyId(c)
+		shopId, myId, err := helpers.MyShopIdAndMyId(c)
 		if err != nil {
 			util.HandleError(c, http.StatusBadRequest, err)
 			return
@@ -1318,7 +1319,7 @@ func (sc *ShopController) DeleteShopReturnPolicy() gin.HandlerFunc {
 			return
 		}
 
-		shopId, myId, err := common.MyShopIdAndMyId(c)
+		shopId, myId, err := helpers.MyShopIdAndMyId(c)
 		if err != nil {
 			util.HandleError(c, http.StatusBadRequest, err)
 			return
@@ -1356,7 +1357,7 @@ func (sc *ShopController) GetShopReturnPolicy() gin.HandlerFunc {
 			return
 		}
 
-		shopId, _, err := common.MyShopIdAndMyId(c)
+		shopId, _, err := helpers.MyShopIdAndMyId(c)
 		if err != nil {
 			util.HandleError(c, http.StatusBadRequest, err)
 			return
@@ -1380,7 +1381,7 @@ func (sc *ShopController) GetShopReturnPolicies() gin.HandlerFunc {
 		ctx, cancel := WithTimeout()
 		defer cancel()
 
-		shopId, _, err := common.MyShopIdAndMyId(c)
+		shopId, _, err := helpers.MyShopIdAndMyId(c)
 		if err != nil {
 			util.HandleError(c, http.StatusBadRequest, err)
 			return
@@ -1416,7 +1417,7 @@ func (sc *ShopController) CreateShopComplianceInformation() gin.HandlerFunc {
 		var complianceJson models.ComplianceInformationRequest
 		defer cancel()
 
-		shopId, myId, err := common.MyShopIdAndMyId(c)
+		shopId, myId, err := helpers.MyShopIdAndMyId(c)
 		if err != nil {
 			util.HandleError(c, http.StatusBadRequest, err)
 			return
@@ -1465,7 +1466,7 @@ func (sc *ShopController) GetShopComplianceInformation() gin.HandlerFunc {
 		ctx, cancel := WithTimeout()
 		defer cancel()
 
-		shopId, _, err := common.MyShopIdAndMyId(c)
+		shopId, _, err := helpers.MyShopIdAndMyId(c)
 		if err != nil {
 			util.HandleError(c, http.StatusBadRequest, err)
 			return
@@ -1493,7 +1494,7 @@ func (sc *ShopController) GetShopNotificationSettings() gin.HandlerFunc {
 		ctx, cancel := WithTimeout()
 		defer cancel()
 
-		shopId, myId, err := common.MyShopIdAndMyId(c)
+		shopId, myId, err := helpers.MyShopIdAndMyId(c)
 		if err != nil {
 			util.HandleError(c, http.StatusBadRequest, err)
 			return
@@ -1522,7 +1523,7 @@ func (sc *ShopController) UpdateShopNotificationSettings() gin.HandlerFunc {
 		ctx, cancel := WithTimeout()
 		defer cancel()
 
-		shopId, myId, err := common.MyShopIdAndMyId(c)
+		shopId, myId, err := helpers.MyShopIdAndMyId(c)
 		if err != nil {
 			util.HandleError(c, http.StatusBadRequest, err)
 			return
@@ -1557,7 +1558,7 @@ func (sc *ShopController) GetShopNotifications() gin.HandlerFunc {
 		ctx, cancel := WithTimeout()
 		defer cancel()
 
-		shopId, myId, err := common.MyShopIdAndMyId(c)
+		shopId, myId, err := helpers.MyShopIdAndMyId(c)
 		if err != nil {
 			util.HandleError(c, http.StatusBadRequest, err)
 			return
@@ -1569,7 +1570,7 @@ func (sc *ShopController) GetShopNotifications() gin.HandlerFunc {
 			return
 		}
 
-		pagination := common.GetPaginationArgs(c)
+		pagination := helpers.GetPaginationArgs(c)
 		unreadOnly := c.Query("unread") == "true"
 
 		var notifications []models.ShopNotification
@@ -1600,7 +1601,7 @@ func (sc *ShopController) CreateShopNotification() gin.HandlerFunc {
 		ctx, cancel := WithTimeout()
 		defer cancel()
 
-		shopId, myId, err := common.MyShopIdAndMyId(c)
+		shopId, myId, err := helpers.MyShopIdAndMyId(c)
 		if err != nil {
 			util.HandleError(c, http.StatusBadRequest, err)
 			return
@@ -1642,7 +1643,7 @@ func (sc *ShopController) MarkShopNotificationAsRead() gin.HandlerFunc {
 		ctx, cancel := WithTimeout()
 		defer cancel()
 
-		shopId, myId, err := common.MyShopIdAndMyId(c)
+		shopId, myId, err := helpers.MyShopIdAndMyId(c)
 		if err != nil {
 			util.HandleError(c, http.StatusBadRequest, err)
 			return
@@ -1678,7 +1679,7 @@ func (sc *ShopController) MarkAllShopNotificationsAsRead() gin.HandlerFunc {
 		ctx, cancel := WithTimeout()
 		defer cancel()
 
-		shopId, myId, err := common.MyShopIdAndMyId(c)
+		shopId, myId, err := helpers.MyShopIdAndMyId(c)
 		if err != nil {
 			util.HandleError(c, http.StatusBadRequest, err)
 			return
@@ -1707,7 +1708,7 @@ func (sc *ShopController) DeleteShopNotification() gin.HandlerFunc {
 		ctx, cancel := WithTimeout()
 		defer cancel()
 
-		shopId, myId, err := common.MyShopIdAndMyId(c)
+		shopId, myId, err := helpers.MyShopIdAndMyId(c)
 		if err != nil {
 			util.HandleError(c, http.StatusBadRequest, err)
 			return

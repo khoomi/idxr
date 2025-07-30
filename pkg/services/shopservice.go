@@ -18,18 +18,34 @@ import (
 )
 
 // ShopServiceImpl implements the ShopService interface
-type ShopServiceImpl struct{}
+type ShopServiceImpl struct {
+	shopCollection                *mongo.Collection
+	userCollection                *mongo.Collection
+	shopFollowerCollection        *mongo.Collection
+	shopReturnPolicyCollection    *mongo.Collection
+	shopCompliancePolicyCollection *mongo.Collection
+	shopNotificationCollection    *mongo.Collection
+	shopNotificationSettingsCollection *mongo.Collection
+}
 
 // NewShopService creates a new instance of ShopService
 func NewShopService() ShopService {
-	return &ShopServiceImpl{}
+	return &ShopServiceImpl{
+		shopCollection:                     util.GetCollection(util.DB, "Shop"),
+		userCollection:                     util.GetCollection(util.DB, "User"),
+		shopFollowerCollection:             util.GetCollection(util.DB, "ShopFollower"),
+		shopReturnPolicyCollection:         util.GetCollection(util.DB, "ShopReturnPolicies"),
+		shopCompliancePolicyCollection:     util.GetCollection(util.DB, "ShopCompliancePolicy"),
+		shopNotificationCollection:         util.GetCollection(util.DB, "ShopNotification"),
+		shopNotificationSettingsCollection: util.GetCollection(util.DB, "ShopNotificationSettings"),
+	}
 }
 
 // CheckShopNameAvailability checks if a shop username is available
 func (ss *ShopServiceImpl) CheckShopNameAvailability(ctx context.Context, username string) (bool, error) {
 	var shop models.Shop
 	filter := bson.M{"username": username}
-	err := common.ShopCollection.FindOne(ctx, filter).Decode(&shop)
+	err := ss.shopCollection.FindOne(ctx, filter).Decode(&shop)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
 			return true, nil
@@ -112,7 +128,7 @@ func (ss *ShopServiceImpl) CreateShop(ctx context.Context, userID primitive.Obje
 		About:              shopAboutData,
 	}
 
-	_, err := common.ShopCollection.InsertOne(ctx, shop)
+	_, err := ss.shopCollection.InsertOne(ctx, shop)
 	if err != nil {
 		return primitive.NilObjectID, err
 	}
@@ -126,7 +142,7 @@ func (ss *ShopServiceImpl) CreateShop(ctx context.Context, userID primitive.Obje
 	// Update user profile shop
 	filter := bson.M{"_id": userID}
 	update := bson.M{"$set": bson.M{"shop_id": shopID, "is_seller": true, "modified_at": now}}
-	_, err = common.UserCollection.UpdateOne(ctx, filter, update)
+	_, err = ss.userCollection.UpdateOne(ctx, filter, update)
 	if err != nil {
 		return primitive.NilObjectID, err
 	}
@@ -179,7 +195,7 @@ func (ss *ShopServiceImpl) UpdateShopInformation(ctx context.Context, shopID, us
 	filter := bson.M{"_id": shopID, "user_id": userID}
 	update := bson.M{"$set": updateData}
 
-	_, err := common.ShopCollection.UpdateOne(ctx, filter, update)
+	_, err := ss.shopCollection.UpdateOne(ctx, filter, update)
 	return err
 }
 
@@ -187,7 +203,7 @@ func (ss *ShopServiceImpl) UpdateShopInformation(ctx context.Context, shopID, us
 func (ss *ShopServiceImpl) UpdateShopStatus(ctx context.Context, shopID, userID primitive.ObjectID, isLive bool) error {
 	filter := bson.M{"_id": shopID, "user_id": userID}
 	update := bson.M{"$set": bson.M{"is_live": isLive, "modified_at": time.Now()}}
-	res, err := common.ShopCollection.UpdateOne(ctx, filter, update)
+	res, err := ss.shopCollection.UpdateOne(ctx, filter, update)
 	if err != nil {
 		return err
 	}
@@ -203,7 +219,7 @@ func (ss *ShopServiceImpl) UpdateShopAddress(ctx context.Context, shopID, userID
 	address.ModifiedAt = now
 	filter := bson.M{"_id": shopID, "user_id": userID}
 	update := bson.M{"$set": bson.M{"address": address, "modified_at": now}}
-	res, err := common.ShopCollection.UpdateOne(ctx, filter, update)
+	res, err := ss.shopCollection.UpdateOne(ctx, filter, update)
 	if err != nil {
 		return err
 	}
@@ -285,7 +301,7 @@ func (ss *ShopServiceImpl) GetShop(ctx context.Context, shopIdentifier string, w
 		},
 	}
 
-	cursor, err := common.ShopCollection.Aggregate(ctx, shopPipeline)
+	cursor, err := ss.shopCollection.Aggregate(ctx, shopPipeline)
 	if err != nil {
 		return nil, err
 	}
@@ -330,7 +346,7 @@ func (ss *ShopServiceImpl) GetShop(ctx context.Context, shopIdentifier string, w
 // GetShopByOwnerUserId retrieves a shop by owner user ID
 func (ss *ShopServiceImpl) GetShopByOwnerUserId(ctx context.Context, userID primitive.ObjectID) (*models.Shop, error) {
 	var shop models.Shop
-	err := common.ShopCollection.FindOne(ctx, bson.M{"user_id": userID}).Decode(&shop)
+	err := ss.shopCollection.FindOne(ctx, bson.M{"user_id": userID}).Decode(&shop)
 	if err != nil {
 		return nil, err
 	}
@@ -341,7 +357,7 @@ func (ss *ShopServiceImpl) GetShopByOwnerUserId(ctx context.Context, userID prim
 func (ss *ShopServiceImpl) GetShops(ctx context.Context, pagination util.PaginationArgs) ([]models.Shop, error) {
 	filter := bson.D{{Key: "status", Value: models.ShopStatusActive}}
 	find := options.Find().SetLimit(int64(pagination.Limit)).SetSkip(int64(pagination.Skip))
-	result, err := common.ShopCollection.Find(ctx, filter, find)
+	result, err := ss.shopCollection.Find(ctx, filter, find)
 	if err != nil {
 		return nil, err
 	}
@@ -363,13 +379,13 @@ func (ss *ShopServiceImpl) SearchShops(ctx context.Context, query string, pagina
 		},
 	}
 
-	shops, err := common.ShopCollection.Find(ctx, searchFilter,
+	shops, err := ss.shopCollection.Find(ctx, searchFilter,
 		options.Find().SetSkip(int64(pagination.Skip)).SetLimit(int64(pagination.Limit)))
 	if err != nil {
 		return nil, 0, err
 	}
 
-	count, err := common.ShopCollection.CountDocuments(ctx, searchFilter)
+	count, err := ss.shopCollection.CountDocuments(ctx, searchFilter)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -398,7 +414,7 @@ func (ss *ShopServiceImpl) UpdateShopField(ctx context.Context, shopID, userID p
 			return errors.New("invalid vacation data")
 		}
 		update := bson.M{"$set": bson.M{"vacation_message": vacation.Message, "is_vacation": vacation.IsVacation, "modified_at": now}}
-		res, err := common.ShopCollection.UpdateOne(ctx, filter, update)
+		res, err := ss.shopCollection.UpdateOne(ctx, filter, update)
 		if err != nil {
 			return err
 		}
@@ -419,7 +435,7 @@ func (ss *ShopServiceImpl) UpdateShopField(ctx context.Context, shopID, userID p
 			return err
 		}
 		update := bson.M{"$set": bson.M{"name": basic.Name, "is_live": basic.IsLive, "description": basic.Description, "sales_message": basic.SalesMessage, "announcement": basic.Announcement, "modified_at": now}}
-		res, err := common.ShopCollection.UpdateOne(ctx, filter, update)
+		res, err := ss.shopCollection.UpdateOne(ctx, filter, update)
 		if err != nil {
 			return err
 		}
@@ -432,7 +448,7 @@ func (ss *ShopServiceImpl) UpdateShopField(ctx context.Context, shopID, userID p
 			return errors.New("invalid policy data")
 		}
 		update := bson.M{"$set": bson.M{"policy": payload, "modified_at": now}}
-		res, err := common.ShopCollection.UpdateOne(ctx, filter, update)
+		res, err := ss.shopCollection.UpdateOne(ctx, filter, update)
 		if err != nil {
 			return err
 		}
@@ -458,7 +474,7 @@ func (ss *ShopServiceImpl) UpdateShopAnnouncement(ctx context.Context, shopID, u
 	now := time.Now()
 	filter := bson.M{"_id": shopID, "user_id": userID}
 	update := bson.M{"$set": bson.M{"announcement": announcement, "announcement_modified_at": now, "modified_at": now}}
-	res, err := common.ShopCollection.UpdateOne(ctx, filter, update)
+	res, err := ss.shopCollection.UpdateOne(ctx, filter, update)
 	if err != nil {
 		return err
 	}
@@ -473,7 +489,7 @@ func (ss *ShopServiceImpl) UpdateShopVacation(ctx context.Context, shopID, userI
 	now := time.Now()
 	filter := bson.M{"_id": shopID, "user_id": userID}
 	update := bson.M{"$set": bson.M{"vacation_message": req.Message, "is_vacation": req.IsVacation, "modified_at": now}}
-	res, err := common.ShopCollection.UpdateOne(ctx, filter, update)
+	res, err := ss.shopCollection.UpdateOne(ctx, filter, update)
 	if err != nil {
 		return err
 	}
@@ -489,13 +505,13 @@ func (ss *ShopServiceImpl) FollowShop(ctx context.Context, userID, shopID primit
 	followerId := primitive.NewObjectID()
 
 	var user models.User
-	err := common.UserCollection.FindOne(ctx, bson.M{"_id": userID}).Decode(&user)
+	err := ss.userCollection.FindOne(ctx, bson.M{"_id": userID}).Decode(&user)
 	if err != nil {
 		return primitive.NilObjectID, err
 	}
 
 	var currentShop models.Shop
-	err = common.ShopCollection.FindOne(ctx, bson.M{"_id": shopID}).Decode(&currentShop)
+	err = ss.shopCollection.FindOne(ctx, bson.M{"_id": shopID}).Decode(&currentShop)
 	if err != nil {
 		return primitive.NilObjectID, err
 	}
@@ -511,7 +527,7 @@ func (ss *ShopServiceImpl) FollowShop(ctx context.Context, userID, shopID primit
 		IsOwner:   currentShop.UserID == userID,
 		JoinedAt:  time.Now(),
 	}
-	_, err = common.ShopFollowerCollection.InsertOne(ctx, shopMemberData)
+	_, err = ss.shopFollowerCollection.InsertOne(ctx, shopMemberData)
 	if err != nil {
 		return primitive.NilObjectID, err
 	}
@@ -537,7 +553,7 @@ func (ss *ShopServiceImpl) FollowShop(ctx context.Context, userID, shopID primit
 		"$set": bson.M{"modified_at": now},
 		"$inc": bson.M{"follower_count": 1},
 	}
-	result, err := common.ShopCollection.UpdateOne(ctx, filter, update)
+	result, err := ss.shopCollection.UpdateOne(ctx, filter, update)
 	if err != nil {
 		return primitive.NilObjectID, err
 	}
@@ -552,14 +568,14 @@ func (ss *ShopServiceImpl) FollowShop(ctx context.Context, userID, shopID primit
 // UnfollowShop allows a user to unfollow a shop
 func (ss *ShopServiceImpl) UnfollowShop(ctx context.Context, userID, shopID primitive.ObjectID) error {
 	filter := bson.M{"shop_id": shopID, "user_id": userID}
-	_, err := common.ShopFollowerCollection.DeleteOne(ctx, filter)
+	_, err := ss.shopFollowerCollection.DeleteOne(ctx, filter)
 	if err != nil {
 		return err
 	}
 
 	filter = bson.M{"_id": shopID}
 	update := bson.M{"$pull": bson.M{"followers": bson.M{"user_id": userID}}, "$inc": bson.M{"follower_count": -1}}
-	result, err := common.ShopCollection.UpdateOne(ctx, filter, update)
+	result, err := ss.shopCollection.UpdateOne(ctx, filter, update)
 	if err != nil {
 		return err
 	}
@@ -575,7 +591,7 @@ func (ss *ShopServiceImpl) UnfollowShop(ctx context.Context, userID, shopID prim
 func (ss *ShopServiceImpl) IsFollowingShop(ctx context.Context, userID, shopID primitive.ObjectID) (bool, error) {
 	filter := bson.M{"user_id": userID, "shop_id": shopID}
 	var follower models.ShopFollower
-	err := common.ShopFollowerCollection.FindOne(ctx, filter).Decode(&follower)
+	err := ss.shopFollowerCollection.FindOne(ctx, filter).Decode(&follower)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
 			return false, nil
@@ -589,12 +605,12 @@ func (ss *ShopServiceImpl) IsFollowingShop(ctx context.Context, userID, shopID p
 func (ss *ShopServiceImpl) GetShopFollowers(ctx context.Context, shopID primitive.ObjectID, pagination util.PaginationArgs) ([]models.ShopFollower, int64, error) {
 	filter := bson.M{"shop_id": shopID}
 	find := options.Find().SetLimit(int64(pagination.Limit)).SetSkip(int64(pagination.Skip))
-	result, err := common.ShopFollowerCollection.Find(ctx, filter, find)
+	result, err := ss.shopFollowerCollection.Find(ctx, filter, find)
 	if err != nil {
 		return nil, 0, err
 	}
 
-	count, err := common.ShopFollowerCollection.CountDocuments(ctx, bson.M{"shop_id": shopID})
+	count, err := ss.shopFollowerCollection.CountDocuments(ctx, bson.M{"shop_id": shopID})
 	if err != nil {
 		return nil, 0, err
 	}
@@ -619,14 +635,14 @@ func (ss *ShopServiceImpl) RemoveOtherFollower(ctx context.Context, ownerID, sho
 	}
 
 	filter := bson.M{"shop_id": shopID, "user_id": userToRemoveID}
-	_, err = common.ShopFollowerCollection.DeleteOne(ctx, filter)
+	_, err = ss.shopFollowerCollection.DeleteOne(ctx, filter)
 	if err != nil {
 		return err
 	}
 
 	filter = bson.M{"_id": shopID}
 	update := bson.M{"$pull": bson.M{"followers": bson.M{"user_id": userToRemoveID}}, "$inc": bson.M{"follower_count": -1}}
-	_, err = common.ShopCollection.UpdateOne(ctx, filter, update)
+	_, err = ss.shopCollection.UpdateOne(ctx, filter, update)
 	if err != nil {
 		return err
 	}
@@ -643,7 +659,7 @@ func (ss *ShopServiceImpl) UpdateShopAbout(ctx context.Context, shopID, userID p
 
 	filter := bson.M{"_id": shopID}
 	update := bson.M{"$set": bson.M{"about": about}}
-	res, err := common.ShopCollection.UpdateOne(ctx, filter, update)
+	res, err := ss.shopCollection.UpdateOne(ctx, filter, update)
 	if err != nil {
 		return err
 	}
@@ -658,7 +674,7 @@ func (ss *ShopServiceImpl) UpdateShopGallery(ctx context.Context, shopID, userID
 	now := time.Now()
 	filter := bson.M{"_id": shopID, "user_id": userID}
 	update := bson.M{"$push": bson.M{"gallery": imageURL}, "modified_at": now}
-	res, err := common.ShopCollection.UpdateOne(ctx, filter, update)
+	res, err := ss.shopCollection.UpdateOne(ctx, filter, update)
 	if err != nil {
 		return err
 	}
@@ -673,7 +689,7 @@ func (ss *ShopServiceImpl) DeleteFromShopGallery(ctx context.Context, shopID, us
 	now := time.Now()
 	filter := bson.M{"_id": shopID, "user_id": userID}
 	update := bson.M{"$pull": bson.M{"gallery": imageURL}, "modified_at": now}
-	res, err := common.ShopCollection.UpdateOne(ctx, filter, update)
+	res, err := ss.shopCollection.UpdateOne(ctx, filter, update)
 	if err != nil {
 		return err
 	}
@@ -693,7 +709,7 @@ func (ss *ShopServiceImpl) CreateShopReturnPolicy(ctx context.Context, shopID, u
 	policy.ID = primitive.NewObjectID()
 	policy.ShopId = shopID
 
-	_, err = common.ShopReturnPolicyCollection.InsertOne(ctx, policy)
+	_, err = ss.shopReturnPolicyCollection.InsertOne(ctx, policy)
 	if err != nil {
 		return primitive.NilObjectID, err
 	}
@@ -710,7 +726,7 @@ func (ss *ShopServiceImpl) UpdateShopReturnPolicy(ctx context.Context, shopID, u
 
 	filter := bson.M{"shop_id": shopID}
 	update := bson.M{"$set": bson.M{"accepts_return": policy.AcceptsReturn, "accepts_echanges": policy.AcceptsExchanges, "deadline": policy.Deadline}}
-	res, err := common.ShopReturnPolicyCollection.UpdateOne(ctx, filter, update)
+	res, err := ss.shopReturnPolicyCollection.UpdateOne(ctx, filter, update)
 	if err != nil {
 		return err
 	}
@@ -730,7 +746,7 @@ func (ss *ShopServiceImpl) DeleteShopReturnPolicy(ctx context.Context, shopID, u
 	}
 
 	filter := bson.M{"_id": policyID, "shop_id": shopID}
-	_, err = common.ShopReturnPolicyCollection.DeleteOne(ctx, filter)
+	_, err = ss.shopReturnPolicyCollection.DeleteOne(ctx, filter)
 	if err != nil {
 		return err
 	}
@@ -742,7 +758,7 @@ func (ss *ShopServiceImpl) DeleteShopReturnPolicy(ctx context.Context, shopID, u
 func (ss *ShopServiceImpl) GetShopReturnPolicy(ctx context.Context, shopID, policyID primitive.ObjectID) (*models.ShopReturnPolicies, error) {
 	var currentPolicy models.ShopReturnPolicies
 	filter := bson.M{"_id": policyID, "shop_id": shopID}
-	err := common.ShopReturnPolicyCollection.FindOne(ctx, filter).Decode(&currentPolicy)
+	err := ss.shopReturnPolicyCollection.FindOne(ctx, filter).Decode(&currentPolicy)
 	if err != nil {
 		return nil, err
 	}
@@ -751,7 +767,7 @@ func (ss *ShopServiceImpl) GetShopReturnPolicy(ctx context.Context, shopID, poli
 
 // GetShopReturnPolicies retrieves all return policies for a shop
 func (ss *ShopServiceImpl) GetShopReturnPolicies(ctx context.Context, shopID primitive.ObjectID) ([]models.ShopReturnPolicies, error) {
-	cursor, err := common.ShopReturnPolicyCollection.Find(ctx, bson.M{"shop_id": shopID})
+	cursor, err := ss.shopReturnPolicyCollection.Find(ctx, bson.M{"shop_id": shopID})
 	if err != nil {
 		return nil, err
 	}
@@ -784,7 +800,7 @@ func (ss *ShopServiceImpl) CreateShopComplianceInformation(ctx context.Context, 
 		SellerPolicie:        compliance.SellerPolicie,
 	}
 
-	_, err = common.ShopCompliancePolicyCollection.InsertOne(ctx, complianceInformation)
+	_, err = ss.shopCompliancePolicyCollection.InsertOne(ctx, complianceInformation)
 	if err != nil {
 		return err
 	}
@@ -795,7 +811,7 @@ func (ss *ShopServiceImpl) CreateShopComplianceInformation(ctx context.Context, 
 // GetShopComplianceInformation retrieves compliance information
 func (ss *ShopServiceImpl) GetShopComplianceInformation(ctx context.Context, shopID primitive.ObjectID) (*models.ComplianceInformation, error) {
 	var complianceInformation models.ComplianceInformation
-	err := common.ShopCompliancePolicyCollection.FindOne(ctx, bson.M{"shop_id": shopID}).Decode(&complianceInformation)
+	err := ss.shopCompliancePolicyCollection.FindOne(ctx, bson.M{"shop_id": shopID}).Decode(&complianceInformation)
 	if err != nil {
 		return nil, err
 	}
@@ -807,7 +823,7 @@ func (ss *ShopServiceImpl) UpdateShopLogo(ctx context.Context, shopID, userID pr
 	now := time.Now()
 	filter := bson.M{"_id": shopID, "user_id": userID}
 	update := bson.M{"$set": bson.M{"logo_url": logoURL, "modified_at": now}}
-	res, err := common.ShopCollection.UpdateOne(ctx, filter, update)
+	res, err := ss.shopCollection.UpdateOne(ctx, filter, update)
 	if err != nil {
 		return err
 	}
@@ -822,7 +838,7 @@ func (ss *ShopServiceImpl) UpdateShopBanner(ctx context.Context, shopID, userID 
 	now := time.Now()
 	filter := bson.M{"_id": shopID, "user_id": userID}
 	update := bson.M{"$set": bson.M{"banner_url": bannerURL, "modified_at": now}}
-	res, err := common.ShopCollection.UpdateOne(ctx, filter, update)
+	res, err := ss.shopCollection.UpdateOne(ctx, filter, update)
 	if err != nil {
 		return err
 	}
@@ -837,7 +853,7 @@ func (ss *ShopServiceImpl) DeleteShopLogo(ctx context.Context, shopID, userID pr
 	now := time.Now()
 	filter := bson.M{"_id": shopID, "user_id": userID}
 	update := bson.M{"$set": bson.M{"logo_url": common.DEFAULT_LOGO, "modified_at": now}}
-	res, err := common.ShopCollection.UpdateOne(ctx, filter, update)
+	res, err := ss.shopCollection.UpdateOne(ctx, filter, update)
 	if err != nil {
 		return err
 	}
@@ -852,7 +868,7 @@ func (ss *ShopServiceImpl) DeleteShopBanner(ctx context.Context, shopID, userID 
 	now := time.Now()
 	filter := bson.M{"_id": shopID, "user_id": userID}
 	update := bson.M{"$set": bson.M{"banner_url": common.DEFAULT_THUMBNAIL, "modified_at": now}}
-	res, err := common.ShopCollection.UpdateOne(ctx, filter, update)
+	res, err := ss.shopCollection.UpdateOne(ctx, filter, update)
 	if err != nil {
 		return err
 	}
@@ -868,7 +884,7 @@ func (ss *ShopServiceImpl) VerifyShopOwnership(ctx context.Context, userID, shop
 	var result struct {
 		ID primitive.ObjectID `bson:"_id"`
 	}
-	err := common.ShopCollection.FindOne(ctx, bson.M{"_id": shopID, "user_id": userID}).Decode(&result)
+	err := ss.shopCollection.FindOne(ctx, bson.M{"_id": shopID, "user_id": userID}).Decode(&result)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
 			return errors.New("user does not own the shop")
@@ -897,7 +913,7 @@ func (ss *ShopServiceImpl) CreateShopNotification(ctx context.Context, shopID pr
 		ExpiresAt: nil,
 	}
 
-	_, err := common.ShopNotificationCollection.InsertOne(ctx, notification)
+	_, err := ss.shopNotificationCollection.InsertOne(ctx, notification)
 	if err != nil {
 		return primitive.NilObjectID, err
 	}
@@ -913,7 +929,7 @@ func (ss *ShopServiceImpl) GetShopNotifications(ctx context.Context, shopID prim
 		SetSkip(int64(pagination.Skip)).
 		SetSort(bson.D{{Key: "created_at", Value: -1}})
 
-	cursor, err := common.ShopNotificationCollection.Find(ctx, filter, options)
+	cursor, err := ss.shopNotificationCollection.Find(ctx, filter, options)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -924,7 +940,7 @@ func (ss *ShopServiceImpl) GetShopNotifications(ctx context.Context, shopID prim
 		return nil, 0, err
 	}
 
-	count, err := common.ShopNotificationCollection.CountDocuments(ctx, filter)
+	count, err := ss.shopNotificationCollection.CountDocuments(ctx, filter)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -940,7 +956,7 @@ func (ss *ShopServiceImpl) GetUnreadShopNotifications(ctx context.Context, shopI
 		SetSkip(int64(pagination.Skip)).
 		SetSort(bson.D{{Key: "created_at", Value: -1}})
 
-	cursor, err := common.ShopNotificationCollection.Find(ctx, filter, options)
+	cursor, err := ss.shopNotificationCollection.Find(ctx, filter, options)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -951,7 +967,7 @@ func (ss *ShopServiceImpl) GetUnreadShopNotifications(ctx context.Context, shopI
 		return nil, 0, err
 	}
 
-	count, err := common.ShopNotificationCollection.CountDocuments(ctx, filter)
+	count, err := ss.shopNotificationCollection.CountDocuments(ctx, filter)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -965,7 +981,7 @@ func (ss *ShopServiceImpl) MarkShopNotificationAsRead(ctx context.Context, shopI
 	filter := bson.M{"_id": notificationID, "shop_id": shopID}
 	update := bson.M{"$set": bson.M{"is_read": true, "read_at": now}}
 
-	result, err := common.ShopNotificationCollection.UpdateOne(ctx, filter, update)
+	result, err := ss.shopNotificationCollection.UpdateOne(ctx, filter, update)
 	if err != nil {
 		return err
 	}
@@ -983,14 +999,14 @@ func (ss *ShopServiceImpl) MarkAllShopNotificationsAsRead(ctx context.Context, s
 	filter := bson.M{"shop_id": shopID, "is_read": false}
 	update := bson.M{"$set": bson.M{"is_read": true, "read_at": now}}
 
-	_, err := common.ShopNotificationCollection.UpdateMany(ctx, filter, update)
+	_, err := ss.shopNotificationCollection.UpdateMany(ctx, filter, update)
 	return err
 }
 
 // DeleteShopNotification deletes a specific notification
 func (ss *ShopServiceImpl) DeleteShopNotification(ctx context.Context, shopID, notificationID primitive.ObjectID) error {
 	filter := bson.M{"_id": notificationID, "shop_id": shopID}
-	result, err := common.ShopNotificationCollection.DeleteOne(ctx, filter)
+	result, err := ss.shopNotificationCollection.DeleteOne(ctx, filter)
 	if err != nil {
 		return err
 	}
@@ -1010,7 +1026,7 @@ func (ss *ShopServiceImpl) DeleteExpiredShopNotifications(ctx context.Context, s
 		"expires_at": bson.M{"$lt": now},
 	}
 
-	_, err := common.ShopNotificationCollection.DeleteMany(ctx, filter)
+	_, err := ss.shopNotificationCollection.DeleteMany(ctx, filter)
 	return err
 }
 
@@ -1035,7 +1051,7 @@ func (ss *ShopServiceImpl) CreateShopNotificationSettings(ctx context.Context, s
 		ModifiedAt:             now,
 	}
 
-	_, err := common.ShopNotificationSettingsCollection.InsertOne(ctx, settings)
+	_, err := ss.shopNotificationSettingsCollection.InsertOne(ctx, settings)
 	if err != nil {
 		return primitive.NilObjectID, err
 	}
@@ -1046,7 +1062,7 @@ func (ss *ShopServiceImpl) CreateShopNotificationSettings(ctx context.Context, s
 // GetShopNotificationSettings retrieves notification settings for a shop
 func (ss *ShopServiceImpl) GetShopNotificationSettings(ctx context.Context, shopID primitive.ObjectID) (*models.ShopNotificationSettings, error) {
 	var settings models.ShopNotificationSettings
-	err := common.ShopNotificationSettingsCollection.FindOne(ctx, bson.M{"shop_id": shopID}).Decode(&settings)
+	err := ss.shopNotificationSettingsCollection.FindOne(ctx, bson.M{"shop_id": shopID}).Decode(&settings)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
 			// Create default settings if none exist
@@ -1054,7 +1070,7 @@ func (ss *ShopServiceImpl) GetShopNotificationSettings(ctx context.Context, shop
 			if createErr != nil {
 				return nil, createErr
 			}
-			err = common.ShopNotificationSettingsCollection.FindOne(ctx, bson.M{"_id": settingsID}).Decode(&settings)
+			err = ss.shopNotificationSettingsCollection.FindOne(ctx, bson.M{"_id": settingsID}).Decode(&settings)
 			if err != nil {
 				return nil, err
 			}
@@ -1101,7 +1117,7 @@ func (ss *ShopServiceImpl) UpdateShopNotificationSettings(ctx context.Context, s
 	update := bson.M{"$set": updateData}
 	opts := options.Update().SetUpsert(true)
 
-	_, err := common.ShopNotificationSettingsCollection.UpdateOne(ctx, filter, update, opts)
+	_, err := ss.shopNotificationSettingsCollection.UpdateOne(ctx, filter, update, opts)
 	return err
 }
 
@@ -1149,7 +1165,7 @@ func (ss *ShopServiceImpl) SendShopNotificationEmail(ctx context.Context, shopID
 	}
 
 	var user models.User
-	err = common.UserCollection.FindOne(ctx, bson.M{"_id": shop.UserID}).Decode(&user)
+	err = ss.userCollection.FindOne(ctx, bson.M{"_id": shop.UserID}).Decode(&user)
 	if err != nil {
 		return fmt.Errorf("failed to get shop owner details: %w", err)
 	}

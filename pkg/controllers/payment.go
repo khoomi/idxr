@@ -4,7 +4,7 @@ import (
 	"log"
 	"net/http"
 
-	"khoomi-api-io/api/internal/common"
+	"khoomi-api-io/api/internal/helpers"
 	"khoomi-api-io/api/pkg/models"
 	"khoomi-api-io/api/pkg/services"
 	"khoomi-api-io/api/pkg/util"
@@ -67,7 +67,7 @@ func (pc *PaymentController) GetSellerPaymentInformations() gin.HandlerFunc {
 			return
 		}
 
-		paginationArgs := common.GetPaginationArgs(c)
+		paginationArgs := helpers.GetPaginationArgs(c)
 		paymentInfos, count, err := pc.paymentService.GetSellerPaymentInformations(ctx, userId, paginationArgs)
 		if err != nil {
 			util.HandleError(c, http.StatusNotFound, err)
@@ -190,7 +190,7 @@ func (pc *PaymentController) GetPaymentCards() gin.HandlerFunc {
 			return
 		}
 
-		paginationArgs := common.GetPaginationArgs(c)
+		paginationArgs := helpers.GetPaginationArgs(c)
 		paymentInfos, count, err := pc.paymentService.GetPaymentCards(ctx, userId, paginationArgs)
 		if err != nil {
 			util.HandleError(c, http.StatusNotFound, err)

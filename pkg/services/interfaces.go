@@ -12,23 +12,6 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
-// Request types for ShopService
-type CreateShopRequest struct {
-	Name        string
-	Username    string
-	Description string
-	LogoFile    any
-	BannerFile  any
-}
-
-type UpdateShopRequest struct {
-	Name        string
-	Username    string
-	Description string
-	LogoFile    any
-	BannerFile  any
-}
-
 // ShopService defines the interface for shop-related operations
 type ShopService interface {
 	CheckShopNameAvailability(ctx context.Context, username string) (bool, error)
@@ -116,14 +99,28 @@ type CartService interface {
 	ValidateCartItems(ctx context.Context, userID primitive.ObjectID) (*CartValidationResult, error)
 }
 
-// CartQuantityResponse represents the response for quantity operations
+type CreateShopRequest struct {
+	Name        string
+	Username    string
+	Description string
+	LogoFile    any
+	BannerFile  any
+}
+
+type UpdateShopRequest struct {
+	Name        string
+	Username    string
+	Description string
+	LogoFile    any
+	BannerFile  any
+}
+
 type CartQuantityResponse struct {
 	Quantity   int     `json:"quantity"`
 	UnitPrice  float64 `json:"unitPrice"`
 	TotalPrice float64 `json:"totalPrice"`
 }
 
-// CartValidationResult represents cart validation results
 type CartValidationResult struct {
 	ValidItems      []models.CartItemJson `json:"validItems"`
 	InvalidItems    []models.CartItemJson `json:"invalidItems"`
@@ -140,6 +137,10 @@ type NotificationService interface {
 
 	InvalidateReviewCache(ctx context.Context, listingID primitive.ObjectID) error
 	InvalidateCartCache(ctx context.Context, userID primitive.ObjectID) error
+
+	CreateNotification(ctx context.Context, notification models.Notification) (primitive.ObjectID, error)
+	GetNotification(ctx context.Context, userID primitive.ObjectID) (*models.Notification, error)
+	UpdateNotification(ctx context.Context, userID primitive.ObjectID, notification models.Notification) error
 }
 
 // EmailService defines the interface for email operations
@@ -153,7 +154,6 @@ type EmailService interface {
 	SendNewShopEmail(email, sellerName, shopName string) error
 	SendNewListingEmail(email, sellerName, listingTitle string) error
 
-	// Shop notification emails
 	SendShopNewOrderNotification(email, shopName, orderID, customerName string, orderTotal float64) error
 	SendShopPaymentConfirmedNotification(email, shopName, orderID string, amount float64) error
 	SendShopPaymentFailedNotification(email, shopName, orderID, reason string) error
@@ -322,53 +322,44 @@ type ListingService interface {
 	UpdateListingState(ctx context.Context, userID primitive.ObjectID, listingIDs []string, newState models.ListingStateType) (*UpdateListingStateResult, error)
 	HasUserCreatedListing(ctx context.Context, userID primitive.ObjectID) (bool, error)
 
-	// Listing management operations
 	DeleteListings(ctx context.Context, userID, shopID primitive.ObjectID, listingIDs []primitive.ObjectID, reviewService ReviewService) (*DeleteListingsResult, error)
 }
 
-// CreateListingRequest represents the request to create a new listing
 type CreateListingRequest struct {
-	UserID            primitive.ObjectID
-	ShopID            primitive.ObjectID
-	LoginName         string
-	LoginEmail        string
-	NewListing        models.NewListing
-	MainImageURL      string
-	ImagesURLs        []string
-	ImagesResults     []any // Store upload results for cleanup
-	MainImageResult   any   // Store main image upload result for cleanup
+	UserID          primitive.ObjectID
+	ShopID          primitive.ObjectID
+	LoginName       string
+	LoginEmail      string
+	NewListing      models.NewListing
+	MainImageURL    string
+	ImagesURLs      []string
+	ImagesResults   []any
+	MainImageResult any
 }
 
-// UpdateListingRequest represents the request to update an existing listing
 type UpdateListingRequest struct {
-	ListingID        primitive.ObjectID
-	UserID           primitive.ObjectID
-	ShopID           primitive.ObjectID
-	
-	// Listing data updates - only changed fields
-	UpdatedListing   models.UpdateListing
-	
-	// Main image handling
-	NewMainImageURL  *string  // New main image URL if uploaded
-	KeepMainImage    bool     // Whether to keep existing main image
-	
-	// Image array handling
-	ImagesToAdd      []string // New image URLs to add
-	ImagesToRemove   []string // Existing URLs to remove
-	ImageOrder       []string // Optional: new order for all images
-	
-	// Upload results for cleanup on error
-	MainImageResult  any      // New main image upload result
-	NewImageResults  []any    // New images upload results
+	ListingID primitive.ObjectID
+	UserID    primitive.ObjectID
+	ShopID    primitive.ObjectID
+
+	UpdatedListing models.UpdateListing
+
+	NewMainImageURL *string
+	KeepMainImage   bool
+
+	ImagesToAdd    []string
+	ImagesToRemove []string
+	ImageOrder     []string
+
+	MainImageResult any
+	NewImageResults []any
 }
 
-// UpdateListingStateResult represents the result of bulk listing state update
 type UpdateListingStateResult struct {
 	UpdatedListings    []primitive.ObjectID `json:"updated"`
 	NotUpdatedListings []primitive.ObjectID `json:"not_updated"`
 }
 
-// DeleteListingsResult represents the result of bulk listing deletion
 type DeleteListingsResult struct {
 	DeletedListings    []primitive.ObjectID `json:"deleted"`
 	NotDeletedListings []primitive.ObjectID `json:"not_deleted"`

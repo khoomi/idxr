@@ -5,14 +5,22 @@ import (
 	"log"
 
 	"khoomi-api-io/api/internal"
+	"khoomi-api-io/api/pkg/models"
+	"khoomi-api-io/api/pkg/util"
 
+	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
+	"go.mongodb.org/mongo-driver/mongo"
 )
 
-type NotificationServiceImpl struct{}
+type NotificationServiceImpl struct {
+	notificationCollection *mongo.Collection
+}
 
 func NewNotificationService() NotificationService {
-	return &NotificationServiceImpl{}
+	return &NotificationServiceImpl{
+		notificationCollection: util.GetCollection(util.DB, "UserNotification"),
+	}
 }
 
 // SendReviewNotificationAsync sends review-related notifications asynchronously
@@ -56,4 +64,31 @@ func (ns *NotificationServiceImpl) InvalidateReviewCache(ctx context.Context, li
 // InvalidateCartCache invalidates cart-related cache entries
 func (ns *NotificationServiceImpl) InvalidateCartCache(ctx context.Context, userID primitive.ObjectID) error {
 	return internal.PublishCacheMessageDirect(internal.CacheInvalidateCart, userID.Hex())
+}
+
+// CreateNotification creates a new notification
+func (ns *NotificationServiceImpl) CreateNotification(ctx context.Context, notification models.Notification) (primitive.ObjectID, error) {
+	result, err := ns.notificationCollection.InsertOne(ctx, notification)
+	if err != nil {
+		return primitive.NilObjectID, err
+	}
+	return result.InsertedID.(primitive.ObjectID), nil
+}
+
+// GetNotification retrieves a notification by user ID
+func (ns *NotificationServiceImpl) GetNotification(ctx context.Context, userID primitive.ObjectID) (*models.Notification, error) {
+	var notification models.Notification
+	err := ns.notificationCollection.FindOne(ctx, bson.M{"user_id": userID}).Decode(&notification)
+	if err != nil {
+		return nil, err
+	}
+	return &notification, nil
+}
+
+// UpdateNotification updates a notification for a specific user
+func (ns *NotificationServiceImpl) UpdateNotification(ctx context.Context, userID primitive.ObjectID, notification models.Notification) error {
+	filter := bson.M{"user_id": userID}
+	update := bson.M{"$set": notification}
+	_, err := ns.notificationCollection.UpdateOne(ctx, filter, update)
+	return err
 }

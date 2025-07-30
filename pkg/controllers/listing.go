@@ -9,6 +9,7 @@ import (
 	"khoomi-api-io/api/internal"
 	auth "khoomi-api-io/api/internal/auth"
 	"khoomi-api-io/api/internal/common"
+	"khoomi-api-io/api/internal/helpers"
 	"khoomi-api-io/api/pkg/models"
 	"khoomi-api-io/api/pkg/services"
 	"khoomi-api-io/api/pkg/util"
@@ -16,7 +17,6 @@ import (
 	"github.com/cloudinary/cloudinary-go/api/uploader"
 	"github.com/gin-gonic/gin"
 	"github.com/pkg/errors"
-	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
@@ -39,7 +39,7 @@ func (lc *ListingController) CreateListing(c *gin.Context) {
 	ctx, cancel := WithTimeout()
 	defer cancel()
 
-	shopId, myId, err := common.MyShopIdAndMyId(c)
+	shopId, myId, err := helpers.MyShopIdAndMyId(c)
 	if err != nil {
 		util.HandleError(c, http.StatusBadRequest, err)
 		return
@@ -83,7 +83,7 @@ func (lc *ListingController) CreateListing(c *gin.Context) {
 		mainImageUploadUrl.SecureURL = common.DEFAULT_THUMBNAIL
 	}
 
-	uploadedImagesUrl, uploadedImagesResult, err := common.HandleSequentialImages(c)
+	uploadedImagesUrl, uploadedImagesResult, err := helpers.HandleSequentialImages(c)
 	if err != nil {
 		util.HandleError(c, http.StatusInternalServerError, err)
 		return
@@ -145,7 +145,7 @@ func (lc *ListingController) GetListings(c *gin.Context) {
 	ctx, cancel := WithTimeout()
 	defer cancel()
 
-	paginationArgs := common.GetPaginationArgs(c)
+	paginationArgs := helpers.GetPaginationArgs(c)
 	filters := lc.listingService.GetListingFilters(c)
 	sort := lc.listingService.GetListingSortingBson(paginationArgs.Sort)
 
@@ -168,13 +168,13 @@ func (lc *ListingController) GetMyListingsSummary(c *gin.Context) {
 	ctx, cancel := WithTimeout()
 	defer cancel()
 
-	shopId, myId, err := common.MyShopIdAndMyId(c)
+	shopId, myId, err := helpers.MyShopIdAndMyId(c)
 	if err != nil {
 		util.HandleError(c, http.StatusBadRequest, err)
 		return
 	}
 
-	paginationArgs := common.GetPaginationArgs(c)
+	paginationArgs := helpers.GetPaginationArgs(c)
 	sort := lc.listingService.GetListingSortingBson(paginationArgs.Sort)
 
 	listings, count, err := lc.listingService.GetMyListingsSummary(ctx, shopId, myId, paginationArgs, sort)
@@ -205,7 +205,7 @@ func (lc *ListingController) GetShopListings(c *gin.Context) {
 	}
 
 	filters := lc.listingService.GetListingFilters(c)
-	paginationArgs := common.GetPaginationArgs(c)
+	paginationArgs := helpers.GetPaginationArgs(c)
 	sort := lc.listingService.GetListingSortingBson(paginationArgs.Sort)
 
 	listings, count, err := lc.listingService.GetShopListings(ctx, shopObjectId, paginationArgs, filters, sort)
@@ -227,7 +227,7 @@ func (lc *ListingController) HasUserCreatedListingOnboarding(c *gin.Context) {
 	ctx, cancel := WithTimeout()
 	defer cancel()
 
-	_, userId, err := common.MyShopIdAndMyId(c)
+	_, userId, err := helpers.MyShopIdAndMyId(c)
 	if err != nil {
 		util.HandleError(c, http.StatusBadRequest, err)
 		return
@@ -252,7 +252,7 @@ func (lc *ListingController) DeleteListings(c *gin.Context) {
 	ctx, cancel := WithTimeout()
 	defer cancel()
 
-	shopId, myId, err := common.MyShopIdAndMyId(c)
+	shopId, myId, err := helpers.MyShopIdAndMyId(c)
 	if err != nil {
 		util.HandleError(c, http.StatusBadRequest, err)
 		return
@@ -294,7 +294,7 @@ func (lc *ListingController) ChangeListingState(c *gin.Context) {
 	ctx, cancel := WithTimeout()
 	defer cancel()
 
-	shopId, myId, err := common.MyShopIdAndMyId(c)
+	shopId, myId, err := helpers.MyShopIdAndMyId(c)
 	if err != nil {
 		util.HandleError(c, http.StatusBadRequest, err)
 		return
@@ -305,7 +305,6 @@ func (lc *ListingController) ChangeListingState(c *gin.Context) {
 		util.HandleError(c, http.StatusBadRequest, errors.New("no listing IDs provided"))
 		return
 	}
-	log.Println(listingIDs)
 
 	newStatus := models.ListingStateType(c.Query("status"))
 
@@ -324,6 +323,12 @@ func (lc *ListingController) UpdateListing(c *gin.Context) {
 	ctx, cancel := WithTimeout()
 	defer cancel()
 
+	shopId, myId, err := helpers.MyShopIdAndMyId(c)
+	if err != nil {
+		util.HandleError(c, http.StatusBadRequest, err)
+		return
+	}
+
 	listingId := c.Param("listingid")
 	listingObjectId, err := primitive.ObjectIDFromHex(listingId)
 	if err != nil {
@@ -331,13 +336,6 @@ func (lc *ListingController) UpdateListing(c *gin.Context) {
 		return
 	}
 
-	session, err := auth.GetSessionAuto(c)
-	if err != nil {
-		util.HandleError(c, http.StatusUnauthorized, err)
-		return
-	}
-
-	// Parse listing update data
 	listingJson := c.PostForm("listing")
 	if listingJson == "" {
 		util.HandleError(c, http.StatusBadRequest, errors.New("missing listing update payload"))
@@ -350,33 +348,28 @@ func (lc *ListingController) UpdateListing(c *gin.Context) {
 		return
 	}
 
-	// Validate the update data
 	if validationErr := common.Validate.Struct(updateListing); validationErr != nil {
 		util.HandleError(c, http.StatusBadRequest, validationErr)
 		return
 	}
 
-	// Handle main image
 	keepMainImage := c.PostForm("keepMainImage") == "true"
 	var newMainImageURL *string
 	var mainImageResult uploader.UploadResult
 
 	mainImage, _, err := c.Request.FormFile("mainImage")
 	if err == nil {
-		// Upload new main image
 		mainImageResult, err = util.FileUpload(models.File{File: mainImage})
 		if err != nil {
 			util.HandleError(c, http.StatusInternalServerError, fmt.Errorf("failed to upload main image: %v", err))
 			return
 		}
 		newMainImageURL = &mainImageResult.SecureURL
-		keepMainImage = true // If new image uploaded, we're keeping a main image
+		keepMainImage = true
 	}
 
-	// Handle new images
-	newImagesURLs, newImagesResults, err := common.HandleSequentialImages(c)
+	newImagesURLs, newImagesResults, err := helpers.HandleSequentialImages(c)
 	if err != nil {
-		// Cleanup main image if already uploaded
 		if mainImageResult.PublicID != "" {
 			util.DestroyMedia(mainImageResult.PublicID)
 		}
@@ -384,15 +377,12 @@ func (lc *ListingController) UpdateListing(c *gin.Context) {
 		return
 	}
 
-	// Get images to remove
 	removeImages := c.PostFormArray("removeImages")
 
-	// Get image order (optional)
 	var imageOrder []string
 	imageOrderJson := c.PostForm("imageOrder")
 	if imageOrderJson != "" {
 		if err := json.Unmarshal([]byte(imageOrderJson), &imageOrder); err != nil {
-			// Cleanup uploaded images
 			if mainImageResult.PublicID != "" {
 				util.DestroyMedia(mainImageResult.PublicID)
 			}
@@ -404,28 +394,10 @@ func (lc *ListingController) UpdateListing(c *gin.Context) {
 		}
 	}
 
-	// Get shop ID for the listing
-	var listing struct {
-		ShopID primitive.ObjectID `bson:"shop_id"`
-	}
-	err = common.ListingCollection.FindOne(ctx, bson.M{"_id": listingObjectId}).Decode(&listing)
-	if err != nil {
-		// Cleanup uploaded images
-		if mainImageResult.PublicID != "" {
-			util.DestroyMedia(mainImageResult.PublicID)
-		}
-		for _, result := range newImagesResults {
-			util.DestroyMedia(result.PublicID)
-		}
-		util.HandleError(c, http.StatusNotFound, errors.New("listing not found"))
-		return
-	}
-
-	// Build update request
 	req := services.UpdateListingRequest{
 		ListingID:       listingObjectId,
-		UserID:          session.UserId,
-		ShopID:          listing.ShopID,
+		UserID:          myId,
+		ShopID:          shopId,
 		UpdatedListing:  updateListing,
 		NewMainImageURL: newMainImageURL,
 		KeepMainImage:   keepMainImage,
@@ -436,20 +408,17 @@ func (lc *ListingController) UpdateListing(c *gin.Context) {
 		NewImageResults: make([]any, len(newImagesResults)),
 	}
 
-	// Convert upload results to []any
 	for i, result := range newImagesResults {
 		req.NewImageResults[i] = result
 	}
 
-	// Call service to update listing
 	err = lc.listingService.UpdateListing(ctx, req)
 	if err != nil {
 		util.HandleError(c, http.StatusInternalServerError, err)
 		return
 	}
 
-	// Invalidate cache
-	internal.PublishCacheMessage(c, internal.CacheInvalidateShopListings, listing.ShopID.Hex())
+	internal.PublishCacheMessage(c, internal.CacheInvalidateShopListings, shopId.Hex())
 	internal.PublishCacheMessage(c, internal.CacheInvalidateListing, listingId)
 
 	util.HandleSuccess(c, http.StatusOK, "Listing updated successfully", gin.H{"listing_id": listingObjectId})

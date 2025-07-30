@@ -242,9 +242,6 @@ func listingRoutes(api *gin.RouterGroup, serviceContainer *container.ServiceCont
 		reviews.DELETE("/", reviewController.DeleteMyListingReview())
 		reviews.DELETE("/:reviewid", reviewController.DeleteOtherListingReview())
 	}
-	{
-		secured := listing.Group("").Use(auth.Auth())
-	}
 }
 
 // cartRoutesRefactored configures cart-related endpoints

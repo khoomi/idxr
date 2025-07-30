@@ -12,14 +12,23 @@ import (
 	"github.com/pkg/errors"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
+	"go.mongodb.org/mongo-driver/mongo"
 )
 
 // CartServiceImpl implements the CartService interface
-type CartServiceImpl struct{}
+type CartServiceImpl struct {
+	userCartCollection *mongo.Collection
+	listingCollection  *mongo.Collection
+	shopCollection     *mongo.Collection
+}
 
 // NewCartService creates a new instance of CartService
 func NewCartService() CartService {
-	return &CartServiceImpl{}
+	return &CartServiceImpl{
+		userCartCollection: util.GetCollection(util.DB, "UserCart"),
+		listingCollection:  util.GetCollection(util.DB, "Listing"),
+		shopCollection:     util.GetCollection(util.DB, "Shop"),
+	}
 }
 
 // SaveCartItem adds a new item to the user's cart with validation
@@ -47,7 +56,7 @@ func (cs *CartServiceImpl) SaveCartItem(ctx context.Context, userID primitive.Ob
 
 	cartItem := cs.buildCartItem(userID, req, listing, shop, now)
 
-	res, err := common.UserCartCollection.InsertOne(ctx, cartItem)
+	res, err := cs.userCartCollection.InsertOne(ctx, cartItem)
 	if err != nil {
 		return primitive.NilObjectID, err
 	}
@@ -96,7 +105,7 @@ func (cs *CartServiceImpl) GetCartItems(ctx context.Context, userID primitive.Ob
 		{"$limit": int64(pagination.Limit)},
 	}
 
-	cursor, err := common.UserCartCollection.Aggregate(ctx, pipeline)
+	cursor, err := cs.userCartCollection.Aggregate(ctx, pipeline)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -151,7 +160,7 @@ func (cs *CartServiceImpl) GetCartItems(ctx context.Context, userID primitive.Ob
 	}
 
 	// Get total count
-	count, err := common.UserCartCollection.CountDocuments(ctx, bson.M{"userId": userID})
+	count, err := cs.userCartCollection.CountDocuments(ctx, bson.M{"userId": userID})
 	if err != nil {
 		return nil, 0, err
 	}
@@ -172,7 +181,7 @@ func (cs *CartServiceImpl) DecreaseCartItemQuantity(ctx context.Context, userID,
 // DeleteCartItem removes a single cart item
 func (cs *CartServiceImpl) DeleteCartItem(ctx context.Context, userID, cartItemID primitive.ObjectID) (int64, error) {
 	filter := bson.M{"_id": cartItemID, "userId": userID}
-	result, err := common.UserCartCollection.DeleteOne(ctx, filter)
+	result, err := cs.userCartCollection.DeleteOne(ctx, filter)
 	if err != nil {
 		return 0, err
 	}
@@ -195,7 +204,7 @@ func (cs *CartServiceImpl) DeleteCartItems(ctx context.Context, userID primitive
 		"userId": userID,
 	}
 
-	result, err := common.UserCartCollection.DeleteMany(ctx, filter)
+	result, err := cs.userCartCollection.DeleteMany(ctx, filter)
 	if err != nil {
 		return 0, err
 	}
@@ -210,7 +219,7 @@ func (cs *CartServiceImpl) DeleteCartItems(ctx context.Context, userID primitive
 // ClearCartItems removes all cart items for a user
 func (cs *CartServiceImpl) ClearCartItems(ctx context.Context, userID primitive.ObjectID) (int64, error) {
 	filter := bson.M{"userId": userID}
-	result, err := common.UserCartCollection.DeleteMany(ctx, filter)
+	result, err := cs.userCartCollection.DeleteMany(ctx, filter)
 	if err != nil {
 		return 0, err
 	}
@@ -250,7 +259,7 @@ func (cs *CartServiceImpl) ValidateCartItems(ctx context.Context, userID primiti
 
 func (cs *CartServiceImpl) validateListing(ctx context.Context, listingID primitive.ObjectID) (*models.Listing, error) {
 	var listing models.Listing
-	err := common.ListingCollection.FindOne(ctx, bson.M{"_id": listingID}).Decode(&listing)
+	err := cs.listingCollection.FindOne(ctx, bson.M{"_id": listingID}).Decode(&listing)
 	if err != nil {
 		return nil, fmt.Errorf("listing not found")
 	}
@@ -264,7 +273,7 @@ func (cs *CartServiceImpl) validateListing(ctx context.Context, listingID primit
 
 func (cs *CartServiceImpl) getShop(ctx context.Context, shopID primitive.ObjectID) (*models.Shop, error) {
 	var shop models.Shop
-	err := common.ShopCollection.FindOne(ctx, bson.M{"_id": shopID}).Decode(&shop)
+	err := cs.shopCollection.FindOne(ctx, bson.M{"_id": shopID}).Decode(&shop)
 	if err != nil {
 		return nil, fmt.Errorf("shop not found")
 	}
@@ -307,7 +316,7 @@ func (cs *CartServiceImpl) updateCartItemQuantity(ctx context.Context, userID, c
 
 	var cartItem models.CartItem
 	filter := bson.M{"_id": cartItemID, "userId": userID}
-	err := common.UserCartCollection.FindOne(ctx, filter).Decode(&cartItem)
+	err := cs.userCartCollection.FindOne(ctx, filter).Decode(&cartItem)
 	if err != nil {
 		return nil, fmt.Errorf("cart item not found")
 	}
@@ -340,12 +349,12 @@ func (cs *CartServiceImpl) updateCartItemQuantity(ctx context.Context, userID, c
 	cartItem.ModifiedAt = now
 	cartItem.ExpiresAt = now.Add(common.CART_ITEM_EXPIRATION_TIME)
 
-	_, err = common.UserCartCollection.DeleteOne(ctx, filter)
+	_, err = cs.userCartCollection.DeleteOne(ctx, filter)
 	if err != nil {
 		return nil, err
 	}
 
-	_, err = common.UserCartCollection.InsertOne(ctx, cartItem)
+	_, err = cs.userCartCollection.InsertOne(ctx, cartItem)
 	if err != nil {
 		return nil, err
 	}

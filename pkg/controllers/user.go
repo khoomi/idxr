@@ -8,6 +8,7 @@ import (
 
 	"khoomi-api-io/api/internal/auth"
 	"khoomi-api-io/api/internal/common"
+	"khoomi-api-io/api/internal/helpers"
 	"khoomi-api-io/api/pkg/models"
 	"khoomi-api-io/api/pkg/services"
 	"khoomi-api-io/api/pkg/util"
@@ -435,7 +436,7 @@ func (uc *UserController) GetLoginHistories(c *gin.Context) {
 		return
 	}
 
-	paginationArgs := common.GetPaginationArgs(c)
+	paginationArgs := helpers.GetPaginationArgs(c)
 	loginHistory, count, err := uc.userService.GetLoginHistories(ctx, userId, paginationArgs)
 	if err != nil {
 		util.HandleError(c, http.StatusBadRequest, err)
@@ -709,7 +710,7 @@ func (uc *UserController) GetUserWishlist(c *gin.Context) {
 		return
 	}
 
-	paginationArgs := common.GetPaginationArgs(c)
+	paginationArgs := helpers.GetPaginationArgs(c)
 	myWishLists, count, err := uc.userService.GetUserWishlist(ctx, MyId, paginationArgs)
 	if err != nil {
 		util.HandleError(c, http.StatusBadRequest, err)

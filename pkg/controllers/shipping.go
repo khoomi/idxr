@@ -5,7 +5,7 @@ import (
 	"net/http"
 
 	"khoomi-api-io/api/internal/auth"
-	"khoomi-api-io/api/internal/common"
+	"khoomi-api-io/api/internal/helpers"
 	"khoomi-api-io/api/pkg/models"
 	"khoomi-api-io/api/pkg/services"
 	"khoomi-api-io/api/pkg/util"
@@ -96,7 +96,7 @@ func (sc *ShippingController) GetShopShippingProfileInfos() gin.HandlerFunc {
 			return
 		}
 
-		paginationArgs := common.GetPaginationArgs(c)
+		paginationArgs := helpers.GetPaginationArgs(c)
 		shippingProfiles, count, err := sc.shippingService.GetShopShippingProfiles(ctx, shopIDObject, paginationArgs)
 		if err != nil {
 			util.HandleError(c, http.StatusInternalServerError, err)

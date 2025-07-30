@@ -47,7 +47,7 @@ func NewServiceContainer() *ServiceContainer {
 
 	reviewController := controllers.InitReviewController(reviewService, notificationService)
 	cartController := controllers.InitCartController(cartService, notificationService)
-	shopController := controllers.InitShopController(shopService, notificationService)
+	shopController := controllers.InitShopController(shopService, notificationService, emailService)
 	userController := controllers.InitUserController(userService, notificationService)
 	userAddressController := controllers.InitUserAddressController(userAddressService, notificationService)
 	userFavoriteController := controllers.InitUserFavoriteController(userFavoriteService, notificationService)
