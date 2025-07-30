@@ -141,8 +141,6 @@ type ListingExtra struct {
 	Inventory            Inventory                 `bson:"inventory" json:"inventory"`
 	FinancialInformation FinancialInformation      `bson:"financial_information" json:"financialInformation"`
 	Rating               Rating                    `bson:"rating" json:"rating"`
-	TotalOrders          int                       `bson:"total_orders" json:"totalOrders"`
-	Sales                float64                   `bson:"sales" json:"sales"`
 	FavorersCount        int                       `bson:"favorers_count" json:"favorersCount"`
 	Views                int                       `bson:"views" json:"views"`
 	ShippingProfileId    primitive.ObjectID        `bson:"shipping_profile_id" json:"shippingProfileId"`
