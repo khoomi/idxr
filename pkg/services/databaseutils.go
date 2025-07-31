@@ -19,7 +19,6 @@ type TransactionCallback func(ctx mongo.SessionContext) (any, error)
 // ExecuteTransaction executes a database transaction with proper error handling
 func ExecuteTransaction(ctx context.Context, callback TransactionCallback) (any, error) {
 	wc := writeconcern.New(writeconcern.WMajority())
-	println("start session")
 	txnOptions := options.Transaction().SetWriteConcern(wc)
 	session, err := util.DB.StartSession()
 	if err != nil {
@@ -29,18 +28,10 @@ func ExecuteTransaction(ctx context.Context, callback TransactionCallback) (any,
 	defer session.EndSession(ctx)
 
 	result, err := session.WithTransaction(ctx, callback, txnOptions)
-	println("with transaction session", err)
 	if err != nil {
 		return nil, err
 	}
 
-	println("before commit session")
-	if err := session.CommitTransaction(ctx); err != nil {
-		println("in commit session", err)
-		return nil, err
-	}
-
-	println(result)
 	return result, nil
 }
 

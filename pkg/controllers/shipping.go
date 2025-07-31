@@ -4,6 +4,7 @@ import (
 	"log"
 	"net/http"
 
+	"khoomi-api-io/api/internal"
 	"khoomi-api-io/api/internal/auth"
 	"khoomi-api-io/api/internal/helpers"
 	"khoomi-api-io/api/pkg/models"
@@ -62,6 +63,7 @@ func (sc *ShippingController) CreateShopShippingProfile() gin.HandlerFunc {
 			return
 		}
 
+		internal.PublishCacheMessage(ctx, internal.CacheInvalidateShopShipping, shopId.Hex())
 		util.HandleSuccess(c, http.StatusOK, "shipping profile created", shippingId)
 	}
 }

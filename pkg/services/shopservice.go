@@ -19,12 +19,12 @@ import (
 
 // ShopServiceImpl implements the ShopService interface
 type ShopServiceImpl struct {
-	shopCollection                *mongo.Collection
-	userCollection                *mongo.Collection
-	shopFollowerCollection        *mongo.Collection
-	shopReturnPolicyCollection    *mongo.Collection
-	shopCompliancePolicyCollection *mongo.Collection
-	shopNotificationCollection    *mongo.Collection
+	shopCollection                     *mongo.Collection
+	userCollection                     *mongo.Collection
+	shopFollowerCollection             *mongo.Collection
+	shopReturnPolicyCollection         *mongo.Collection
+	shopCompliancePolicyCollection     *mongo.Collection
+	shopNotificationCollection         *mongo.Collection
 	shopNotificationSettingsCollection *mongo.Collection
 }
 
@@ -86,7 +86,6 @@ func (ss *ShopServiceImpl) CreateShop(ctx context.Context, userID primitive.Obje
 		X:         fmt.Sprintf("@%v", req.Username),
 	}
 
-	// Handle logo URL
 	logoURL := common.DEFAULT_LOGO
 	if req.LogoFile != nil {
 		if logoStr, ok := req.LogoFile.(string); ok && logoStr != "" {
@@ -94,7 +93,6 @@ func (ss *ShopServiceImpl) CreateShop(ctx context.Context, userID primitive.Obje
 		}
 	}
 
-	// Handle banner URL
 	bannerURL := common.DEFAULT_THUMBNAIL
 	if req.BannerFile != nil {
 		if bannerStr, ok := req.BannerFile.(string); ok && bannerStr != "" {
@@ -128,26 +126,29 @@ func (ss *ShopServiceImpl) CreateShop(ctx context.Context, userID primitive.Obje
 		About:              shopAboutData,
 	}
 
-	_, err := ss.shopCollection.InsertOne(ctx, shop)
-	if err != nil {
-		return primitive.NilObjectID, err
+	callback := func(ctx mongo.SessionContext) (any, error) {
+		_, err := ss.shopCollection.InsertOne(ctx, shop)
+		if err != nil {
+			return primitive.NilObjectID, err
+		}
+
+		_, err = ss.CreateShopNotificationSettings(ctx, shopID)
+		if err != nil {
+			return primitive.NilObjectID, fmt.Errorf("failed to create notification settings: %w", err)
+		}
+
+		filter := bson.M{"_id": userID}
+		update := bson.M{"$set": bson.M{"shop_id": shopID, "is_seller": true, "modified_at": now, "seller_onboarding_level": models.OnboardingLevelCreatedShop}}
+		_, err = ss.userCollection.UpdateOne(ctx, filter, update)
+		if err != nil {
+			return primitive.NilObjectID, err
+		}
+
+		return shopID, nil
 	}
 
-	// Create default notification settings with all notifications enabled
-	_, err = ss.CreateShopNotificationSettings(ctx, shopID)
-	if err != nil {
-		return primitive.NilObjectID, fmt.Errorf("failed to create notification settings: %w", err)
-	}
-
-	// Update user profile shop
-	filter := bson.M{"_id": userID}
-	update := bson.M{"$set": bson.M{"shop_id": shopID, "is_seller": true, "modified_at": now}}
-	_, err = ss.userCollection.UpdateOne(ctx, filter, update)
-	if err != nil {
-		return primitive.NilObjectID, err
-	}
-
-	return shopID, nil
+	_, err := ExecuteTransaction(ctx, callback)
+	return shopID, err
 }
 
 // UpdateShopInformation updates shop basic information

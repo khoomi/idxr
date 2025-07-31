@@ -23,45 +23,62 @@ func NewShippingService() ShippingService {
 }
 
 func (s *shippingService) CreateShopShippingProfile(ctx context.Context, userID, shopID primitive.ObjectID, req models.ShopShippingProfileRequest) (primitive.ObjectID, error) {
+	now := time.Now()
 	if err := common.Validate.Struct(&req); err != nil {
 		return primitive.NilObjectID, err
 	}
 
 	shippingID := primitive.NewObjectID()
-	now := time.Now()
-	shippingProfile := models.ShopShippingProfile{
-		ID:                 shippingID,
-		ShopID:             shopID,
-		Title:              req.Title,
-		HandlingFee:        req.HandlingFee,
-		OriginState:        req.OriginState,
-		OriginPostalCode:   req.OriginPostalCode,
-		MinDeliveryDays:    req.MinDeliveryDays,
-		MaxDeliveryDays:    req.MaxDeliveryDays,
-		PrimaryPrice:       req.PrimaryPrice,
-		DestinationBy:      req.DestinationBy,
-		Destinations:       req.Destinations,
-		SecondaryPrice:     req.SecondaryPrice,
-		OffersFreeShipping: req.OffersFreeShipping,
-		CreatedAt:          primitive.NewDateTimeFromTime(now),
-		ModifiedAt:         primitive.NewDateTimeFromTime(now),
-		IsDefault:          req.IsDefault,
-		Processing:         req.Processing,
-		AcceptReturns:      req.AcceptReturns,
-		AcceptExchange:     req.AcceptExchange,
-		ReturnPeriod:       req.ReturnPeriod,
-		ReturnUnit:         req.ReturnUnit,
-		Conditions:         req.Conditions,
+	callback := func(ctx mongo.SessionContext) (any, error) {
+
+		shippingProfile := models.ShopShippingProfile{
+			ID:                 shippingID,
+			ShopID:             shopID,
+			Title:              req.Title,
+			HandlingFee:        req.HandlingFee,
+			OriginState:        req.OriginState,
+			OriginPostalCode:   req.OriginPostalCode,
+			MinDeliveryDays:    req.MinDeliveryDays,
+			MaxDeliveryDays:    req.MaxDeliveryDays,
+			PrimaryPrice:       req.PrimaryPrice,
+			DestinationBy:      req.DestinationBy,
+			Destinations:       req.Destinations,
+			SecondaryPrice:     req.SecondaryPrice,
+			OffersFreeShipping: req.OffersFreeShipping,
+			CreatedAt:          primitive.NewDateTimeFromTime(now),
+			ModifiedAt:         primitive.NewDateTimeFromTime(now),
+			IsDefault:          req.IsDefault,
+			Processing:         req.Processing,
+			AcceptReturns:      req.AcceptReturns,
+			AcceptExchange:     req.AcceptExchange,
+			ReturnPeriod:       req.ReturnPeriod,
+			ReturnUnit:         req.ReturnUnit,
+			Conditions:         req.Conditions,
+		}
+
+		res, err := common.ShippingProfileCollection.InsertOne(ctx, shippingProfile)
+		if err != nil {
+			return nil, err
+		}
+
+		if req.IsOnboarding {
+			filter := bson.M{"_id": userID}
+			update := bson.M{"$set": bson.M{"modified_at": now, "seller_onboarding_level": models.OnboardingLevelShipping}}
+			_, err = common.UserCollection.UpdateOne(ctx, filter, update)
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		return res, err
 	}
 
-	res, err := common.ShippingProfileCollection.InsertOne(ctx, shippingProfile)
+	_, err := ExecuteTransaction(ctx, callback)
 	if err != nil {
 		return primitive.NilObjectID, err
 	}
 
-	internal.PublishCacheMessage(ctx, internal.CacheInvalidateShopShipping, shopID.Hex())
-
-	return res.InsertedID.(primitive.ObjectID), nil
+	return shippingID, nil
 }
 
 func (s *shippingService) GetShopShippingProfile(ctx context.Context, profileID primitive.ObjectID) (*models.ShopShippingProfile, error) {

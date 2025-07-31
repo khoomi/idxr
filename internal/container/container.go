@@ -54,7 +54,7 @@ func NewServiceContainer() *ServiceContainer {
 	verificationController := controllers.InitVerificationController(verificationService, notificationService)
 	shippingController := controllers.InitShippingController(shippingService, shopService, notificationService)
 	paymentController := controllers.InitPaymentController(paymentService, userService, notificationService)
-	listingController := controllers.InitListingController(listingService, shopService, notificationService)
+	listingController := controllers.InitListingController(listingService, shopService, notificationService, emailService)
 
 	return &ServiceContainer{
 		ReviewService:       reviewService,

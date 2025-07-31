@@ -326,8 +326,6 @@ type ListingService interface {
 }
 
 type CreateListingRequest struct {
-	UserID          primitive.ObjectID
-	ShopID          primitive.ObjectID
 	LoginName       string
 	LoginEmail      string
 	NewListing      models.NewListing
@@ -335,6 +333,9 @@ type CreateListingRequest struct {
 	ImagesURLs      []string
 	ImagesResults   []any
 	MainImageResult any
+	UserID          primitive.ObjectID
+	ShopID          primitive.ObjectID
+	IsOnboarding    bool
 }
 
 type UpdateListingRequest struct {

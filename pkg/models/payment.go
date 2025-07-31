@@ -23,6 +23,7 @@ type SellerPaymentInformationRequest struct {
 	AccountName   string `json:"accountName" validate:"required"`
 	AccountNumber string `json:"accountNumber" validate:"required"`
 	IsDefault     bool   `json:"isDefault"`
+	IsOnboarding  bool   `json:"isOnboarding"`
 }
 
 // Used for Payment Card details.

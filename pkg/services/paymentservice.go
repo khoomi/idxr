@@ -24,6 +24,7 @@ func NewPaymentService() PaymentService {
 }
 
 func (p *paymentService) CreateSellerPaymentInformation(ctx context.Context, userID primitive.ObjectID, req models.SellerPaymentInformationRequest) (primitive.ObjectID, error) {
+	now := time.Now()
 	if len(req.AccountNumber) != 10 {
 		return primitive.NilObjectID, errors.New("account number must be 10 digits")
 	}
@@ -57,6 +58,15 @@ func (p *paymentService) CreateSellerPaymentInformation(ctx context.Context, use
 		insertRes, insertErr := common.SellerPaymentInformationCollection.InsertOne(ctx, paymentInfoToUpload)
 		if insertErr != nil {
 			return nil, insertErr
+		}
+
+		if req.IsOnboarding {
+			filter := bson.M{"_id": userID}
+			update := bson.M{"$set": bson.M{"modified_at": now, "seller_onboarding_level": models.OnboardingLevelPayment}}
+			_, err = common.UserCollection.UpdateOne(ctx, filter, update)
+			if err != nil {
+				return nil, err
+			}
 		}
 
 		return insertRes, nil

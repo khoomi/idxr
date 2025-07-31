@@ -105,7 +105,7 @@ func (s *userService) CreateUser(ctx context.Context, req CreateUserRequest, cli
 		"last_login_ip":               clientIP,
 		"allow_login_ip_notification": true,
 		"review_count":                0,
-	}
+		"seller_onboarding_level":     models.OnboardingLevelBuyer}
 
 	result, err := s.userCollection.InsertOne(ctx, newUser)
 	if err != nil {

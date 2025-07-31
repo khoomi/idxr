@@ -82,26 +82,27 @@ type ShippingProfileForListing struct {
 }
 
 type ShopShippingProfileRequest struct {
-	ID                 primitive.ObjectID `bson:"_id" json:"_id" validate:"omitempty"`
-	Title              string             `bson:"title" json:"title" validate:"required"`
-	DestinationBy      string             `bson:"destination_by" json:"destinationBy"`
-	OriginState        string             `bson:"origin_state" json:"originState"`
-	ShippingMethod     []string           `bson:"methods" json:"methods"`
-	Destinations       []string           `bson:"destination" json:"destinations"`
-	Processing         ShippingProcessing `bson:"processing" json:"processing"`
-	SecondaryPrice     float64            `bson:"secondary_price" json:"secondaryPrice"`
-	PrimaryPrice       float64            `bson:"primary_price" json:"primaryPrice"`
-	HandlingFee        float64            `bson:"handling_fee" json:"handlingFee"`
-	OriginPostalCode   string             `bson:"origin_postal_code" json:"originPostalCode"`
-	MaxDeliveryDays    int                `bson:"max_delivery_days" json:"maxDeliveryDays"`
-	MinDeliveryDays    int                `bson:"min_delivery_days" json:"minDeliveryDays"`
-	IsDefault          bool               `bson:"is_default" json:"isDefault"`
-	OffersFreeShipping bool               `bson:"offers_free_shipping" json:"offersFreeShipping"`
-	ReturnUnit         string             `bson:"return_unit" json:"returnUnit" validate:"oneof=days weeks"`
-	Conditions         []string           `bson:"conditons" json:"conditons" validate:"omitempty"`
-	ReturnPeriod       int                `bson:"return_period" json:"returnPeriod"`
-	AcceptReturns      bool               `bson:"accept_returns" json:"acceptReturns"`
-	AcceptExchange     bool               `bson:"accept_exchange" json:"acceptExchange"`
+	ID                 primitive.ObjectID `json:"_id" validate:"omitempty"`
+	Title              string             `json:"title" validate:"required"`
+	DestinationBy      string             `json:"destinationBy"`
+	OriginState        string             `json:"originState"`
+	ShippingMethod     []string           `json:"methods"`
+	Destinations       []string           `json:"destinations"`
+	Processing         ShippingProcessing `json:"processing"`
+	SecondaryPrice     float64            `json:"secondaryPrice"`
+	PrimaryPrice       float64            `json:"primaryPrice"`
+	HandlingFee        float64            `json:"handlingFee"`
+	OriginPostalCode   string             `json:"originPostalCode"`
+	MaxDeliveryDays    int                `json:"maxDeliveryDays"`
+	MinDeliveryDays    int                `json:"minDeliveryDays"`
+	IsDefault          bool               `json:"isDefault"`
+	OffersFreeShipping bool               `json:"offersFreeShipping"`
+	ReturnUnit         string             `json:"returnUnit" validate:"oneof=days weeks"`
+	Conditions         []string           `json:"conditons" validate:"omitempty"`
+	ReturnPeriod       int                `json:"returnPeriod"`
+	AcceptReturns      bool               `json:"acceptReturns"`
+	AcceptExchange     bool               `json:"acceptExchange"`
+	IsOnboarding       bool               `json:"isOnboarding"`
 }
 
 type ShippingProcessing struct {

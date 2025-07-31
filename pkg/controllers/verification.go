@@ -5,6 +5,7 @@ import (
 
 	"khoomi-api-io/api/internal/auth"
 	"khoomi-api-io/api/internal/common"
+	"khoomi-api-io/api/internal/helpers"
 	"khoomi-api-io/api/pkg/models"
 	"khoomi-api-io/api/pkg/services"
 	"khoomi-api-io/api/pkg/util"
@@ -33,15 +34,7 @@ func (vc *VerificationController) CreateSellerVerificationProfile() gin.HandlerF
 		ctx, cancel := WithTimeout()
 		defer cancel()
 
-		shopId := c.Param("shopid")
-		shopIdObj, err := primitive.ObjectIDFromHex(shopId)
-		if err != nil {
-			util.HandleError(c, http.StatusUnprocessableEntity, err)
-			return
-		}
-
-		// Get authenticated user session
-		session_, err := auth.GetSessionAuto(c)
+		shopId, myId, err := helpers.MyShopIdAndMyId(c)
 		if err != nil {
 			util.HandleError(c, http.StatusUnauthorized, err)
 			return
@@ -54,14 +47,12 @@ func (vc *VerificationController) CreateSellerVerificationProfile() gin.HandlerF
 			return
 		}
 
-		// Validate request body
 		if validationErr := common.Validate.Struct(&verificationJson); validationErr != nil {
 			util.HandleError(c, http.StatusUnprocessableEntity, validationErr)
 			return
 		}
 
-		// Create verification profile using service
-		verificationID, err := vc.verificationService.CreateSellerVerificationProfile(ctx, session_.UserId, shopIdObj, verificationJson)
+		verificationID, err := vc.verificationService.CreateSellerVerificationProfile(ctx, myId, shopId, verificationJson)
 		if err != nil {
 			util.HandleError(c, http.StatusInternalServerError, err)
 			return

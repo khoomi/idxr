@@ -29,7 +29,7 @@ import (
 type ShopController struct {
 	shopService         services.ShopService
 	notificationService services.NotificationService
-	emailService               services.EmailService
+	emailService        services.EmailService
 }
 
 // InitShopController initializes a new ShopController with dependencies
@@ -1440,22 +1440,41 @@ func (sc *ShopController) CreateShopComplianceInformation() gin.HandlerFunc {
 			return
 		}
 
-		complianceInformation := models.ComplianceInformation{
-			ID:                   primitive.NewObjectID(),
-			ShopID:               shopId,
-			TermsOfUse:           complianceJson.TermsOfUse,
-			IntellectualProperty: complianceJson.IntellectualProperty,
-			SellerPolicie:        complianceJson.SellerPolicie,
+		now := time.Now()
+		ID := primitive.NewObjectID()
+		callback := func(ctx mongo.SessionContext) (any, error) {
+			complianceInformation := models.ComplianceInformation{
+				ID:                   ID,
+				ShopID:               shopId,
+				TermsOfUse:           complianceJson.TermsOfUse,
+				IntellectualProperty: complianceJson.IntellectualProperty,
+				SellerPolicie:        complianceJson.SellerPolicie,
+			}
+
+			res, err := common.ShopCompliancePolicyCollection.InsertOne(ctx, complianceInformation)
+			if err != nil {
+				return nil, err
+			}
+
+			if complianceJson.IsOnboarding {
+				filter := bson.M{"_id": myId}
+				update := bson.M{"$set": bson.M{"modified_at": now, "seller_onboarding_level": models.OnboardingLevelCompliance}}
+				_, err = common.UserCollection.UpdateOne(ctx, filter, update)
+				if err != nil {
+					return nil, err
+				}
+			}
+
+			return res, nil
 		}
 
-		_, err = common.ShopCompliancePolicyCollection.InsertOne(ctx, complianceInformation)
+		_, err = services.ExecuteTransaction(ctx, callback)
 		if err != nil {
 			util.HandleError(c, http.StatusInternalServerError, err)
 			return
 		}
 
 		internal.PublishCacheMessage(c, internal.CacheInvalidateShopCompliance, shopId.Hex())
-
 		util.HandleSuccess(c, http.StatusOK, "Shop compliance policy created successfully", nil)
 	}
 }

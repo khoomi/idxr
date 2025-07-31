@@ -173,9 +173,10 @@ type ListingShopExcept struct {
 }
 
 type NewListing struct {
-	Details    NewListingDetails `json:"details"`
-	Variations []Variation       `json:"variations"`
-	Inventory  Inventory         `json:"inventory" validate:"required"`
+	Details      NewListingDetails `json:"details"`
+	Variations   []Variation       `json:"variations"`
+	Inventory    Inventory         `json:"inventory" validate:"required"`
+	IsOnboarding bool              `json:"isOnboarding"`
 }
 
 type UpdateListing struct {

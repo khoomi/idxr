@@ -6,37 +6,50 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
-// User Khoomi user_models basic data
+// Khoomi User user_models basic data
 type User struct {
-	LastLogin                time.Time          `bson:"last_login" json:"lastLogin"`
-	ModifiedAt               time.Time          `bson:"modified_at" json:"modifiedAt"`
-	CreatedAt                time.Time          `bson:"created_at" json:"createdAt"`
-	Auth                     UserAuthData       `bson:"auth,omitempty" json:"auth,omitempty" validate:"required"`
-	Thumbnail                string             `bson:"thumbnail" json:"thumbnail"`
-	LoginName                string             `bson:"login_name" json:"loginName" validate:"required"`
-	LastLoginIp              string             `bson:"last_login_ip" json:"-"`
-	Bio                      string             `bson:"bio" json:"bio"`
-	Phone                    string             `bson:"phone" json:"phone"`
-	LastName                 string             `bson:"last_name" json:"lastName"`
-	PrimaryEmail             string             `bson:"primary_email" json:"primaryEmail" validate:"required"`
-	FirstName                string             `bson:"first_name" json:"firstName"`
-	Status                   UserStatus         `bson:"status" json:"status"`
-	ReferredByUser           string             `bson:"referred_by_user" json:"referredByUser"`
-	Role                     UserRole           `bson:"role" json:"role"`
-	FavoriteShops            []string           `bson:"favorite_shops" json:"favoriteShops"`
-	FavoriteListings         []string           `bson:"favorite_listings" json:"favoriteListings"`
-	Links                    []Link             `bson:"-" json:"links"`
-	Birthdate                UserBirthdate      `bson:"birthdate" json:"birthdate"`
-	TransactionSoldCount     int                `bson:"transaction_sold_count" json:"transactionSoldCount"`
-	TransactionBuyCount      int                `bson:"transaction_buy_count" json:"transactionBuyCount"`
-	LoginCounts              int                `bson:"login_counts" json:"-"`
-	ShopID                   primitive.ObjectID `bson:"shop_id" json:"shopId"`
-	Id                       primitive.ObjectID `bson:"_id" json:"_id" validate:"required"`
-	IsSeller                 bool               `bson:"is_seller" json:"isSeller"`
-	AllowLoginIpNotification bool               `bson:"allow_login_ip_notification" json:"allowLoginIpNotification"`
-	ReviewCount              int                `bson:"review_count" json:"reviewCount"`
-	Shop                     *ShopExcerpt       `bson:"shop" json:"shop"`
+	LastLogin                time.Time             `bson:"last_login" json:"lastLogin"`
+	ModifiedAt               time.Time             `bson:"modified_at" json:"modifiedAt"`
+	CreatedAt                time.Time             `bson:"created_at" json:"createdAt"`
+	Auth                     UserAuthData          `bson:"auth,omitempty" json:"auth,omitempty" validate:"required"`
+	Thumbnail                string                `bson:"thumbnail" json:"thumbnail"`
+	LoginName                string                `bson:"login_name" json:"loginName" validate:"required"`
+	LastLoginIp              string                `bson:"last_login_ip" json:"-"`
+	Bio                      string                `bson:"bio" json:"bio"`
+	Phone                    string                `bson:"phone" json:"phone"`
+	LastName                 string                `bson:"last_name" json:"lastName"`
+	PrimaryEmail             string                `bson:"primary_email" json:"primaryEmail" validate:"required"`
+	FirstName                string                `bson:"first_name" json:"firstName"`
+	Status                   UserStatus            `bson:"status" json:"status"`
+	ReferredByUser           string                `bson:"referred_by_user" json:"referredByUser"`
+	Role                     UserRole              `bson:"role" json:"role"`
+	FavoriteShops            []string              `bson:"favorite_shops" json:"favoriteShops"`
+	FavoriteListings         []string              `bson:"favorite_listings" json:"favoriteListings"`
+	Links                    []Link                `bson:"-" json:"links"`
+	Birthdate                UserBirthdate         `bson:"birthdate" json:"birthdate"`
+	TransactionSoldCount     int                   `bson:"transaction_sold_count" json:"transactionSoldCount"`
+	TransactionBuyCount      int                   `bson:"transaction_buy_count" json:"transactionBuyCount"`
+	LoginCounts              int                   `bson:"login_counts" json:"-"`
+	ShopID                   primitive.ObjectID    `bson:"shop_id" json:"shopId"`
+	Id                       primitive.ObjectID    `bson:"_id" json:"_id" validate:"required"`
+	IsSeller                 bool                  `bson:"is_seller" json:"isSeller"`
+	AllowLoginIpNotification bool                  `bson:"allow_login_ip_notification" json:"allowLoginIpNotification"`
+	ReviewCount              int                   `bson:"review_count" json:"reviewCount"`
+	Shop                     *ShopExcerpt          `bson:"shop" json:"shop"`
+	SellerOnboardingLevel    SellerOnboardingLevel `bson:"seller_onboarding_level" json:"sellerOnboardingLevel"`
 }
+
+type SellerOnboardingLevel string
+
+const (
+	OnboardingLevelBuyer        SellerOnboardingLevel = "buyer"
+	OnboardingLevelCreatedShop  SellerOnboardingLevel = "created_shop"
+	OnboardingLevelListing      SellerOnboardingLevel = "listing"
+	OnboardingLevelPayment      SellerOnboardingLevel = "payment"
+	OnboardingLevelShipping     SellerOnboardingLevel = "shipping"
+	OnboardingLevelCompliance   SellerOnboardingLevel = "compliance"
+	OnboardingLevelVerification SellerOnboardingLevel = "verification"
+)
 
 // UserRegistrationBody -> expected data for signup process
 type UserRegistrationBody struct {

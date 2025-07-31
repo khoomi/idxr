@@ -23,7 +23,6 @@ func NewVerificationService() VerificationService {
 
 // CreateSellerVerificationProfile creates a new seller verification profile
 func (vs *VerificationServiceImpl) CreateSellerVerificationProfile(ctx context.Context, userID, shopID primitive.ObjectID, req models.CreateSellerVerificationRequest) (primitive.ObjectID, error) {
-	// Verify shop ownership
 	err := vs.verifyShopOwnership(ctx, userID, shopID)
 	if err != nil {
 		return primitive.NilObjectID, err
@@ -48,17 +47,30 @@ func (vs *VerificationServiceImpl) CreateSellerVerificationProfile(ctx context.C
 		ModifiedAt:         now,
 	}
 
-	_, err = common.SellerVerificationCollection.InsertOne(ctx, verification)
-	if err != nil {
-		return primitive.NilObjectID, err
+	callback := func(ctx mongo.SessionContext) (any, error) {
+		res, err := common.SellerVerificationCollection.InsertOne(ctx, verification)
+		if err != nil {
+			return nil, err
+		}
+
+		if req.IsOnboarding {
+			filter := bson.M{"_id": userID}
+			update := bson.M{"$set": bson.M{"modified_at": now, "seller_onboarding_level": models.OnboardingLevelVerification}}
+			_, err = common.UserCollection.UpdateOne(ctx, filter, update)
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		return res, nil
 	}
 
-	return verificationID, nil
+	_, err = ExecuteTransaction(ctx, callback)
+	return verificationID, err
 }
 
 // GetSellerVerificationProfile retrieves a seller verification profile
 func (vs *VerificationServiceImpl) GetSellerVerificationProfile(ctx context.Context, userID, shopID primitive.ObjectID) (*models.SellerVerification, error) {
-	// Verify shop ownership
 	err := vs.verifyShopOwnership(ctx, userID, shopID)
 	if err != nil {
 		return nil, err

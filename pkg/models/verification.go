@@ -32,4 +32,5 @@ type CreateSellerVerificationRequest struct {
 	CountryOfResidence string `json:"countryOfResidence"`
 	Card               string `json:"card" validate:"oneof=NIN DL PAP"`
 	CardNumber         int    `json:"cardNumber" validate:"required"`
+	IsOnboarding       bool   `json:"isOnboarding"`
 }

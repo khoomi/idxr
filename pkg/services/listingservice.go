@@ -21,7 +21,6 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
-	"go.mongodb.org/mongo-driver/mongo/writeconcern"
 )
 
 type listingService struct {
@@ -316,15 +315,7 @@ func (s *listingService) DeleteListings(ctx context.Context, userID, shopID prim
 		return result, nil
 	}
 
-	wc := writeconcern.New(writeconcern.WMajority())
-	txnOptions := options.Transaction().SetWriteConcern(wc)
-	session, err := util.DB.StartSession()
-	if err != nil {
-		return nil, err
-	}
-	defer session.EndSession(ctx)
-
-	_, err = session.WithTransaction(ctx, callback, txnOptions)
+	_, err := ExecuteTransaction(ctx, callback)
 	if err != nil {
 		return nil, err
 	}
@@ -335,119 +326,153 @@ func (s *listingService) DeleteListings(ctx context.Context, userID, shopID prim
 // CreateListing creates a new listing
 func (s *listingService) CreateListing(ctx context.Context, req CreateListingRequest) (primitive.ObjectID, error) {
 	tempShopService := NewShopService()
-	err := tempShopService.VerifyShopOwnership(ctx, req.UserID, req.ShopID)
-	if err != nil {
-		return primitive.NilObjectID, errors.New("only shop owners can create listings")
-	}
 
-	if err := req.NewListing.Details.SetDynamicToTypedField(); err != nil {
-		return primitive.NilObjectID, fmt.Errorf("invalid dynamic data: %v", err)
-	}
-
-	var shippingId primitive.ObjectID
-	shippingObj, err := primitive.ObjectIDFromHex(req.NewListing.Details.ShippingProfileId)
-	if err != nil {
-		var shipping models.ShopShippingProfile
-		err := common.ShippingProfileCollection.FindOne(ctx, bson.M{"shop_id": req.ShopID, "is_default_profile": true}).Decode(&shipping)
+	newListingID := primitive.NewObjectID()
+	callback := func(ctx mongo.SessionContext) (any, error) {
+		err := tempShopService.VerifyShopOwnership(ctx, req.UserID, req.ShopID)
 		if err != nil {
-			if err == mongo.ErrNoDocuments {
-				shippingId = primitive.NilObjectID
+			return primitive.NilObjectID, errors.New("only shop owners can create listings")
+		}
+
+		if err := req.NewListing.Details.SetDynamicToTypedField(); err != nil {
+			return primitive.NilObjectID, fmt.Errorf("invalid dynamic data: %v", err)
+		}
+
+		var shippingId primitive.ObjectID
+		shippingObj, err := primitive.ObjectIDFromHex(req.NewListing.Details.ShippingProfileId)
+		if err != nil {
+			var shipping models.ShopShippingProfile
+			err := common.ShippingProfileCollection.FindOne(ctx, bson.M{"shop_id": req.ShopID, "is_default_profile": true}).Decode(&shipping)
+			if err != nil {
+				if err == mongo.ErrNoDocuments {
+					shippingId = primitive.NilObjectID
+				} else {
+					return primitive.NilObjectID, fmt.Errorf("failed to fetch default shipping profile: %v", err)
+				}
 			} else {
-				return primitive.NilObjectID, fmt.Errorf("failed to fetch default shipping profile: %v", err)
+				shippingId = shipping.ID
 			}
 		} else {
-			shippingId = shipping.ID
+			shippingId = shippingObj
 		}
-	} else {
-		shippingId = shippingObj
+
+		now := time.Now()
+		listingDetails := models.Details{
+			Type:               req.NewListing.Details.Type,
+			Tags:               req.NewListing.Details.Tags,
+			Title:              req.NewListing.Details.Title,
+			Dynamic:            req.NewListing.Details.Dynamic,
+			DynamicType:        req.NewListing.Details.DynamicType,
+			WhoMade:            req.NewListing.Details.WhoMade,
+			Keywords:           req.NewListing.Details.Keywords,
+			WhenMade:           req.NewListing.Details.WhenMade,
+			Category:           req.NewListing.Details.Category,
+			Condition:          req.NewListing.Details.Condition,
+			Description:        req.NewListing.Details.Description,
+			Sustainability:     req.NewListing.Details.Sustainability,
+			HasPersonalization: req.NewListing.Details.HasPersonalization,
+			Personalization:    req.NewListing.Details.Personalization,
+
+			ClothingData:              req.NewListing.Details.ClothingData,
+			FurnitureData:             req.NewListing.Details.FurnitureData,
+			GiftsAndOccasionsData:     req.NewListing.Details.GiftsAndOccasionsData,
+			ArtAndCollectiblesData:    req.NewListing.Details.ArtAndCollectiblesData,
+			AceessoriesAndJewelryData: req.NewListing.Details.AceessoriesAndJewelryData,
+			HomeAndLivingData:         req.NewListing.Details.HomeAndLivingData,
+		}
+
+		listingInventory := models.Inventory{
+			DomesticPricing: req.NewListing.Inventory.DomesticPricing,
+			DomesticPrice:   req.NewListing.Inventory.DomesticPrice,
+			Price:           req.NewListing.Inventory.Price,
+			InitialQuantity: req.NewListing.Inventory.Quantity,
+			Quantity:        req.NewListing.Inventory.Quantity,
+			SKU:             req.NewListing.Inventory.SKU,
+			CurrencyCode:    "NGN",
+			ModifiedAt:      now,
+		}
+
+		listingDate := models.ListingDateMeta{
+			CreatedAt:  now,
+			EndingAt:   now,
+			ModifiedAt: now,
+		}
+
+		listingRating := models.Rating{
+			AverageRating:  0.0,
+			ReviewCount:    0,
+			FiveStarCount:  0,
+			FourStarCount:  0,
+			ThreeStarCount: 0,
+			TwoStarCount:   0,
+			OneStarCount:   0,
+		}
+
+		listingFinancialInformation := models.FinancialInformation{
+			TotalOrders:     0,
+			Sales:           0,
+			OrdersPending:   0,
+			OrdersCanceled:  0,
+			OrdersCompleted: 0,
+			Revenue:         0.0,
+			Profit:          0.0,
+			ShippingRevenue: 0.0,
+		}
+
+		listing := models.Listing{
+			ID:                   newListingID,
+			Code:                 s.GenerateListingCode(),
+			UserId:               req.UserID,
+			ShopId:               req.ShopID,
+			MainImage:            req.MainImageURL,
+			Images:               req.ImagesURLs,
+			Details:              listingDetails,
+			Slug:                 slug2.Make(req.NewListing.Details.Title),
+			Date:                 listingDate,
+			State:                models.ListingState{State: models.ListingStateActive, StateUpdatedAt: now},
+			ShippingProfileId:    shippingId,
+			NonTaxable:           true,
+			ShouldAutoRenew:      false,
+			Variations:           req.NewListing.Variations,
+			Inventory:            listingInventory,
+			Rating:               listingRating,
+			FinancialInformation: listingFinancialInformation,
+			Views:                0,
+			FavorersCount:        0,
+		}
+
+		res, err := s.listingCollection.InsertOne(ctx, listing)
+
+		if err != nil {
+			if mongo.IsDuplicateKeyError(err) {
+				return nil, errors.New("listing with similar data already exists")
+			}
+			return nil, fmt.Errorf("database error while creating listing: %v", err)
+		}
+
+		// Update shop listing count
+		filter := bson.M{"_id": req.ShopID}
+		update := bson.M{"$inc": bson.M{"listing_active_count": 1}}
+		updateResult, err := s.shopCollection.UpdateOne(ctx, filter, update)
+		if err != nil {
+			log.Printf("Failed to update shop listing count for shop %s: %v", req.ShopID.Hex(), err)
+		} else if updateResult.MatchedCount == 0 {
+			log.Printf("Warning: Shop %s not found when updating listing count", req.ShopID.Hex())
+		}
+
+		if req.IsOnboarding {
+			filter := bson.M{"_id": req.UserID}
+			update := bson.M{"$set": bson.M{"modified_at": now, "seller_onboarding_level": models.OnboardingLevelListing}}
+			_, err = common.UserCollection.UpdateOne(ctx, filter, update)
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		return res, nil
 	}
 
-	now := time.Now()
-	listingDetails := models.Details{
-		Type:               req.NewListing.Details.Type,
-		Tags:               req.NewListing.Details.Tags,
-		Title:              req.NewListing.Details.Title,
-		Dynamic:            req.NewListing.Details.Dynamic,
-		DynamicType:        req.NewListing.Details.DynamicType,
-		WhoMade:            req.NewListing.Details.WhoMade,
-		Keywords:           req.NewListing.Details.Keywords,
-		WhenMade:           req.NewListing.Details.WhenMade,
-		Category:           req.NewListing.Details.Category,
-		Condition:          req.NewListing.Details.Condition,
-		Description:        req.NewListing.Details.Description,
-		Sustainability:     req.NewListing.Details.Sustainability,
-		HasPersonalization: req.NewListing.Details.HasPersonalization,
-		Personalization:    req.NewListing.Details.Personalization,
-
-		ClothingData:              req.NewListing.Details.ClothingData,
-		FurnitureData:             req.NewListing.Details.FurnitureData,
-		GiftsAndOccasionsData:     req.NewListing.Details.GiftsAndOccasionsData,
-		ArtAndCollectiblesData:    req.NewListing.Details.ArtAndCollectiblesData,
-		AceessoriesAndJewelryData: req.NewListing.Details.AceessoriesAndJewelryData,
-		HomeAndLivingData:         req.NewListing.Details.HomeAndLivingData,
-	}
-
-	listingInventory := models.Inventory{
-		DomesticPricing: req.NewListing.Inventory.DomesticPricing,
-		DomesticPrice:   req.NewListing.Inventory.DomesticPrice,
-		Price:           req.NewListing.Inventory.Price,
-		InitialQuantity: req.NewListing.Inventory.Quantity,
-		Quantity:        req.NewListing.Inventory.Quantity,
-		SKU:             req.NewListing.Inventory.SKU,
-		CurrencyCode:    "NGN",
-		ModifiedAt:      now,
-	}
-
-	listingDate := models.ListingDateMeta{
-		CreatedAt:  now,
-		EndingAt:   now,
-		ModifiedAt: now,
-	}
-
-	listingRating := models.Rating{
-		AverageRating:  0.0,
-		ReviewCount:    0,
-		FiveStarCount:  0,
-		FourStarCount:  0,
-		ThreeStarCount: 0,
-		TwoStarCount:   0,
-		OneStarCount:   0,
-	}
-
-	listingFinancialInformation := models.FinancialInformation{
-		TotalOrders:     0,
-		Sales:           0,
-		OrdersPending:   0,
-		OrdersCanceled:  0,
-		OrdersCompleted: 0,
-		Revenue:         0.0,
-		Profit:          0.0,
-		ShippingRevenue: 0.0,
-	}
-
-	listing := models.Listing{
-		ID:                   primitive.NewObjectID(),
-		Code:                 s.GenerateListingCode(),
-		UserId:               req.UserID,
-		ShopId:               req.ShopID,
-		MainImage:            req.MainImageURL,
-		Images:               req.ImagesURLs,
-		Details:              listingDetails,
-		Slug:                 slug2.Make(req.NewListing.Details.Title),
-		Date:                 listingDate,
-		State:                models.ListingState{State: models.ListingStateActive, StateUpdatedAt: now},
-		ShippingProfileId:    shippingId,
-		NonTaxable:           true,
-		ShouldAutoRenew:      false,
-		Variations:           req.NewListing.Variations,
-		Inventory:            listingInventory,
-		Rating:               listingRating,
-		FinancialInformation: listingFinancialInformation,
-		Views:                0,
-		FavorersCount:        0,
-	}
-
-	res, err := s.listingCollection.InsertOne(ctx, listing)
+	_, err := ExecuteTransaction(ctx, callback)
 	if err != nil {
 		// Cleanup uploaded images on error
 		if mainResult, ok := req.MainImageResult.(uploader.UploadResult); ok && mainResult.PublicID != "" {
@@ -462,27 +487,9 @@ func (s *listingService) CreateListing(ctx context.Context, req CreateListingReq
 				}
 			}
 		}
-
-		if mongo.IsDuplicateKeyError(err) {
-			return primitive.NilObjectID, errors.New("listing with similar data already exists")
-		}
-		return primitive.NilObjectID, fmt.Errorf("database error while creating listing: %v", err)
 	}
 
-	// Update shop listing count
-	filter := bson.M{"_id": req.ShopID}
-	update := bson.M{"$inc": bson.M{"listing_active_count": 1}}
-	updateResult, err := s.shopCollection.UpdateOne(ctx, filter, update)
-	if err != nil {
-		log.Printf("Failed to update shop listing count for shop %s: %v", req.ShopID.Hex(), err)
-	} else if updateResult.MatchedCount == 0 {
-		log.Printf("Warning: Shop %s not found when updating listing count", req.ShopID.Hex())
-	}
-
-	emailService := NewEmailService()
-	emailService.SendNewListingEmail(req.LoginEmail, req.LoginName, req.NewListing.Details.Title)
-
-	return res.InsertedID.(primitive.ObjectID), nil
+	return newListingID, nil
 }
 
 // GetListing retrieves a single listing with all related data

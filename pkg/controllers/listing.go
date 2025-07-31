@@ -24,14 +24,16 @@ type ListingController struct {
 	listingService      services.ListingService
 	shopService         services.ShopService
 	notificationService services.NotificationService
+	emailService        services.EmailService
 }
 
 // InitListingController initializes a new ListingController with dependencies
-func InitListingController(listingService services.ListingService, shopService services.ShopService, notificationService services.NotificationService) *ListingController {
+func InitListingController(listingService services.ListingService, shopService services.ShopService, notificationService services.NotificationService, emailService services.EmailService) *ListingController {
 	return &ListingController{
 		listingService:      listingService,
 		shopService:         shopService,
 		notificationService: notificationService,
+		emailService:        emailService,
 	}
 }
 
@@ -99,6 +101,7 @@ func (lc *ListingController) CreateListing(c *gin.Context) {
 		ImagesURLs:      uploadedImagesUrl,
 		ImagesResults:   make([]any, len(uploadedImagesResult)),
 		MainImageResult: mainImageUploadUrl,
+		IsOnboarding:    newListing.IsOnboarding,
 	}
 
 	for i, result := range uploadedImagesResult {
@@ -118,7 +121,8 @@ func (lc *ListingController) CreateListing(c *gin.Context) {
 		return
 	}
 
-	internal.PublishCacheMessage(c, internal.CacheInvalidateShopListings, shopId.Hex())
+	lc.emailService.SendNewListingEmail(req.LoginEmail, req.LoginName, req.NewListing.Details.Title)
+	internal.PublishCacheMessage(c, internal.CacheInvalidateShopListings, req.ShopID.Hex())
 
 	util.HandleSuccess(c, http.StatusOK, "Listing was created successfully", listingID)
 }

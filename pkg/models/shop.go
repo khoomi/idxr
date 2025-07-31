@@ -155,9 +155,10 @@ type ComplianceInformation struct {
 }
 
 type ComplianceInformationRequest struct {
-	TermsOfUse           bool `bson:"terms_of_use" json:"termsOfUse"`
-	SellerPolicie        bool `bson:"seller_policies" json:"sellerPolicies"`
-	IntellectualProperty bool `bson:"intellectual_property" json:"intellectualProperty"`
+	TermsOfUse           bool `json:"termsOfUse"`
+	SellerPolicie        bool `json:"sellerPolicies"`
+	IntellectualProperty bool `json:"intellectualProperty"`
+	IsOnboarding         bool `json:"isOnboarding"`
 }
 
 type ShopNotificationType string
