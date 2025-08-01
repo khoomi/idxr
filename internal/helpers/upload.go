@@ -4,6 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"mime/multipart"
+	"net/url"
+	"path/filepath"
 	"sync"
 
 	"khoomi-api-io/api/pkg/models"
@@ -78,4 +80,19 @@ func HandleSequentialImages(c *gin.Context) ([]string, []uploader.UploadResult, 
 	}
 
 	return uploadedImagesUrl, uploadedImagesResult, nil
+}
+
+// ExtractFilenameAndExtension extracts filename and extension from URL
+func ExtractFilenameAndExtension(urlString string) (filename, extension string, err error) {
+	parsedURL, err := url.Parse(urlString)
+	if err != nil {
+		return "", "", fmt.Errorf("failed to parse URL: %w", err)
+	}
+
+	filenameWithExtension := filepath.Base(parsedURL.Path)
+
+	name := filenameWithExtension[:len(filenameWithExtension)-len(filepath.Ext(filenameWithExtension))]
+	ext := filepath.Ext(filenameWithExtension)
+
+	return name, ext, nil
 }

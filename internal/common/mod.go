@@ -3,8 +3,6 @@ package common
 import (
 	"encoding/json"
 	"fmt"
-	"net/url"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -34,11 +32,9 @@ var (
 	ListingReviewCollection        = util.GetCollection(util.DB, "ListingReview")
 	UserCartCollection             = util.GetCollection(util.DB, "UserCart")
 
-	// Validation instance
 	Validate = validator.New()
 )
 
-// Application constants
 const (
 	REQUEST_TIMEOUT_SECS               = 2 * 60 * time.Second
 	MONGO_DUPLICATE_KEY_CODE           = 11000
@@ -61,21 +57,6 @@ const (
 // IsEmptyString checks if a string is empty
 func IsEmptyString(s string) bool {
 	return strings.Compare(s, "") == 0
-}
-
-// ExtractFilenameAndExtension extracts filename and extension from URL
-func ExtractFilenameAndExtension(urlString string) (filename, extension string, err error) {
-	parsedURL, err := url.Parse(urlString)
-	if err != nil {
-		return "", "", fmt.Errorf("failed to parse URL: %w", err)
-	}
-
-	filenameWithExtension := filepath.Base(parsedURL.Path)
-
-	name := filenameWithExtension[:len(filenameWithExtension)-len(filepath.Ext(filenameWithExtension))]
-	ext := filepath.Ext(filenameWithExtension)
-
-	return name, ext, nil
 }
 
 // ConvertMapToStruct converts a map to a struct using JSON marshaling

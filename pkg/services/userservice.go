@@ -11,6 +11,7 @@ import (
 	"khoomi-api-io/api/internal"
 	"khoomi-api-io/api/internal/auth"
 	"khoomi-api-io/api/internal/common"
+	"khoomi-api-io/api/internal/helpers"
 	"khoomi-api-io/api/internal/validators"
 	"khoomi-api-io/api/pkg/models"
 	"khoomi-api-io/api/pkg/util"
@@ -912,7 +913,7 @@ func (s *userService) DeleteThumbnail(ctx context.Context, userID primitive.Obje
 		return err
 	}
 
-	filename, _, err := common.ExtractFilenameAndExtension(url)
+	filename, _, err := helpers.ExtractFilenameAndExtension(url)
 	if err != nil {
 		return err
 	}
