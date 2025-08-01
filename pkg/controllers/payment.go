@@ -51,7 +51,7 @@ func (pc *PaymentController) CreateSellerPaymentInformation() gin.HandlerFunc {
 			return
 		}
 
-		internal.PublishCacheMessage(ctx, internal.CacheInvalidatePayment, userID.Hex())
+		internal.PublishCacheMessage(ctx, internal.CacheInvalidatePayment, userId.Hex())
 
 		log.Printf("User %v added their payment account information", userId)
 
