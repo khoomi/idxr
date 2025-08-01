@@ -315,12 +315,15 @@ func (s *listingService) DeleteListings(ctx context.Context, userID, shopID prim
 		return result, nil
 	}
 
-	_, err := ExecuteTransaction(ctx, callback)
+	txResult, err := ExecuteTransaction(ctx, callback)
 	if err != nil {
 		return nil, err
 	}
 
-	return result, nil
+	if deleteResult, ok := txResult.(*DeleteListingsResult); ok {
+		return deleteResult, nil
+	}
+	return nil, errors.New("failed to get delete result from transaction")
 }
 
 // CreateListing creates a new listing
@@ -441,7 +444,7 @@ func (s *listingService) CreateListing(ctx context.Context, req CreateListingReq
 			FavorersCount:        0,
 		}
 
-		res, err := s.listingCollection.InsertOne(ctx, listing)
+		_, err = s.listingCollection.InsertOne(ctx, listing)
 
 		if err != nil {
 			if mongo.IsDuplicateKeyError(err) {
@@ -469,11 +472,12 @@ func (s *listingService) CreateListing(ctx context.Context, req CreateListingReq
 			}
 		}
 
-		return res, nil
+		return newListingID, nil
 	}
 
-	_, err := ExecuteTransaction(ctx, callback)
+	result, err := ExecuteTransaction(ctx, callback)
 	if err != nil {
+		log.Printf("Transaction failed for listing creation: %v", err)
 		// Cleanup uploaded images on error
 		if mainResult, ok := req.MainImageResult.(uploader.UploadResult); ok && mainResult.PublicID != "" {
 			if _, destroyErr := util.DestroyMedia(mainResult.PublicID); destroyErr != nil {
@@ -487,9 +491,13 @@ func (s *listingService) CreateListing(ctx context.Context, req CreateListingReq
 				}
 			}
 		}
+		return primitive.NilObjectID, err
 	}
 
-	return newListingID, nil
+	if listingID, ok := result.(primitive.ObjectID); ok {
+		return listingID, nil
+	}
+	return primitive.NilObjectID, errors.New("failed to get listing ID from transaction")
 }
 
 // GetListing retrieves a single listing with all related data

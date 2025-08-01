@@ -22,7 +22,6 @@ func ExecuteTransaction(ctx context.Context, callback TransactionCallback) (any,
 	txnOptions := options.Transaction().SetWriteConcern(wc)
 	session, err := util.DB.StartSession()
 	if err != nil {
-		println("err session", err)
 		return nil, err
 	}
 	defer session.EndSession(ctx)
