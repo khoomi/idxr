@@ -18,6 +18,7 @@ type ServiceContainer struct {
 	ShippingService     services.ShippingService
 	PaymentService      services.PaymentService
 	ListingService      services.ListingService
+	CategoryService     *services.CategoryService
 
 	ReviewController       *controllers.ReviewController
 	CartController         *controllers.CartController
@@ -29,6 +30,7 @@ type ServiceContainer struct {
 	ShippingController     *controllers.ShippingController
 	PaymentController      *controllers.PaymentController
 	ListingController      *controllers.ListingController
+	CategoryController     *controllers.CategoryController
 }
 
 func NewServiceContainer() *ServiceContainer {
@@ -44,6 +46,7 @@ func NewServiceContainer() *ServiceContainer {
 	shippingService := services.NewShippingService()
 	paymentService := services.NewPaymentService()
 	listingService := services.NewListingService()
+	categoryService := services.NewCategoryService()
 
 	reviewController := controllers.InitReviewController(reviewService, notificationService)
 	cartController := controllers.InitCartController(cartService, notificationService)
@@ -55,6 +58,7 @@ func NewServiceContainer() *ServiceContainer {
 	shippingController := controllers.InitShippingController(shippingService, shopService, notificationService)
 	paymentController := controllers.InitPaymentController(paymentService, userService, notificationService)
 	listingController := controllers.InitListingController(listingService, shopService, notificationService, emailService)
+	categoryController := controllers.InitCategoryController(categoryService)
 
 	return &ServiceContainer{
 		ReviewService:       reviewService,
@@ -69,6 +73,7 @@ func NewServiceContainer() *ServiceContainer {
 		ShippingService:     shippingService,
 		PaymentService:      paymentService,
 		ListingService:      listingService,
+		CategoryService:     categoryService,
 
 		ReviewController:       reviewController,
 		CartController:         cartController,
@@ -80,6 +85,7 @@ func NewServiceContainer() *ServiceContainer {
 		ShippingController:     shippingController,
 		PaymentController:      paymentController,
 		ListingController:      listingController,
+		CategoryController:     categoryController,
 	}
 }
 
@@ -136,4 +142,9 @@ func (sc *ServiceContainer) GetPaymentController() *controllers.PaymentControlle
 // GetListingController returns the listing controller instance
 func (sc *ServiceContainer) GetListingController() *controllers.ListingController {
 	return sc.ListingController
+}
+
+// GetCategoryController returns the category controller instance
+func (sc *ServiceContainer) GetCategoryController() *controllers.CategoryController {
+	return sc.CategoryController
 }

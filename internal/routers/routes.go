@@ -22,7 +22,7 @@ func InitRoute() *gin.Engine {
 		shopRoutes(api, serviceContainer)
 		listingRoutes(api, serviceContainer)
 		cartRoutes(api, serviceContainer)
-		categoryRoutes(api)
+		categoryRoutes(api, serviceContainer)
 	}
 
 	return router
@@ -265,19 +265,23 @@ func cartRoutes(api *gin.RouterGroup, serviceContainer *container.ServiceContain
 	}
 }
 
-func categoryRoutes(api *gin.RouterGroup) {
+func categoryRoutes(api *gin.RouterGroup, serviceContainer *container.ServiceContainer) {
+	categoryController := serviceContainer.GetCategoryController()
 	category := api.Group("/categories")
 	{
-		category.GET("/", controllers.GetAllCategories())
-		category.GET("/search", controllers.SearchCategories())
-		category.GET("/:id/children", controllers.GetCategoryChildren())
-		category.GET("/:id/ancestor", controllers.GetCategoryAncestor())
+		category.GET("/", categoryController.GetAllCategories)
+		category.GET("/search", categoryController.SearchCategories)
+		category.GET("/:id/children", categoryController.GetCategoryChildren)
+		category.GET("/:id/ancestor", categoryController.GetCategoryAncestor)
 
 		secured := category.Group("").Use(auth.Auth())
 		{
-			secured.POST("/", controllers.CreateCategorySingle())
-			secured.POST("/multi", controllers.CreateCategoryMulti())
-			secured.DELETE("/", controllers.DeleteAllCategories())
+			secured.POST("/", categoryController.CreateCategorySingle)
+			secured.POST("/multi", categoryController.CreateCategoryMulti)
+			secured.POST("/with-images", categoryController.CreateCategoryWithImages)
+			secured.PUT("/:id/image", categoryController.UpdateCategoryImage)
+			secured.PUT("/:id/banner", categoryController.UpdateCategoryBanner)
+			secured.DELETE("/", categoryController.DeleteAllCategories)
 		}
 	}
 }

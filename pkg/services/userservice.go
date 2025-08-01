@@ -478,6 +478,7 @@ func (s *userService) GetUser(ctx context.Context, userIdentifier string) (*mode
 			"is_seller":                   1,
 			"allow_login_ip_notification": 1,
 			"review_count":                1,
+			"seller_onboarding_level":     1,
 			"shop": bson.M{
 				"id":                 "$shopDoc._id",
 				"name":               "$shopDoc.name",
