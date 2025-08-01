@@ -77,8 +77,6 @@ func (p *paymentService) CreateSellerPaymentInformation(ctx context.Context, use
 		return primitive.NilObjectID, err
 	}
 
-	internal.PublishCacheMessage(ctx, internal.CacheInvalidatePayment, userID.Hex())
-
 	return paymentInfoToUpload.ID, nil
 }
 

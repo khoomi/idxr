@@ -19,7 +19,7 @@ var (
 	ShopCollection                     = util.GetCollection(util.DB, "Shop")
 	UserAddressCollection              = util.GetCollection(util.DB, "UserAddress")
 	NotificationCollection             = util.GetCollection(util.DB, "UserNotification")
-	SellerPaymentInformationCollection = util.GetCollection(util.DB, "SellerSellerPaymentInformation")
+	SellerPaymentInformationCollection = util.GetCollection(util.DB, "SellerPaymentInformation")
 	UserPaymentCardsTable              = util.GetCollection(util.DB, "UserPaymentCards")
 	UserNotificationCollection         = util.GetCollection(util.DB, "UserNotification")
 	UserFavoriteListingCollection      = util.GetCollection(util.DB, "UserFavoriteListing")

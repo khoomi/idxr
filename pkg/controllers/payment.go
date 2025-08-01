@@ -4,6 +4,7 @@ import (
 	"log"
 	"net/http"
 
+	"khoomi-api-io/api/internal"
 	"khoomi-api-io/api/internal/helpers"
 	"khoomi-api-io/api/pkg/models"
 	"khoomi-api-io/api/pkg/services"
@@ -49,6 +50,8 @@ func (pc *PaymentController) CreateSellerPaymentInformation() gin.HandlerFunc {
 			util.HandleError(c, http.StatusBadRequest, err)
 			return
 		}
+
+		internal.PublishCacheMessage(ctx, internal.CacheInvalidatePayment, userID.Hex())
 
 		log.Printf("User %v added their payment account information", userId)
 
