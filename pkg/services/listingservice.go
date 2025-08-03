@@ -437,6 +437,7 @@ func (s *listingService) CreateListing(ctx context.Context, req CreateListingReq
 			NonTaxable:           true,
 			ShouldAutoRenew:      false,
 			Variations:           req.NewListing.Variations,
+			HasVariations:        len(req.NewListing.Variations) > 0,
 			Inventory:            listingInventory,
 			Rating:               listingRating,
 			FinancialInformation: listingFinancialInformation,
@@ -563,6 +564,7 @@ func (s *listingService) GetListing(ctx context.Context, listingID string) (*mod
 				"shipping_profile_id": 1,
 				"processing":          1,
 				"non_taxable":         1,
+				"has_variations":      1,
 				"variations":          1,
 				"should_auto_renew":   1,
 				"inventory":           1,
@@ -889,6 +891,7 @@ func (s *listingService) UpdateListing(ctx context.Context, req UpdateListingReq
 		updateDoc["variations"] = req.UpdatedListing.Variations
 	}
 
+	updateDoc["has_variations"] = len(req.UpdatedListing.Variations) > 0
 	updateDoc["date.modified_at"] = now
 
 	result, err := s.listingCollection.UpdateOne(

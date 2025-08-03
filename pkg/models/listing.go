@@ -28,6 +28,7 @@ type Listing struct {
 	UserId               primitive.ObjectID   `bson:"user_id" json:"userId"`
 	NonTaxable           bool                 `bson:"non_taxable" json:"nonTaxable"`
 	ShouldAutoRenew      bool                 `bson:"should_auto_renew" json:"shouldAutoRenew"`
+	HasVariations        bool                 `bson:"has_variations" json:"hasVariations"`
 }
 
 type Personalization struct {
@@ -61,11 +62,11 @@ type Details struct {
 }
 
 type Variation struct {
-	VariationType string `json:"type"`
-	Value         string `json:"value"`
-	Price         string `json:"price"`
-	Unit          string `json:"unit"`
-	Quantity      int    `json:"quantity"`
+	ID       string   `json:"id" bson:"id"`
+	Name     string   `json:"name" bson:"name"`
+	Value    string   `json:"value" bson:"value"`
+	Quantity int      `json:"quantity" bson:"quantity"`
+	Price    *float64 `json:"price,omitempty" bson:"price,omitempty"`
 }
 
 type ListingDiscountsPromotions struct {
@@ -296,7 +297,6 @@ func (uld *UpdateListingDetails) SetDynamicToTypedField() error {
 	return nil
 }
 
-// convertMapToStruct converts a map to a struct using JSON marshaling
 func convertMapToStruct(m map[string]any, v any) error {
 	data, err := json.Marshal(m)
 	if err != nil {
