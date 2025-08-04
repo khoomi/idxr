@@ -316,9 +316,9 @@ type ListingService interface {
 	CreateListing(ctx context.Context, req CreateListingRequest) (primitive.ObjectID, error)
 	UpdateListing(ctx context.Context, req UpdateListingRequest) error
 	GetListing(ctx context.Context, listingID string) (*models.ListingExtra, error)
-	GetListings(ctx context.Context, pagination util.PaginationArgs, filters bson.M, sort bson.D) ([]models.ListingExtra, int64, error)
-	GetMyListingsSummary(ctx context.Context, shopID, userID primitive.ObjectID, pagination util.PaginationArgs, sort bson.D) ([]models.ListingsSummary, int64, error)
-	GetShopListings(ctx context.Context, shopID primitive.ObjectID, pagination util.PaginationArgs, filters bson.M, sort bson.D) ([]models.Listing, int64, error)
+	GetListings(ctx context.Context, pagination util.PaginationArgs, filters bson.M, sort bson.D) ([]models.ListingSummary, int64, error)
+	GetMyListingsSummary(ctx context.Context, shopID, userID primitive.ObjectID, pagination util.PaginationArgs, filters bson.M, sort bson.D) ([]models.ListingSummary, int64, error)
+	GetShopListings(ctx context.Context, shopID primitive.ObjectID, pagination util.PaginationArgs, filters bson.M, sort bson.D) ([]models.ListingSummary, int64, error)
 	UpdateListingState(ctx context.Context, userID primitive.ObjectID, listingIDs []string, newState models.ListingStateType) (*UpdateListingStateResult, error)
 	HasUserCreatedListing(ctx context.Context, userID primitive.ObjectID) (bool, error)
 

@@ -148,7 +148,7 @@ func (s *listingService) GetListingFilters(c *gin.Context) bson.M {
 		}
 	}
 	if category := c.Query("category"); category != "" && category != "All" {
-		match["details.category.id"] = category
+		match["details.category._id"] = category
 	}
 
 	if state := c.Query("status"); state != "" {
@@ -581,16 +581,16 @@ func (s *listingService) GetListing(ctx context.Context, listingID string) (*mod
 					"transaction_sold_count": "$user.transaction_sold_count",
 				},
 				"shop": bson.M{
-					"name":          "$shop.username",
-					"username":      "$shop.username",
-					"slug":          "$shop.slug",
-					"logo_url":      "$shop.logo_url",
-					"location":      "$shop.location",
-					"description":   "$shop.description",
-					"reviews_count": "$shop.reviews_count",
-					"rating":        "$shop.rating",
-					"is_live":       "$shop.is_live",
-					"created_at":    "$shop.created_at",
+					"name":                 "$shop.username",
+					"username":             "$shop.username",
+					"slug":                 "$shop.slug",
+					"logo_url":             "$shop.logo_url",
+					"location":             "$shop.location",
+					"description":          "$shop.description",
+					"rating":               "$shop.rating",
+					"is_live":              "$shop.is_live",
+					"created_at":           "$shop.created_at",
+					"listing_active_count": "$shop.listing_active_count",
 				},
 				"shipping": bson.M{
 					"title":                "$shipping.title",
@@ -634,85 +634,19 @@ func (s *listingService) GetListing(ctx context.Context, listingID string) (*mod
 }
 
 // GetListings retrieves multiple listings with filters and pagination
-func (s *listingService) GetListings(ctx context.Context, pagination util.PaginationArgs, filters bson.M, sort bson.D) ([]models.ListingExtra, int64, error) {
-	pipeline := []bson.M{
-		{"$match": filters},
-		{
-			"$lookup": bson.M{
-				"from":         "Shop",
-				"localField":   "shop_id",
-				"foreignField": "_id",
-				"as":           "shop",
-			},
-		},
-		{"$unwind": "$shop"},
-		{
-			"$lookup": bson.M{
-				"from":         "User",
-				"localField":   "user_id",
-				"foreignField": "_id",
-				"as":           "user",
-			},
-		},
-		{"$unwind": "$user"},
-		{
-			"$project": bson.M{
-				"_id":                 1,
-				"state":               1,
-				"user_id":             1,
-				"shop_id":             1,
-				"main_image":          1,
-				"images":              1,
-				"details":             1,
-				"date":                1,
-				"slug":                1,
-				"views":               1,
-				"favorers_count":      1,
-				"shipping_profile_id": 1,
-				"processing":          1,
-				"non_taxable":         1,
-				"variations":          1,
-				"should_auto_renew":   1,
-				"inventory":           1,
-				"recent_reviews":      1,
-				"reviews_count":       1,
-				"total_orders":        1,
-				"sales":               1,
-				"rating":              1,
-				"user": bson.M{
-					"login_name": "$user.login_name",
-					"first_name": "$user.first_name",
-					"last_name":  "$user.last_name",
-					"thumbnail":  "$user.thumbnail",
-				},
-				"shop": bson.M{
-					"name":          "$shop.name",
-					"username":      "$shop.username",
-					"slug":          "$shop.slug",
-					"logo_url":      "$shop.logo_url",
-					"location":      "$shop.location",
-					"description":   "$shop.description",
-					"reviews_count": "$shop.reviews_count",
-				},
-			},
-		},
-		{"$sort": sort},
-		{"$skip": int64(pagination.Skip)},
-		{"$limit": int64(pagination.Limit)},
-	}
-
+func (s *listingService) GetListings(ctx context.Context, pagination util.PaginationArgs, filters bson.M, sort bson.D) ([]models.ListingSummary, int64, error) {
+	pipeline := listingSummaryPipeline(filters, sort, pagination.Skip, pagination.Limit)
 	cursor, err := s.listingCollection.Aggregate(ctx, pipeline)
 	if err != nil {
 		return nil, 0, err
 	}
 	defer cursor.Close(ctx)
 
-	var listings []models.ListingExtra
+	var listings []models.ListingSummary
 	if err := cursor.All(ctx, &listings); err != nil {
 		return nil, 0, err
 	}
 
-	// Count total documents
 	countPipeline := []bson.M{
 		{"$match": filters},
 		{"$count": "total"},
@@ -736,58 +670,140 @@ func (s *listingService) GetListings(ctx context.Context, pagination util.Pagina
 }
 
 // GetMyListingsSummary gets listing summaries for a specific shop and user
-func (s *listingService) GetMyListingsSummary(ctx context.Context, shopID, userID primitive.ObjectID, pagination util.PaginationArgs, sort bson.D) ([]models.ListingsSummary, int64, error) {
-	findOptions := options.Find().
-		SetLimit(int64(pagination.Limit)).
-		SetSkip(int64(pagination.Skip)).
-		SetSort(sort)
-
-	filter := bson.M{"shop_id": shopID, "user_id": userID}
-	cursor, err := s.listingCollection.Find(ctx, filter, findOptions)
+func (s *listingService) GetMyListingsSummary(ctx context.Context, shopID, userID primitive.ObjectID, pagination util.PaginationArgs, filters bson.M, sort bson.D) ([]models.ListingSummary, int64, error) {
+	pipeline := listingSummaryPipeline(filters, sort, pagination.Skip, pagination.Limit)
+	cursor, err := s.listingCollection.Aggregate(ctx, pipeline)
 	if err != nil {
 		return nil, 0, err
 	}
 	defer cursor.Close(ctx)
 
-	var listings []models.ListingsSummary
+	var listings []models.ListingSummary
 	if err := cursor.All(ctx, &listings); err != nil {
 		return nil, 0, err
 	}
 
-	count, err := s.listingCollection.CountDocuments(ctx, filter)
+	countPipeline := []bson.M{
+		{"$match": filters},
+		{"$count": "total"},
+	}
+	countCursor, err := s.listingCollection.Aggregate(ctx, countPipeline)
 	if err != nil {
 		return nil, 0, err
 	}
+	defer countCursor.Close(ctx)
 
-	return listings, count, nil
+	var countResult struct {
+		Total int64 `bson:"total"`
+	}
+	if countCursor.Next(ctx) {
+		if err := countCursor.Decode(&countResult); err != nil {
+			return nil, 0, err
+		}
+	}
+
+	return listings, countResult.Total, nil
 }
 
 // GetShopListings gets all listings for a specific shop
-func (s *listingService) GetShopListings(ctx context.Context, shopID primitive.ObjectID, pagination util.PaginationArgs, filters bson.M, sort bson.D) ([]models.Listing, int64, error) {
+func (s *listingService) GetShopListings(ctx context.Context, shopID primitive.ObjectID, pagination util.PaginationArgs, filters bson.M, sort bson.D) ([]models.ListingSummary, int64, error) {
 	filters["shop_id"] = shopID
 
-	findOptions := options.Find().
-		SetLimit(int64(pagination.Limit)).
-		SetSkip(int64(pagination.Skip)).
-		SetSort(sort)
+	pipeline := []bson.M{
+		{"$match": filters},
+		{
+			"$lookup": bson.M{
+				"from":         "Shop",
+				"localField":   "shop_id",
+				"foreignField": "_id",
+				"as":           "shop",
+			},
+		},
+		{"$unwind": "$shop"},
+		{
+			"$lookup": bson.M{
+				"from":         "User",
+				"localField":   "user_id",
+				"foreignField": "_id",
+				"as":           "user",
+			},
+		},
+		{"$unwind": "$user"},
+		{
+			"$lookup": bson.M{
+				"from":         "ShopShippingProfile",
+				"localField":   "shipping_profile_id",
+				"foreignField": "_id",
+				"as":           "shipping",
+			},
+		},
+		{"$unwind": bson.M{"path": "$shipping", "preserveNullAndEmptyArrays": true}},
+		{
+			"$project": bson.M{
+				"_id":                 1,
+				"state":               1,
+				"user_id":             1,
+				"shop_id":             1,
+				"main_image":          1,
+				"images":              1,
+				"details":             1,
+				"date":                1,
+				"slug":                1,
+				"views":               1,
+				"shipping_profile_id": 1,
+				"inventory":           1,
+				"rating":              1,
+				"user": bson.M{
+					"login_name": "$user.login_name",
+					"first_name": "$user.first_name",
+					"last_name":  "$user.last_name",
+					"thumbnail":  "$user.thumbnail",
+				},
+				"shipping": bson.M{
+					"_id":                  "$shipping._id",
+					"offers_free_shipping": "$shipping.offers_free_shipping",
+					"destinations":         "$shipping.destinations",
+					"processing":           "$shipping.processing",
+					"max_delivery_days":    "$shipping.max_delivery_days",
+				},
+			},
+		},
+		{"$sort": sort},
+		{"$skip": int64(pagination.Skip)},
+		{"$limit": int64(pagination.Limit)},
+	}
 
-	cursor, err := s.listingCollection.Find(ctx, filters, findOptions)
+	cursor, err := s.listingCollection.Aggregate(ctx, pipeline)
 	if err != nil {
 		return nil, 0, err
 	}
 	defer cursor.Close(ctx)
 
-	count, err := s.listingCollection.CountDocuments(ctx, filters)
+	var listings []models.ListingSummary
+	if err := cursor.All(ctx, &listings); err != nil {
+		return nil, 0, err
+	}
+
+	countPipeline := []bson.M{
+		{"$match": filters},
+		{"$count": "total"},
+	}
+	countCursor, err := s.listingCollection.Aggregate(ctx, countPipeline)
 	if err != nil {
 		return nil, 0, err
 	}
+	defer countCursor.Close(ctx)
 
-	var listings []models.Listing
-	if err = cursor.All(ctx, &listings); err != nil {
-		return nil, 0, err
+	var countResult struct {
+		Total int64 `bson:"total"`
+	}
+	if countCursor.Next(ctx) {
+		if err := countCursor.Decode(&countResult); err != nil {
+			return nil, 0, err
+		}
 	}
 
-	return listings, count, nil
+	return listings, countResult.Total, nil
 }
 
 // UpdateListingState updates the state of multiple listings
@@ -1099,5 +1115,57 @@ func (s *listingService) cleanupUploadedImages(mainImageResult any, newImageResu
 				log.Printf("Failed to cleanup image %s: %v", imgResult.PublicID, err)
 			}
 		}
+	}
+}
+
+// helper function to reuse the same ListingSummary data from Get listings requests
+func listingSummaryPipeline(filters bson.M, sort bson.D, skip, limit int) []bson.M {
+	return []bson.M{
+		{"$match": filters},
+		{
+			"$lookup": bson.M{
+				"from":         "Shop",
+				"localField":   "shop_id",
+				"foreignField": "_id",
+				"as":           "shop",
+			},
+		},
+		{"$unwind": "$shop"},
+		{
+			"$lookup": bson.M{
+				"from":         "ShopShippingProfile",
+				"localField":   "shipping_profile_id",
+				"foreignField": "_id",
+				"as":           "shipping",
+			},
+		},
+		{"$unwind": bson.M{"path": "$shipping", "preserveNullAndEmptyArrays": true}},
+		{
+			"$project": bson.M{
+				"_id":                 1,
+				"state":               1,
+				"user_id":             1,
+				"shop_id":             1,
+				"main_image":          1,
+				"images":              1,
+				"details":             1,
+				"date":                1,
+				"slug":                1,
+				"views":               1,
+				"shipping_profile_id": 1,
+				"inventory":           1,
+				"rating":              1,
+				"shipping": bson.M{
+					"_id":                  "$shipping._id",
+					"offers_free_shipping": "$shipping.offers_free_shipping",
+					"destinations":         "$shipping.destinations",
+					"processing":           "$shipping.processing",
+					"max_delivery_days":    "$shipping.max_delivery_days",
+				},
+			},
+		},
+		{"$sort": sort},
+		{"$skip": int64(skip)},
+		{"$limit": int64(limit)},
 	}
 }

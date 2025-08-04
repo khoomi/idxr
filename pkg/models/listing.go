@@ -103,20 +103,21 @@ type ListingWithAnalytics struct {
 	Sales float64 `bson:"sales" json:"sales"`
 }
 
-type ListingsSummary struct {
-	Date        ListingDateMeta    `bson:"date" json:"date"`
-	State       ListingState       `bson:"state" json:"state"`
-	Details     DetailsSummary     `bson:"details" json:"details"`
-	Inventory   InventorySummary   `bson:"inventory" json:"inventory"`
-	Slug        string             `bson:"slug" json:"slug"`
-	Code        string             `bson:"code" json:"code"`
-	MainImage   string             `bson:"main_image" json:"mainImage"`
-	Images      []string           `bson:"images" json:"images"`
-	Sales       float64            `bson:"sales" json:"sales"`
-	TotalOrders int                `bson:"total_orders" json:"totalOrders"`
-	ID          primitive.ObjectID `bson:"_id" json:"_id"`
-	ShopId      primitive.ObjectID `bson:"shop_id" json:"shopId"`
-	UserId      primitive.ObjectID `bson:"user_id" json:"userId"`
+type ListingSummary struct {
+	Date      ListingDateMeta    `bson:"date" json:"date"`
+	State     ListingState       `bson:"state" json:"state"`
+	Details   DetailsSummary     `bson:"details" json:"details"`
+	Inventory InventorySummary   `bson:"inventory" json:"inventory"`
+	Slug      string             `bson:"slug" json:"slug"`
+	Code      string             `bson:"code" json:"code"`
+	MainImage string             `bson:"main_image" json:"mainImage"`
+	Images    []string           `bson:"images" json:"images`
+	ID        primitive.ObjectID `bson:"_id" json:"_id"`
+	ShopId    primitive.ObjectID `bson:"shop_id" json:"shopId"`
+	UserId    primitive.ObjectID `bson:"user_id" json:"userId"`
+	rating    Rating             `bson:"rating" json:"rating"`
+	Views     int                `bson:"views" json:"reviews"`
+	Shipping  *ShippingSummary   `bson:"shipping" json:"shipping"`
 }
 
 type DetailsSummary struct {
@@ -125,8 +126,15 @@ type DetailsSummary struct {
 }
 
 type InventorySummary struct {
-	Price    string `bson:"price" json:"price" validate:"required"`
-	Quantity int    `bson:"quantity" json:"quantity" validate:"required"`
+	Price    float64 `bson:"price" json:"price" validate:"required"`
+	Quantity int     `bson:"quantity" json:"quantity" validate:"required"`
+}
+
+type ShippingSummary struct {
+	Processing         ShippingProcessing `bson:"processing" json:"processing"`
+	OffersFreeShipping bool               `bson:"offers_free_shipping" json:"offers_free_shipping"`
+	Destinations       []string           `bson:"destinations" json:"destinations"`
+	MaaxDeliveryDays   int                `bson:"max_delivery_days" json:"max_delivery_days"`
 }
 
 type ListingExtra struct {
@@ -162,15 +170,15 @@ type ListingUserExcept struct {
 }
 
 type ListingShopExcept struct {
-	Name         string    `bson:"name" json:"name" validate:"required"`
-	Description  string    `bson:"description" json:"description" validate:"required"`
-	Username     string    `bson:"username" json:"username" validate:"required"`
-	Location     string    `bson:"location" json:"location"`
-	Slug         string    `bson:"slug" json:"slug" validate:"required"`
-	LogoURL      string    `bson:"logo_url" json:"logoUrl"`
-	Rating       Rating    `bson:"rating" json:"rating"`
-	ReviewsCount int       `bson:"reviews_count" json:"reviewsCount"`
-	CreatedAt    time.Time `bson:"created_at" json:"createdAt" validate:"required"`
+	Name               string    `bson:"name" json:"name" validate:"required"`
+	Description        string    `bson:"description" json:"description" validate:"required"`
+	Username           string    `bson:"username" json:"username" validate:"required"`
+	Location           string    `bson:"location" json:"location"`
+	Slug               string    `bson:"slug" json:"slug" validate:"required"`
+	LogoURL            string    `bson:"logo_url" json:"logoUrl"`
+	Rating             Rating    `bson:"rating" json:"rating"`
+	CreatedAt          time.Time `bson:"created_at" json:"createdAt" validate:"required"`
+	ListingActiveCount int64     `bson:"listing_active_count"  json:"listingActiveCount"`
 }
 
 type NewListing struct {

@@ -180,8 +180,9 @@ func (lc *ListingController) GetMyListingsSummary(c *gin.Context) {
 
 	paginationArgs := helpers.GetPaginationArgs(c)
 	sort := lc.listingService.GetListingSortingBson(paginationArgs.Sort)
+	filters := lc.listingService.GetListingFilters(c)
 
-	listings, count, err := lc.listingService.GetMyListingsSummary(ctx, shopId, myId, paginationArgs, sort)
+	listings, count, err := lc.listingService.GetMyListingsSummary(ctx, shopId, myId, paginationArgs, filters, sort)
 	if err != nil {
 		util.HandleError(c, http.StatusNotFound, err)
 		return
