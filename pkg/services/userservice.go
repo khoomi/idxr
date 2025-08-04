@@ -670,6 +670,7 @@ func (s *userService) SendPasswordResetEmail(ctx context.Context, email string) 
 	return nil
 }
 
+// TODO: Password reset is failin due to document not found.. Debug when I have somoe time since there're more important stuffs to handle!
 func (s *userService) ResetPassword(ctx context.Context, userID primitive.ObjectID, token, newPassword string) error {
 	var passwordResetData models.UserPasswordResetToken
 	var user models.User

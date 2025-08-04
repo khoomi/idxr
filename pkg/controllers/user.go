@@ -292,7 +292,6 @@ func (uc *UserController) ChangePassword(c *gin.Context) {
 	ctx, cancel := WithTimeout()
 	defer cancel()
 
-	// Verify current user session
 	userId, err := auth.ValidateUserID(c)
 	if err != nil {
 		util.HandleError(c, http.StatusBadRequest, err)
@@ -542,7 +541,6 @@ func (uc *UserController) UploadThumbnail(c *gin.Context) {
 	remoteAddr := c.Query("remote_addr")
 	var file any
 	if remoteAddr == "" {
-		// Handle file upload
 		fileHeader, err := c.FormFile("thumbnail")
 		if err != nil {
 			util.HandleError(c, http.StatusBadRequest, err)
