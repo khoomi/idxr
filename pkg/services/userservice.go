@@ -37,6 +37,18 @@ type userService struct {
 	wishListCollection               *mongo.Collection
 	userDeletionCollection           *mongo.Collection
 	notificationCollection           *mongo.Collection
+	// Additional collections for user deletion
+	shopCollection                   *mongo.Collection
+	listingCollection                *mongo.Collection
+	listingReviewCollection          *mongo.Collection
+	userAddressCollection            *mongo.Collection
+	userCartCollection               *mongo.Collection
+	userFavoriteListingCollection    *mongo.Collection
+	userFavoriteShopCollection       *mongo.Collection
+	sellerPaymentInfoCollection      *mongo.Collection
+	userPaymentCardsCollection       *mongo.Collection
+	shopFollowerCollection           *mongo.Collection
+	sellerVerificationCollection     *mongo.Collection
 }
 
 func NewUserService() UserService {
@@ -49,6 +61,18 @@ func NewUserService() UserService {
 		wishListCollection:               util.GetCollection(util.DB, "UserWishList"),
 		userDeletionCollection:           util.GetCollection(util.DB, "UserDeletionRequest"),
 		notificationCollection:           util.GetCollection(util.DB, "UserNotification"),
+		// Additional collections for user deletion
+		shopCollection:                   util.GetCollection(util.DB, "Shop"),
+		listingCollection:                util.GetCollection(util.DB, "Listing"),
+		listingReviewCollection:          util.GetCollection(util.DB, "ListingReview"),
+		userAddressCollection:            util.GetCollection(util.DB, "UserAddress"),
+		userCartCollection:               util.GetCollection(util.DB, "UserCart"),
+		userFavoriteListingCollection:    util.GetCollection(util.DB, "UserFavoriteListing"),
+		userFavoriteShopCollection:       util.GetCollection(util.DB, "UserFavoriteShop"),
+		sellerPaymentInfoCollection:      util.GetCollection(util.DB, "SellerPaymentInformation"),
+		userPaymentCardsCollection:       util.GetCollection(util.DB, "UserPaymentCards"),
+		shopFollowerCollection:           util.GetCollection(util.DB, "ShopFollower"),
+		sellerVerificationCollection:     util.GetCollection(util.DB, "SellerVerification"),
 	}
 }
 
@@ -1040,4 +1064,279 @@ func (s *userService) IsSeller(ctx context.Context, userID primitive.ObjectID) (
 	}
 
 	return true, nil
+}
+
+// DeleteUser deletes all personal user data while preserving marketplace integrity
+func (s *userService) DeleteUser(ctx context.Context, userID primitive.ObjectID) (*DeleteUserResult, error) {
+	log.Printf("Starting user deletion process for user ID: %s", userID.Hex())
+
+	// Verify user exists
+	var user models.User
+	err := s.userCollection.FindOne(ctx, bson.M{"_id": userID}).Decode(&user)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return nil, errors.New("user not found")
+		}
+		return nil, fmt.Errorf("failed to find user: %v", err)
+	}
+
+	result := &DeleteUserResult{}
+
+	// Execute deletion in transaction
+	transactionResult, err := ExecuteTransaction(ctx, func(ctx mongo.SessionContext) (any, error) {
+		// Step 1: Anonymize shops owned by the user
+		shopsAnonymized, err := s.anonymizeUserShops(ctx, userID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to anonymize shops: %v", err)
+		}
+		result.ShopsAnonymized = shopsAnonymized
+
+		// Step 2: Anonymize listings owned by the user
+		listingsAnonymized, err := s.anonymizeUserListings(ctx, userID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to anonymize listings: %v", err)
+		}
+		result.ListingsAnonymized = listingsAnonymized
+
+		// Step 3: Anonymize reviews written by the user
+		reviewsAnonymized, err := s.anonymizeUserReviews(ctx, userID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to anonymize reviews: %v", err)
+		}
+		result.ReviewsAnonymized = reviewsAnonymized
+
+		// Step 4: Remove user from shop followers
+		err = s.removeUserFromShopFollowers(ctx, userID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to remove user from shop followers: %v", err)
+		}
+
+		// Step 5: Delete personal data
+		addressesDeleted, err := s.deleteUserAddresses(ctx, userID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to delete user addresses: %v", err)
+		}
+		result.AddressesDeleted = addressesDeleted
+
+		paymentInfoDeleted, err := s.deleteSellerPaymentInfo(ctx, userID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to delete seller payment info: %v", err)
+		}
+		result.PaymentInfoDeleted = paymentInfoDeleted
+
+		paymentCardsDeleted, err := s.deleteUserPaymentCards(ctx, userID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to delete user payment cards: %v", err)
+		}
+		result.PaymentCardsDeleted = paymentCardsDeleted
+
+		cartItemsDeleted, err := s.deleteUserCartItems(ctx, userID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to delete cart items: %v", err)
+		}
+		result.CartItemsDeleted = cartItemsDeleted
+
+		wishlistDeleted, err := s.deleteUserWishlist(ctx, userID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to delete wishlist: %v", err)
+		}
+		result.WishlistDeleted = wishlistDeleted
+
+		favoritesDeleted, err := s.deleteUserFavorites(ctx, userID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to delete favorites: %v", err)
+		}
+		result.FavoritesDeleted = favoritesDeleted
+
+		loginHistoriesDeleted, err := s.deleteUserLoginHistories(ctx, userID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to delete login histories: %v", err)
+		}
+		result.LoginHistoriesDeleted = loginHistoriesDeleted
+
+		tokensDeleted, err := s.deleteUserTokens(ctx, userID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to delete tokens: %v", err)
+		}
+		result.TokensDeleted = tokensDeleted
+
+		notificationsDeleted, err := s.deleteUserNotifications(ctx, userID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to delete notifications: %v", err)
+		}
+		result.NotificationsDeleted = notificationsDeleted
+
+		// Step 6: Delete seller verification data
+		_, err = s.sellerVerificationCollection.DeleteMany(ctx, bson.M{"user_id": userID})
+		if err != nil {
+			return nil, fmt.Errorf("failed to delete seller verification: %v", err)
+		}
+
+		// Step 7: Delete user deletion requests
+		_, err = s.userDeletionCollection.DeleteMany(ctx, bson.M{"user_id": userID})
+		if err != nil {
+			return nil, fmt.Errorf("failed to delete user deletion requests: %v", err)
+		}
+
+		// Step 8: Finally delete the user profile
+		deleteResult, err := s.userCollection.DeleteOne(ctx, bson.M{"_id": userID})
+		if err != nil {
+			return nil, fmt.Errorf("failed to delete user profile: %v", err)
+		}
+		result.UserDeleted = deleteResult.DeletedCount > 0
+
+		return result, nil
+	})
+
+	if err != nil {
+		log.Printf("User deletion transaction failed for user %s: %v", userID.Hex(), err)
+		return nil, err
+	}
+
+	log.Printf("User deletion completed successfully for user %s", userID.Hex())
+	return transactionResult.(*DeleteUserResult), nil
+}
+
+// Helper methods for user deletion
+
+func (s *userService) anonymizeUserShops(ctx mongo.SessionContext, userID primitive.ObjectID) (int, error) {
+	// Update shops to anonymize owner information
+	filter := bson.M{"user_id": userID}
+	update := bson.M{
+		"$set": bson.M{
+			"user.first_name": "Former",
+			"user.last_name":  "Seller",
+			"user.login_name": "deleted_user_" + userID.Hex()[:8],
+			"user.thumbnail":  common.DEFAULT_USER_THUMBNAIL,
+		},
+	}
+	
+	result, err := s.shopCollection.UpdateMany(ctx, filter, update)
+	if err != nil {
+		return 0, err
+	}
+	return int(result.ModifiedCount), nil
+}
+
+func (s *userService) anonymizeUserListings(ctx mongo.SessionContext, userID primitive.ObjectID) (int, error) {
+	// Note: We don't need to anonymize listings as they don't contain personal user info
+	// The shop reference will already be anonymized from the previous step
+	count, err := s.listingCollection.CountDocuments(ctx, bson.M{"user_id": userID})
+	if err != nil {
+		return 0, err
+	}
+	return int(count), nil
+}
+
+func (s *userService) anonymizeUserReviews(ctx mongo.SessionContext, userID primitive.ObjectID) (int, error) {
+	// Anonymize reviews written by the user
+	filter := bson.M{"user_id": userID}
+	update := bson.M{
+		"$set": bson.M{
+			"user.first_name": "Former",
+			"user.last_name":  "Customer",
+			"user.login_name": "deleted_user",
+			"user.thumbnail":  common.DEFAULT_USER_THUMBNAIL,
+		},
+	}
+	
+	result, err := s.listingReviewCollection.UpdateMany(ctx, filter, update)
+	if err != nil {
+		return 0, err
+	}
+	return int(result.ModifiedCount), nil
+}
+
+func (s *userService) removeUserFromShopFollowers(ctx mongo.SessionContext, userID primitive.ObjectID) error {
+	// Remove user from all shop followers lists
+	_, err := s.shopFollowerCollection.DeleteMany(ctx, bson.M{"user_id": userID})
+	return err
+}
+
+func (s *userService) deleteUserAddresses(ctx mongo.SessionContext, userID primitive.ObjectID) (int, error) {
+	result, err := s.userAddressCollection.DeleteMany(ctx, bson.M{"user_id": userID})
+	if err != nil {
+		return 0, err
+	}
+	return int(result.DeletedCount), nil
+}
+
+func (s *userService) deleteSellerPaymentInfo(ctx mongo.SessionContext, userID primitive.ObjectID) (int, error) {
+	result, err := s.sellerPaymentInfoCollection.DeleteMany(ctx, bson.M{"user_id": userID})
+	if err != nil {
+		return 0, err
+	}
+	return int(result.DeletedCount), nil
+}
+
+func (s *userService) deleteUserPaymentCards(ctx mongo.SessionContext, userID primitive.ObjectID) (int, error) {
+	result, err := s.userPaymentCardsCollection.DeleteMany(ctx, bson.M{"user_id": userID})
+	if err != nil {
+		return 0, err
+	}
+	return int(result.DeletedCount), nil
+}
+
+func (s *userService) deleteUserCartItems(ctx mongo.SessionContext, userID primitive.ObjectID) (int, error) {
+	result, err := s.userCartCollection.DeleteMany(ctx, bson.M{"user_id": userID})
+	if err != nil {
+		return 0, err
+	}
+	return int(result.DeletedCount), nil
+}
+
+func (s *userService) deleteUserWishlist(ctx mongo.SessionContext, userID primitive.ObjectID) (int, error) {
+	result, err := s.wishListCollection.DeleteMany(ctx, bson.M{"user_id": userID})
+	if err != nil {
+		return 0, err
+	}
+	return int(result.DeletedCount), nil
+}
+
+func (s *userService) deleteUserFavorites(ctx mongo.SessionContext, userID primitive.ObjectID) (int, error) {
+	// Delete favorite listings
+	result1, err := s.userFavoriteListingCollection.DeleteMany(ctx, bson.M{"user_id": userID})
+	if err != nil {
+		return 0, err
+	}
+	
+	// Delete favorite shops
+	result2, err := s.userFavoriteShopCollection.DeleteMany(ctx, bson.M{"user_id": userID})
+	if err != nil {
+		return int(result1.DeletedCount), err
+	}
+	
+	return int(result1.DeletedCount + result2.DeletedCount), nil
+}
+
+func (s *userService) deleteUserLoginHistories(ctx mongo.SessionContext, userID primitive.ObjectID) (int, error) {
+	result, err := s.loginHistoryCollection.DeleteMany(ctx, bson.M{"user_uid": userID})
+	if err != nil {
+		return 0, err
+	}
+	return int(result.DeletedCount), nil
+}
+
+func (s *userService) deleteUserTokens(ctx mongo.SessionContext, userID primitive.ObjectID) (int, error) {
+	// Delete password reset tokens
+	result1, err := s.passwordResetTokenCollection.DeleteMany(ctx, bson.M{"user_uid": userID})
+	if err != nil {
+		return 0, err
+	}
+	
+	// Delete email verification tokens
+	result2, err := s.emailVerificationTokenCollection.DeleteMany(ctx, bson.M{"user_uid": userID})
+	if err != nil {
+		return int(result1.DeletedCount), err
+	}
+	
+	return int(result1.DeletedCount + result2.DeletedCount), nil
+}
+
+func (s *userService) deleteUserNotifications(ctx mongo.SessionContext, userID primitive.ObjectID) (int, error) {
+	result, err := s.notificationCollection.DeleteMany(ctx, bson.M{"user_id": userID})
+	if err != nil {
+		return 0, err
+	}
+	return int(result.DeletedCount), nil
 }

@@ -273,6 +273,25 @@ type UserService interface {
 	// User lookup and validation methods (moved from common)
 	GetUserByEmail(ctx context.Context, email string) (*models.User, error)
 	IsSeller(ctx context.Context, userID primitive.ObjectID) (bool, error)
+
+	// User deletion with marketplace data preservation
+	DeleteUser(ctx context.Context, userID primitive.ObjectID) (*DeleteUserResult, error)
+}
+
+type DeleteUserResult struct {
+	UserDeleted            bool `json:"userDeleted"`
+	ShopsAnonymized        int  `json:"shopsAnonymized"`
+	ListingsAnonymized     int  `json:"listingsAnonymized"`
+	ReviewsAnonymized      int  `json:"reviewsAnonymized"`
+	AddressesDeleted       int  `json:"addressesDeleted"`
+	PaymentInfoDeleted     int  `json:"paymentInfoDeleted"`
+	PaymentCardsDeleted    int  `json:"paymentCardsDeleted"`
+	NotificationsDeleted   int  `json:"notificationsDeleted"`
+	LoginHistoriesDeleted  int  `json:"loginHistoriesDeleted"`
+	CartItemsDeleted       int  `json:"cartItemsDeleted"`
+	WishlistDeleted        int  `json:"wishlistDeleted"`
+	TokensDeleted          int  `json:"tokensDeleted"`
+	FavoritesDeleted       int  `json:"favoritesDeleted"`
 }
 
 // ShippingService defines the interface for shipping-related operations

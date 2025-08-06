@@ -19,6 +19,7 @@ func InitRoute() *gin.Engine {
 	{
 		setupAuthRoutes(api, serviceContainer)
 		userRoutes(api, serviceContainer)
+		adminRoutes(api, serviceContainer)
 		shopRoutes(api, serviceContainer)
 		listingRoutes(api, serviceContainer)
 		cartRoutes(api, serviceContainer)
@@ -282,6 +283,20 @@ func categoryRoutes(api *gin.RouterGroup, serviceContainer *container.ServiceCon
 			secured.PUT("/:id/image", categoryController.UpdateCategoryImage)
 			secured.PUT("/:id/banner", categoryController.UpdateCategoryBanner)
 			secured.DELETE("/", categoryController.DeleteAllCategories)
+		}
+	}
+}
+
+// adminRoutes configures admin-only endpoints
+func adminRoutes(api *gin.RouterGroup, serviceContainer *container.ServiceContainer) {
+	userController := serviceContainer.GetUserController()
+	admin := api.Group("/admin")
+	{
+		// Admin-only routes with authentication and admin role check
+		secured := admin.Group("").Use(auth.Auth()).Use(middleware.AdminOnly(serviceContainer.UserService))
+		{
+			// User management
+			secured.DELETE("/users/delete", userController.DeleteUser)
 		}
 	}
 }

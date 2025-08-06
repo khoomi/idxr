@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"strconv"
@@ -774,4 +775,40 @@ func (uc *UserController) GetSecurityNotificationSetting(c *gin.Context) {
 	}
 
 	util.HandleSuccess(c, http.StatusOK, "login notification setting retrieved successfully.", gin.H{"allow_login_ip_notification": enabled})
+}
+
+// DeleteUser - DELETE api/admin/users/delete (Admin Only)
+func (uc *UserController) DeleteUser(c *gin.Context) {
+	ctx, cancel := WithTimeout()
+	defer cancel()
+
+	// Get target user ID from query parameter
+	targetUserID := c.Query("userId")
+	if targetUserID == "" {
+		util.HandleError(c, http.StatusBadRequest, errors.New("target userId is required"))
+		return
+	}
+
+	// Convert to ObjectID
+	userObjectID, err := primitive.ObjectIDFromHex(targetUserID)
+	if err != nil {
+		util.HandleError(c, http.StatusBadRequest, errors.New("invalid userId format"))
+		return
+	}
+
+	// Add confirmation parameter requirement
+	confirmation := c.Query("confirm")
+	if confirmation != "true" {
+		util.HandleError(c, http.StatusBadRequest, errors.New("account deletion requires confirmation parameter: ?confirm=true"))
+		return
+	}
+
+	// Execute user deletion
+	result, err := uc.userService.DeleteUser(ctx, userObjectID)
+	if err != nil {
+		util.HandleError(c, http.StatusInternalServerError, fmt.Errorf("failed to delete user account: %v", err))
+		return
+	}
+
+	util.HandleSuccess(c, http.StatusOK, "User account and all personal data deleted successfully", result)
 }
