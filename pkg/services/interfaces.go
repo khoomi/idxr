@@ -279,19 +279,19 @@ type UserService interface {
 }
 
 type DeleteUserResult struct {
-	UserDeleted            bool `json:"userDeleted"`
-	ShopsAnonymized        int  `json:"shopsAnonymized"`
-	ListingsAnonymized     int  `json:"listingsAnonymized"`
-	ReviewsAnonymized      int  `json:"reviewsAnonymized"`
-	AddressesDeleted       int  `json:"addressesDeleted"`
-	PaymentInfoDeleted     int  `json:"paymentInfoDeleted"`
-	PaymentCardsDeleted    int  `json:"paymentCardsDeleted"`
-	NotificationsDeleted   int  `json:"notificationsDeleted"`
-	LoginHistoriesDeleted  int  `json:"loginHistoriesDeleted"`
-	CartItemsDeleted       int  `json:"cartItemsDeleted"`
-	WishlistDeleted        int  `json:"wishlistDeleted"`
-	TokensDeleted          int  `json:"tokensDeleted"`
-	FavoritesDeleted       int  `json:"favoritesDeleted"`
+	UserDeleted           bool `json:"userDeleted"`
+	ShopsAnonymized       int  `json:"shopsAnonymized"`
+	ListingsAnonymized    int  `json:"listingsAnonymized"`
+	ReviewsAnonymized     int  `json:"reviewsAnonymized"`
+	AddressesDeleted      int  `json:"addressesDeleted"`
+	PaymentInfoDeleted    int  `json:"paymentInfoDeleted"`
+	PaymentCardsDeleted   int  `json:"paymentCardsDeleted"`
+	NotificationsDeleted  int  `json:"notificationsDeleted"`
+	LoginHistoriesDeleted int  `json:"loginHistoriesDeleted"`
+	CartItemsDeleted      int  `json:"cartItemsDeleted"`
+	WishlistDeleted       int  `json:"wishlistDeleted"`
+	TokensDeleted         int  `json:"tokensDeleted"`
+	FavoritesDeleted      int  `json:"favoritesDeleted"`
 }
 
 // ShippingService defines the interface for shipping-related operations
@@ -337,7 +337,7 @@ type ListingService interface {
 	GetListing(ctx context.Context, listingID string) (*models.ListingExtra, error)
 	GetListings(ctx context.Context, pagination util.PaginationArgs, filters bson.M, sort bson.D) ([]models.ListingSummary, int64, error)
 	GetMyListingsSummary(ctx context.Context, shopID, userID primitive.ObjectID, pagination util.PaginationArgs, filters bson.M, sort bson.D) ([]models.ListingSummary, int64, error)
-	GetShopListings(ctx context.Context, shopID primitive.ObjectID, pagination util.PaginationArgs, filters bson.M, sort bson.D) ([]models.ListingSummary, int64, error)
+	GetShopListings(ctx context.Context, shopID primitive.ObjectID, pagination util.PaginationArgs, filters bson.M, sort bson.D) ([]models.ShopListingSummary, int64, error)
 	UpdateListingState(ctx context.Context, userID primitive.ObjectID, listingIDs []string, newState models.ListingStateType) (*UpdateListingStateResult, error)
 	HasUserCreatedListing(ctx context.Context, userID primitive.ObjectID) (bool, error)
 

@@ -111,13 +111,33 @@ type ListingSummary struct {
 	Slug      string             `bson:"slug" json:"slug"`
 	Code      string             `bson:"code" json:"code"`
 	MainImage string             `bson:"main_image" json:"mainImage"`
-	Images    []string           `bson:"images" json:"images`
+	Images    []string           `bson:"images" json:"images"`
 	ID        primitive.ObjectID `bson:"_id" json:"_id"`
 	ShopId    primitive.ObjectID `bson:"shop_id" json:"shopId"`
 	UserId    primitive.ObjectID `bson:"user_id" json:"userId"`
-	rating    Rating             `bson:"rating" json:"rating"`
+	Rating    Rating             `bson:"rating" json:"rating"`
 	Views     int                `bson:"views" json:"reviews"`
 	Shipping  *ShippingSummary   `bson:"shipping" json:"shipping"`
+}
+
+type ShopListingSummary struct {
+	Date      ListingDateMeta    `bson:"date" json:"date"`
+	State     ListingState       `bson:"state" json:"state"`
+	Details   DetailsSummary     `bson:"details" json:"details"`
+	Inventory InventorySummary   `bson:"inventory" json:"inventory"`
+	Slug      string             `bson:"slug" json:"slug"`
+	Code      string             `bson:"code" json:"code"`
+	MainImage string             `bson:"main_image" json:"mainImage"`
+	Images    []string           `bson:"images" json:"images"`
+	ID        primitive.ObjectID `bson:"_id" json:"_id"`
+	ShopId    primitive.ObjectID `bson:"shop_id" json:"shopId"`
+	UserId    primitive.ObjectID `bson:"user_id" json:"userId"`
+	Rating    Rating             `bson:"rating" json:"rating"`
+	Views     int                `bson:"views" json:"reviews"`
+	Shipping  *ShippingSummary   `bson:"shipping" json:"shipping"`
+	Siblings  []Listing          `bson:"siblings" json:"siblings"`
+	Shop      ShopExcerpt        `bson:"shop" json:"shop"`
+	User      ListingUserExcept  `bson:"user" json:"user"`
 }
 
 type DetailsSummary struct {
