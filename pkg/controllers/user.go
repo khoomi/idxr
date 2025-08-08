@@ -114,12 +114,13 @@ func (uc *UserController) HandleUserAuthentication(c *gin.Context) {
 		"userId":        validUser.Id.Hex(),
 		"role":          validUser.Role,
 		"email":         validUser.PrimaryEmail,
-		"FirstName":     validUser.FirstName,
+		"firstName":     validUser.FirstName,
 		"lastName":      validUser.LastName,
 		"loginName":     validUser.LoginName,
 		"thumbnail":     validUser.Thumbnail,
-		"emailverified": validUser.Auth.EmailVerified,
+		"emailVerified": validUser.Auth.EmailVerified,
 		"isSeller":      validUser.IsSeller,
+		"lastLogin":     validUser.LastLogin,
 	}
 	util.HandleSuccess(c, http.StatusOK, "Authentication successful",
 		gin.H{

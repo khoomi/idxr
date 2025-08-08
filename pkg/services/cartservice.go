@@ -159,7 +159,6 @@ func (cs *CartServiceImpl) GetCartItems(ctx context.Context, userID primitive.Ob
 		cartItems = append(cartItems, cartItemResponse)
 	}
 
-	// Get total count
 	count, err := cs.userCartCollection.CountDocuments(ctx, bson.M{"userId": userID})
 	if err != nil {
 		return nil, 0, err
