@@ -82,8 +82,6 @@ type UserNotification struct {
 	ExpiresAt         *time.Time            `bson:"expires_at,omitempty" json:"expiresAt,omitempty"`
 }
 
-// Notification is an alias for UserNotification to maintain backward compatibility
-type Notification = UserNotification
 
 // UserNotificationRequest represents a request to create a user notification
 type UserNotificationRequest struct {

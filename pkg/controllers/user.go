@@ -902,3 +902,208 @@ func (uc *UserController) DeleteUser(c *gin.Context) {
 
 	util.HandleSuccess(c, http.StatusOK, "User account and all personal data deleted successfully", result)
 }
+
+// GetUserNotifications - GET /api/users/:userid/notifications
+func (uc *UserController) GetUserNotifications() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ctx, cancel := WithTimeout()
+		defer cancel()
+
+		userID, err := auth.ValidateUserID(c)
+		if err != nil {
+			util.HandleError(c, http.StatusBadRequest, err)
+			return
+		}
+		paginationArgs := helpers.GetPaginationArgs(c)
+		var filters models.NotificationFilters
+		if types := c.QueryArray("type"); len(types) > 0 {
+			for _, t := range types {
+				filters.Types = append(filters.Types, models.NotificationType(t))
+			}
+		}
+
+		if priorities := c.QueryArray("priority"); len(priorities) > 0 {
+			for _, p := range priorities {
+				filters.Priorities = append(filters.Priorities, models.NotificationPriority(p))
+			}
+		}
+
+		if isReadStr := c.Query("isRead"); isReadStr != "" {
+			isRead := isReadStr == "true"
+			filters.IsRead = &isRead
+		}
+
+		notifications, count, err := uc.notificationService.GetUserNotifications(ctx, userID, filters, paginationArgs)
+		if err != nil {
+			util.HandleError(c, http.StatusInternalServerError, err)
+			return
+		}
+
+		util.HandleSuccessMeta(c, http.StatusOK, "Notifications retrieved successfully", notifications, gin.H{
+			"pagination": util.Pagination{
+				Limit: paginationArgs.Limit,
+				Skip:  paginationArgs.Skip,
+				Count: count,
+			},
+		})
+	}
+}
+
+// GetUnreadNotifications - GET /api/users/:userid/notifications/unread
+func (uc *UserController) GetUnreadNotifications() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ctx, cancel := WithTimeout()
+		defer cancel()
+
+		userID, err := auth.ValidateUserID(c)
+		if err != nil {
+			util.HandleError(c, http.StatusBadRequest, err)
+			return
+		}
+
+		paginationArgs := helpers.GetPaginationArgs(c)
+
+		notifications, count, err := uc.notificationService.GetUnreadNotifications(ctx, userID, paginationArgs)
+		if err != nil {
+			util.HandleError(c, http.StatusInternalServerError, err)
+			return
+		}
+
+		util.HandleSuccessMeta(c, http.StatusOK, "Unread notifications retrieved successfully", notifications, gin.H{
+			"pagination": util.Pagination{
+				Limit: paginationArgs.Limit,
+				Skip:  paginationArgs.Skip,
+				Count: count,
+			},
+			"unreadCount": count,
+		})
+	}
+}
+
+// MarkNotificationAsRead - PUT /api/users/:userid/notifications/:notificationid/read
+func (uc *UserController) MarkNotificationAsRead() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ctx, cancel := WithTimeout()
+		defer cancel()
+
+		userID, err := auth.ValidateUserID(c)
+		if err != nil {
+			util.HandleError(c, http.StatusBadRequest, err)
+			return
+		}
+
+		notificationIDStr := c.Param("notificationid")
+		notificationID, err := primitive.ObjectIDFromHex(notificationIDStr)
+		if err != nil {
+			util.HandleError(c, http.StatusBadRequest, errors.New("invalid notification ID"))
+			return
+		}
+
+		err = uc.notificationService.MarkNotificationAsRead(ctx, userID, notificationID)
+		if err != nil {
+			util.HandleError(c, http.StatusInternalServerError, err)
+			return
+		}
+
+		util.HandleSuccess(c, http.StatusOK, "Notification marked as read", nil)
+	}
+}
+
+// MarkAllNotificationsAsRead - PUT /api/users/:userid/notifications/read-all
+func (uc *UserController) MarkAllNotificationsAsRead() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ctx, cancel := WithTimeout()
+		defer cancel()
+
+		userID, err := auth.ValidateUserID(c)
+		if err != nil {
+			util.HandleError(c, http.StatusBadRequest, err)
+			return
+		}
+
+		count, err := uc.notificationService.MarkAllNotificationsAsRead(ctx, userID)
+		if err != nil {
+			util.HandleError(c, http.StatusInternalServerError, err)
+			return
+		}
+
+		util.HandleSuccess(c, http.StatusOK, fmt.Sprintf("Marked %d notifications as read", count), gin.H{
+			"markedCount": count,
+		})
+	}
+}
+
+// DeleteNotification - DELETE /api/users/:userid/notifications/:notificationid
+func (uc *UserController) DeleteNotification() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ctx, cancel := WithTimeout()
+		defer cancel()
+
+		userID, err := auth.ValidateUserID(c)
+		if err != nil {
+			util.HandleError(c, http.StatusBadRequest, err)
+			return
+		}
+
+		notificationIDStr := c.Param("notificationid")
+		notificationID, err := primitive.ObjectIDFromHex(notificationIDStr)
+		if err != nil {
+			util.HandleError(c, http.StatusBadRequest, errors.New("invalid notification ID"))
+			return
+		}
+
+		err = uc.notificationService.DeleteNotification(ctx, userID, notificationID)
+		if err != nil {
+			util.HandleError(c, http.StatusInternalServerError, err)
+			return
+		}
+
+		util.HandleSuccess(c, http.StatusOK, "Notification deleted successfully", nil)
+	}
+}
+
+// GetNotificationStats - GET /api/users/:userid/notifications/stats
+func (uc *UserController) GetNotificationStats() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ctx, cancel := WithTimeout()
+		defer cancel()
+
+		userID, err := auth.ValidateUserID(c)
+		if err != nil {
+			util.HandleError(c, http.StatusBadRequest, err)
+			return
+		}
+
+		stats, err := uc.notificationService.GetNotificationStats(ctx, userID)
+		if err != nil {
+			util.HandleError(c, http.StatusInternalServerError, err)
+			return
+		}
+
+		util.HandleSuccess(c, http.StatusOK, "Notification statistics retrieved", stats)
+	}
+}
+
+// GetUnreadNotificationCount - GET /api/users/:userid/notifications/count
+func (uc *UserController) GetUnreadNotificationCount() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ctx, cancel := WithTimeout()
+		defer cancel()
+
+		userID, err := auth.ValidateUserID(c)
+		if err != nil {
+			util.HandleError(c, http.StatusBadRequest, err)
+			return
+		}
+
+		count, err := uc.notificationService.GetUnreadNotificationCount(ctx, userID)
+		if err != nil {
+			util.HandleError(c, http.StatusInternalServerError, err)
+			return
+		}
+
+		util.HandleSuccess(c, http.StatusOK, "Unread notification count retrieved", gin.H{
+			"unreadCount": count,
+		})
+	}
+}

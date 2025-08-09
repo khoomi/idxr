@@ -132,15 +132,37 @@ type CartValidationResult struct {
 
 // NotificationService defines the interface for async notification operations
 type NotificationService interface {
+	// Async notification operations
 	SendReviewNotificationAsync(ctx context.Context, reviewID primitive.ObjectID) error
 	SendCartAbandonmentNotificationAsync(ctx context.Context, userID primitive.ObjectID) error
 
+	// Cache invalidation
 	InvalidateReviewCache(ctx context.Context, listingID primitive.ObjectID) error
 	InvalidateCartCache(ctx context.Context, userID primitive.ObjectID) error
 
-	CreateNotification(ctx context.Context, notification models.Notification) (primitive.ObjectID, error)
-	GetNotification(ctx context.Context, userID primitive.ObjectID) (*models.Notification, error)
-	UpdateNotification(ctx context.Context, userID primitive.ObjectID, notification models.Notification) error
+	// User notification CRUD operations
+	CreateNotification(ctx context.Context, notification models.UserNotification) (primitive.ObjectID, error)
+	GetNotification(ctx context.Context, userID primitive.ObjectID) (*models.UserNotification, error)
+	UpdateNotification(ctx context.Context, userID primitive.ObjectID, notification models.UserNotification) error
+	
+	// Batch notification operations
+	GetUserNotifications(ctx context.Context, userID primitive.ObjectID, filters models.NotificationFilters, pagination util.PaginationArgs) ([]models.UserNotification, int64, error)
+	GetUnreadNotifications(ctx context.Context, userID primitive.ObjectID, pagination util.PaginationArgs) ([]models.UserNotification, int64, error)
+	GetNotificationByID(ctx context.Context, userID, notificationID primitive.ObjectID) (*models.UserNotification, error)
+	
+	// Mark as read operations
+	MarkNotificationAsRead(ctx context.Context, userID, notificationID primitive.ObjectID) error
+	MarkAllNotificationsAsRead(ctx context.Context, userID primitive.ObjectID) (int64, error)
+	MarkNotificationsAsRead(ctx context.Context, userID primitive.ObjectID, notificationIDs []primitive.ObjectID) (int64, error)
+	
+	// Delete operations
+	DeleteNotification(ctx context.Context, userID, notificationID primitive.ObjectID) error
+	DeleteExpiredNotifications(ctx context.Context) (int64, error)
+	DeleteAllUserNotifications(ctx context.Context, userID primitive.ObjectID) (int64, error)
+	
+	// Count operations
+	GetUnreadNotificationCount(ctx context.Context, userID primitive.ObjectID) (int64, error)
+	GetNotificationStats(ctx context.Context, userID primitive.ObjectID) (map[string]int64, error)
 }
 
 // EmailService defines the interface for email operations
