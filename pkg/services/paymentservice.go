@@ -171,6 +171,11 @@ func (p *paymentService) CreatePaymentCard(ctx context.Context, userID primitive
 		return primitive.NilObjectID, err
 	}
 
+	company, err := card.MethodValidate()
+	if err != nil {
+		return primitive.NilObjectID, err
+	}
+
 	lastFour, err := card.LastFour()
 	if err != nil {
 		return primitive.NilObjectID, err
@@ -186,6 +191,7 @@ func (p *paymentService) CreatePaymentCard(ctx context.Context, userID primitive
 		ExpiryYear:     card.Year,
 		CVV:            card.Cvv,
 		LastFourDigits: lastFour,
+		Company:        company.Long,
 		CreatedAt:      now,
 		UpdatedAt:      now,
 	}

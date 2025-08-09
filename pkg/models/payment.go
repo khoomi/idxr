@@ -36,6 +36,7 @@ type PaymentCardInformation struct {
 	ExpiryMonth    string             `bson:"expiryMonth" json:"expiryMonth,omitempty" validate:"required"`
 	ExpiryYear     string             `bson:"expiryYear" json:"expiryYear,omitempty" validate:"required"`
 	CVV            string             `bson:"cvv" json:"cvv,omitempty" validate:"required"`
+	Company        string             `bson:"company" json:"company,omitempty" validate:"required"`
 	ID             primitive.ObjectID `bson:"_id" json:"_id" validate:"required"`
 	UserID         primitive.ObjectID `bson:"userId" json:"userId" validate:"required"`
 	IsDefault      bool               `bson:"isDefault" json:"isDefault"`
