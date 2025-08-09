@@ -204,6 +204,7 @@ type ShopNotificationSettings struct {
 	CustomerNotifications  bool               `bson:"customer_notifications" json:"customerNotifications"`
 	AnalyticsNotifications bool               `bson:"analytics_notifications" json:"analyticsNotifications"`
 	SystemNotifications    bool               `bson:"system_notifications" json:"systemNotifications"`
+	ListingExpNotice       bool               `bson:"listing_exp_notice" json:"listingExpNotice" validate:"required"`
 	CreatedAt              time.Time          `bson:"created_at" json:"createdAt"`
 	ModifiedAt             time.Time          `bson:"modified_at" json:"modifiedAt"`
 }

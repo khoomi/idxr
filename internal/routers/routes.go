@@ -76,9 +76,9 @@ func userRoutes(api *gin.RouterGroup, serviceContainer *container.ServiceContain
 		secured.POST("/:userid/send-verify-email", userController.SendVerifyEmail)
 
 		// Notification settings
-		secured.POST("/:userid/notification-settings", controllers.CreateUserNotificationSettings())
-		secured.GET("/:userid/notification-settings", controllers.GetUserNotificationSettings())
-		secured.PUT("/:userid/notification-settings", controllers.UpdateUserNotificationSettings())
+		secured.POST("/:userid/notification-settings", userController.CreateUserNotificationSettings())
+		secured.GET("/:userid/notification-settings", userController.GetUserNotificationSettings())
+		secured.PUT("/:userid/notification-settings", userController.UpdateUserNotificationSettings())
 
 		// Address management
 		secured.POST("/:userid/addresses", addressService.CreateUserAddress())

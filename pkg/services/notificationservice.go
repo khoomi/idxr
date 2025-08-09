@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"log"
+	"time"
 
 	"khoomi-api-io/api/internal"
 	"khoomi-api-io/api/pkg/models"
@@ -11,15 +12,21 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 type NotificationServiceImpl struct {
-	notificationCollection *mongo.Collection
+	notificationCollection     *mongo.Collection // For UserNotification (backward compatibility)
+	userNotificationCollection *mongo.Collection
+	shopNotificationCollection *mongo.Collection
 }
 
 func NewNotificationService() NotificationService {
+	userNotificationCol := util.GetCollection(util.DB, "UserNotification")
 	return &NotificationServiceImpl{
-		notificationCollection: util.GetCollection(util.DB, "UserNotification"),
+		notificationCollection:     userNotificationCol, // Same collection for backward compatibility
+		userNotificationCollection: userNotificationCol,
+		shopNotificationCollection: util.GetCollection(util.DB, "ShopNotification"),
 	}
 }
 
@@ -66,8 +73,26 @@ func (ns *NotificationServiceImpl) InvalidateCartCache(ctx context.Context, user
 	return internal.PublishCacheMessageDirect(internal.CacheInvalidateCart, userID.Hex())
 }
 
-// CreateNotification creates a new notification
+// CreateNotification creates a new user notification
 func (ns *NotificationServiceImpl) CreateNotification(ctx context.Context, notification models.Notification) (primitive.ObjectID, error) {
+	if notification.ID.IsZero() {
+		notification.ID = primitive.NewObjectID()
+	}
+	if notification.CreatedAt.IsZero() {
+		notification.CreatedAt = time.Now()
+	}
+	if !notification.IsRead {
+		notification.IsRead = false
+	}
+
+	if notification.ExpiresAt == nil && notification.Type != "" {
+		expiry := notification.Type.GetExpiryDuration()
+		if expiry > 0 {
+			expiresAt := time.Now().Add(expiry)
+			notification.ExpiresAt = &expiresAt
+		}
+	}
+
 	result, err := ns.notificationCollection.InsertOne(ctx, notification)
 	if err != nil {
 		return primitive.NilObjectID, err
@@ -75,19 +100,27 @@ func (ns *NotificationServiceImpl) CreateNotification(ctx context.Context, notif
 	return result.InsertedID.(primitive.ObjectID), nil
 }
 
-// GetNotification retrieves a notification by user ID
+// GetNotification retrieves the most recent notification for a user
 func (ns *NotificationServiceImpl) GetNotification(ctx context.Context, userID primitive.ObjectID) (*models.Notification, error) {
 	var notification models.Notification
-	err := ns.notificationCollection.FindOne(ctx, bson.M{"user_id": userID}).Decode(&notification)
+
+	opts := options.FindOne().SetSort(bson.D{{Key: "created_at", Value: -1}})
+	err := ns.notificationCollection.FindOne(ctx, bson.M{"user_id": userID}, opts).Decode(&notification)
 	if err != nil {
 		return nil, err
 	}
 	return &notification, nil
 }
 
-// UpdateNotification updates a notification for a specific user
+// UpdateNotification updates a specific notification
 func (ns *NotificationServiceImpl) UpdateNotification(ctx context.Context, userID primitive.ObjectID, notification models.Notification) error {
-	filter := bson.M{"user_id": userID}
+	var filter bson.M
+	if !notification.ID.IsZero() {
+		filter = bson.M{"_id": notification.ID, "user_id": userID}
+	} else {
+		filter = bson.M{"user_id": userID}
+	}
+
 	update := bson.M{"$set": notification}
 	_, err := ns.notificationCollection.UpdateOne(ctx, filter, update)
 	return err

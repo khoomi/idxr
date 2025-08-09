@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"strconv"
+	"time"
 
 	"khoomi-api-io/api/internal/auth"
 	"khoomi-api-io/api/internal/common"
@@ -724,6 +725,94 @@ func (uc *UserController) GetUserWishlist(c *gin.Context) {
 			Count: count,
 		},
 	})
+}
+
+func (uc *UserController) CreateUserNotificationSettings() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ctx, cancel := WithTimeout()
+		defer cancel()
+
+		userId, err := auth.ValidateUserID(c)
+		if err != nil {
+			util.HandleError(c, http.StatusBadRequest, err)
+			return
+		}
+
+		var notificationRequest models.UserNotificationSettingsRequest
+		if err := c.BindJSON(&notificationRequest); err != nil {
+			util.HandleError(c, http.StatusBadRequest, err)
+			return
+		}
+
+		notification := models.UserNotificationSettings{
+			ID:                   primitive.NewObjectID(),
+			UserID:               userId,
+			NewMessage:           notificationRequest.NewMessage,
+			NewFollower:          notificationRequest.NewFollower,
+			NewsAndFeatures:      notificationRequest.NewsAndFeatures,
+			EmailEnabled:         notificationRequest.EmailEnabled,
+			SMSEnabled:           notificationRequest.SMSEnabled,
+			PushEnabled:          notificationRequest.PushEnabled,
+			OrderUpdates:         notificationRequest.OrderUpdates,
+			PaymentConfirmations: notificationRequest.PaymentConfirmations,
+			DeliveryUpdates:      notificationRequest.DeliveryUpdates,
+			CreatedAt:            time.Time{},
+			ModifiedAt:           time.Time{},
+		}
+
+		insertedID, err := uc.userService.CreateNotificationSettings(ctx, userId, notification)
+		if err != nil {
+			util.HandleError(c, http.StatusInternalServerError, err)
+			return
+		}
+
+		util.HandleSuccess(c, http.StatusOK, "Notification created successfully", insertedID)
+	}
+}
+
+func (uc *UserController) GetUserNotificationSettings() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ctx, cancel := WithTimeout()
+		defer cancel()
+
+		userId, err := auth.ValidateUserID(c)
+		if err != nil {
+			util.HandleError(c, http.StatusBadRequest, err)
+			return
+		}
+
+		settings, err := uc.userService.GetNotificationSettings(ctx, userId)
+		if err != nil {
+			util.HandleError(c, http.StatusInternalServerError, err)
+			return
+		}
+
+		util.HandleSuccess(c, http.StatusOK, "Notification settings retrieved successfully", settings)
+	}
+}
+
+func (uc *UserController) UpdateUserNotificationSettings() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ctx, cancel := WithTimeout()
+		defer cancel()
+
+		userId, err := auth.ValidateUserID(c)
+		if err != nil {
+			util.HandleError(c, http.StatusBadRequest, err)
+			return
+		}
+
+		field := c.Query("name")
+		value := c.Query("value")
+		updateErr := uc.userService.UpdateNotificationSettings(ctx, userId, field, value)
+		if updateErr != nil {
+			util.HandleError(c, http.StatusBadRequest, updateErr)
+			return
+		}
+
+		// TODO: maybe return UpdateResult from UpdateUserNotificationSettings call and return to user here.
+		util.HandleSuccess(c, http.StatusOK, "Notification settings updated successfully", userId)
+	}
 }
 
 // UpdateSecurityNotificationSetting - GET api/user/:userId/login-notification?set=true

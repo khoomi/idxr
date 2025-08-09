@@ -223,58 +223,46 @@ type UserAuthRequest struct {
 
 // UserService defines the interface for user-related operations
 type UserService interface {
-	// User registration and authentication
 	CreateUser(ctx context.Context, req CreateUserRequest, clientIP string) (primitive.ObjectID, error)
 	CreateUserFromGoogle(ctx context.Context, claim any, clientIP string) (primitive.ObjectID, error)
 	AuthenticateUser(ctx context.Context, gCtx *gin.Context, req UserAuthRequest, clientIP, userAgent string) (*models.User, string, error)
 	AuthenticateGoogleUser(ctx context.Context, gCtx *gin.Context, idToken, clientIP, userAgent string) (*models.User, string, error)
 
-	// User profile operations
 	GetUserByID(ctx context.Context, userID primitive.ObjectID) (*models.User, error)
 	GetUser(ctx context.Context, userIdentifier string) (*models.User, error)
 	UpdateUserProfile(ctx context.Context, userID primitive.ObjectID, req UpdateUserProfileRequest) error
 	UpdateUserSingleField(ctx context.Context, userID primitive.ObjectID, field, value string) error
 	UpdateUserBirthdate(ctx context.Context, userID primitive.ObjectID, birthdate models.UserBirthdate) error
-
-	// Password operations
 	ChangePassword(ctx context.Context, userID primitive.ObjectID, req PasswordChangeRequest) error
 	SendPasswordResetEmail(ctx context.Context, email string) error
-	ResetPassword(ctx context.Context, userID primitive.ObjectID, token, newPassword string) error
 
-	// Email verification
+	ResetPassword(ctx context.Context, userID primitive.ObjectID, token, newPassword string) error
 	SendVerificationEmail(ctx context.Context, userID primitive.ObjectID, email, firstName string) error
 	VerifyEmail(ctx context.Context, userID primitive.ObjectID, token string) error
-
-	// Session management
 	RefreshUserSession(ctx context.Context, userID primitive.ObjectID) (*models.User, error)
 
-	// Account management
 	RequestAccountDeletion(ctx context.Context, userID primitive.ObjectID) error
 	CancelAccountDeletion(ctx context.Context, userID primitive.ObjectID) error
 	IsAccountPendingDeletion(ctx context.Context, userID primitive.ObjectID) (bool, error)
 
-	// Login history
 	GetLoginHistories(ctx context.Context, userID primitive.ObjectID, pagination util.PaginationArgs) ([]models.LoginHistory, int64, error)
 	DeleteLoginHistories(ctx context.Context, userID primitive.ObjectID, historyIDs []string) error
 
-	// Thumbnail operations
 	UploadThumbnail(ctx context.Context, userID primitive.ObjectID, file any, remoteAddr string) error
 	DeleteThumbnail(ctx context.Context, userID primitive.ObjectID, url string) error
 
-	// Wishlist operations
 	AddWishlistItem(ctx context.Context, userID, listingID primitive.ObjectID) (primitive.ObjectID, error)
 	RemoveWishlistItem(ctx context.Context, userID, listingID primitive.ObjectID) error
 	GetUserWishlist(ctx context.Context, userID primitive.ObjectID, pagination util.PaginationArgs) ([]models.UserWishlist, int64, error)
 
-	// Security settings
 	UpdateSecurityNotificationSetting(ctx context.Context, userID primitive.ObjectID, enabled bool) error
 	GetSecurityNotificationSetting(ctx context.Context, userID primitive.ObjectID) (bool, error)
 
-	// User lookup and validation methods (moved from common)
+	CreateNotificationSettings(ctx context.Context, userID primitive.ObjectID, req models.UserNotificationSettings) (primitive.ObjectID, error)
+	UpdateNotificationSettings(ctx context.Context, userID primitive.ObjectID, field, value string) error
+	GetNotificationSettings(ctx context.Context, userID primitive.ObjectID) (models.UserNotificationSettings, error)
 	GetUserByEmail(ctx context.Context, email string) (*models.User, error)
 	IsSeller(ctx context.Context, userID primitive.ObjectID) (bool, error)
-
-	// User deletion with marketplace data preservation
 	DeleteUser(ctx context.Context, userID primitive.ObjectID) (*DeleteUserResult, error)
 }
 

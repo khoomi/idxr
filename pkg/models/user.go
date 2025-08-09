@@ -157,23 +157,34 @@ type RefreshTokenPayload struct {
 	Token string `json:"token" validate:"required"`
 }
 
-// USER NOTIFICATION
-type Notification struct {
-	// ID of the shop.
-	ID               primitive.ObjectID `bson:"_id" json:"_id" validate:"required"`
-	UserID           primitive.ObjectID `bson:"user_id" json:"userId" validate:"required"`
-	NewMessage       bool               `bson:"new_message" json:"newMessage" validate:"required"`
-	NewFollower      bool               `bson:"new_follower" json:"newFollower" validate:"required"`
-	ListingExpNotice bool               `bson:"listing_exp_notice" json:"listingExpNotice" validate:"required"`
-	SellerActivity   bool               `bson:"seller_activity" json:"sellerActivity" validate:"required"`
-	NewsAndFeatures  bool               `bson:"news_and_features" json:"newsAndFeatures" validate:"required"`
+type UserNotificationSettings struct {
+	ID                   primitive.ObjectID `bson:"_id" json:"_id" validate:"required"`
+	UserID               primitive.ObjectID `bson:"user_id" json:"userId" validate:"required"`
+	EmailEnabled         bool               `bson:"email_enabled" json:"emailEnabled"`
+	SMSEnabled           bool               `bson:"sms_enabled" json:"smsEnabled"`
+	PushEnabled          bool               `bson:"push_enabled" json:"pushEnabled"`
+	Promotional          bool               `bson:"promotional" json:"promotional" validate:"required"`
+	SupportMessage       bool               `bson:"support_message" json:"supportMessage" validate:"required"`
+	NewMessage           bool               `bson:"new_message" json:"newMessage" validate:"required"`
+	NewFollower          bool               `bson:"new_follower" json:"newFollower" validate:"required"`
+	NewsAndFeatures      bool               `bson:"news_and_features" json:"newsAndFeatures" validate:"required"`
+	OrderUpdates         bool               `bson:"order_updates" json:"orderUpdates" validate:"required"`
+	PaymentConfirmations bool               `bson:"payment_confirmations" json:"paymentConfirmations" validate:"required"`
+	DeliveryUpdates      bool               `bson:"delivery_updates" json:"deliveryUpdates" validate:"required"`
+	CreatedAt            time.Time          `bson:"created_at" json:"createdAt"`
+	ModifiedAt           time.Time          `bson:"modified_at" json:"modifiedAt"`
 }
 
-type NotificationRequest struct {
-	// ID of the shop.
-	NewMessage       bool `bson:"new_message" json:"newMessage" validate:"required"`
-	NewFollower      bool `bson:"new_follower" json:"newFollower" validate:"required"`
-	ListingExpNotice bool `bson:"listing_exp_notice" json:"listingExpNotice" validate:"required"`
-	SellerActivity   bool `bson:"seller_activity" json:"sellerActivity" validate:"required"`
-	NewsAndFeatures  bool `bson:"news_and_features" json:"newsAndFeatures" validate:"required"`
+type UserNotificationSettingsRequest struct {
+	EmailEnabled         bool `bson:"email_enabled" json:"emailEnabled"`
+	SMSEnabled           bool `bson:"sms_enabled" json:"smsEnabled"`
+	PushEnabled          bool `bson:"push_enabled" json:"pushEnabled"`
+	NewMessage           bool `bson:"new_message" json:"newMessage" validate:"required"`
+	NewFollower          bool `bson:"new_follower" json:"newFollower" validate:"required"`
+	NewsAndFeatures      bool `bson:"news_and_features" json:"newsAndFeatures" validate:"required"`
+	OrderUpdates         bool `bson:"order_updates" json:"orderUpdates" validate:"required"`
+	PaymentConfirmations bool `bson:"paymentConfirmations" json:"paymentConfirmations" validate:"required"`
+	DeliveryUpdates      bool `bson:"deliveryUpdates" json:"deliveryUpdates" validate:"required"`
+	Promotional          bool `bson:"promotional" json:"promotional" validate:"required"`
+	SupportMessage       bool `bson:"support_message" json:"supportMessage" validate:"required"`
 }

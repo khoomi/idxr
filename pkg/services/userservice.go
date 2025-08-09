@@ -29,50 +29,48 @@ import (
 )
 
 type userService struct {
-	emailService                     EmailService
-	userCollection                   *mongo.Collection
-	loginHistoryCollection           *mongo.Collection
-	passwordResetTokenCollection     *mongo.Collection
-	emailVerificationTokenCollection *mongo.Collection
-	wishListCollection               *mongo.Collection
-	userDeletionCollection           *mongo.Collection
-	notificationCollection           *mongo.Collection
-	// Additional collections for user deletion
-	shopCollection                   *mongo.Collection
-	listingCollection                *mongo.Collection
-	listingReviewCollection          *mongo.Collection
-	userAddressCollection            *mongo.Collection
-	userCartCollection               *mongo.Collection
-	userFavoriteListingCollection    *mongo.Collection
-	userFavoriteShopCollection       *mongo.Collection
-	sellerPaymentInfoCollection      *mongo.Collection
-	userPaymentCardsCollection       *mongo.Collection
-	shopFollowerCollection           *mongo.Collection
-	sellerVerificationCollection     *mongo.Collection
+	emailService                       EmailService
+	userCollection                     *mongo.Collection
+	loginHistoryCollection             *mongo.Collection
+	passwordResetTokenCollection       *mongo.Collection
+	emailVerificationTokenCollection   *mongo.Collection
+	wishListCollection                 *mongo.Collection
+	userDeletionCollection             *mongo.Collection
+	userNotificationSettingsCollection *mongo.Collection
+	shopCollection                     *mongo.Collection
+	listingCollection                  *mongo.Collection
+	listingReviewCollection            *mongo.Collection
+	userAddressCollection              *mongo.Collection
+	userCartCollection                 *mongo.Collection
+	userFavoriteListingCollection      *mongo.Collection
+	userFavoriteShopCollection         *mongo.Collection
+	sellerPaymentInfoCollection        *mongo.Collection
+	userPaymentCardsCollection         *mongo.Collection
+	shopFollowerCollection             *mongo.Collection
+	sellerVerificationCollection       *mongo.Collection
 }
 
 func NewUserService() UserService {
 	return &userService{
-		emailService:                     NewEmailService(),
-		userCollection:                   util.GetCollection(util.DB, "User"),
-		loginHistoryCollection:           util.GetCollection(util.DB, "UserLoginHistory"),
-		passwordResetTokenCollection:     util.GetCollection(util.DB, "UserPasswordResetToken"),
-		emailVerificationTokenCollection: util.GetCollection(util.DB, "UserEmailVerificationToken"),
-		wishListCollection:               util.GetCollection(util.DB, "UserWishList"),
-		userDeletionCollection:           util.GetCollection(util.DB, "UserDeletionRequest"),
-		notificationCollection:           util.GetCollection(util.DB, "UserNotification"),
-		// Additional collections for user deletion
-		shopCollection:                   util.GetCollection(util.DB, "Shop"),
-		listingCollection:                util.GetCollection(util.DB, "Listing"),
-		listingReviewCollection:          util.GetCollection(util.DB, "ListingReview"),
-		userAddressCollection:            util.GetCollection(util.DB, "UserAddress"),
-		userCartCollection:               util.GetCollection(util.DB, "UserCart"),
-		userFavoriteListingCollection:    util.GetCollection(util.DB, "UserFavoriteListing"),
-		userFavoriteShopCollection:       util.GetCollection(util.DB, "UserFavoriteShop"),
-		sellerPaymentInfoCollection:      util.GetCollection(util.DB, "SellerPaymentInformation"),
-		userPaymentCardsCollection:       util.GetCollection(util.DB, "UserPaymentCards"),
-		shopFollowerCollection:           util.GetCollection(util.DB, "ShopFollower"),
-		sellerVerificationCollection:     util.GetCollection(util.DB, "SellerVerification"),
+		emailService:                       NewEmailService(),
+		userCollection:                     util.GetCollection(util.DB, "User"),
+		loginHistoryCollection:             util.GetCollection(util.DB, "UserLoginHistory"),
+		passwordResetTokenCollection:       util.GetCollection(util.DB, "UserPasswordResetToken"),
+		emailVerificationTokenCollection:   util.GetCollection(util.DB, "UserEmailVerificationToken"),
+		wishListCollection:                 util.GetCollection(util.DB, "UserWishList"),
+		userDeletionCollection:             util.GetCollection(util.DB, "UserDeletionRequest"),
+		userNotificationSettingsCollection: util.GetCollection(util.DB, "UserNotification"),
+		shopCollection:                     util.GetCollection(util.DB, "Shop"),
+		listingCollection:                  util.GetCollection(util.DB, "Listing"),
+		listingReviewCollection:            util.GetCollection(util.DB, "ListingReview"),
+		userAddressCollection:              util.GetCollection(util.DB, "UserAddress"),
+		userCartCollection:                 util.GetCollection(util.DB, "UserCart"),
+		userFavoriteListingCollection:      util.GetCollection(util.DB, "UserFavoriteListing"),
+		userFavoriteShopCollection:         util.GetCollection(util.DB, "UserFavoriteShop"),
+		sellerPaymentInfoCollection:        util.GetCollection(util.DB, "SellerPaymentInformation"),
+		userPaymentCardsCollection:         util.GetCollection(util.DB, "UserPaymentCards"),
+		shopFollowerCollection:             util.GetCollection(util.DB, "ShopFollower"),
+		sellerVerificationCollection:       util.GetCollection(util.DB, "SellerVerification"),
 	}
 }
 
@@ -132,40 +130,54 @@ func (s *userService) CreateUser(ctx context.Context, req CreateUserRequest, cli
 		"review_count":                0,
 		"seller_onboarding_level":     models.OnboardingLevelBuyer}
 
-	result, err := s.userCollection.InsertOne(ctx, newUser)
-	if err != nil {
-		writeException, ok := err.(mongo.WriteException)
-		if ok {
-			for _, writeError := range writeException.WriteErrors {
-				if writeError.Code == common.MONGO_DUPLICATE_KEY_CODE {
-					log.Printf("User with email already exists: %s\n", writeError.Message)
-					return primitive.NilObjectID, writeError
+	callback := func(ctx mongo.SessionContext) (any, error) {
+		result, err := s.userCollection.InsertOne(ctx, newUser)
+		if err != nil {
+			writeException, ok := err.(mongo.WriteException)
+			if ok {
+				for _, writeError := range writeException.WriteErrors {
+					if writeError.Code == common.MONGO_DUPLICATE_KEY_CODE {
+						log.Printf("User with email already exists: %s\n", writeError.Message)
+						return nil, writeError
+					}
 				}
 			}
+			log.Printf("Mongo Error: Request could not be completed %s\n", err.Error())
+			return nil, err
 		}
-		log.Printf("Mongo Error: Request could not be completed %s\n", err.Error())
-		return primitive.NilObjectID, err
+
+		notification := models.UserNotificationSettings{
+			ID:                   primitive.NewObjectID(),
+			UserID:               userId,
+			NewMessage:           true,
+			NewFollower:          true,
+			NewsAndFeatures:      true,
+			EmailEnabled:         true,
+			SMSEnabled:           true,
+			PushEnabled:          true,
+			OrderUpdates:         true,
+			PaymentConfirmations: true,
+			DeliveryUpdates:      true,
+			CreatedAt:            time.Time{},
+			ModifiedAt:           time.Time{},
+		}
+
+		_, err = s.userNotificationSettingsCollection.InsertOne(ctx, notification)
+		if err != nil {
+			return nil, err
+		}
+
+		return result, nil
 	}
 
-	notification := models.Notification{
-		ID:               primitive.NewObjectID(),
-		UserID:           userId,
-		NewMessage:       true,
-		NewFollower:      true,
-		ListingExpNotice: true,
-		SellerActivity:   true,
-		NewsAndFeatures:  true,
-	}
-
-	_, err = s.notificationCollection.InsertOne(ctx, notification)
+	_, err = ExecuteTransaction(ctx, callback)
 	if err != nil {
 		return primitive.NilObjectID, err
 	}
 
-	// Send welcome email
 	s.emailService.SendWelcomeEmail(userEmail, req.FirstName)
 
-	return result.InsertedID.(primitive.ObjectID), nil
+	return userId, nil
 }
 
 func (s *userService) CreateUserFromGoogle(ctx context.Context, claim any, clientIP string) (primitive.ObjectID, error) {
@@ -233,17 +245,25 @@ func (s *userService) CreateUserFromGoogle(ctx context.Context, claim any, clien
 		return primitive.NilObjectID, err
 	}
 
-	notification := models.Notification{
-		ID:               primitive.NewObjectID(),
-		UserID:           userId,
-		NewMessage:       true,
-		NewFollower:      true,
-		ListingExpNotice: true,
-		SellerActivity:   true,
-		NewsAndFeatures:  true,
+	notification := models.UserNotificationSettings{
+		ID:                   primitive.NewObjectID(),
+		UserID:               userId,
+		EmailEnabled:         true,
+		SMSEnabled:           true,
+		PushEnabled:          true,
+		Promotional:          true,
+		SupportMessage:       true,
+		NewMessage:           true,
+		NewFollower:          true,
+		NewsAndFeatures:      true,
+		OrderUpdates:         true,
+		PaymentConfirmations: true,
+		DeliveryUpdates:      true,
+		CreatedAt:            time.Time{},
+		ModifiedAt:           time.Time{},
 	}
 
-	_, err = s.notificationCollection.InsertOne(ctx, notification)
+	_, err = s.userNotificationSettingsCollection.InsertOne(ctx, notification)
 	if err != nil {
 		return primitive.NilObjectID, err
 	}
@@ -1210,7 +1230,7 @@ func (s *userService) anonymizeUserShops(ctx mongo.SessionContext, userID primit
 			"user.thumbnail":  common.DEFAULT_USER_THUMBNAIL,
 		},
 	}
-	
+
 	result, err := s.shopCollection.UpdateMany(ctx, filter, update)
 	if err != nil {
 		return 0, err
@@ -1239,7 +1259,7 @@ func (s *userService) anonymizeUserReviews(ctx mongo.SessionContext, userID prim
 			"user.thumbnail":  common.DEFAULT_USER_THUMBNAIL,
 		},
 	}
-	
+
 	result, err := s.listingReviewCollection.UpdateMany(ctx, filter, update)
 	if err != nil {
 		return 0, err
@@ -1299,13 +1319,13 @@ func (s *userService) deleteUserFavorites(ctx mongo.SessionContext, userID primi
 	if err != nil {
 		return 0, err
 	}
-	
+
 	// Delete favorite shops
 	result2, err := s.userFavoriteShopCollection.DeleteMany(ctx, bson.M{"user_id": userID})
 	if err != nil {
 		return int(result1.DeletedCount), err
 	}
-	
+
 	return int(result1.DeletedCount + result2.DeletedCount), nil
 }
 
@@ -1323,20 +1343,150 @@ func (s *userService) deleteUserTokens(ctx mongo.SessionContext, userID primitiv
 	if err != nil {
 		return 0, err
 	}
-	
+
 	// Delete email verification tokens
 	result2, err := s.emailVerificationTokenCollection.DeleteMany(ctx, bson.M{"user_uid": userID})
 	if err != nil {
 		return int(result1.DeletedCount), err
 	}
-	
+
 	return int(result1.DeletedCount + result2.DeletedCount), nil
 }
 
 func (s *userService) deleteUserNotifications(ctx mongo.SessionContext, userID primitive.ObjectID) (int, error) {
-	result, err := s.notificationCollection.DeleteMany(ctx, bson.M{"user_id": userID})
+	result, err := s.userNotificationSettingsCollection.DeleteMany(ctx, bson.M{"user_id": userID})
 	if err != nil {
 		return 0, err
 	}
 	return int(result.DeletedCount), nil
+}
+
+// CreateNotificationSettings implements UserService.
+func (s *userService) CreateNotificationSettings(ctx context.Context, userID primitive.ObjectID, req models.UserNotificationSettings) (primitive.ObjectID, error) {
+	result, err := s.userNotificationSettingsCollection.InsertOne(ctx, req)
+	if err != nil {
+		return primitive.NilObjectID, err
+	}
+
+	internal.PublishCacheMessage(ctx, internal.CacheInvalidateUserNotifications, userID.Hex())
+	return result.InsertedID.(primitive.ObjectID), nil
+}
+
+// GetNotificationSettings implements UserService.
+func (s *userService) GetNotificationSettings(ctx context.Context, userID primitive.ObjectID) (models.UserNotificationSettings, error) {
+
+	var notificationSettings models.UserNotificationSettings
+	err := common.NotificationCollection.FindOne(ctx, bson.M{"user_id": userID}).Decode(&notificationSettings)
+	if err != nil {
+		log.Printf("No notification settings configured for user %v, creating new notification profile", userID)
+		if err == mongo.ErrNoDocuments {
+			notificationSettings := models.UserNotificationSettings{
+				ID:                   primitive.NewObjectID(),
+				UserID:               userID,
+				NewMessage:           true,
+				NewFollower:          true,
+				NewsAndFeatures:      true,
+				EmailEnabled:         true,
+				SMSEnabled:           true,
+				PushEnabled:          true,
+				OrderUpdates:         true,
+				PaymentConfirmations: true,
+				DeliveryUpdates:      true,
+				CreatedAt:            time.Time{},
+				ModifiedAt:           time.Time{},
+			}
+
+			_, err = s.userNotificationSettingsCollection.InsertOne(ctx, notificationSettings)
+			if err != nil {
+				return models.UserNotificationSettings{}, err
+			}
+
+			return notificationSettings, nil
+		}
+
+		return models.UserNotificationSettings{}, err
+	}
+
+	return notificationSettings, nil
+}
+
+// UpdateNotificationSettings implements UserService.
+func (s *userService) UpdateNotificationSettings(ctx context.Context, userID primitive.ObjectID, field, value string) error {
+	updateBool := false
+	if value == "true" {
+		updateBool = true
+	}
+
+	var update bson.M
+	switch field {
+	case "new_message":
+		{
+			update = bson.M{"$set": bson.M{"new_message": updateBool}}
+			break
+		}
+	case "new_follower":
+		{
+			update = bson.M{"$set": bson.M{"new_follower": updateBool}}
+			break
+		}
+	case "delivery_updates":
+		{
+			update = bson.M{"$set": bson.M{"delivery_updates": updateBool}}
+			break
+		}
+	case "payment_confirmations":
+		{
+			update = bson.M{"$set": bson.M{"payment_confirmations": updateBool}}
+			break
+		}
+	case "order_updates":
+		{
+			update = bson.M{"$set": bson.M{"order_updates": updateBool}}
+			break
+		}
+	case "news_and_features":
+		{
+			update = bson.M{"$set": bson.M{"news_and_features": updateBool}}
+			break
+		}
+	case "sms_enabled":
+		{
+			update = bson.M{"$set": bson.M{"sms_enabled": updateBool}}
+			break
+		}
+	case "push_enabled":
+		{
+			update = bson.M{"$set": bson.M{"push_enabled": updateBool}}
+			break
+		}
+	case "email_enabled":
+		{
+			update = bson.M{"$set": bson.M{"email_enabled": updateBool}}
+			break
+		}
+	case "support_message":
+		{
+			update = bson.M{"$set": bson.M{"support_message": updateBool}}
+			break
+		}
+	case "promotional":
+		{
+			update = bson.M{"$set": bson.M{"promotional": updateBool}}
+			break
+		}
+	default:
+		{
+			errorMsg := fmt.Sprintf("Invalid update field %v", field)
+			return errors.New(errorMsg)
+		}
+	}
+
+	filter := bson.M{"user_id": userID}
+	_, err := s.userNotificationSettingsCollection.UpdateOne(ctx, filter, update)
+	if err != nil {
+		return err
+	}
+
+	internal.PublishCacheMessage(ctx, internal.CacheInvalidateUserNotifications, userID.Hex())
+	return nil
 }
