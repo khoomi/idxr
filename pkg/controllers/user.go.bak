@@ -904,8 +904,8 @@ func (uc *UserController) DeleteUser(c *gin.Context) {
 }
 
 // GetUserNotifications - GET /api/users/:userid/notifications
-func (uc *UserController) GetUserNotifications(c *gin.Context) {
-
+func (uc *UserController) GetUserNotifications() gin.HandlerFunc {
+	return func(c *gin.Context) {
 		ctx, cancel := WithTimeout()
 		defer cancel()
 
@@ -946,11 +946,12 @@ func (uc *UserController) GetUserNotifications(c *gin.Context) {
 				Count: count,
 			},
 		})
+	}
 }
 
 // GetUnreadNotifications - GET /api/users/:userid/notifications/unread
-func (uc *UserController) GetUnreadNotifications(c *gin.Context) {
-
+func (uc *UserController) GetUnreadNotifications() gin.HandlerFunc {
+	return func(c *gin.Context) {
 		ctx, cancel := WithTimeout()
 		defer cancel()
 
@@ -976,11 +977,12 @@ func (uc *UserController) GetUnreadNotifications(c *gin.Context) {
 			},
 			"unreadCount": count,
 		})
+	}
 }
 
 // MarkNotificationAsRead - PUT /api/users/:userid/notifications/:notificationid/read
-func (uc *UserController) MarkNotificationAsRead(c *gin.Context) {
-
+func (uc *UserController) MarkNotificationAsRead() gin.HandlerFunc {
+	return func(c *gin.Context) {
 		ctx, cancel := WithTimeout()
 		defer cancel()
 
@@ -1004,11 +1006,12 @@ func (uc *UserController) MarkNotificationAsRead(c *gin.Context) {
 		}
 
 		util.HandleSuccess(c, http.StatusOK, "Notification marked as read", nil)
+	}
 }
 
 // MarkAllNotificationsAsRead - PUT /api/users/:userid/notifications/read-all
-func (uc *UserController) MarkAllNotificationsAsRead(c *gin.Context) {
-
+func (uc *UserController) MarkAllNotificationsAsRead() gin.HandlerFunc {
+	return func(c *gin.Context) {
 		ctx, cancel := WithTimeout()
 		defer cancel()
 
@@ -1027,11 +1030,12 @@ func (uc *UserController) MarkAllNotificationsAsRead(c *gin.Context) {
 		util.HandleSuccess(c, http.StatusOK, fmt.Sprintf("Marked %d notifications as read", count), gin.H{
 			"markedCount": count,
 		})
+	}
 }
 
 // DeleteNotification - DELETE /api/users/:userid/notifications/:notificationid
-func (uc *UserController) DeleteNotification(c *gin.Context) {
-
+func (uc *UserController) DeleteNotification() gin.HandlerFunc {
+	return func(c *gin.Context) {
 		ctx, cancel := WithTimeout()
 		defer cancel()
 
@@ -1055,11 +1059,12 @@ func (uc *UserController) DeleteNotification(c *gin.Context) {
 		}
 
 		util.HandleSuccess(c, http.StatusOK, "Notification deleted successfully", nil)
+	}
 }
 
 // GetNotificationStats - GET /api/users/:userid/notifications/stats
-func (uc *UserController) GetNotificationStats(c *gin.Context) {
-
+func (uc *UserController) GetNotificationStats() gin.HandlerFunc {
+	return func(c *gin.Context) {
 		ctx, cancel := WithTimeout()
 		defer cancel()
 
@@ -1076,6 +1081,7 @@ func (uc *UserController) GetNotificationStats(c *gin.Context) {
 		}
 
 		util.HandleSuccess(c, http.StatusOK, "Notification statistics retrieved", stats)
+	}
 }
 
 // GetUnreadNotificationCount - GET /api/users/:userid/notifications/count

@@ -81,13 +81,13 @@ func userRoutes(api *gin.RouterGroup, serviceContainer *container.ServiceContain
 		secured.PUT("/:userid/notification-settings", userController.UpdateUserNotificationSettings())
 
 		// User notifications
-		secured.GET("/:userid/notifications", userController.GetUserNotifications())
-		secured.GET("/:userid/notifications/unread", userController.GetUnreadNotifications())
-		secured.GET("/:userid/notifications/count", userController.GetUnreadNotificationCount())
-		secured.GET("/:userid/notifications/stats", userController.GetNotificationStats())
-		secured.PUT("/:userid/notifications/:notificationid/read", userController.MarkNotificationAsRead())
-		secured.PUT("/:userid/notifications/read-all", userController.MarkAllNotificationsAsRead())
-		secured.DELETE("/:userid/notifications/:notificationid", userController.DeleteNotification())
+		secured.GET("/:userid/notifications", userController.GetUserNotifications)
+		secured.GET("/:userid/notifications/unread", userController.GetUnreadNotifications)
+		secured.GET("/:userid/notifications/count", userController.GetUnreadNotificationCount)
+		secured.GET("/:userid/notifications/stats", userController.GetNotificationStats)
+		secured.PUT("/:userid/notifications/:notificationid/read", userController.MarkNotificationAsRead)
+		secured.PUT("/:userid/notifications/read-all", userController.MarkAllNotificationsAsRead)
+		secured.DELETE("/:userid/notifications/:notificationid", userController.DeleteNotification)
 
 		// Address management
 		secured.POST("/:userid/addresses", addressService.CreateUserAddress())

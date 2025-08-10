@@ -20,12 +20,15 @@ import (
 type NotificationServiceImpl struct {
 	userNotificationCollection *mongo.Collection
 	shopNotificationCollection *mongo.Collection
+
+	emailService EmailService
 }
 
 func NewNotificationService() NotificationService {
 	return &NotificationServiceImpl{
 		userNotificationCollection: util.GetCollection(util.DB, "UserNotification"),
 		shopNotificationCollection: util.GetCollection(util.DB, "ShopNotification"),
+		emailService:               NewEmailService(),
 	}
 }
 
@@ -95,9 +98,21 @@ func (ns *NotificationServiceImpl) SendReviewNotificationAsync(ctx context.Conte
 			bson.M{"shop_id": shop.ID},
 		).Decode(&shopNotifSettings)
 
-		if err == nil && shopNotifSettings.EmailEnabled && shopNotifSettings.CustomerNotifications {
-			// TODO: Send email notification when email service is available
-			log.Printf("Would send email notification for review to shop %s", shop.Name)
+		// if err == nil && shopNotifSettings.EmailEnabled && shopNotifSettings.CustomerNotifications {
+		var shopOwner models.User
+		err = common.UserCollection.FindOne(notifCtx, bson.M{"_id": shop.UserID}).Decode(&shopOwner)
+		if err == nil && shopOwner.PrimaryEmail != "" {
+			err = ns.emailService.SendShopNewReviewNotification(
+				shopOwner.PrimaryEmail,
+				shop.Name,
+				listing.Details.Title,
+				review.ReviewAuthor,
+				review.Rating,
+			)
+			if err != nil {
+				log.Printf("Failed to send email notification for review: %v", err)
+			}
+			// }
 		}
 
 		log.Printf("Successfully created review notification for shop %s", shop.ID.Hex())
