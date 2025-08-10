@@ -59,7 +59,7 @@ func NewUserService() UserService {
 		emailVerificationTokenCollection:   util.GetCollection(util.DB, "UserEmailVerificationToken"),
 		wishListCollection:                 util.GetCollection(util.DB, "UserWishList"),
 		userDeletionCollection:             util.GetCollection(util.DB, "UserDeletionRequest"),
-		userNotificationSettingsCollection: util.GetCollection(util.DB, "UserNotification"),
+		userNotificationSettingsCollection: util.GetCollection(util.DB, "UserNotificationSetting"),
 		shopCollection:                     util.GetCollection(util.DB, "Shop"),
 		listingCollection:                  util.GetCollection(util.DB, "Listing"),
 		listingReviewCollection:            util.GetCollection(util.DB, "ListingReview"),
@@ -1040,7 +1040,7 @@ func (s *userService) UpdateSecurityNotificationSetting(ctx context.Context, use
 		return errors.New("no document was modified")
 	}
 
-	internal.PublishCacheMessage(ctx, internal.CacheInvalidateUserNotifications, userID.Hex())
+	internal.PublishCacheMessage(ctx, internal.CacheInvalidateUserWishlist, userID.Hex())
 	return nil
 }
 
@@ -1368,7 +1368,7 @@ func (s *userService) CreateNotificationSettings(ctx context.Context, userID pri
 		return primitive.NilObjectID, err
 	}
 
-	internal.PublishCacheMessage(ctx, internal.CacheInvalidateUserNotifications, userID.Hex())
+	internal.PublishCacheMessage(ctx, internal.CacheInvalidateUserNotificationSettings, userID.Hex())
 	return result.InsertedID.(primitive.ObjectID), nil
 }
 
@@ -1487,6 +1487,6 @@ func (s *userService) UpdateNotificationSettings(ctx context.Context, userID pri
 		return err
 	}
 
-	internal.PublishCacheMessage(ctx, internal.CacheInvalidateUserNotifications, userID.Hex())
+	internal.PublishCacheMessage(ctx, internal.CacheInvalidateUserNotificationSettings, userID.Hex())
 	return nil
 }

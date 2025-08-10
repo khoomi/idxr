@@ -141,17 +141,16 @@ func (rs *ReviewServiceImpl) CalculateShopRating(ctx context.Context, shopID pri
 	return result, nil
 }
 
-func (rs *ReviewServiceImpl) CreateListingReview(ctx context.Context, userID, listingID primitive.ObjectID, req models.ReviewRequest) error {
+func (rs *ReviewServiceImpl) CreateListingReview(ctx context.Context, userID, listingID primitive.ObjectID, req models.ReviewRequest) (primitive.ObjectID, error) {
 	now := time.Now()
 
+	reviewID := primitive.NewObjectID()
 	callback := func(sessionContext mongo.SessionContext) (any, error) {
 		var userProfile models.User
 		err := common.UserCollection.FindOne(sessionContext, bson.M{"_id": userID}).Decode(&userProfile)
 		if err != nil {
 			return nil, err
 		}
-
-		reviewID := primitive.NewObjectID()
 
 		listingReviewData := models.ListingReview{
 			Id:           reviewID,
@@ -207,7 +206,7 @@ func (rs *ReviewServiceImpl) CreateListingReview(ctx context.Context, userID, li
 	}
 
 	_, err := ExecuteTransaction(ctx, callback)
-	return err
+	return reviewID, err
 }
 
 func (rs *ReviewServiceImpl) GetListingReviews(ctx context.Context, listingID primitive.ObjectID, pagination util.PaginationArgs) ([]models.ListingReview, int64, error) {

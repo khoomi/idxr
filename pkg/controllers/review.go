@@ -51,7 +51,8 @@ func (rc *ReviewController) CreateListingReview() gin.HandlerFunc {
 			return
 		}
 
-		if err := rc.reviewService.CreateListingReview(ctx, userID, listingID, reviewRequest); err != nil {
+		reviewId, err := rc.reviewService.CreateListingReview(ctx, userID, listingID, reviewRequest)
+		if err != nil {
 			util.HandleError(c, http.StatusBadRequest, err)
 			return
 		}
@@ -63,7 +64,7 @@ func (rc *ReviewController) CreateListingReview() gin.HandlerFunc {
 		}()
 
 		go func() {
-			if err := rc.notificationService.SendReviewNotificationAsync(context.Background(), listingID); err != nil {
+			if err := rc.notificationService.SendReviewNotificationAsync(context.Background(), reviewId); err != nil {
 				util.LogError("Failed to send review notification", err)
 			}
 		}()

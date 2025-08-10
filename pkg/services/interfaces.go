@@ -75,7 +75,7 @@ type ShopService interface {
 
 // ReviewService defines the interface for review-related operations
 type ReviewService interface {
-	CreateListingReview(ctx context.Context, userID, listingID primitive.ObjectID, req models.ReviewRequest) error
+	CreateListingReview(ctx context.Context, userID, listingID primitive.ObjectID, req models.ReviewRequest) (primitive.ObjectID, error)
 	GetListingReviews(ctx context.Context, listingID primitive.ObjectID, pagination util.PaginationArgs) ([]models.ListingReview, int64, error)
 	GetShopReviews(ctx context.Context, shopID primitive.ObjectID, pagination util.PaginationArgs) ([]any, int64, error)
 	DeleteMyListingReview(ctx context.Context, userID, listingID primitive.ObjectID) error
@@ -144,22 +144,22 @@ type NotificationService interface {
 	CreateNotification(ctx context.Context, notification models.UserNotification) (primitive.ObjectID, error)
 	GetNotification(ctx context.Context, userID primitive.ObjectID) (*models.UserNotification, error)
 	UpdateNotification(ctx context.Context, userID primitive.ObjectID, notification models.UserNotification) error
-	
+
 	// Batch notification operations
 	GetUserNotifications(ctx context.Context, userID primitive.ObjectID, filters models.NotificationFilters, pagination util.PaginationArgs) ([]models.UserNotification, int64, error)
 	GetUnreadNotifications(ctx context.Context, userID primitive.ObjectID, pagination util.PaginationArgs) ([]models.UserNotification, int64, error)
 	GetNotificationByID(ctx context.Context, userID, notificationID primitive.ObjectID) (*models.UserNotification, error)
-	
+
 	// Mark as read operations
 	MarkNotificationAsRead(ctx context.Context, userID, notificationID primitive.ObjectID) error
 	MarkAllNotificationsAsRead(ctx context.Context, userID primitive.ObjectID) (int64, error)
 	MarkNotificationsAsRead(ctx context.Context, userID primitive.ObjectID, notificationIDs []primitive.ObjectID) (int64, error)
-	
+
 	// Delete operations
 	DeleteNotification(ctx context.Context, userID, notificationID primitive.ObjectID) error
 	DeleteExpiredNotifications(ctx context.Context) (int64, error)
 	DeleteAllUserNotifications(ctx context.Context, userID primitive.ObjectID) (int64, error)
-	
+
 	// Count operations
 	GetUnreadNotificationCount(ctx context.Context, userID primitive.ObjectID) (int64, error)
 	GetNotificationStats(ctx context.Context, userID primitive.ObjectID) (map[string]int64, error)
