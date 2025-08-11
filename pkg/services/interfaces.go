@@ -218,44 +218,19 @@ type VerificationService interface {
 	GetSellerVerificationProfile(ctx context.Context, userID, shopID primitive.ObjectID) (*models.SellerVerification, error)
 }
 
-// Request types for UserService
-type CreateUserRequest struct {
-	Email     string
-	FirstName string
-	LastName  string
-	Password  string
-}
-
-type UpdateUserProfileRequest struct {
-	FirstName string
-	LastName  string
-	Email     string
-	ImageFile any
-}
-
-type PasswordChangeRequest struct {
-	CurrentPassword string
-	NewPassword     string
-}
-
-type UserAuthRequest struct {
-	Email    string
-	Password string
-}
-
 // UserService defines the interface for user-related operations
 type UserService interface {
-	CreateUser(ctx context.Context, req CreateUserRequest, clientIP string) (primitive.ObjectID, error)
+	CreateUser(ctx context.Context, req models.CreateUserRequest, clientIP string) (primitive.ObjectID, error)
 	CreateUserFromGoogle(ctx context.Context, claim any, clientIP string) (primitive.ObjectID, error)
-	AuthenticateUser(ctx context.Context, gCtx *gin.Context, req UserAuthRequest, clientIP, userAgent string) (*models.User, string, error)
+	AuthenticateUser(ctx context.Context, gCtx *gin.Context, req models.UserAuthRequest, clientIP, userAgent string) (*models.User, string, error)
 	AuthenticateGoogleUser(ctx context.Context, gCtx *gin.Context, idToken, clientIP, userAgent string) (*models.User, string, error)
 
 	GetUserByID(ctx context.Context, userID primitive.ObjectID) (*models.User, error)
 	GetUser(ctx context.Context, userIdentifier string) (*models.User, error)
-	UpdateUserProfile(ctx context.Context, userID primitive.ObjectID, req UpdateUserProfileRequest) error
+	UpdateUserProfile(ctx context.Context, userID primitive.ObjectID, req models.UpdateUserProfileRequest) error
 	UpdateUserSingleField(ctx context.Context, userID primitive.ObjectID, field, value string) error
-	UpdateUserBirthdate(ctx context.Context, userID primitive.ObjectID, birthdate models.UserBirthdate) error
-	ChangePassword(ctx context.Context, userID primitive.ObjectID, req PasswordChangeRequest) error
+	UpdateUserBirthdate(ctx context.Context, userID primitive.ObjectID, birthdate *time.Time) error
+	ChangePassword(ctx context.Context, userID primitive.ObjectID, req models.PasswordChangeRequest) error
 	SendPasswordResetEmail(ctx context.Context, email string) error
 
 	ResetPassword(ctx context.Context, userID primitive.ObjectID, token, newPassword string) error

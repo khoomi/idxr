@@ -14,6 +14,7 @@ type CacheMessageType string
 
 const (
 	CacheInvalidateUser                     CacheMessageType = "user.invalidate"
+	CacheInvalidateUserNotifications        CacheMessageType = "user.notifications.invalidate"
 	CacheInvalidateUserAddress              CacheMessageType = "user.addresses.invalidate"
 	CacheInvalidateUserDeletion             CacheMessageType = "user.deletion.invalidate"
 	CacheInvalidateUserWishlist             CacheMessageType = "user.wishlist.invalidate"

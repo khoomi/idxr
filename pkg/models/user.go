@@ -6,6 +6,33 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
+type UserRole string
+
+const (
+	Super   UserRole = "Super"
+	Mod     UserRole = "Mod"
+	Regular UserRole = "User"
+)
+
+type Gender string
+
+const (
+	Male           Gender = "male"
+	Female         Gender = "female"
+	Other          Gender = "Other"
+	PreferNotToSay Gender = "PreferNotToSay"
+)
+
+type UserStatus string
+
+const (
+	UserStatusActive UserStatus = "Active"
+	Inactive         UserStatus = "Inactive"
+	Suspended        UserStatus = "Suspended"
+	Deleted          UserStatus = "Deleted"
+	Banned           UserStatus = "Banned"
+)
+
 // Khoomi User user_models basic data
 type User struct {
 	LastLogin                time.Time             `bson:"last_login" json:"lastLogin"`
@@ -20,13 +47,14 @@ type User struct {
 	LastName                 string                `bson:"last_name" json:"lastName"`
 	PrimaryEmail             string                `bson:"primary_email" json:"primaryEmail" validate:"required"`
 	FirstName                string                `bson:"first_name" json:"firstName"`
+	Gender                   Gender                `bson:"gender" json:"gender"`
 	Status                   UserStatus            `bson:"status" json:"status"`
 	ReferredByUser           string                `bson:"referred_by_user" json:"referredByUser"`
 	Role                     UserRole              `bson:"role" json:"role"`
 	FavoriteShops            []string              `bson:"favorite_shops" json:"favoriteShops"`
 	FavoriteListings         []string              `bson:"favorite_listings" json:"favoriteListings"`
 	Links                    []Link                `bson:"-" json:"links"`
-	Birthdate                UserBirthdate         `bson:"birthdate" json:"birthdate"`
+	Birthdate                *time.Time            `bson:"birthdate,omitempty" json:"birthdate,omitempty"`
 	TransactionSoldCount     int                   `bson:"transaction_sold_count" json:"transactionSoldCount"`
 	TransactionBuyCount      int                   `bson:"transaction_buy_count" json:"transactionBuyCount"`
 	LoginCounts              int                   `bson:"login_counts" json:"-"`
@@ -51,42 +79,36 @@ const (
 	OnboardingLevelVerification SellerOnboardingLevel = "verification"
 )
 
-// UserRegistrationBody -> expected data for signup process
-type UserRegistrationBody struct {
+type FirstLastName struct {
+	FirstName string `bson:"firstName" json:"first_name" validate:"required"`
+	LastName  string `bson:"lastName" json:"last_name" validate:"required"`
+}
+
+type CreateUserRequest struct {
 	FirstName string `json:"firstName,omitempty" validate:"required,min=3"`
 	LastName  string `json:"lastName,omitempty"`
 	Email     string `json:"email,omitempty" validate:"required,email"`
 	Password  string `json:"password,omitempty" validate:"required"`
 }
 
-type NewPasswordRequest struct {
+type UpdateUserProfileRequest struct {
+	FirstName string     `json:"firstName,omitempty" validate:"required,min=3"`
+	LastName  string     `json:"lastName,omitempty"`
+	Email     string     `json:"email,omitempty" validate:"required,email"`
+	Gender    Gender     `json:"gender,omitempty"`
+	Dob       *time.Time `json:"dob,omitempty"`
+	Phone     string     `json:"phone,omitempty"`
+}
+
+type PasswordChangeRequest struct {
 	CurrentPassword string `form:"currentPassword" validate:"required"`
 	NewPassword     string `form:"newPassword" validate:"required"`
 }
 
-type FirstLastName struct {
-	FirstName string `bson:"firstName" json:"first_name" validate:"required"`
-	LastName  string `bson:"lastName" json:"last_name" validate:"required"`
+type UserAuthRequest struct {
+	Email    string
+	Password string
 }
-
-// UserRole -> contains different roles that can be assigned to users
-type UserRole string
-
-const (
-	Super   UserRole = "Super"
-	Mod     UserRole = "Mod"
-	Regular UserRole = "User"
-)
-
-type UserStatus string
-
-const (
-	UserStatusActive UserStatus = "Active"
-	Inactive         UserStatus = "Inactive"
-	Suspended        UserStatus = "Suspended"
-	Deleted          UserStatus = "Deleted"
-	Banned           UserStatus = "Banned"
-)
 
 // UserAuthData -> authentication data
 type UserAuthData struct {
@@ -134,12 +156,6 @@ type Country string
 const (
 	CountryNigeria Country = "Nigeria"
 )
-
-type UserBirthdate struct {
-	Day   int `bson:"day" json:"day" validate:"required"`
-	Month int `bson:"month" json:"month" validate:"required"`
-	Year  int `bson:"year" json:"year" validate:"required"`
-}
 
 type UserWishlist struct {
 	CreatedAt time.Time          `bson:"created_at" json:"createdAt"`

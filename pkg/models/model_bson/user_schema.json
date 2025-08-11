@@ -1,0 +1,229 @@
+{
+  "$jsonSchema": {
+    "bsonType": "object",
+    "required": [
+      "_id",
+      "login_name",
+      "primary_email",
+      "auth",
+      "created_at",
+      "modified_at",
+      "status",
+      "role"
+    ],
+    "properties": {
+      "_id": {
+        "bsonType": "objectId",
+        "description": "Unique identifier for the user"
+      },
+      "login_name": {
+        "bsonType": "string",
+        "description": "Username for login",
+        "minLength": 1
+      },
+      "primary_email": {
+        "bsonType": "string",
+        "description": "Primary email address",
+        "pattern": "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$"
+      },
+      "first_name": {
+        "bsonType": "string",
+        "description": "User's first name"
+      },
+      "last_name": {
+        "bsonType": ["string", "null"],
+        "description": "User's last name"
+      },
+      "phone": {
+        "bsonType": ["string", "null"],
+        "description": "Phone number"
+      },
+      "bio": {
+        "bsonType": ["string", "null"],
+        "description": "User biography"
+      },
+      "thumbnail": {
+        "bsonType": ["string", "null"],
+        "description": "URL to user's thumbnail image"
+      },
+      "gender": {
+        "bsonType": "string",
+        "enum": ["male", "female", "Other", "PreferNotToSay"],
+        "description": "User's gender"
+      },
+      "birthdate": {
+        "bsonType": ["date", "null"],
+        "description": "User's date of birth"
+      },
+      "status": {
+        "bsonType": "string",
+        "enum": ["Active", "Inactive", "Suspended", "Deleted", "Banned"],
+        "description": "Current user account status"
+      },
+      "role": {
+        "bsonType": "string",
+        "enum": ["Super", "Mod", "User"],
+        "description": "User role in the system"
+      },
+      "auth": {
+        "bsonType": "object",
+        "required": ["modified_at", "email_verified"],
+        "properties": {
+          "modified_at": {
+            "bsonType": "date",
+            "description": "Last modification time of auth data"
+          },
+          "password_digest": {
+            "bsonType": ["string", "null"],
+            "description": "Hashed password"
+          },
+          "email_verified": {
+            "bsonType": "bool",
+            "description": "Email verification status"
+          },
+          "authentication_type": {
+            "bsonType": ["bool", "null"],
+            "description": "Type of authentication"
+          }
+        }
+      },
+      "shop_id": {
+        "bsonType": ["objectId", "null"],
+        "description": "Reference to user's shop if they are a seller"
+      },
+      "shop": {
+        "bsonType": ["object", "null"],
+        "description": "Embedded shop excerpt",
+        "properties": {
+          "_id": {
+            "bsonType": "objectId"
+          },
+          "name": {
+            "bsonType": "string"
+          },
+          "slug": {
+            "bsonType": "string"
+          },
+          "username": {
+            "bsonType": "string"
+          },
+          "logo_url": {
+            "bsonType": "string"
+          },
+          "banner_url": {
+            "bsonType": "string"
+          },
+          "status": {
+            "bsonType": "string",
+            "enum": ["inactive", "active", "banned", "suspended", "warning", "pendingreview"]
+          },
+          "created_at": {
+            "bsonType": "date"
+          },
+          "listing_active_count": {
+            "bsonType": "long"
+          },
+          "follower_count": {
+            "bsonType": "int"
+          },
+          "rating": {
+            "bsonType": "object",
+            "properties": {
+              "averageRating": {
+                "bsonType": "double"
+              },
+              "reviewCount": {
+                "bsonType": "int"
+              },
+              "fiveStarCount": {
+                "bsonType": "int"
+              },
+              "fourStarCount": {
+                "bsonType": "int"
+              },
+              "threeStarCount": {
+                "bsonType": "int"
+              },
+              "twoStarCount": {
+                "bsonType": "int"
+              },
+              "oneStarCount": {
+                "bsonType": "int"
+              }
+            }
+          },
+          "reviews_count": {
+            "bsonType": "int"
+          }
+        }
+      },
+      "is_seller": {
+        "bsonType": "bool",
+        "description": "Whether the user is a seller"
+      },
+      "seller_onboarding_level": {
+        "bsonType": "string",
+        "enum": ["buyer", "created_shop", "listing", "payment", "shipping", "compliance", "verification"],
+        "description": "Current level in seller onboarding process"
+      },
+      "referred_by_user": {
+        "bsonType": ["string", "null"],
+        "description": "User ID or code of referrer"
+      },
+      "favorite_shops": {
+        "bsonType": "array",
+        "items": {
+          "bsonType": "string"
+        },
+        "description": "List of favorite shop IDs"
+      },
+      "favorite_listings": {
+        "bsonType": "array",
+        "items": {
+          "bsonType": "string"
+        },
+        "description": "List of favorite listing IDs"
+      },
+      "transaction_sold_count": {
+        "bsonType": "int",
+        "minimum": 0,
+        "description": "Number of items sold"
+      },
+      "transaction_buy_count": {
+        "bsonType": "int",
+        "minimum": 0,
+        "description": "Number of items bought"
+      },
+      "review_count": {
+        "bsonType": "int",
+        "minimum": 0,
+        "description": "Number of reviews"
+      },
+      "login_counts": {
+        "bsonType": "int",
+        "minimum": 0,
+        "description": "Number of logins"
+      },
+      "last_login": {
+        "bsonType": "date",
+        "description": "Last login timestamp"
+      },
+      "last_login_ip": {
+        "bsonType": "string",
+        "description": "IP address of last login"
+      },
+      "allow_login_ip_notification": {
+        "bsonType": "bool",
+        "description": "Whether to notify on new IP login"
+      },
+      "created_at": {
+        "bsonType": "date",
+        "description": "Account creation timestamp"
+      },
+      "modified_at": {
+        "bsonType": "date",
+        "description": "Last modification timestamp"
+      }
+    }
+  }
+}

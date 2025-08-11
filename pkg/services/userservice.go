@@ -74,7 +74,7 @@ func NewUserService() UserService {
 	}
 }
 
-func (s *userService) CreateUser(ctx context.Context, req CreateUserRequest, clientIP string) (primitive.ObjectID, error) {
+func (s *userService) CreateUser(ctx context.Context, req models.CreateUserRequest, clientIP string) (primitive.ObjectID, error) {
 	now := time.Now()
 
 	errEmail := util.ValidateEmailAddress(req.Email)
@@ -112,7 +112,7 @@ func (s *userService) CreateUser(ctx context.Context, req CreateUserRequest, cli
 		"thumbnail":                   common.DEFAULT_USER_THUMBNAIL,
 		"bio":                         bsonx.Null(),
 		"phone":                       bsonx.Null(),
-		"birthdate":                   models.UserBirthdate{},
+		"birthdate":                   nil,
 		"is_seller":                   false,
 		"transaction_buy_count":       0,
 		"transaction_sold_count":      0,
@@ -212,7 +212,7 @@ func (s *userService) CreateUserFromGoogle(ctx context.Context, claim any, clien
 		"thumbnail":                   thumbnail,
 		"bio":                         bsonx.Null(),
 		"phone":                       bsonx.Null(),
-		"birthdate":                   models.UserBirthdate{},
+		"birthdate":                   nil,
 		"is_seller":                   false,
 		"transaction_buy_count":       0,
 		"transaction_sold_count":      0,
@@ -274,7 +274,7 @@ func (s *userService) CreateUserFromGoogle(ctx context.Context, claim any, clien
 	return result.InsertedID.(primitive.ObjectID), nil
 }
 
-func (s *userService) AuthenticateUser(ctx context.Context, gCtx *gin.Context, req UserAuthRequest, clientIP, userAgent string) (*models.User, string, error) {
+func (s *userService) AuthenticateUser(ctx context.Context, gCtx *gin.Context, req models.UserAuthRequest, clientIP, userAgent string) (*models.User, string, error) {
 	now := time.Now()
 
 	var validUser models.User
@@ -521,6 +521,7 @@ func (s *userService) GetUser(ctx context.Context, userIdentifier string) (*mode
 			"transaction_sold_count":      1,
 			"shop_id":                     1,
 			"is_seller":                   1,
+			"gender":                      1,
 			"allow_login_ip_notification": 1,
 			"review_count":                1,
 			"seller_onboarding_level":     1,
@@ -560,7 +561,7 @@ func (s *userService) GetUser(ctx context.Context, userIdentifier string) (*mode
 	return &user, nil
 }
 
-func (s *userService) UpdateUserProfile(ctx context.Context, userID primitive.ObjectID, req UpdateUserProfileRequest) error {
+func (s *userService) UpdateUserProfile(ctx context.Context, userID primitive.ObjectID, req models.UpdateUserProfileRequest) error {
 	updateData := bson.M{}
 
 	if req.FirstName != "" {
@@ -584,9 +585,16 @@ func (s *userService) UpdateUserProfile(ctx context.Context, userID primitive.Ob
 		updateData["primary_email"] = strings.ToLower(req.Email)
 	}
 
-	if req.ImageFile != nil {
-		// Handle image upload logic here
-		// This would need to be implemented based on the file type
+	if req.Gender != "" {
+		updateData["gender"] = req.Gender
+	}
+
+	if req.Dob != nil {
+		updateData["birthdate"] = req.Dob
+	}
+
+	if req.Phone != "" {
+		updateData["phone"] = req.Phone
 	}
 
 	if len(updateData) == 0 {
@@ -632,13 +640,30 @@ func (s *userService) UpdateUserSingleField(ctx context.Context, userID primitiv
 	return nil
 }
 
-func (s *userService) UpdateUserBirthdate(ctx context.Context, userID primitive.ObjectID, birthdate models.UserBirthdate) error {
-	if validationErr := common.Validate.Struct(&birthdate); validationErr != nil {
-		return validationErr
+func (s *userService) UpdateUserBirthdate(ctx context.Context, userID primitive.ObjectID, birthdate *time.Time) error {
+	filter := bson.M{"_id": userID}
+	var update bson.M
+
+	if birthdate == nil {
+		update = bson.M{"$unset": bson.M{"birthdate": ""}}
+	} else {
+		if birthdate.After(time.Now()) {
+			return errors.New("birthdate cannot be in the future")
+		}
+
+		minAge := time.Now().AddDate(-13, 0, 0)
+		if birthdate.After(minAge) {
+			return errors.New("user must be at least 13 years old")
+		}
+
+		maxAge := time.Now().AddDate(-150, 0, 0)
+		if birthdate.Before(maxAge) {
+			return errors.New("invalid birthdate")
+		}
+
+		update = bson.M{"$set": bson.M{"birthdate": birthdate}}
 	}
 
-	filter := bson.M{"_id": userID}
-	update := bson.M{"$set": bson.M{"birthdate.day": birthdate.Day, "birthdate.month": birthdate.Month, "birthdate.year": birthdate.Year}}
 	_, err := s.userCollection.UpdateOne(ctx, filter, update)
 	if err != nil {
 		return err
@@ -648,7 +673,7 @@ func (s *userService) UpdateUserBirthdate(ctx context.Context, userID primitive.
 	return nil
 }
 
-func (s *userService) ChangePassword(ctx context.Context, userID primitive.ObjectID, req PasswordChangeRequest) error {
+func (s *userService) ChangePassword(ctx context.Context, userID primitive.ObjectID, req models.PasswordChangeRequest) error {
 	var validUser models.User
 	if err := s.userCollection.FindOne(ctx, bson.M{"_id": userID}).Decode(&validUser); err != nil {
 		return err

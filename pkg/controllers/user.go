@@ -36,7 +36,6 @@ func (uc *UserController) ActiveSessionUser(c *gin.Context) {
 	ctx, cancel := WithTimeout()
 	defer cancel()
 
-	// Extract user id from request header
 	session, err := auth.GetSessionAuto(c)
 	if err != nil {
 		util.HandleError(c, http.StatusNotFound, err)
@@ -57,7 +56,7 @@ func (uc *UserController) CreateUser(c *gin.Context) {
 	ctx, cancel := WithTimeout()
 	defer cancel()
 
-	var jsonUser models.UserRegistrationBody
+	var jsonUser models.CreateUserRequest
 	if err := c.BindJSON(&jsonUser); err != nil {
 		util.HandleError(c, http.StatusBadRequest, err)
 		return
@@ -68,7 +67,7 @@ func (uc *UserController) CreateUser(c *gin.Context) {
 		return
 	}
 
-	req := services.CreateUserRequest{
+	req := models.CreateUserRequest{
 		Email:     jsonUser.Email,
 		FirstName: jsonUser.FirstName,
 		LastName:  jsonUser.LastName,
@@ -100,7 +99,7 @@ func (uc *UserController) HandleUserAuthentication(c *gin.Context) {
 		return
 	}
 
-	req := services.UserAuthRequest{
+	req := models.UserAuthRequest{
 		Email:    jsonUser.Email,
 		Password: jsonUser.Password,
 	}
@@ -301,13 +300,13 @@ func (uc *UserController) ChangePassword(c *gin.Context) {
 		return
 	}
 
-	var newPasswordFromRequest models.NewPasswordRequest
+	var newPasswordFromRequest models.PasswordChangeRequest
 	if err := c.Bind(&newPasswordFromRequest); err != nil {
 		util.HandleError(c, http.StatusInternalServerError, err)
 		return
 	}
 
-	req := services.PasswordChangeRequest{
+	req := models.PasswordChangeRequest{
 		CurrentPassword: newPasswordFromRequest.CurrentPassword,
 		NewPassword:     newPasswordFromRequest.NewPassword,
 	}
@@ -396,23 +395,8 @@ func (uc *UserController) UpdateMyProfile(c *gin.Context) {
 		return
 	}
 
-	req := services.UpdateUserProfileRequest{
-		FirstName: c.Request.FormValue("firstName"),
-		LastName:  c.Request.FormValue("lastName"),
-		Email:     c.Request.FormValue("email"),
-	}
-
-	// Handle image file if present
-	if fileHeader, err := c.FormFile("image"); err == nil {
-		file, err := fileHeader.Open()
-		if err != nil {
-			util.HandleError(c, http.StatusInternalServerError, err)
-			return
-		}
-		defer file.Close()
-		req.ImageFile = file
-	} else if err != http.ErrMissingFile {
-		util.HandleError(c, http.StatusInternalServerError, err)
+	var req models.UpdateUserProfileRequest
+	if !BindJSONAndValidate(c, &req) {
 		return
 	}
 
@@ -597,12 +581,14 @@ func (uc *UserController) DeleteThumbnail(c *gin.Context) {
 // UpdateUserBirthdate - update user birthdate
 func (uc *UserController) UpdateUserBirthdate(c *gin.Context) {
 	ctx, cancel := WithTimeout()
-	var birthDate models.UserBirthdate
 	defer cancel()
 
-	errBind := c.BindJSON(&birthDate)
-	if errBind != nil {
-		util.HandleError(c, http.StatusBadRequest, errBind)
+	var req struct {
+		Birthdate string `json:"birthdate"`
+	}
+
+	if err := c.BindJSON(&req); err != nil {
+		util.HandleError(c, http.StatusBadRequest, err)
 		return
 	}
 
@@ -612,7 +598,17 @@ func (uc *UserController) UpdateUserBirthdate(c *gin.Context) {
 		return
 	}
 
-	err = uc.userService.UpdateUserBirthdate(ctx, myId, birthDate)
+	var birthdatePtr *time.Time
+	if req.Birthdate != "" {
+		birthdate, err := time.Parse("2006-01-02", req.Birthdate)
+		if err != nil {
+			util.HandleError(c, http.StatusBadRequest, errors.New("invalid date format, use YYYY-MM-DD"))
+			return
+		}
+		birthdatePtr = &birthdate
+	}
+
+	err = uc.userService.UpdateUserBirthdate(ctx, myId, birthdatePtr)
 	if err != nil {
 		util.HandleError(c, http.StatusBadRequest, err)
 		return
@@ -906,176 +902,176 @@ func (uc *UserController) DeleteUser(c *gin.Context) {
 // GetUserNotifications - GET /api/users/:userid/notifications
 func (uc *UserController) GetUserNotifications(c *gin.Context) {
 
-		ctx, cancel := WithTimeout()
-		defer cancel()
+	ctx, cancel := WithTimeout()
+	defer cancel()
 
-		userID, err := auth.ValidateUserID(c)
-		if err != nil {
-			util.HandleError(c, http.StatusBadRequest, err)
-			return
+	userID, err := auth.ValidateUserID(c)
+	if err != nil {
+		util.HandleError(c, http.StatusBadRequest, err)
+		return
+	}
+	paginationArgs := helpers.GetPaginationArgs(c)
+	var filters models.NotificationFilters
+	if types := c.QueryArray("type"); len(types) > 0 {
+		for _, t := range types {
+			filters.Types = append(filters.Types, models.NotificationType(t))
 		}
-		paginationArgs := helpers.GetPaginationArgs(c)
-		var filters models.NotificationFilters
-		if types := c.QueryArray("type"); len(types) > 0 {
-			for _, t := range types {
-				filters.Types = append(filters.Types, models.NotificationType(t))
-			}
-		}
+	}
 
-		if priorities := c.QueryArray("priority"); len(priorities) > 0 {
-			for _, p := range priorities {
-				filters.Priorities = append(filters.Priorities, models.NotificationPriority(p))
-			}
+	if priorities := c.QueryArray("priority"); len(priorities) > 0 {
+		for _, p := range priorities {
+			filters.Priorities = append(filters.Priorities, models.NotificationPriority(p))
 		}
+	}
 
-		if isReadStr := c.Query("isRead"); isReadStr != "" {
-			isRead := isReadStr == "true"
-			filters.IsRead = &isRead
-		}
+	if isReadStr := c.Query("isRead"); isReadStr != "" {
+		isRead := isReadStr == "true"
+		filters.IsRead = &isRead
+	}
 
-		notifications, count, err := uc.notificationService.GetUserNotifications(ctx, userID, filters, paginationArgs)
-		if err != nil {
-			util.HandleError(c, http.StatusInternalServerError, err)
-			return
-		}
+	notifications, count, err := uc.notificationService.GetUserNotifications(ctx, userID, filters, paginationArgs)
+	if err != nil {
+		util.HandleError(c, http.StatusInternalServerError, err)
+		return
+	}
 
-		util.HandleSuccessMeta(c, http.StatusOK, "Notifications retrieved successfully", notifications, gin.H{
-			"pagination": util.Pagination{
-				Limit: paginationArgs.Limit,
-				Skip:  paginationArgs.Skip,
-				Count: count,
-			},
-		})
+	util.HandleSuccessMeta(c, http.StatusOK, "Notifications retrieved successfully", notifications, gin.H{
+		"pagination": util.Pagination{
+			Limit: paginationArgs.Limit,
+			Skip:  paginationArgs.Skip,
+			Count: count,
+		},
+	})
 }
 
 // GetUnreadNotifications - GET /api/users/:userid/notifications/unread
 func (uc *UserController) GetUnreadNotifications(c *gin.Context) {
 
-		ctx, cancel := WithTimeout()
-		defer cancel()
+	ctx, cancel := WithTimeout()
+	defer cancel()
 
-		userID, err := auth.ValidateUserID(c)
-		if err != nil {
-			util.HandleError(c, http.StatusBadRequest, err)
-			return
-		}
+	userID, err := auth.ValidateUserID(c)
+	if err != nil {
+		util.HandleError(c, http.StatusBadRequest, err)
+		return
+	}
 
-		paginationArgs := helpers.GetPaginationArgs(c)
+	paginationArgs := helpers.GetPaginationArgs(c)
 
-		notifications, count, err := uc.notificationService.GetUnreadNotifications(ctx, userID, paginationArgs)
-		if err != nil {
-			util.HandleError(c, http.StatusInternalServerError, err)
-			return
-		}
+	notifications, count, err := uc.notificationService.GetUnreadNotifications(ctx, userID, paginationArgs)
+	if err != nil {
+		util.HandleError(c, http.StatusInternalServerError, err)
+		return
+	}
 
-		util.HandleSuccessMeta(c, http.StatusOK, "Unread notifications retrieved successfully", notifications, gin.H{
-			"pagination": util.Pagination{
-				Limit: paginationArgs.Limit,
-				Skip:  paginationArgs.Skip,
-				Count: count,
-			},
-			"unreadCount": count,
-		})
+	util.HandleSuccessMeta(c, http.StatusOK, "Unread notifications retrieved successfully", notifications, gin.H{
+		"pagination": util.Pagination{
+			Limit: paginationArgs.Limit,
+			Skip:  paginationArgs.Skip,
+			Count: count,
+		},
+		"unreadCount": count,
+	})
 }
 
 // MarkNotificationAsRead - PUT /api/users/:userid/notifications/:notificationid/read
 func (uc *UserController) MarkNotificationAsRead(c *gin.Context) {
 
-		ctx, cancel := WithTimeout()
-		defer cancel()
+	ctx, cancel := WithTimeout()
+	defer cancel()
 
-		userID, err := auth.ValidateUserID(c)
-		if err != nil {
-			util.HandleError(c, http.StatusBadRequest, err)
-			return
-		}
+	userID, err := auth.ValidateUserID(c)
+	if err != nil {
+		util.HandleError(c, http.StatusBadRequest, err)
+		return
+	}
 
-		notificationIDStr := c.Param("notificationid")
-		notificationID, err := primitive.ObjectIDFromHex(notificationIDStr)
-		if err != nil {
-			util.HandleError(c, http.StatusBadRequest, errors.New("invalid notification ID"))
-			return
-		}
+	notificationIDStr := c.Param("notificationid")
+	notificationID, err := primitive.ObjectIDFromHex(notificationIDStr)
+	if err != nil {
+		util.HandleError(c, http.StatusBadRequest, errors.New("invalid notification ID"))
+		return
+	}
 
-		err = uc.notificationService.MarkNotificationAsRead(ctx, userID, notificationID)
-		if err != nil {
-			util.HandleError(c, http.StatusInternalServerError, err)
-			return
-		}
+	err = uc.notificationService.MarkNotificationAsRead(ctx, userID, notificationID)
+	if err != nil {
+		util.HandleError(c, http.StatusInternalServerError, err)
+		return
+	}
 
-		util.HandleSuccess(c, http.StatusOK, "Notification marked as read", nil)
+	util.HandleSuccess(c, http.StatusOK, "Notification marked as read", nil)
 }
 
 // MarkAllNotificationsAsRead - PUT /api/users/:userid/notifications/read-all
 func (uc *UserController) MarkAllNotificationsAsRead(c *gin.Context) {
 
-		ctx, cancel := WithTimeout()
-		defer cancel()
+	ctx, cancel := WithTimeout()
+	defer cancel()
 
-		userID, err := auth.ValidateUserID(c)
-		if err != nil {
-			util.HandleError(c, http.StatusBadRequest, err)
-			return
-		}
+	userID, err := auth.ValidateUserID(c)
+	if err != nil {
+		util.HandleError(c, http.StatusBadRequest, err)
+		return
+	}
 
-		count, err := uc.notificationService.MarkAllNotificationsAsRead(ctx, userID)
-		if err != nil {
-			util.HandleError(c, http.StatusInternalServerError, err)
-			return
-		}
+	count, err := uc.notificationService.MarkAllNotificationsAsRead(ctx, userID)
+	if err != nil {
+		util.HandleError(c, http.StatusInternalServerError, err)
+		return
+	}
 
-		util.HandleSuccess(c, http.StatusOK, fmt.Sprintf("Marked %d notifications as read", count), gin.H{
-			"markedCount": count,
-		})
+	util.HandleSuccess(c, http.StatusOK, fmt.Sprintf("Marked %d notifications as read", count), gin.H{
+		"markedCount": count,
+	})
 }
 
 // DeleteNotification - DELETE /api/users/:userid/notifications/:notificationid
 func (uc *UserController) DeleteNotification(c *gin.Context) {
 
-		ctx, cancel := WithTimeout()
-		defer cancel()
+	ctx, cancel := WithTimeout()
+	defer cancel()
 
-		userID, err := auth.ValidateUserID(c)
-		if err != nil {
-			util.HandleError(c, http.StatusBadRequest, err)
-			return
-		}
+	userID, err := auth.ValidateUserID(c)
+	if err != nil {
+		util.HandleError(c, http.StatusBadRequest, err)
+		return
+	}
 
-		notificationIDStr := c.Param("notificationid")
-		notificationID, err := primitive.ObjectIDFromHex(notificationIDStr)
-		if err != nil {
-			util.HandleError(c, http.StatusBadRequest, errors.New("invalid notification ID"))
-			return
-		}
+	notificationIDStr := c.Param("notificationid")
+	notificationID, err := primitive.ObjectIDFromHex(notificationIDStr)
+	if err != nil {
+		util.HandleError(c, http.StatusBadRequest, errors.New("invalid notification ID"))
+		return
+	}
 
-		err = uc.notificationService.DeleteNotification(ctx, userID, notificationID)
-		if err != nil {
-			util.HandleError(c, http.StatusInternalServerError, err)
-			return
-		}
+	err = uc.notificationService.DeleteNotification(ctx, userID, notificationID)
+	if err != nil {
+		util.HandleError(c, http.StatusInternalServerError, err)
+		return
+	}
 
-		util.HandleSuccess(c, http.StatusOK, "Notification deleted successfully", nil)
+	util.HandleSuccess(c, http.StatusOK, "Notification deleted successfully", nil)
 }
 
 // GetNotificationStats - GET /api/users/:userid/notifications/stats
 func (uc *UserController) GetNotificationStats(c *gin.Context) {
 
-		ctx, cancel := WithTimeout()
-		defer cancel()
+	ctx, cancel := WithTimeout()
+	defer cancel()
 
-		userID, err := auth.ValidateUserID(c)
-		if err != nil {
-			util.HandleError(c, http.StatusBadRequest, err)
-			return
-		}
+	userID, err := auth.ValidateUserID(c)
+	if err != nil {
+		util.HandleError(c, http.StatusBadRequest, err)
+		return
+	}
 
-		stats, err := uc.notificationService.GetNotificationStats(ctx, userID)
-		if err != nil {
-			util.HandleError(c, http.StatusInternalServerError, err)
-			return
-		}
+	stats, err := uc.notificationService.GetNotificationStats(ctx, userID)
+	if err != nil {
+		util.HandleError(c, http.StatusInternalServerError, err)
+		return
+	}
 
-		util.HandleSuccess(c, http.StatusOK, "Notification statistics retrieved", stats)
+	util.HandleSuccess(c, http.StatusOK, "Notification statistics retrieved", stats)
 }
 
 // GetUnreadNotificationCount - GET /api/users/:userid/notifications/count

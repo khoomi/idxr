@@ -246,6 +246,8 @@ func (ns *NotificationServiceImpl) CreateNotification(ctx context.Context, notif
 	if err != nil {
 		return primitive.NilObjectID, err
 	}
+
+	internal.PublishCacheMessage(ctx, internal.CacheInvalidateUserNotifications, notification.UserID.Hex())
 	return result.InsertedID.(primitive.ObjectID), nil
 }
 
@@ -272,6 +274,11 @@ func (ns *NotificationServiceImpl) UpdateNotification(ctx context.Context, userI
 
 	update := bson.M{"$set": notification}
 	_, err := ns.userNotificationCollection.UpdateOne(ctx, filter, update)
+
+	if err == nil {
+		internal.PublishCacheMessage(ctx, internal.CacheInvalidateUserNotifications, userID.Hex())
+	}
+
 	return err
 }
 
@@ -406,6 +413,7 @@ func (ns *NotificationServiceImpl) MarkNotificationAsRead(ctx context.Context, u
 		return mongo.ErrNoDocuments
 	}
 
+	internal.PublishCacheMessage(ctx, internal.CacheInvalidateUserNotifications, userID.Hex())
 	return nil
 }
 
@@ -429,6 +437,7 @@ func (ns *NotificationServiceImpl) MarkAllNotificationsAsRead(ctx context.Contex
 		return 0, err
 	}
 
+	internal.PublishCacheMessage(ctx, internal.CacheInvalidateUserNotifications, userID.Hex())
 	return result.ModifiedCount, nil
 }
 
@@ -453,6 +462,7 @@ func (ns *NotificationServiceImpl) MarkNotificationsAsRead(ctx context.Context, 
 		return 0, err
 	}
 
+	internal.PublishCacheMessage(ctx, internal.CacheInvalidateUserNotifications, userID.Hex())
 	return result.ModifiedCount, nil
 }
 
@@ -472,6 +482,7 @@ func (ns *NotificationServiceImpl) DeleteNotification(ctx context.Context, userI
 		return mongo.ErrNoDocuments
 	}
 
+	internal.PublishCacheMessage(ctx, internal.CacheInvalidateUserNotifications, userID.Hex())
 	return nil
 }
 
@@ -505,6 +516,7 @@ func (ns *NotificationServiceImpl) DeleteAllUserNotifications(ctx context.Contex
 		return 0, err
 	}
 
+	internal.PublishCacheMessage(ctx, internal.CacheInvalidateUserNotifications, userID.Hex())
 	return result.DeletedCount, nil
 }
 
