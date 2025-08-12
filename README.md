@@ -199,7 +199,3 @@ if result.FailedCount > 0 {
     }
 }
 ```
-
-## License
-
-Private repository - Khoomi internal use only
