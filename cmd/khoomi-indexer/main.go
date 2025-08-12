@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/khoomi/khoomi-indexer"
-	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
@@ -62,13 +61,13 @@ func main() {
 	}
 
 	db := client.Database(database)
-	
+
 	opts := &indexer.Options{
 		Timeout:         *timeout,
 		ContinueOnError: *continueErr,
 		SkipIfExists:    *skipExists,
 	}
-	
+
 	manager := indexer.NewManager(db, opts)
 
 	switch *action {
@@ -76,7 +75,7 @@ func main() {
 		if !*jsonOutput {
 			fmt.Printf("Creating indexes in database: %s\n", database)
 		}
-		
+
 		result, err := manager.Create(context.Background())
 		if *jsonOutput {
 			outputJSON(map[string]interface{}{
@@ -92,7 +91,7 @@ func main() {
 			fmt.Printf("  Success: %d\n", result.SuccessCount)
 			fmt.Printf("  Failed: %d\n", result.FailedCount)
 			fmt.Printf("  Duration: %v\n", result.Duration)
-			
+
 			if len(result.Failures) > 0 {
 				fmt.Printf("\nFailures:\n")
 				for _, f := range result.Failures {
@@ -111,7 +110,7 @@ func main() {
 				fmt.Println("Collections: all")
 			}
 		}
-		
+
 		err := manager.Drop(context.Background(), collections...)
 		if *jsonOutput {
 			outputJSON(map[string]interface{}{
@@ -129,12 +128,12 @@ func main() {
 		if *collection == "" {
 			log.Fatal("Collection name required for list action (-collection flag)")
 		}
-		
+
 		indexes, err := manager.List(context.Background(), *collection)
 		if err != nil {
 			log.Fatal("Failed to list indexes:", err)
 		}
-		
+
 		if *jsonOutput {
 			outputJSON(indexes)
 		} else {
@@ -158,7 +157,7 @@ func main() {
 			if err != nil {
 				log.Fatal("Failed to get stats:", err)
 			}
-			
+
 			if *jsonOutput {
 				outputJSON(stats)
 			} else {
@@ -179,7 +178,7 @@ func main() {
 			if err != nil {
 				log.Fatal("Failed to get stats:", err)
 			}
-			
+
 			if *jsonOutput {
 				outputJSON(stats)
 			} else {

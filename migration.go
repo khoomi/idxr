@@ -43,7 +43,7 @@ func (mm *MigrationManager) Run(ctx context.Context) error {
 	})
 
 	coll := mm.db.Collection(migrationCollection)
-	
+
 	_, err := coll.Indexes().CreateOne(ctx, mongo.IndexModel{
 		Keys:    bson.D{{Key: "version", Value: 1}},
 		Options: options.Index().SetUnique(true),
@@ -64,7 +64,7 @@ func (mm *MigrationManager) Run(ctx context.Context) error {
 		}
 
 		log.Printf("Running migration %s: %s", migration.Version, migration.Description)
-		
+
 		start := time.Now()
 		err = migration.Up(mm.db)
 		duration := time.Since(start)
@@ -105,7 +105,7 @@ func (mm *MigrationManager) Rollback(ctx context.Context, targetVersion string) 
 	})
 
 	coll := mm.db.Collection(migrationCollection)
-	
+
 	for _, migration := range mm.migrations {
 		if migration.Version <= targetVersion {
 			break
@@ -125,7 +125,7 @@ func (mm *MigrationManager) Rollback(ctx context.Context, targetVersion string) 
 		}
 
 		log.Printf("Rolling back migration %s", migration.Version)
-		
+
 		if err := migration.Down(mm.db); err != nil {
 			return fmt.Errorf("rollback of migration %s failed: %w", migration.Version, err)
 		}

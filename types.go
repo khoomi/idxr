@@ -20,10 +20,10 @@ type Manager struct {
 }
 
 type Options struct {
-	Timeout           time.Duration
-	ContinueOnError   bool
-	SkipIfExists      bool
-	Environment       string
+	Timeout         time.Duration
+	ContinueOnError bool
+	SkipIfExists    bool
+	Environment     string
 }
 
 type Result struct {
@@ -40,11 +40,11 @@ type FailureDetail struct {
 }
 
 type IndexStats struct {
-	Name      string
-	Accesses  int64
-	Since     time.Time
-	Host      string
-	Building  bool
+	Name     string
+	Accesses int64
+	Since    time.Time
+	Host     string
+	Building bool
 }
 
 type Migration struct {
@@ -98,7 +98,7 @@ func (m *Manager) AddTextIndex(collection string, fields ...string) *Manager {
 	for _, field := range fields {
 		keys = append(keys, bson.E{Key: field, Value: "text"})
 	}
-	
+
 	m.indexes = append(m.indexes, IndexDefinition{
 		Collection: collection,
 		Index: mongo.IndexModel{
@@ -114,12 +114,12 @@ func (m *Manager) AddCompoundIndex(collection string, fields []string, opts ...*
 	for _, field := range fields {
 		keys = append(keys, bson.E{Key: field, Value: 1})
 	}
-	
+
 	indexOpts := options.Index()
 	if len(opts) > 0 {
 		indexOpts = opts[0]
 	}
-	
+
 	m.indexes = append(m.indexes, IndexDefinition{
 		Collection: collection,
 		Index: mongo.IndexModel{

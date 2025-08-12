@@ -34,14 +34,14 @@ func (m *Manager) Create(ctx context.Context) (*Result, error) {
 
 		collection := m.db.Collection(def.Collection)
 		indexName, err := collection.Indexes().CreateOne(ctx, def.Index)
-		
+
 		if err != nil {
 			if mongo.IsDuplicateKeyError(err) {
 				log.Printf("Warning: Cannot create unique index on %s due to duplicate data", def.Collection)
 			} else {
 				log.Printf("Failed to create index on %s: %v", def.Collection, err)
 			}
-			
+
 			result.FailedCount++
 			name := ""
 			if def.Index.Options != nil && def.Index.Options.Name != nil {
@@ -52,24 +52,24 @@ func (m *Manager) Create(ctx context.Context) (*Result, error) {
 				IndexName:  name,
 				Error:      err,
 			})
-			
+
 			if !m.options.ContinueOnError {
 				result.Duration = time.Since(start)
 				return result, err
 			}
 			continue
 		}
-		
+
 		log.Printf("Created index %s on collection %s", indexName, def.Collection)
 		result.SuccessCount++
 	}
 
 	result.Duration = time.Since(start)
-	
+
 	if result.FailedCount > 0 {
 		return result, fmt.Errorf("%d indexes failed to create", result.FailedCount)
 	}
-	
+
 	return result, nil
 }
 
@@ -102,7 +102,7 @@ func (m *Manager) Drop(ctx context.Context, collections ...string) error {
 			log.Printf("Dropped all indexes for collection %s", collName)
 		}
 	}
-	
+
 	return nil
 }
 
@@ -124,7 +124,7 @@ func (m *Manager) List(ctx context.Context, collection string) ([]bson.M, error)
 	if err = cursor.All(ctx, &indexes); err != nil {
 		return nil, err
 	}
-	
+
 	return indexes, nil
 }
 
@@ -143,7 +143,7 @@ func (m *Manager) indexExists(ctx context.Context, collection string, indexName 
 			return true, nil
 		}
 	}
-	
+
 	return false, nil
 }
 
