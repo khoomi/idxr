@@ -4,8 +4,8 @@
 *.dll
 *.so
 *.dylib
-/khoomi-indexer
-/cmd/khoomi-indexer/khoomi-indexer
+/idxr
+/cmd/idxr/idxr
 
 # Test binary, built with `go test -c`
 *.test

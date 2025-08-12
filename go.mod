@@ -1,4 +1,4 @@
-module github.com/khoomi/khoomi-indexer
+module github.com/khoomi/idxr
 
 go 1.21
 

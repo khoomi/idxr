@@ -1,6 +1,6 @@
-# khoomi-indexer
+# idxr
 
-MongoDB index management library for Go applications.
+MongoDB index management library for Go applications and in CLI.
 
 ## Features
 
@@ -14,7 +14,7 @@ MongoDB index management library for Go applications.
 ## Installation
 
 ```bash
-go get github.com/khoomi/khoomi-indexer
+go get github.com/khoomi/idxr
 ```
 
 ## Quick Start
@@ -26,7 +26,7 @@ import (
     "context"
     "log"
     
-    "github.com/khoomi/khoomi-indexer"
+    "github.com/khoomi/idxr"
     "go.mongodb.org/mongo-driver/bson"
     "go.mongodb.org/mongo-driver/mongo"
     "go.mongodb.org/mongo-driver/mongo/options"
@@ -67,26 +67,26 @@ func main() {
 ### Install the CLI tool
 
 ```bash
-go install github.com/khoomi/khoomi-indexer/cmd/khoomi-indexer@latest
+go install github.com/khoomi/idxr/cmd/idxr@latest
 ```
 
 ### Commands
 
 ```bash
 # Create indexes
-khoomi-indexer -action create -db myapp
+idxr -action create -db myapp
 
 # List indexes for a collection
-khoomi-indexer -action list -db myapp -collection users
+idxr -action list -db myapp -collection users
 
 # Get index statistics
-khoomi-indexer -action stats -db myapp
+idxr -action stats -db myapp
 
 # Drop indexes
-khoomi-indexer -action drop -db myapp users products
+idxr -action drop -db myapp users products
 
 # JSON output
-khoomi-indexer -action stats -db myapp -json
+idxr -action stats -db myapp -json
 ```
 
 ### Environment Variables
