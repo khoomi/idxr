@@ -9,7 +9,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/khoomi/khoomi-indexer"
+	indexer "github.com/khoomi/khoomi-indexer"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
@@ -78,7 +78,7 @@ func main() {
 
 		result, err := manager.Create(context.Background())
 		if *jsonOutput {
-			outputJSON(map[string]interface{}{
+			outputJSON(map[string]any{
 				"success": err == nil,
 				"result":  result,
 				"error":   errorString(err),
@@ -113,7 +113,7 @@ func main() {
 
 		err := manager.Drop(context.Background(), collections...)
 		if *jsonOutput {
-			outputJSON(map[string]interface{}{
+			outputJSON(map[string]any{
 				"success": err == nil,
 				"error":   errorString(err),
 			})
@@ -201,7 +201,7 @@ func main() {
 	}
 }
 
-func outputJSON(data interface{}) {
+func outputJSON(data any) {
 	encoder := json.NewEncoder(os.Stdout)
 	encoder.SetIndent("", "  ")
 	if err := encoder.Encode(data); err != nil {

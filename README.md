@@ -36,7 +36,7 @@ func main() {
     client, _ := mongo.Connect(context.Background(), 
         options.Client().ApplyURI("mongodb://localhost:27017"))
     
-    db := client.Database("myapp")
+    db := client.Database("khoomi")
     manager := indexer.NewManager(db)
     
     // Add a unique index
@@ -130,10 +130,10 @@ err = migrationManager.Rollback(context.Background(), "001_initial")
 
 ```go
 opts := &indexer.Options{
-    Timeout:         60 * time.Second,  // Operation timeout
-    ContinueOnError: true,              // Continue creating indexes on error
-    SkipIfExists:    true,              // Skip existing indexes
-    Environment:     "production",      // Environment identifier
+    Timeout:         60 * time.Second,
+    ContinueOnError: true,
+    SkipIfExists:    true,
+    Environment:     "production",
 }
 
 manager := indexer.NewManager(db, opts)
