@@ -1,0 +1,57 @@
+package main
+
+import (
+	"context"
+	"log"
+	"time"
+
+	"github.com/khoomi/khoomi-indexer"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
+)
+
+func main() {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	client, err := mongo.Connect(ctx, options.Client().ApplyURI("mongodb://localhost:27017"))
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer client.Disconnect(ctx)
+
+	db := client.Database("myapp")
+	
+	manager := indexer.NewManager(db)
+	
+	manager.AddIndex("users", mongo.IndexModel{
+		Keys:    bson.D{{Key: "email", Value: 1}},
+		Options: options.Index().SetUnique(true).SetName("user_email_unique"),
+	})
+	
+	manager.AddCompoundIndex("users", []string{"status", "created_at"})
+	
+	manager.AddTextIndex("products", "name", "description", "tags")
+	
+	manager.AddIndex("orders", mongo.IndexModel{
+		Keys: bson.D{
+			{Key: "user_id", Value: 1},
+			{Key: "created_at", Value: -1},
+		},
+		Options: options.Index().SetName("user_orders"),
+	})
+	
+	result, err := manager.Create(context.Background())
+	if err != nil {
+		log.Printf("Some indexes failed: %v", err)
+	}
+	
+	log.Printf("Created %d indexes successfully", result.SuccessCount)
+	if result.FailedCount > 0 {
+		log.Printf("Failed to create %d indexes", result.FailedCount)
+		for _, failure := range result.Failures {
+			log.Printf("  - %s.%s: %v", failure.Collection, failure.IndexName, failure.Error)
+		}
+	}
+}
