@@ -14,7 +14,7 @@ require (
 	github.com/gosimple/slug v1.13.1
 	github.com/joho/godotenv v1.5.1
 	github.com/pkg/errors v0.9.1
-	github.com/redis/go-redis/v9 v9.5.1
+	github.com/redis/go-redis/v9 v9.5.5
 	go.mongodb.org/mongo-driver v1.11.4
 	golang.org/x/crypto v0.37.0
 )
