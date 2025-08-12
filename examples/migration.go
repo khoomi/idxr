@@ -1,0 +1,101 @@
+package main
+
+import (
+	"context"
+	"log"
+	"time"
+
+	"github.com/khoomi/khoomi-indexer"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
+)
+
+func main() {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	client, err := mongo.Connect(ctx, options.Client().ApplyURI("mongodb://localhost:27017"))
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer client.Disconnect(ctx)
+
+	db := client.Database("myapp")
+	
+	migrationManager := indexer.NewMigrationManager(db)
+	
+	migrationManager.AddMigration(indexer.Migration{
+		Version:     "001_initial_indexes",
+		Description: "Create initial indexes for users and products",
+		Timestamp:   time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
+		Up: func(db *mongo.Database) error {
+			manager := indexer.NewManager(db)
+			
+			manager.AddIndex("users", mongo.IndexModel{
+				Keys:    bson.D{{Key: "email", Value: 1}},
+				Options: options.Index().SetUnique(true).SetName("user_email_unique"),
+			})
+			
+			manager.AddTextIndex("products", "name", "description")
+			
+			result, err := manager.Create(context.Background())
+			if err != nil && result.FailedCount > 0 {
+				return err
+			}
+			return nil
+		},
+		Down: func(db *mongo.Database) error {
+			return indexer.NewManager(db).Drop(context.Background(), "users", "products")
+		},
+	})
+	
+	migrationManager.AddMigration(indexer.Migration{
+		Version:     "002_add_order_indexes",
+		Description: "Add indexes for orders collection",
+		Timestamp:   time.Date(2024, 1, 15, 0, 0, 0, 0, time.UTC),
+		Up: func(db *mongo.Database) error {
+			manager := indexer.NewManager(db)
+			
+			manager.AddIndex("orders", mongo.IndexModel{
+				Keys: bson.D{
+					{Key: "user_id", Value: 1},
+					{Key: "created_at", Value: -1},
+				},
+				Options: options.Index().SetName("user_orders"),
+			})
+			
+			manager.AddIndex("orders", mongo.IndexModel{
+				Keys: bson.D{
+					{Key: "status", Value: 1},
+					{Key: "created_at", Value: -1},
+				},
+				Options: options.Index().SetName("order_status_date"),
+			})
+			
+			result, err := manager.Create(context.Background())
+			if err != nil && result.FailedCount > 0 {
+				return err
+			}
+			return nil
+		},
+		Down: func(db *mongo.Database) error {
+			return indexer.NewManager(db).Drop(context.Background(), "orders")
+		},
+	})
+	
+	if err := migrationManager.Run(context.Background()); err != nil {
+		log.Fatal("Migration failed:", err)
+	}
+	
+	statuses, err := migrationManager.Status(context.Background())
+	if err != nil {
+		log.Fatal("Failed to get migration status:", err)
+	}
+	
+	log.Println("Migration status:")
+	for _, status := range statuses {
+		log.Printf("  - %s: Applied at %v (Success: %v)", 
+			status.Version, status.AppliedAt, status.Success)
+	}
+}
