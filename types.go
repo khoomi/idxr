@@ -24,6 +24,7 @@ type Options struct {
 	ContinueOnError bool
 	SkipIfExists    bool
 	Environment     string
+	Silent          bool
 }
 
 type Result struct {

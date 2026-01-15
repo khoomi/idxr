@@ -26,7 +26,9 @@ func (m *Manager) Create(ctx context.Context) (*Result, error) {
 		if m.options.SkipIfExists {
 			exists, err := m.indexExists(ctx, def.Collection, def.Index.Options.Name)
 			if err == nil && exists {
-				log.Printf("Index %s on %s already exists, skipping", *def.Index.Options.Name, def.Collection)
+				if !m.options.Silent {
+					log.Printf("Index %s on %s already exists, skipping", *def.Index.Options.Name, def.Collection)
+				}
 				result.SuccessCount++
 				continue
 			}
@@ -36,10 +38,12 @@ func (m *Manager) Create(ctx context.Context) (*Result, error) {
 		indexName, err := collection.Indexes().CreateOne(ctx, def.Index)
 
 		if err != nil {
-			if mongo.IsDuplicateKeyError(err) {
-				log.Printf("Warning: Cannot create unique index on %s due to duplicate data", def.Collection)
-			} else {
-				log.Printf("Failed to create index on %s: %v", def.Collection, err)
+			if !m.options.Silent {
+				if mongo.IsDuplicateKeyError(err) {
+					log.Printf("Warning: Cannot create unique index on %s due to duplicate data", def.Collection)
+				} else {
+					log.Printf("Failed to create index on %s: %v", def.Collection, err)
+				}
 			}
 
 			result.FailedCount++
@@ -60,7 +64,9 @@ func (m *Manager) Create(ctx context.Context) (*Result, error) {
 			continue
 		}
 
-		log.Printf("Created index %s on collection %s", indexName, def.Collection)
+		if !m.options.Silent {
+			log.Printf("Created index %s on collection %s", indexName, def.Collection)
+		}
 		result.SuccessCount++
 	}
 
@@ -97,8 +103,10 @@ func (m *Manager) Drop(ctx context.Context, collections ...string) error {
 			if !m.options.ContinueOnError {
 				return fmt.Errorf("failed to drop indexes for %s: %w", collName, err)
 			}
-			log.Printf("Failed to drop indexes for %s: %v", collName, err)
-		} else {
+			if !m.options.Silent {
+				log.Printf("Failed to drop indexes for %s: %v", collName, err)
+			}
+		} else if !m.options.Silent {
 			log.Printf("Dropped all indexes for collection %s", collName)
 		}
 	}
