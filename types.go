@@ -3,9 +3,9 @@ package indexer
 import (
 	"time"
 
-	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
+	"go.mongodb.org/mongo-driver/v2/bson"
+	"go.mongodb.org/mongo-driver/v2/mongo"
+	"go.mongodb.org/mongo-driver/v2/mongo/options"
 )
 
 type IndexDefinition struct {
@@ -110,7 +110,7 @@ func (m *Manager) AddTextIndex(collection string, fields ...string) *Manager {
 	return m
 }
 
-func (m *Manager) AddCompoundIndex(collection string, fields []string, opts ...*options.IndexOptions) *Manager {
+func (m *Manager) AddCompoundIndex(collection string, fields []string, opts ...*options.IndexOptionsBuilder) *Manager {
 	keys := bson.D{}
 	for _, field := range fields {
 		keys = append(keys, bson.E{Key: field, Value: 1})
@@ -129,4 +129,16 @@ func (m *Manager) AddCompoundIndex(collection string, fields []string, opts ...*
 		},
 	})
 	return m
+}
+
+// resolveIndexName extracts the index name from an IndexOptionsBuilder.
+func resolveIndexName(opts *options.IndexOptionsBuilder) *string {
+	if opts == nil {
+		return nil
+	}
+	var resolved options.IndexOptions
+	for _, fn := range opts.Opts {
+		_ = fn(&resolved)
+	}
+	return resolved.Name
 }
