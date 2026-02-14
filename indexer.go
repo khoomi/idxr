@@ -6,8 +6,8 @@ import (
 	"log"
 	"time"
 
-	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/v2/bson"
+	"go.mongodb.org/mongo-driver/v2/mongo"
 )
 
 func (m *Manager) Create(ctx context.Context) (*Result, error) {
@@ -24,10 +24,11 @@ func (m *Manager) Create(ctx context.Context) (*Result, error) {
 
 	for _, def := range m.indexes {
 		if m.options.SkipIfExists {
-			exists, err := m.indexExists(ctx, def.Collection, def.Index.Options.Name)
+			name := resolveIndexName(def.Index.Options)
+			exists, err := m.indexExists(ctx, def.Collection, name)
 			if err == nil && exists {
 				if !m.options.Silent {
-					log.Printf("Index %s on %s already exists, skipping", *def.Index.Options.Name, def.Collection)
+					log.Printf("Index %s on %s already exists, skipping", *name, def.Collection)
 				}
 				result.SuccessCount++
 				continue
@@ -48,8 +49,8 @@ func (m *Manager) Create(ctx context.Context) (*Result, error) {
 
 			result.FailedCount++
 			name := ""
-			if def.Index.Options != nil && def.Index.Options.Name != nil {
-				name = *def.Index.Options.Name
+			if n := resolveIndexName(def.Index.Options); n != nil {
+				name = *n
 			}
 			result.Failures = append(result.Failures, FailureDetail{
 				Collection: def.Collection,
@@ -99,7 +100,7 @@ func (m *Manager) Drop(ctx context.Context, collections ...string) error {
 
 	for _, collName := range targetCollections {
 		collection := m.db.Collection(collName)
-		if _, err := collection.Indexes().DropAll(ctx); err != nil {
+		if err := collection.Indexes().DropAll(ctx); err != nil {
 			if !m.options.ContinueOnError {
 				return fmt.Errorf("failed to drop indexes for %s: %w", collName, err)
 			}
